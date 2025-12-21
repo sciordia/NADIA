@@ -75,6 +75,52 @@ theme_proteomics_boxplot <- function(
 
 
 # -----------------------------------------------------------------------------
+# Funciones auxiliares (fallbacks independientes de PRONE)
+# -----------------------------------------------------------------------------
+
+#' Validar y obtener assays del SummarizedExperiment
+check_input_assays <- function(se, ain = NULL) {
+  available <- SummarizedExperiment::assayNames(se)
+  if (is.null(ain)) {
+    return(available)
+  }
+  valid <- ain[ain %in% available]
+  if (length(valid) == 0) {
+    warning("Ninguno de los assays especificados existe. Disponibles: ",
+            paste(available, collapse = ", "))
+    return(NULL)
+  }
+  if (length(valid) < length(ain)) {
+    missing <- setdiff(ain, available)
+    warning("Assays no encontrados (ignorados): ", paste(missing, collapse = ", "))
+  }
+  valid
+}
+
+#' Obtener variable de color del colData
+get_color_value <- function(se, color_by = NULL) {
+  if (is.null(color_by)) return(NULL)
+  cd_names <- names(SummarizedExperiment::colData(se))
+  if (!(color_by %in% cd_names)) {
+    warning("'", color_by, "' no está en colData. Columnas disponibles: ",
+            paste(cd_names, collapse = ", "))
+    return(NULL)
+  }
+  color_by
+}
+
+#' Obtener variable de etiqueta del colData
+get_label_value <- function(se, label_by = NULL) {
+  cd_names <- names(SummarizedExperiment::colData(se))
+  if (is.null(label_by) || !(label_by %in% cd_names)) {
+    # Por defecto usar nombres de columna
+    return(list(TRUE, "Column"))
+  }
+  list(TRUE, label_by)
+}
+
+
+# -----------------------------------------------------------------------------
 # Fallback para obtener datos del SummarizedExperiment
 # -----------------------------------------------------------------------------
 
