@@ -437,9 +437,11 @@ boxplot_highchart_list <- function(
       ) %>%
       hc_plotOptions(
         boxplot = list(
+          grouping = FALSE,  # IMPORTANTE: evita que se agrupen las series lado a lado
           groupPadding = 0.1,
           pointPadding = 0.05,
-          borderRadius = 2
+          borderRadius = 2,
+          pointWidth = 20  # Ancho fijo para las cajas
         ),
         scatter = list(
           jitter = list(x = 0, y = 0)  # El jitter ya se aplica manualmente
