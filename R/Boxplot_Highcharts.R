@@ -28,6 +28,9 @@ calc_boxplot_stats <- function(x, coef = 1.5) {
   # Outliers
   outliers <- x[x < lower_fence | x > upper_fence]
 
+  # Valores no-outliers (dentro de los bigotes)
+  non_outliers <- x[x >= lower_fence & x <= upper_fence]
+
   list(
     low = whisker_low,
     q1 = unname(q[1]),
@@ -35,6 +38,8 @@ calc_boxplot_stats <- function(x, coef = 1.5) {
     q3 = unname(q[3]),
     high = whisker_high,
     outliers = outliers,
+    non_outliers = non_outliers,
+    all_values = x,
     mean = mean(x, na.rm = TRUE),
     n = length(x)
   )
@@ -54,7 +59,10 @@ calc_boxplot_stats <- function(x, coef = 1.5) {
 #' @param palette Paleta de colores: "ggsci::palette", "brewer:Name", o vector
 #' @param title Título del gráfico (opcional)
 #' @param subtitle Subtítulo del gráfico (opcional)
-#' @param show_outliers Mostrar outliers (default: TRUE)
+#' @param show_points Mostrar todos los puntos individuales (default: TRUE)
+#' @param show_outliers Mostrar outliers fuera de los bigotes (default: TRUE)
+#' @param point_jitter Cantidad de jitter horizontal para los puntos (default: 0.15)
+#' @param point_size Radio de los puntos (default: 3)
 #' @param horizontal Orientación horizontal (default: TRUE)
 #' @param height Altura del gráfico en píxeles
 #'
@@ -68,7 +76,10 @@ boxplot_highchart_list <- function(
     palette = NULL,
     title = NULL,
     subtitle = NULL,
+    show_points = TRUE,
     show_outliers = TRUE,
+    point_jitter = 0.15,
+    point_size = 3,
     horizontal = TRUE,
     height = NULL
 ) {
@@ -190,83 +201,112 @@ boxplot_highchart_list <- function(
         group = group,
         color = unname(col_values[group]),
         stats = stats,
-        index = i - 1
+        index = i - 1  # índice 0-based para las categorías
       )
     })
 
     box_data <- Filter(Negate(is.null), box_data)
 
-    # Preparar datos para highcharts boxplot
-    # Formato: [low, q1, median, q3, high]
-    boxplot_series <- lapply(group_levels, function(grp) {
-      grp_data <- Filter(function(x) x$group == grp, box_data)
-      if (length(grp_data) == 0) return(NULL)
-
-      points <- lapply(grp_data, function(bd) {
-        list(
-          x = bd$index,
-          low = bd$stats$low,
-          q1 = bd$stats$q1,
-          median = bd$stats$median,
-          q3 = bd$stats$q3,
-          high = bd$stats$high,
-          name = bd$sample,
-          n = bd$stats$n,
-          mean = round(bd$stats$mean, 3)
-        )
-      })
-
+    # -------------------------------------------------------------------------
+    # Preparar datos para highcharts boxplot (UNA sola serie con colores individuales)
+    # Formato: lista de objetos con low, q1, median, q3, high y color individual
+    # -------------------------------------------------------------------------
+    boxplot_points <- lapply(box_data, function(bd) {
       list(
-        name = grp,
-        type = "boxplot",
-        data = points,
-        color = unname(col_values[grp]),
-        fillColor = paste0(unname(col_values[grp]), "B3"),  # 70% opacity
-        lineWidth = 1.5,
-        whiskerLength = "50%",
-        whiskerWidth = 2,
-        medianColor = "#1D3557",
-        medianWidth = 2,
-        stemWidth = 1,
-        stemColor = "#495057"
+        low = bd$stats$low,
+        q1 = bd$stats$q1,
+        median = bd$stats$median,
+        q3 = bd$stats$q3,
+        high = bd$stats$high,
+        name = bd$sample,
+        n = bd$stats$n,
+        mean = round(bd$stats$mean, 3),
+        color = bd$color,
+        fillColor = paste0(bd$color, "B3")  # 70% opacity
       )
     })
 
-    boxplot_series <- Filter(Negate(is.null), boxplot_series)
+    # -------------------------------------------------------------------------
+    # Preparar puntos scatter (por grupo para la leyenda)
+    # Formato: [x, y] donde x es el índice de la categoría
+    # -------------------------------------------------------------------------
+    scatter_series_list <- list()
 
-    # Preparar outliers
-    outlier_series <- NULL
-    if (show_outliers) {
-      outlier_points <- do.call(c, lapply(box_data, function(bd) {
-        if (length(bd$stats$outliers) == 0) return(NULL)
-        lapply(bd$stats$outliers, function(o) {
-          list(
-            x = bd$index,
-            y = o,
-            name = bd$sample,
-            color = bd$color
-          )
-        })
-      }))
+    if (show_points) {
+      # Crear una serie scatter por cada grupo (para leyenda con colores)
+      scatter_series_list <- lapply(group_levels, function(grp) {
+        grp_data <- Filter(function(x) x$group == grp, box_data)
+        if (length(grp_data) == 0) return(NULL)
 
-      if (length(outlier_points) > 0) {
-        outlier_series <- list(
-          name = "Outliers",
+        # Generar puntos para todos los valores (con jitter)
+        points <- do.call(c, lapply(grp_data, function(bd) {
+          values <- bd$stats$all_values
+          lapply(values, function(v) {
+            # Añadir jitter horizontal
+            jittered_x <- bd$index + runif(1, -point_jitter, point_jitter)
+            list(x = jittered_x, y = v, name = bd$sample)
+          })
+        }))
+
+        if (length(points) == 0) return(NULL)
+
+        list(
+          name = grp,
           type = "scatter",
-          data = outlier_points,
+          data = points,
+          color = unname(col_values[grp]),
           marker = list(
             symbol = "circle",
-            radius = 3,
-            lineWidth = 1,
-            lineColor = "#495057",
-            fillColor = "#ADB5BD"
+            radius = point_size,
+            fillColor = unname(col_values[grp]),
+            lineWidth = 0.5,
+            lineColor = "#FFFFFF"
           ),
           tooltip = list(
             pointFormat = "<b>{point.name}</b><br/>Valor: {point.y:.3f}"
           ),
-          showInLegend = FALSE
+          showInLegend = TRUE
         )
-      }
+      })
+
+      scatter_series_list <- Filter(Negate(is.null), scatter_series_list)
+
+    } else if (show_outliers) {
+      # Solo mostrar outliers si show_points = FALSE pero show_outliers = TRUE
+      outlier_series_by_group <- lapply(group_levels, function(grp) {
+        grp_data <- Filter(function(x) x$group == grp, box_data)
+        if (length(grp_data) == 0) return(NULL)
+
+        points <- do.call(c, lapply(grp_data, function(bd) {
+          if (length(bd$stats$outliers) == 0) return(NULL)
+          lapply(bd$stats$outliers, function(o) {
+            jittered_x <- bd$index + runif(1, -point_jitter, point_jitter)
+            list(x = jittered_x, y = o, name = bd$sample)
+          })
+        }))
+
+        if (length(points) == 0) return(NULL)
+
+        list(
+          name = paste0(grp, " (outliers)"),
+          type = "scatter",
+          data = points,
+          color = unname(col_values[grp]),
+          marker = list(
+            symbol = "circle",
+            radius = point_size,
+            fillColor = unname(col_values[grp]),
+            lineWidth = 1,
+            lineColor = "#FFFFFF"
+          ),
+          tooltip = list(
+            pointFormat = "<b>{point.name}</b><br/>Outlier: {point.y:.3f}"
+          ),
+          showInLegend = TRUE
+        )
+      })
+
+      scatter_series_list <- Filter(Negate(is.null), outlier_series_by_group)
     }
 
     # Título del gráfico
@@ -350,13 +390,40 @@ boxplot_highchart_list <- function(
         ),
         itemHoverStyle = list(color = "#1D3557")
       ) %>%
-      hc_tooltip(
-        useHTML = TRUE,
-        backgroundColor = "rgba(255, 255, 255, 0.95)",
-        borderColor = "#DEE2E6",
-        borderRadius = 8,
-        shadow = TRUE,
-        style = list(fontSize = "12px"),
+      hc_plotOptions(
+        boxplot = list(
+          groupPadding = 0.1,
+          pointPadding = 0.05,
+          borderRadius = 2,
+          lineWidth = 1.5,
+          whiskerLength = "50%",
+          whiskerWidth = 2,
+          medianColor = "#1D3557",
+          medianWidth = 2,
+          colorByPoint = TRUE  # Permite colores individuales por boxplot
+        ),
+        scatter = list(
+          jitter = list(x = 0, y = 0)  # El jitter ya se aplica manualmente
+        )
+      ) %>%
+      hc_exporting(
+        enabled = TRUE,
+        buttons = list(
+          contextButton = list(
+            menuItems = c("downloadPNG", "downloadSVG", "downloadPDF", "separator", "downloadCSV")
+          )
+        )
+      )
+
+    # -------------------------------------------------------------------------
+    # Añadir serie boxplot (una sola serie con colores individuales)
+    # -------------------------------------------------------------------------
+    hc <- hc %>% hc_add_series(
+      name = "Boxplot",
+      type = "boxplot",
+      data = boxplot_points,
+      showInLegend = FALSE,
+      tooltip = list(
         headerFormat = "",
         pointFormat = paste0(
           "<div style='padding: 6px;'>",
@@ -369,48 +436,21 @@ boxplot_highchart_list <- function(
           "<span style='color: #ADB5BD; font-size: 11px;'>n = {point.n} | mean = {point.mean}</span>",
           "</div>"
         )
-      ) %>%
-      hc_plotOptions(
-        boxplot = list(
-          groupPadding = 0.1,
-          pointPadding = 0.05,
-          borderRadius = 2
-        )
-      ) %>%
-      hc_exporting(
-        enabled = TRUE,
-        buttons = list(
-          contextButton = list(
-            menuItems = c("downloadPNG", "downloadSVG", "downloadPDF", "separator", "downloadCSV")
-          )
-        )
       )
+    )
 
-    # Añadir series
-    for (series in boxplot_series) {
+    # -------------------------------------------------------------------------
+    # Añadir series scatter (puntos por grupo)
+    # -------------------------------------------------------------------------
+    for (scatter_series in scatter_series_list) {
       hc <- hc %>% hc_add_series(
-        name = series$name,
-        type = "boxplot",
-        data = series$data,
-        color = series$color,
-        fillColor = series$fillColor,
-        lineWidth = series$lineWidth,
-        whiskerLength = series$whiskerLength,
-        whiskerWidth = series$whiskerWidth,
-        medianColor = series$medianColor,
-        medianWidth = series$medianWidth
-      )
-    }
-
-    # Añadir outliers
-    if (!is.null(outlier_series)) {
-      hc <- hc %>% hc_add_series(
-        name = outlier_series$name,
-        type = outlier_series$type,
-        data = outlier_series$data,
-        marker = outlier_series$marker,
-        tooltip = outlier_series$tooltip,
-        showInLegend = outlier_series$showInLegend
+        name = scatter_series$name,
+        type = "scatter",
+        data = scatter_series$data,
+        color = scatter_series$color,
+        marker = scatter_series$marker,
+        tooltip = scatter_series$tooltip,
+        showInLegend = scatter_series$showInLegend
       )
     }
 
@@ -437,7 +477,7 @@ boxplot_highchart_list <- function(
 # EJEMPLOS DE USO
 # =============================================================================
 
-# --- Ejemplo básico ---
+# --- Ejemplo básico (con puntos por defecto) ---
 # hc_boxplots <- boxplot_highchart_list(
 #   data        = mi_dataframe,
 #   assays      = c("log2", "LoessCyc"),
@@ -471,9 +511,25 @@ boxplot_highchart_list <- function(
 #   palette  = "ggsci::nrc_npg"
 # )
 
-# --- Sin outliers ---
+# --- Sin puntos (solo boxplots) ---
+# hc_boxplots <- boxplot_highchart_list(
+#   data        = mi_dataframe,
+#   color_by    = "Condition",
+#   show_points = FALSE
+# )
+
+# --- Solo outliers (sin todos los puntos) ---
 # hc_boxplots <- boxplot_highchart_list(
 #   data          = mi_dataframe,
 #   color_by      = "Condition",
-#   show_outliers = FALSE
+#   show_points   = FALSE,
+#   show_outliers = TRUE
+# )
+
+# --- Personalizar tamaño y jitter de puntos ---
+# hc_boxplots <- boxplot_highchart_list(
+#   data         = mi_dataframe,
+#   color_by     = "Condition",
+#   point_jitter = 0.2,
+#   point_size   = 4
 # )
