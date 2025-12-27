@@ -74,6 +74,7 @@ calc_boxplot_stats <- function(x, coef = 1.5) {
 #' @param show_outliers Mostrar outliers fuera de los bigotes (default: TRUE)
 #' @param outlier_jitter Cantidad de jitter horizontal para los outliers (default: 0.15)
 #' @param outlier_size Radio de los puntos outliers (default: 3)
+#' @param box_width Ancho de las cajas del boxplot en píxeles (default: 20)
 #' @param horizontal Orientación horizontal (default: TRUE)
 #' @param height Altura del gráfico en píxeles
 #'
@@ -90,6 +91,7 @@ boxplot_highchart_list <- function(
     show_outliers = TRUE,
     outlier_jitter = 0.15,
     outlier_size = 3,
+    box_width = 20,
     horizontal = TRUE,
     height = NULL
 ) {
@@ -390,7 +392,7 @@ boxplot_highchart_list <- function(
           groupPadding = 0.1,
           pointPadding = 0.05,
           borderRadius = 2,
-          pointWidth = 20  # Ancho fijo para las cajas
+          pointWidth = box_width
         ),
         scatter = list(
           jitter = list(x = 0, y = 0)  # El jitter ya se aplica manualmente
@@ -525,4 +527,11 @@ boxplot_highchart_list <- function(
 #   color_by       = "Condition",
 #   outlier_jitter = 0.2,
 #   outlier_size   = 4
+# )
+
+# --- Personalizar ancho de las cajas (útil según número de muestras) ---
+# hc_boxplots <- boxplot_highchart_list(
+#   data      = mi_dataframe,
+#   color_by  = "Condition",
+#   box_width = 15  # Más estrecho para muchas muestras
 # )
