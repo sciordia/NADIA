@@ -72,6 +72,7 @@ calc_boxplot_stats <- function(x, coef = 1.5) {
 #' @param title Título del gráfico (opcional)
 #' @param subtitle Subtítulo del gráfico (opcional)
 #' @param show_outliers Mostrar outliers fuera de los bigotes (default: TRUE)
+#' @param outlier_jitter Cantidad de jitter horizontal para los outliers (default: 0.15)
 #' @param outlier_size Radio de los puntos outliers (default: 3)
 #' @param horizontal Orientación horizontal (default: TRUE)
 #' @param height Altura del gráfico en píxeles
@@ -87,6 +88,7 @@ boxplot_highchart_list <- function(
     title = NULL,
     subtitle = NULL,
     show_outliers = TRUE,
+    outlier_jitter = 0.15,
     outlier_size = 3,
     horizontal = TRUE,
     height = NULL
@@ -271,7 +273,8 @@ boxplot_highchart_list <- function(
         points <- do.call(c, lapply(grp_data, function(bd) {
           if (length(bd$stats$outliers) == 0) return(NULL)
           lapply(bd$stats$outliers, function(o) {
-            list(x = bd$index, y = o, name = bd$sample)
+            jittered_x <- bd$index + runif(1, -outlier_jitter, outlier_jitter)
+            list(x = jittered_x, y = o, name = bd$sample)
           })
         }))
 
@@ -516,9 +519,10 @@ boxplot_highchart_list <- function(
 #   show_outliers = FALSE
 # )
 
-# --- Personalizar tamaño de outliers ---
+# --- Personalizar tamaño y jitter de outliers ---
 # hc_boxplots <- boxplot_highchart_list(
-#   data         = mi_dataframe,
-#   color_by     = "Condition",
-#   outlier_size = 4
+#   data           = mi_dataframe,
+#   color_by       = "Condition",
+#   outlier_jitter = 0.2,
+#   outlier_size   = 4
 # )
