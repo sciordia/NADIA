@@ -93,14 +93,15 @@ volcano_highchart_list <- function(
   # --- Función auxiliar para asignar categoría de cambio ---
   assign_change <- function(dt) {
     pvals <- suppressWarnings(as.numeric(dt[[p_col]]))
-    lfc <- dt$logFC
-    
-    dt$Change <- "Not Significant"
+    lfc <- as.numeric(dt$logFC)
+
+    # Usar vector independiente para evitar problemas con factores/tibbles
+    change_vec <- rep("Not Significant", nrow(dt))
     significant <- !is.na(pvals) & pvals < alpha & abs(lfc) >= lfc_thr
-    dt$Change[significant & lfc > 0] <- "Up"
-    dt$Change[significant & lfc < 0] <- "Down"
-    
-    dt$Change <- factor(dt$Change, levels = c("Not Significant", "Up", "Down"))
+    change_vec[significant & lfc > 0] <- "Up"
+    change_vec[significant & lfc < 0] <- "Down"
+
+    dt$Change <- factor(change_vec, levels = c("Not Significant", "Up", "Down"))
     dt
   }
   
