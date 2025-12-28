@@ -1,7 +1,3 @@
-# Instalar las librarias necesarias
-
-librerias <- c("ggplot2", "ggrepel", "readr", "highcharter", "paletteer")
-renv::install(librerias)
 
 # Cargar las librerias
 library(ggplot2)
@@ -371,71 +367,72 @@ get_assay_label <- function(dt) {
 # EJEMPLOS DE USO
 # =============================================================================
 
-DEPs_results <- read_tsv("DEPs_results.tsv")
+# DEPs_results <- read_tsv("DEPs_results.tsv")
+# DEPs_results <- arrow::read_parquet("./data/VolcanoPlot_Input.parquet")
 
 # --- Ejemplo básico ---
-hc_volcanos <- volcano_highchart_list(
-  de_res      = DEPs_results,
-  ain         = "LoessCyc",
-  comparisons = c("B-A"),
-  alpha       = 0.05,
-  p_col       = "adj.P.Val",
-  point_size  = 3
-)
+# hc_volcanos <- volcano_highchart_list(
+#   de_res      = mi_dataframe,
+#   ain         = "LoessCyc",
+#   comparisons = c("B-A"),
+#   alpha       = 0.05,
+#   p_col       = "adj.P.Val",
+#   point_size  = 3
+# )
 
 # --- Con top genes ---
-hc_volcanos <- volcano_highchart_list(
-  de_res         = DEPs_results,
-  ain            = "LoessCyc",
-  comparisons    = c("B-A"),
-  alpha          = 0.05,
-  point_size     = 3,
-  show_top_genes = 10
-)
+# hc_volcanos <- volcano_highchart_list(
+#   de_res         = mi_dataframe,
+#   ain            = "LoessCyc",
+#   comparisons    = c("B-A"),
+#   alpha          = 0.05,
+#   point_size     = 3,
+#   show_top_genes = 10
+# )
 
 # --- Con genes personalizados ---
-hc_volcanos <- volcano_highchart_list(
-  de_res          = DEPs_results,
-  ain             = "LoessCyc",
-  comparisons     = c("B-A"),
-  alpha           = 0.05,
-  point_size      = 3,
-  highlight_genes = c("EGFR", "TP53", "BRCA1")
-)
+# hc_volcanos <- volcano_highchart_list(
+#   de_res          = mi_dataframe,
+#   ain             = "LoessCyc",
+#   comparisons     = c("B-A"),
+#   alpha           = 0.05,
+#   point_size      = 3,
+#   highlight_genes = c("EGFR", "TP53", "BRCA1")
+# )
 
 # --- Con título personalizado ---
-hc_volcanos <- volcano_highchart_list(
-  de_res      = DEPs_results,
-  ain         = "LoessCyc",
-  comparisons = c("B-A"),
-  alpha       = 0.05,
-  point_size  = 3,
-  title       = "Tratamiento vs Control"
-)
+# hc_volcanos <- volcano_highchart_list(
+#   de_res      = mi_dataframe,
+#   ain         = "LoessCyc",
+#   comparisons = c("B-A"),
+#   alpha       = 0.05,
+#   point_size  = 3,
+#   title       = "Tratamiento vs Control"
+# )
 
 # --- Con paleta de paletteer ---
-hc_volcanos <- volcano_highchart_list(
-  de_res      = DEPs_results,
-  ain         = "LoessCyc",
-  comparisons = c("B-A"),
-  alpha       = 0.05,
-  point_size  = 3,
-  palette     = "ggsci::default_jco"
-)
+# hc_volcanos <- volcano_highchart_list(
+#   de_res      = mi_dataframe,
+#   ain         = "LoessCyc",
+#   comparisons = c("B-A"),
+#   alpha       = 0.05,
+#   point_size  = 3,
+#   palette     = "ggsci::default_jco"
+# )
 
 # --- Combinando todas las opciones ---
-hc_volcanos <- volcano_highchart_list(
-  de_res          = DEPs_results,
-  ain             = "LoessCyc",
-  comparisons     = c("B-A", "C-A", "D-A"),
-  lfc_thr         = 0,
-  alpha           = 0.05,
-  point_size      = 3,
-  show_top_genes  = 5,
-  highlight_genes = c("EGFR", "plaP", "SEC6"),
-  title           = "Análisis Diferencial",
-  palette         = "ggsci::nrc_npg"
-)
+# hc_volcanos <- volcano_highchart_list(
+#   de_res          = mi_dataframe,
+#   ain             = "LoessCyc",
+#   comparisons     = c("B-A", "C-A", "D-A"),
+#   lfc_thr         = 0,
+#   alpha           = 0.05,
+#   point_size      = 3,
+#   show_top_genes  = 5,
+#   highlight_genes = c("EGFR", "plaP", "SEC6"),
+#   title           = "Análisis Diferencial",
+#   palette         = "ggsci::nrc_npg"
+# )
 
-# Visualizar
-hc_volcanos[["B-A"]]
+# --- Visualizar ---
+# hc_volcanos[["B-A"]]
