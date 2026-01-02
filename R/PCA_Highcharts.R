@@ -41,9 +41,11 @@ get_feature_ids <- function(pca_input,
 
   mode <- match.arg(mode)
 
-  # Obtener features únicos
+  # Convertir a data.frame para evitar problemas con tibbles
+  pca_input <- as.data.frame(pca_input)
 
-feat <- pca_input[!duplicated(pca_input$FeatureID), , drop = FALSE]
+  # Obtener features únicos
+  feat <- pca_input[!duplicated(pca_input$FeatureID), , drop = FALSE]
 
   if (mode == "all") {
     return(feat$FeatureID)
@@ -117,13 +119,16 @@ build_pca_scores <- function(pca_input,
     )
   }
 
+  # Convertir a data.frame para evitar problemas con tibbles
+  pca_input <- as.data.frame(pca_input)
+
   # Metadata por muestra
   md_cols <- intersect(c("SampleID", "Condition", "Replicate"), names(pca_input))
   md <- pca_input[!duplicated(pca_input$SampleID), md_cols, drop = FALSE]
   rownames(md) <- md$SampleID
 
   # Filtrar muestras si se solicita (solo para mode = "specific")
-  keep_samples <- rownames(md)
+  keep_samples <- md$SampleID
   if (isTRUE(filter_samples_to_comparison) && mode == "specific" && !is.null(comparison)) {
     conds <- unique(trimws(strsplit(comparison, "[-|:]")[[1]]))
     if (!(cond_col %in% names(md))) {
@@ -198,13 +203,16 @@ build_pca_scores <- function(pca_input,
 #' @return Lista de data frames, cada uno con columnas: group, x, y
 compute_hulls <- function(scores_df, group_col = "Condition") {
 
+  # Convertir a data.frame para evitar problemas con tibbles
+  scores_df <- as.data.frame(scores_df)
+
   required <- c("PC1", "PC2", group_col)
   missing <- setdiff(required, names(scores_df))
   if (length(missing) > 0) {
     stop("Columnas requeridas faltantes para hulls: ", paste(missing, collapse = ", "))
   }
 
-  split_list <- split(scores_df, scores_df[[group_col]])
+  split_list <- split(scores_df, scores_df[[group_col]], drop = TRUE)
 
   hulls <- lapply(names(split_list), function(g) {
     d <- split_list[[g]]
@@ -261,8 +269,12 @@ pca_highchart <- function(scores_df,
                           point_size = 5) {
 
   # ---------------------------------------------------------------------------
-  # 1) Validación de inputs
+  # 1) Validación de inputs y conversión a data.frame
   # ---------------------------------------------------------------------------
+
+  # Convertir a data.frame para evitar problemas con tibbles
+  scores_df <- as.data.frame(scores_df)
+
   required <- c("PC1", "PC2", "SampleID")
   missing <- setdiff(required, names(scores_df))
   if (length(missing) > 0) {
@@ -443,30 +455,32 @@ pca_highchart <- function(scores_df,
   # ---------------------------------------------------------------------------
   # 8) Añadir series de scatter por grupo (encima de los hulls)
   # ---------------------------------------------------------------------------
-  split_list <- split(scores_df, scores_df[[color_by]])
+  split_list <- split(scores_df, scores_df[[color_by]], drop = TRUE)
 
   for (g in lvls) {
     if (!(g %in% names(split_list))) next
 
-    d <- split_list[[g]]
+    d <- as.data.frame(split_list[[g]])
 
-    pts <- lapply(seq_len(nrow(d)), function(i) {
-      list(
-        x = d$PC1[i],
-        y = d$PC2[i],
-        SampleID = d$SampleID[i],
-        Condition = if ("Condition" %in% names(d)) as.character(d$Condition[i]) else NA_character_,
-        Replicate = if ("Replicate" %in% names(d)) d$Replicate[i] else NA_integer_,
-        Subset = d$Subset[i]
+    # Crear lista de puntos con valores escalares explícitos
+    pts <- vector("list", nrow(d))
+    for (i in seq_len(nrow(d))) {
+      pts[[i]] <- list(
+        x = as.numeric(d[i, "PC1"]),
+        y = as.numeric(d[i, "PC2"]),
+        SampleID = as.character(d[i, "SampleID"]),
+        Condition = if ("Condition" %in% names(d)) as.character(d[i, "Condition"]) else "",
+        Replicate = if ("Replicate" %in% names(d)) as.integer(d[i, "Replicate"]) else NA_integer_,
+        Subset = as.character(d[i, "Subset"])
       )
-    })
+    }
 
     hc <- hc |>
       hc_add_series(
         data = pts,
         type = "scatter",
-        name = g,
-        color = unname(palette[g]),
+        name = as.character(g),
+        color = unname(palette[as.character(g)]),
         zIndex = 5,
         tooltip = list(
           headerFormat = "",
