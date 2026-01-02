@@ -252,12 +252,100 @@ compute_hulls <- function(scores_df, group_col = "Condition") {
 
 
 # -----------------------------------------------------------------------------
+# Función para calcular elipse de confianza por grupo
+# -----------------------------------------------------------------------------
+
+#' Calcular elipse de confianza por grupo
+#'
+#' Calcula las coordenadas de una elipse de confianza basada en la distribución
+#' chi-cuadrado, similar a FactoMineR::coord.ellipse y ggplot2::stat_ellipse.
+#'
+#' @param scores_df Data frame con columnas PC1, PC2 y la columna de grupo
+#' @param group_col Nombre de la columna de agrupación (default: "Condition")
+#' @param level Nivel de confianza (default: 0.95)
+#' @param npoints Número de puntos para dibujar la elipse (default: 100)
+#'
+#' @return Lista de data frames, cada uno con columnas: group, x, y
+compute_confidence_ellipse <- function(scores_df,
+                                       group_col = "Condition",
+                                       level = 0.95,
+                                       npoints = 100) {
+
+  # Convertir a data.frame
+  scores_df <- as.data.frame(scores_df)
+
+  required <- c("PC1", "PC2", group_col)
+  missing <- setdiff(required, names(scores_df))
+  if (length(missing) > 0) {
+    stop("Columnas requeridas faltantes para ellipse: ", paste(missing, collapse = ", "))
+  }
+
+  split_list <- split(scores_df, scores_df[[group_col]], drop = TRUE)
+
+  ellipses <- lapply(names(split_list), function(g) {
+    d <- split_list[[g]]
+    d <- d[is.finite(d$PC1) & is.finite(d$PC2), , drop = FALSE]
+
+    # Se necesitan al menos 3 puntos para una elipse
+    if (nrow(d) < 3) return(NULL)
+
+    # Coordenadas
+    x <- d$PC1
+    y <- d$PC2
+
+    # Centro (media)
+    center_x <- mean(x)
+    center_y <- mean(y)
+
+    # Matriz de covarianza
+    cov_mat <- cov(cbind(x, y))
+
+    # Radio basado en distribución chi-cuadrado con 2 grados de libertad
+    # Similar a FactoMineR: sqrt(qchisq(level, df = 2))
+    radius <- sqrt(stats::qchisq(level, df = 2))
+
+    # Descomposición eigen para obtener ejes de la elipse
+    eigen_decomp <- eigen(cov_mat)
+    eigenvalues <- eigen_decomp$values
+    eigenvectors <- eigen_decomp$vectors
+
+    # Verificar que los eigenvalues sean positivos
+    if (any(eigenvalues <= 0)) return(NULL)
+
+    # Ángulos para parametrizar la elipse
+    theta <- seq(0, 2 * pi, length.out = npoints + 1)
+
+    # Semi-ejes de la elipse
+    a <- radius * sqrt(eigenvalues[1])
+    b <- radius * sqrt(eigenvalues[2])
+
+    # Ángulo de rotación
+    angle <- atan2(eigenvectors[2, 1], eigenvectors[1, 1])
+
+    # Coordenadas de la elipse (parametrización)
+    ellipse_x <- center_x + a * cos(theta) * cos(angle) - b * sin(theta) * sin(angle)
+    ellipse_y <- center_y + a * cos(theta) * sin(angle) + b * sin(theta) * cos(angle)
+
+    data.frame(
+      group = g,
+      x = ellipse_x,
+      y = ellipse_y,
+      stringsAsFactors = FALSE
+    )
+  })
+
+  Filter(Negate(is.null), ellipses)
+}
+
+
+# -----------------------------------------------------------------------------
 # Función principal: PCA Highchart
 # -----------------------------------------------------------------------------
 
 #' PCA Plot Interactivo con Highcharts
 #'
-#' Genera un scatter plot de PCA con opción de mostrar convex hulls por grupo.
+#' Genera un scatter plot de PCA con opción de mostrar elipses o convex hulls
+#' por grupo, similar a factoextra::fviz_pca_ind.
 #'
 #' @param scores_df Data frame generado por build_pca_scores() con columnas:
 #'   PC1, PC2, PC1_Perc, PC2_Perc, Subset, Condition, Replicate, SampleID
@@ -265,9 +353,15 @@ compute_hulls <- function(scores_df, group_col = "Condition") {
 #' @param group_order Vector con el orden de los grupos/condiciones (opcional)
 #' @param palette Vector nombrado de colores o NULL para paleta automática
 #' @param title Título del gráfico (opcional, usa Subset por defecto)
-#' @param show_hulls Mostrar convex hulls por grupo (default: TRUE)
-#' @param hull_fill_opacity Opacidad del relleno de los hulls (default: 0.12)
-#' @param hull_line_width Ancho de línea de los hulls (default: 1)
+#' @param addEllipses Mostrar elipses/hulls alrededor de los grupos (default: TRUE)
+#' @param ellipse_type Tipo de elipse: "convex" para convex hull o "confidence"
+#'   para elipse de confianza basada en distribución normal (default: "convex")
+#' @param ellipse_level Nivel de confianza para ellipse_type = "confidence"
+#'   (default: 0.95). Valores típicos: 0.95, 0.90, 0.68
+#' @param ellipse_fill_opacity Opacidad del relleno (0-1, default: 0.12)
+#' @param ellipse_line_width Ancho de línea del contorno (default: 1)
+#' @param ellipse_npoints Número de puntos para dibujar la elipse de confianza
+#'   (default: 100). Solo aplica para ellipse_type = "confidence"
 #' @param point_size Radio de los puntos (default: 5)
 #'
 #' @return Objeto highchart
@@ -276,10 +370,15 @@ pca_highchart <- function(scores_df,
                           group_order = NULL,
                           palette = NULL,
                           title = NULL,
-                          show_hulls = TRUE,
-                          hull_fill_opacity = 0.12,
-                          hull_line_width = 1,
+                          addEllipses = TRUE,
+                          ellipse_type = c("convex", "confidence"),
+                          ellipse_level = 0.95,
+                          ellipse_fill_opacity = 0.12,
+                          ellipse_line_width = 1,
+                          ellipse_npoints = 100,
                           point_size = 5) {
+
+  ellipse_type <- match.arg(ellipse_type)
 
   # ---------------------------------------------------------------------------
   # 1) Validación de inputs y conversión a data.frame
@@ -438,15 +537,29 @@ pca_highchart <- function(scores_df,
     )
 
   # ---------------------------------------------------------------------------
-  # 7) Añadir hulls (polígonos) primero (quedan detrás de los puntos)
+  # 7) Añadir elipses/hulls primero (quedan detrás de los puntos)
   # ---------------------------------------------------------------------------
-  if (isTRUE(show_hulls)) {
-    hulls <- compute_hulls(scores_df, group_col = color_by)
+  if (isTRUE(addEllipses)) {
 
-    for (poly in hulls) {
+    # Calcular coordenadas según el tipo de elipse
+    if (ellipse_type == "convex") {
+      ellipse_coords <- compute_hulls(scores_df, group_col = color_by)
+      ellipse_label <- "hull"
+    } else {
+      # ellipse_type == "confidence"
+      ellipse_coords <- compute_confidence_ellipse(
+        scores_df,
+        group_col = color_by,
+        level = ellipse_level,
+        npoints = ellipse_npoints
+      )
+      ellipse_label <- paste0("CI ", round(ellipse_level * 100), "%")
+    }
+
+    for (poly in ellipse_coords) {
       g <- unique(poly$group)
       base_color <- unname(palette[as.character(g)])
-      rgba_color <- hex_to_rgba(base_color, hull_fill_opacity)
+      rgba_color <- hex_to_rgba(base_color, ellipse_fill_opacity)
 
       pts <- lapply(seq_len(nrow(poly)), function(k) {
         list(x = poly$x[k], y = poly$y[k])
@@ -456,11 +569,11 @@ pca_highchart <- function(scores_df,
         hc_add_series(
           data = pts,
           type = "area",
-          name = paste0(g, " hull"),
+          name = paste0(g, " ", ellipse_label),
           color = rgba_color,
           fillColor = rgba_color,
-          fillOpacity = hull_fill_opacity,
-          lineWidth = hull_line_width,
+          fillOpacity = ellipse_fill_opacity,
+          lineWidth = ellipse_line_width,
           lineColor = base_color,
           marker = list(enabled = FALSE),
           enableMouseTracking = FALSE,
@@ -526,6 +639,7 @@ pca_highchart <- function(scores_df,
 #' Generar Lista de PCA Plots para Múltiples Subsets
 #'
 #' Genera automáticamente PCA plots para "all", "any" y/o comparaciones específicas.
+#' Similar a factoextra::fviz_pca_ind con opciones de elipses.
 #'
 #' @param pca_input Data frame en formato long (ver build_pca_scores para estructura)
 #' @param modes Vector de modos a generar: "all", "any", y/o nombres de comparaciones
@@ -534,8 +648,13 @@ pca_highchart <- function(scores_df,
 #' @param color_by Columna para colorear (default: "Condition")
 #' @param group_order Orden de grupos/condiciones (opcional)
 #' @param palette Vector nombrado de colores o NULL para automático
-#' @param show_hulls Mostrar convex hulls (default: TRUE)
-#' @param hull_fill_opacity Opacidad del relleno de hulls (default: 0.12)
+#' @param addEllipses Mostrar elipses/hulls alrededor de los grupos (default: TRUE)
+#' @param ellipse_type Tipo de elipse: "convex" o "confidence" (default: "convex")
+#' @param ellipse_level Nivel de confianza para ellipse_type = "confidence"
+#'   (default: 0.95)
+#' @param ellipse_fill_opacity Opacidad del relleno de elipses (0-1, default: 0.12)
+#' @param ellipse_line_width Ancho de línea del contorno (default: 1)
+#' @param ellipse_npoints Número de puntos para elipse de confianza (default: 100)
 #' @param point_size Radio de los puntos (default: 5)
 #' @param center Centrar datos antes de PCA (default: TRUE)
 #' @param scale. Escalar datos antes de PCA (default: TRUE)
@@ -549,25 +668,31 @@ pca_highchart <- function(scores_df,
 #' # Cargar datos
 #' pca_input <- arrow::read_parquet("PCA_Input.parquet")
 #'
-#' # Generar PCA para all y any
+#' # PCA con convex hull (default)
 #' hc_pcas <- pca_highchart_list(
 #'   pca_input   = pca_input,
 #'   modes       = c("all", "any"),
 #'   group_order = c("A", "B", "C", "D")
 #' )
 #'
-#' # Generar PCA para comparaciones específicas
+#' # PCA con elipse de confianza 95%
+#' hc_pcas <- pca_highchart_list(
+#'   pca_input     = pca_input,
+#'   modes         = c("all"),
+#'   group_order   = c("A", "B", "C", "D"),
+#'   ellipse_type  = "confidence",
+#'   ellipse_level = 0.95
+#' )
+#'
+#' # PCA sin elipses
 #' hc_pcas <- pca_highchart_list(
 #'   pca_input   = pca_input,
-#'   modes       = c("all", "any", "B-A", "C-A", "D-A"),
-#'   group_order = c("A", "B", "C", "D"),
-#'   alpha       = 0.05
+#'   modes       = c("all"),
+#'   addEllipses = FALSE
 #' )
 #'
 #' # Visualizar
 #' hc_pcas[["all"]]
-#' hc_pcas[["any"]]
-#' hc_pcas[["B-A"]]
 #' }
 pca_highchart_list <- function(pca_input,
                                modes = c("all", "any"),
@@ -575,12 +700,18 @@ pca_highchart_list <- function(pca_input,
                                color_by = "Condition",
                                group_order = NULL,
                                palette = NULL,
-                               show_hulls = TRUE,
-                               hull_fill_opacity = 0.12,
+                               addEllipses = TRUE,
+                               ellipse_type = c("convex", "confidence"),
+                               ellipse_level = 0.95,
+                               ellipse_fill_opacity = 0.12,
+                               ellipse_line_width = 1,
+                               ellipse_npoints = 100,
                                point_size = 5,
                                center = TRUE,
                                scale. = TRUE,
                                filter_samples_to_comparison = FALSE) {
+
+  ellipse_type <- match.arg(ellipse_type)
 
   # ---------------------------------------------------------------------------
   # 1) Validación de inputs
@@ -658,8 +789,12 @@ pca_highchart_list <- function(pca_input,
       group_order = group_order,
       palette = palette,
       title = plot_title,
-      show_hulls = show_hulls,
-      hull_fill_opacity = hull_fill_opacity,
+      addEllipses = addEllipses,
+      ellipse_type = ellipse_type,
+      ellipse_level = ellipse_level,
+      ellipse_fill_opacity = ellipse_fill_opacity,
+      ellipse_line_width = ellipse_line_width,
+      ellipse_npoints = ellipse_npoints,
       point_size = point_size
     )
 
@@ -678,32 +813,63 @@ pca_highchart_list <- function(pca_input,
 # pca_input <- arrow::read_parquet("PCA_Input.parquet")
 # pca_input <- readr::read_tsv("PCA_Input.tsv")
 
-# --- Ejemplo básico: PCA con todas las proteínas ---
+# --- Ejemplo básico: PCA con convex hull (default) ---
 # sc_all <- build_pca_scores(pca_input, mode = "all")
 # p_all <- pca_highchart(sc_all, color_by = "Condition", group_order = c("A","B","C","D"))
 # p_all
 
-# --- PCA con DEPs de cualquier comparación ---
-# sc_any <- build_pca_scores(pca_input, mode = "any")
-# p_any <- pca_highchart(sc_any, color_by = "Condition", title = "PCA (DEPs any)")
-# p_any
+# --- PCA con elipse de confianza 95% ---
+# sc_all <- build_pca_scores(pca_input, mode = "all")
+# p_all <- pca_highchart(
+#   sc_all,
+#   color_by = "Condition",
+#   group_order = c("A","B","C","D"),
+#   ellipse_type = "confidence",
+#   ellipse_level = 0.95
+# )
+# p_all
 
-# --- PCA con DEPs de una comparación específica ---
-# sc_ba <- build_pca_scores(pca_input, mode = "specific", comparison = "B-A", alpha = 0.05)
-# p_ba <- pca_highchart(sc_ba, color_by = "Condition", title = "PCA (DEPs B-A)")
-# p_ba
+# --- PCA con elipse de confianza 68% (1 desviación estándar) ---
+# p_68 <- pca_highchart(
+#   sc_all,
+#   color_by = "Condition",
+#   ellipse_type = "confidence",
+#   ellipse_level = 0.68,
+#   ellipse_fill_opacity = 0.2
+# )
+# p_68
 
-# --- Generar múltiples PCA plots de una vez ---
+# --- PCA sin elipses (solo puntos) ---
+# p_noellipse <- pca_highchart(
+#   sc_all,
+#   color_by = "Condition",
+#   addEllipses = FALSE,
+#   point_size = 6
+# )
+# p_noellipse
+
+# --- Generar múltiples PCA plots con convex hull ---
 # hc_pcas <- pca_highchart_list(
 #   pca_input   = pca_input,
 #   modes       = c("all", "any", "B-A", "C-A", "D-A"),
 #   alpha       = 0.05,
 #   group_order = c("A", "B", "C", "D"),
-#   show_hulls  = TRUE
+#   ellipse_type = "convex"
 # )
 # hc_pcas[["all"]]
 # hc_pcas[["any"]]
 # hc_pcas[["B-A"]]
+
+# --- Generar PCA plots con elipse de confianza ---
+# hc_pcas <- pca_highchart_list(
+#   pca_input     = pca_input,
+#   modes         = c("all", "any"),
+#   group_order   = c("A", "B", "C", "D"),
+#   ellipse_type  = "confidence",
+#   ellipse_level = 0.95,
+#   ellipse_fill_opacity = 0.15
+# )
+# hc_pcas[["all"]]
 
 # --- Con paleta personalizada ---
 # my_palette <- c(A = "#457B9D", B = "#E63946", C = "#2A9D8F", D = "#E9C46A")
@@ -714,19 +880,15 @@ pca_highchart_list <- function(pca_input,
 #   palette     = my_palette
 # )
 
-# --- Sin hulls (solo puntos) ---
-# hc_pcas <- pca_highchart_list(
-#   pca_input   = pca_input,
-#   modes       = c("all"),
-#   show_hulls  = FALSE,
-#   point_size  = 6
-# )
-
-# --- Personalizar opacidad de hulls ---
-# hc_pcas <- pca_highchart_list(
-#   pca_input         = pca_input,
-#   modes             = c("all", "any"),
-#   show_hulls        = TRUE,
-#   hull_fill_opacity = 0.25,
-#   point_size        = 4
-# )
+# --- Comparar diferentes niveles de confianza ---
+# sc_all <- build_pca_scores(pca_input, mode = "all")
+#
+# # 68% (1 SD)
+# p_68 <- pca_highchart(sc_all, ellipse_type = "confidence", ellipse_level = 0.68,
+#                       title = "PCA - 68% CI")
+# # 95% (2 SD aprox)
+# p_95 <- pca_highchart(sc_all, ellipse_type = "confidence", ellipse_level = 0.95,
+#                       title = "PCA - 95% CI")
+# # 99%
+# p_99 <- pca_highchart(sc_all, ellipse_type = "confidence", ellipse_level = 0.99,
+#                       title = "PCA - 99% CI")
