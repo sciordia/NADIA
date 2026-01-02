@@ -14,6 +14,19 @@ library(dplyr)
 
 
 # -----------------------------------------------------------------------------
+# Función para convertir color hex a rgba
+# -----------------------------------------------------------------------------
+
+hex_to_rgba <- function(hex, alpha = 0.12) {
+  hex <- gsub("^#", "", hex)
+  r <- strtoi(substr(hex, 1, 2), base = 16)
+  g <- strtoi(substr(hex, 3, 4), base = 16)
+  b <- strtoi(substr(hex, 5, 6), base = 16)
+  sprintf("rgba(%d, %d, %d, %.2f)", r, g, b, alpha)
+}
+
+
+# -----------------------------------------------------------------------------
 # Funciones auxiliares para filtrado de proteínas
 # -----------------------------------------------------------------------------
 
@@ -432,6 +445,7 @@ pca_highchart <- function(scores_df,
 
     for (poly in hulls) {
       g <- unique(poly$group)
+      base_color <- unname(palette[as.character(g)])
 
       pts <- lapply(seq_len(nrow(poly)), function(k) {
         list(x = poly$x[k], y = poly$y[k])
@@ -442,8 +456,8 @@ pca_highchart <- function(scores_df,
           data = pts,
           type = "polygon",
           name = paste0(g, " hull"),
-          color = unname(palette[g]),
-          fillOpacity = hull_fill_opacity,
+          color = base_color,
+          fillColor = hex_to_rgba(base_color, hull_fill_opacity),
           lineWidth = hull_line_width,
           enableMouseTracking = FALSE,
           showInLegend = FALSE,
