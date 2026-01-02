@@ -446,6 +446,7 @@ pca_highchart <- function(scores_df,
     for (poly in hulls) {
       g <- unique(poly$group)
       base_color <- unname(palette[as.character(g)])
+      rgba_color <- hex_to_rgba(base_color, hull_fill_opacity)
 
       pts <- lapply(seq_len(nrow(poly)), function(k) {
         list(x = poly$x[k], y = poly$y[k])
@@ -454,11 +455,14 @@ pca_highchart <- function(scores_df,
       hc <- hc |>
         hc_add_series(
           data = pts,
-          type = "polygon",
+          type = "area",
           name = paste0(g, " hull"),
-          color = base_color,
-          fillColor = hex_to_rgba(base_color, hull_fill_opacity),
+          color = rgba_color,
+          fillColor = rgba_color,
+          fillOpacity = hull_fill_opacity,
           lineWidth = hull_line_width,
+          lineColor = base_color,
+          marker = list(enabled = FALSE),
           enableMouseTracking = FALSE,
           showInLegend = FALSE,
           zIndex = 0
