@@ -27,6 +27,25 @@ hex_to_rgba <- function(hex, alpha = 0.12) {
 
 
 # -----------------------------------------------------------------------------
+# Función para oscurecer un color hex
+# -----------------------------------------------------------------------------
+
+darken_hex <- function(hex, factor = 0.3) {
+  hex <- gsub("^#", "", hex)
+  r <- strtoi(substr(hex, 1, 2), base = 16)
+  g <- strtoi(substr(hex, 3, 4), base = 16)
+  b <- strtoi(substr(hex, 5, 6), base = 16)
+
+  # Reducir cada canal por el factor (más oscuro)
+  r <- max(0, round(r * (1 - factor)))
+  g <- max(0, round(g * (1 - factor)))
+  b <- max(0, round(b * (1 - factor)))
+
+  sprintf("#%02X%02X%02X", r, g, b)
+}
+
+
+# -----------------------------------------------------------------------------
 # Funciones auxiliares para filtrado de proteínas
 # -----------------------------------------------------------------------------
 
@@ -564,6 +583,10 @@ pca_highchart <- function(scores_df,
       )
     }
 
+    # Obtener color del grupo y versión oscurecida para etiquetas
+    group_color <- unname(palette[as.character(g)])
+    label_color <- darken_hex(group_color, factor = 0.3)
+
     # Configurar dataLabels si show_labels = TRUE
     data_labels_config <- if (isTRUE(show_labels)) {
       list(
@@ -571,9 +594,9 @@ pca_highchart <- function(scores_df,
         format = "{point.SampleID}",
         style = list(
           fontSize = paste0(label_size, "px"),
-          fontWeight = "normal",
-          color = "#1D3557",
-          textOutline = "2px #FFFFFF"
+          fontWeight = "bold",
+          color = label_color,
+          textOutline = "none"
         ),
         y = -10,
         allowOverlap = FALSE
@@ -588,7 +611,7 @@ pca_highchart <- function(scores_df,
         type = "scatter",
         id = group_id,
         name = as.character(g),
-        color = unname(palette[as.character(g)]),
+        color = group_color,
         zIndex = 5,
         dataLabels = data_labels_config,
         tooltip = list(
