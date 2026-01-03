@@ -538,13 +538,10 @@ pca_highchart <- function(scores_df,
         marker = list(
           radius = point_size,
           symbol = "circle",
-          lineWidth = 1,
-          lineColor = "#FFFFFF",
           states = list(
             hover = list(
               radiusPlus = 2,
-              lineWidthPlus = 1,
-              lineColor = "#1D3557"
+              lineWidthPlus = 1
             )
           )
         )
@@ -613,6 +610,10 @@ pca_highchart <- function(scores_df,
         name = as.character(g),
         color = group_color,
         zIndex = 5,
+        marker = list(
+          lineColor = label_color,
+          lineWidth = 1
+        ),
         dataLabels = data_labels_config,
         tooltip = list(
           headerFormat = "",
