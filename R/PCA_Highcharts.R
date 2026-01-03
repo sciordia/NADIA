@@ -363,6 +363,8 @@ compute_confidence_ellipse <- function(scores_df,
 #' @param ellipse_npoints Número de puntos para dibujar la elipse de confianza
 #'   (default: 100). Solo aplica para ellipse_type = "confidence"
 #' @param point_size Radio de los puntos (default: 5)
+#' @param show_labels Mostrar etiquetas de los puntos (SampleID) (default: FALSE)
+#' @param label_size Tamaño de fuente de las etiquetas en px (default: 10)
 #'
 #' @return Objeto highchart
 pca_highchart <- function(scores_df,
@@ -376,7 +378,9 @@ pca_highchart <- function(scores_df,
                           ellipse_fill_opacity = 0.12,
                           ellipse_line_width = 1,
                           ellipse_npoints = 100,
-                          point_size = 5) {
+                          point_size = 5,
+                          show_labels = FALSE,
+                          label_size = 10) {
 
   ellipse_type <- match.arg(ellipse_type)
 
@@ -537,54 +541,7 @@ pca_highchart <- function(scores_df,
     )
 
   # ---------------------------------------------------------------------------
-  # 7) Añadir elipses/hulls primero (quedan detrás de los puntos)
-  # ---------------------------------------------------------------------------
-  if (isTRUE(addEllipses)) {
-
-    # Calcular coordenadas según el tipo de elipse
-    if (ellipse_type == "convex") {
-      ellipse_coords <- compute_hulls(scores_df, group_col = color_by)
-      ellipse_label <- "hull"
-    } else {
-      # ellipse_type == "confidence"
-      ellipse_coords <- compute_confidence_ellipse(
-        scores_df,
-        group_col = color_by,
-        level = ellipse_level,
-        npoints = ellipse_npoints
-      )
-      ellipse_label <- paste0("CI ", round(ellipse_level * 100), "%")
-    }
-
-    for (poly in ellipse_coords) {
-      g <- unique(poly$group)
-      base_color <- unname(palette[as.character(g)])
-      rgba_color <- hex_to_rgba(base_color, ellipse_fill_opacity)
-
-      pts <- lapply(seq_len(nrow(poly)), function(k) {
-        list(x = poly$x[k], y = poly$y[k])
-      })
-
-      hc <- hc |>
-        hc_add_series(
-          data = pts,
-          type = "area",
-          name = paste0(g, " ", ellipse_label),
-          color = rgba_color,
-          fillColor = rgba_color,
-          fillOpacity = ellipse_fill_opacity,
-          lineWidth = ellipse_line_width,
-          lineColor = base_color,
-          marker = list(enabled = FALSE),
-          enableMouseTracking = FALSE,
-          showInLegend = FALSE,
-          zIndex = 0
-        )
-    }
-  }
-
-  # ---------------------------------------------------------------------------
-  # 8) Añadir series de scatter por grupo (encima de los hulls)
+  # 7) Añadir series de scatter por grupo (con id para vincular elipses)
   # ---------------------------------------------------------------------------
   split_list <- split(scores_df, scores_df[[color_by]], drop = TRUE)
 
@@ -592,6 +549,7 @@ pca_highchart <- function(scores_df,
     if (!(g %in% names(split_list))) next
 
     d <- as.data.frame(split_list[[g]])
+    group_id <- paste0("scatter_", gsub("[^a-zA-Z0-9]", "_", as.character(g)))
 
     # Crear lista de puntos con valores escalares explícitos
     pts <- vector("list", nrow(d))
@@ -606,13 +564,33 @@ pca_highchart <- function(scores_df,
       )
     }
 
+    # Configurar dataLabels si show_labels = TRUE
+    data_labels_config <- if (isTRUE(show_labels)) {
+      list(
+        enabled = TRUE,
+        format = "{point.SampleID}",
+        style = list(
+          fontSize = paste0(label_size, "px"),
+          fontWeight = "normal",
+          color = "#1D3557",
+          textOutline = "2px #FFFFFF"
+        ),
+        y = -10,
+        allowOverlap = FALSE
+      )
+    } else {
+      list(enabled = FALSE)
+    }
+
     hc <- hc |>
       hc_add_series(
         data = pts,
         type = "scatter",
+        id = group_id,
         name = as.character(g),
         color = unname(palette[as.character(g)]),
         zIndex = 5,
+        dataLabels = data_labels_config,
         tooltip = list(
           headerFormat = "",
           pointFormat = paste0(
@@ -626,6 +604,53 @@ pca_highchart <- function(scores_df,
           )
         )
       )
+  }
+
+  # ---------------------------------------------------------------------------
+  # 8) Añadir elipses/hulls vinculadas a las series de scatter
+  # ---------------------------------------------------------------------------
+  if (isTRUE(addEllipses)) {
+
+    # Calcular coordenadas según el tipo de elipse
+    if (ellipse_type == "convex") {
+      ellipse_coords <- compute_hulls(scores_df, group_col = color_by)
+    } else {
+      # ellipse_type == "confidence"
+      ellipse_coords <- compute_confidence_ellipse(
+        scores_df,
+        group_col = color_by,
+        level = ellipse_level,
+        npoints = ellipse_npoints
+      )
+    }
+
+    for (poly in ellipse_coords) {
+      g <- unique(poly$group)
+      group_id <- paste0("scatter_", gsub("[^a-zA-Z0-9]", "_", as.character(g)))
+      base_color <- unname(palette[as.character(g)])
+      rgba_color <- hex_to_rgba(base_color, ellipse_fill_opacity)
+
+      pts <- lapply(seq_len(nrow(poly)), function(k) {
+        list(x = poly$x[k], y = poly$y[k])
+      })
+
+      hc <- hc |>
+        hc_add_series(
+          data = pts,
+          type = "area",
+          name = as.character(g),
+          linkedTo = group_id,
+          color = rgba_color,
+          fillColor = rgba_color,
+          fillOpacity = ellipse_fill_opacity,
+          lineWidth = ellipse_line_width,
+          lineColor = base_color,
+          marker = list(enabled = FALSE),
+          enableMouseTracking = FALSE,
+          showInLegend = FALSE,
+          zIndex = 0
+        )
+    }
   }
 
   hc
@@ -656,6 +681,8 @@ pca_highchart <- function(scores_df,
 #' @param ellipse_line_width Ancho de línea del contorno (default: 1)
 #' @param ellipse_npoints Número de puntos para elipse de confianza (default: 100)
 #' @param point_size Radio de los puntos (default: 5)
+#' @param show_labels Mostrar etiquetas de los puntos (SampleID) (default: FALSE)
+#' @param label_size Tamaño de fuente de las etiquetas en px (default: 10)
 #' @param center Centrar datos antes de PCA (default: TRUE)
 #' @param scale. Escalar datos antes de PCA (default: TRUE)
 #' @param filter_samples_to_comparison Para comparaciones específicas, filtrar
@@ -684,11 +711,12 @@ pca_highchart <- function(scores_df,
 #'   ellipse_level = 0.95
 #' )
 #'
-#' # PCA sin elipses
+#' # PCA con etiquetas visibles
 #' hc_pcas <- pca_highchart_list(
 #'   pca_input   = pca_input,
 #'   modes       = c("all"),
-#'   addEllipses = FALSE
+#'   show_labels = TRUE,
+#'   label_size  = 9
 #' )
 #'
 #' # Visualizar
@@ -707,6 +735,8 @@ pca_highchart_list <- function(pca_input,
                                ellipse_line_width = 1,
                                ellipse_npoints = 100,
                                point_size = 5,
+                               show_labels = FALSE,
+                               label_size = 10,
                                center = TRUE,
                                scale. = TRUE,
                                filter_samples_to_comparison = FALSE) {
@@ -795,7 +825,9 @@ pca_highchart_list <- function(pca_input,
       ellipse_fill_opacity = ellipse_fill_opacity,
       ellipse_line_width = ellipse_line_width,
       ellipse_npoints = ellipse_npoints,
-      point_size = point_size
+      point_size = point_size,
+      show_labels = show_labels,
+      label_size = label_size
     )
 
     hc_list[[m]] <- hc
@@ -892,3 +924,35 @@ pca_highchart_list <- function(pca_input,
 # # 99%
 # p_99 <- pca_highchart(sc_all, ellipse_type = "confidence", ellipse_level = 0.99,
 #                       title = "PCA - 99% CI")
+
+# --- PCA con etiquetas visibles (útil para exportar) ---
+# p_labels <- pca_highchart(
+#   sc_all,
+#   color_by = "Condition",
+#   group_order = c("A","B","C","D"),
+#   show_labels = TRUE,
+#   label_size = 9
+# )
+# p_labels
+
+# --- PCA con etiquetas y elipse de confianza ---
+# p_labels_ellipse <- pca_highchart(
+#   sc_all,
+#   color_by = "Condition",
+#   group_order = c("A","B","C","D"),
+#   ellipse_type = "confidence",
+#   ellipse_level = 0.95,
+#   show_labels = TRUE,
+#   label_size = 10
+# )
+# p_labels_ellipse
+
+# --- Usando pca_highchart_list con etiquetas ---
+# hc_pcas <- pca_highchart_list(
+#   pca_input   = pca_input,
+#   modes       = c("all", "any"),
+#   group_order = c("A", "B", "C", "D"),
+#   show_labels = TRUE,
+#   label_size  = 9
+# )
+# hc_pcas[["all"]]
