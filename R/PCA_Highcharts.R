@@ -447,14 +447,39 @@ pca_highchart <- function(scores_df,
   )
 
   if (is.null(palette)) {
+    # Paleta por defecto
     pal <- grDevices::hcl.colors(length(lvls), "Dark 3")
     palette <- stats::setNames(pal, lvls)
+  } else if (is.character(palette) && length(palette) == 1 && grepl("::", palette)) {
+    # Paleta de paletteer (formato "ggsci::category10_d3")
+    if (!requireNamespace("paletteer", quietly = TRUE)) {
+      stop("Para usar paletteer, instala con: install.packages('paletteer')")
+    }
+    pal <- as.character(paletteer::paletteer_d(palette))
+    if (length(pal) < length(lvls)) {
+      pal <- rep(pal, length.out = length(lvls))
+    }
+    palette <- stats::setNames(pal[seq_along(lvls)], lvls)
+  } else if (is.character(palette) && length(palette) == 1 && startsWith(palette, "brewer:")) {
+    # Paleta de RColorBrewer (formato "brewer:Set1")
+    if (!requireNamespace("RColorBrewer", quietly = TRUE)) {
+      stop("Para usar RColorBrewer, instala con: install.packages('RColorBrewer')")
+    }
+    nm <- sub("^brewer:", "", palette)
+    maxc <- RColorBrewer::brewer.pal.info[nm, "maxcolors"]
+    pal <- RColorBrewer::brewer.pal(maxc, nm)
+    if (length(pal) < length(lvls)) {
+      pal <- rep(pal, length.out = length(lvls))
+    }
+    palette <- stats::setNames(pal[seq_along(lvls)], lvls)
   } else if (is.character(palette) && is.null(names(palette))) {
+    # Vector de colores sin nombres
     if (length(palette) < length(lvls)) {
       palette <- rep(palette, length.out = length(lvls))
     }
     palette <- stats::setNames(palette[seq_along(lvls)], lvls)
   } else if (is.character(palette) && !is.null(names(palette))) {
+    # Vector de colores con nombres
     miss <- setdiff(lvls, names(palette))
     if (length(miss) > 0) {
       stop("Faltan colores para niveles: ", paste(miss, collapse = ", "))
