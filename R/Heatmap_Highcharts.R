@@ -418,6 +418,7 @@ prepare_heatmap_data <- function(data,
 #' @param row_title Título para las filas
 #' @param column_title Título para las columnas
 #' @param show_annotation Mostrar anotación de Condition (default: TRUE)
+#' @param show_annotation_legend Mostrar leyenda de la anotación (default: FALSE)
 #' @param row_names_size Tamaño de fuente de nombres de fila (default: 7)
 #' @param column_names_size Tamaño de fuente de nombres de columna (default: 9)
 #' @param column_names_rotation Rotación de nombres de columna en grados (default: 45)
@@ -470,6 +471,7 @@ proteomics_heatmap <- function(data,
                                row_title = "Proteins",
                                column_title = "Samples",
                                show_annotation = TRUE,
+                               show_annotation_legend = FALSE,
                                row_names_size = 7,
                                column_names_size = 9,
                                column_names_rotation = 45) {
@@ -577,7 +579,8 @@ proteomics_heatmap <- function(data,
     hm <- hm %>%
       annotation_tile(
         Condition,
-        palette = annotation_colors
+        palette = annotation_colors,
+        show_legend = show_annotation_legend
       )
   }
 
@@ -608,6 +611,7 @@ proteomics_heatmap <- function(data,
 #' @param palette_annotation Paleta para anotación de Condition
 #' @param reverse_palette Invertir paleta de valores (default: FALSE)
 #' @param show_annotation Mostrar anotación de Condition (default: TRUE)
+#' @param show_annotation_legend Mostrar leyenda de la anotación (default: FALSE)
 #' @param row_names_size Tamaño de fuente de nombres de fila (default: 7)
 #' @param column_names_size Tamaño de fuente de nombres de columna (default: 9)
 #' @param column_names_rotation Rotación de nombres de columna (default: 45)
@@ -668,6 +672,7 @@ proteomics_heatmap_list <- function(data,
                                     palette_annotation = NULL,
                                     reverse_palette = FALSE,
                                     show_annotation = TRUE,
+                                    show_annotation_legend = FALSE,
                                     row_names_size = 7,
                                     column_names_size = 9,
                                     column_names_rotation = 45) {
@@ -739,6 +744,7 @@ proteomics_heatmap_list <- function(data,
         row_title = row_title,
         column_title = "Samples",
         show_annotation = show_annotation,
+        show_annotation_legend = show_annotation_legend,
         row_names_size = row_names_size,
         column_names_size = column_names_size,
         column_names_rotation = column_names_rotation
