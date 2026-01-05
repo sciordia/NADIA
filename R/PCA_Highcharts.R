@@ -14,10 +14,26 @@ library(dplyr)
 
 
 # -----------------------------------------------------------------------------
+# Función para normalizar color hex (eliminar canal alpha si existe)
+# -----------------------------------------------------------------------------
+
+normalize_hex <- function(hex) {
+  # Elimina # si existe
+  hex <- gsub("^#", "", hex)
+  # Si tiene 8 caracteres (RRGGBBAA), quedarse solo con los primeros 6 (RRGGBB)
+  if (nchar(hex) == 8) {
+    hex <- substr(hex, 1, 6)
+  }
+  paste0("#", hex)
+}
+
+
+# -----------------------------------------------------------------------------
 # Función para convertir color hex a rgba
 # -----------------------------------------------------------------------------
 
 hex_to_rgba <- function(hex, alpha = 0.12) {
+  hex <- normalize_hex(hex)
   hex <- gsub("^#", "", hex)
   r <- strtoi(substr(hex, 1, 2), base = 16)
   g <- strtoi(substr(hex, 3, 4), base = 16)
@@ -31,6 +47,7 @@ hex_to_rgba <- function(hex, alpha = 0.12) {
 # -----------------------------------------------------------------------------
 
 darken_hex <- function(hex, factor = 0.3) {
+  hex <- normalize_hex(hex)
   hex <- gsub("^#", "", hex)
   r <- strtoi(substr(hex, 1, 2), base = 16)
   g <- strtoi(substr(hex, 3, 4), base = 16)
@@ -455,7 +472,13 @@ pca_highchart <- function(scores_df,
     if (!requireNamespace("paletteer", quietly = TRUE)) {
       stop("Para usar paletteer, instala con: install.packages('paletteer')")
     }
-    pal <- as.character(paletteer::paletteer_d(palette))
+    pal <- tryCatch({
+      raw_pal <- as.character(paletteer::paletteer_d(palette))
+      # Normalizar colores (eliminar canal alpha si existe)
+      sapply(raw_pal, normalize_hex, USE.NAMES = FALSE)
+    }, error = function(e) {
+      stop("Error al cargar paleta '", palette, "': ", e$message)
+    })
     if (length(pal) < length(lvls)) {
       pal <- rep(pal, length.out = length(lvls))
     }
@@ -466,13 +489,22 @@ pca_highchart <- function(scores_df,
       stop("Para usar RColorBrewer, instala con: install.packages('RColorBrewer')")
     }
     nm <- sub("^brewer:", "", palette)
-    maxc <- RColorBrewer::brewer.pal.info[nm, "maxcolors"]
-    pal <- RColorBrewer::brewer.pal(maxc, nm)
+    pal <- tryCatch({
+      maxc <- RColorBrewer::brewer.pal.info[nm, "maxcolors"]
+      raw_pal <- RColorBrewer::brewer.pal(maxc, nm)
+      # Normalizar colores por consistencia
+      sapply(raw_pal, normalize_hex, USE.NAMES = FALSE)
+    }, error = function(e) {
+      stop("Error al cargar paleta brewer '", nm, "': ", e$message)
+    })
     if (length(pal) < length(lvls)) {
       pal <- rep(pal, length.out = length(lvls))
     }
     palette <- stats::setNames(pal[seq_along(lvls)], lvls)
-  } else if (is.character(palette) && is.null(names(palette))) {
+  } else if (is.character(palette) && length(palette) == 1) {
+    # String de un solo color - repetir para todos los niveles
+    palette <- stats::setNames(rep(palette, length(lvls)), lvls)
+  } else if (is.character(palette) && length(palette) > 1 && is.null(names(palette))) {
     # Vector de colores sin nombres
     if (length(palette) < length(lvls)) {
       palette <- rep(palette, length.out = length(lvls))
@@ -1003,5 +1035,23 @@ pca_highchart_list <- function(pca_input,
 #   group_order = c("A", "B", "C", "D"),
 #   show_labels = TRUE,
 #   label_size  = 9
+# )
+# hc_pcas[["all"]]
+
+# --- Con paleta de paletteer ---
+# hc_pcas <- pca_highchart_list(
+#   pca_input   = pca_input,
+#   modes       = c("all"),
+#   group_order = c("A", "B", "C", "D"),
+#   palette     = "ggsci::category10_d3"
+# )
+# hc_pcas[["all"]]
+
+# --- Con paleta de RColorBrewer ---
+# hc_pcas <- pca_highchart_list(
+#   pca_input   = pca_input,
+#   modes       = c("all"),
+#   group_order = c("A", "B", "C", "D"),
+#   palette     = "brewer:Set1"
 # )
 # hc_pcas[["all"]]
