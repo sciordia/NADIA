@@ -333,10 +333,26 @@ prepare_heatmap_data <- function(data,
   dt <- data[data$FeatureID %in% ids, , drop = FALSE]
   dt <- dt[is.finite(dt$Intensity) & !is.na(dt$Intensity), , drop = FALSE]
 
+
   # Crear data frame largo para heatmap
-  hm_data <- dt %>%
-    select(SampleID, FeatureID, Intensity, Condition, Replicate) %>%
-    distinct()
+  # Incluir adjP si mode = "target" para anotación de filas
+  if (mode == "target" && !is.null(comparison)) {
+    adjp_colname <- adjp_col(comparison)
+    if (adjp_colname %in% names(dt)) {
+      hm_data <- dt %>%
+        select(SampleID, FeatureID, Intensity, Condition, Replicate, all_of(adjp_colname)) %>%
+        rename(adjP = all_of(adjp_colname)) %>%
+        distinct()
+    } else {
+      hm_data <- dt %>%
+        select(SampleID, FeatureID, Intensity, Condition, Replicate) %>%
+        distinct()
+    }
+  } else {
+    hm_data <- dt %>%
+      select(SampleID, FeatureID, Intensity, Condition, Replicate) %>%
+      distinct()
+  }
 
   # Ordenar muestras según el criterio especificado
   if (is.character(sample_order) && sample_order == "condition") {
@@ -387,13 +403,22 @@ prepare_heatmap_data <- function(data,
     scaled_long <- mat_df %>%
       pivot_longer(cols = -FeatureID, names_to = "SampleID", values_to = "Intensity")
 
-    # Reintegrar metadata
-    metadata <- hm_data %>%
-      select(SampleID, Condition, Replicate) %>%
-      distinct()
+    # Reintegrar metadata (incluyendo adjP si existe)
+    if ("adjP" %in% names(hm_data)) {
+      metadata <- hm_data %>%
+        select(SampleID, FeatureID, Condition, Replicate, adjP) %>%
+        distinct()
 
-    hm_data <- scaled_long %>%
-      left_join(metadata, by = "SampleID")
+      hm_data <- scaled_long %>%
+        left_join(metadata, by = c("SampleID", "FeatureID"))
+    } else {
+      metadata <- hm_data %>%
+        select(SampleID, Condition, Replicate) %>%
+        distinct()
+
+      hm_data <- scaled_long %>%
+        left_join(metadata, by = "SampleID")
+    }
 
     # Restaurar orden de factores si aplica
     if (is.character(sample_order) && sample_order == "condition") {
@@ -435,6 +460,12 @@ prepare_heatmap_data <- function(data,
 #' @param column_title Título para las columnas
 #' @param show_annotation Mostrar anotación de Condition (default: TRUE)
 #' @param split_by_condition Dividir el heatmap por condición (default: FALSE)
+#' @param show_adjp_annotation Mostrar anotación de adjP en filas para mode="target" (default: TRUE)
+#' @param palette_adjp Paleta para anotación de adjP. Puede ser:
+#'   - NULL: usa paleta por defecto (rojo-naranja-blanco)
+#'   - Vector de 3 colores: c(color_0, color_medio, color_0.05)
+#'   - String "brewer:nombre": usa paleta de RColorBrewer
+#'   - String "paquete::paleta": usa paleta de paletteer
 #' @param row_names_size Tamaño de fuente de nombres de fila (default: 7)
 #' @param column_names_size Tamaño de fuente de nombres de columna (default: 9)
 #' @param column_names_rotation Rotación de nombres de columna en grados (default: 45)
@@ -497,6 +528,8 @@ proteomics_heatmap <- function(data,
                                column_title = "Samples",
                                show_annotation = TRUE,
                                split_by_condition = FALSE,
+                               show_adjp_annotation = TRUE,
+                               palette_adjp = NULL,
                                row_names_size = 7,
                                column_names_size = 9,
                                column_names_rotation = 45) {
@@ -623,6 +656,59 @@ proteomics_heatmap <- function(data,
       )
   }
 
+  # Añadir anotación de adjP para mode = "target" (anotación de filas)
+  if (show_adjp_annotation && mode == "target" && "adjP" %in% names(hm_data)) {
+    # Obtener colores para la paleta de adjP
+    adjp_colors <- c("#67001F", "#F4A582", "#F7F7F7")  # Default: rojo oscuro -> naranja -> blanco
+
+    if (!is.null(palette_adjp)) {
+      if (is.character(palette_adjp) && length(palette_adjp) >= 3) {
+        # Vector de colores personalizado
+        adjp_colors <- palette_adjp[1:3]
+      } else if (is.character(palette_adjp) && length(palette_adjp) == 1) {
+        # Paleta de paletteer o RColorBrewer
+        if (grepl("::", palette_adjp)) {
+          # Paletteer
+          if (requireNamespace("paletteer", quietly = TRUE)) {
+            raw_pal <- tryCatch({
+              as.character(paletteer::paletteer_c(palette_adjp, n = 3))
+            }, error = function(e) {
+              tryCatch({
+                as.character(paletteer::paletteer_d(palette_adjp, n = 3))
+              }, error = function(e2) NULL)
+            })
+            if (!is.null(raw_pal) && length(raw_pal) >= 3) {
+              adjp_colors <- sapply(raw_pal[1:3], normalize_hex, USE.NAMES = FALSE)
+            }
+          }
+        } else if (startsWith(palette_adjp, "brewer:")) {
+          # RColorBrewer
+          if (requireNamespace("RColorBrewer", quietly = TRUE)) {
+            nm <- sub("^brewer:", "", palette_adjp)
+            raw_pal <- tryCatch({
+              RColorBrewer::brewer.pal(3, nm)
+            }, error = function(e) NULL)
+            if (!is.null(raw_pal)) {
+              adjp_colors <- raw_pal
+            }
+          }
+        }
+      }
+    }
+
+    # Crear paleta para p-valores (valores bajos = más significativos)
+    adjp_palette <- circlize::colorRamp2(
+      c(0, 0.01, 0.05),
+      adjp_colors
+    )
+
+    hm <- hm %>%
+      annotation_tile(
+        adjP,
+        palette = adjp_palette
+      )
+  }
+
   hm
 }
 
@@ -651,6 +737,8 @@ proteomics_heatmap <- function(data,
 #' @param reverse_palette Invertir paleta de valores (default: FALSE)
 #' @param show_annotation Mostrar anotación de Condition (default: TRUE)
 #' @param split_by_condition Dividir el heatmap por condición (default: FALSE)
+#' @param show_adjp_annotation Mostrar anotación de adjP en filas para comparaciones (default: TRUE)
+#' @param palette_adjp Paleta para anotación de adjP (ver proteomics_heatmap)
 #' @param row_names_size Tamaño de fuente de nombres de fila (default: 7)
 #' @param column_names_size Tamaño de fuente de nombres de columna (default: 9)
 #' @param column_names_rotation Rotación de nombres de columna (default: 45)
@@ -712,6 +800,8 @@ proteomics_heatmap_list <- function(data,
                                     reverse_palette = FALSE,
                                     show_annotation = TRUE,
                                     split_by_condition = FALSE,
+                                    show_adjp_annotation = TRUE,
+                                    palette_adjp = NULL,
                                     row_names_size = 7,
                                     column_names_size = 9,
                                     column_names_rotation = 45) {
@@ -784,6 +874,8 @@ proteomics_heatmap_list <- function(data,
         column_title = "Samples",
         show_annotation = show_annotation,
         split_by_condition = split_by_condition,
+        show_adjp_annotation = show_adjp_annotation,
+        palette_adjp = palette_adjp,
         row_names_size = row_names_size,
         column_names_size = column_names_size,
         column_names_rotation = column_names_rotation
