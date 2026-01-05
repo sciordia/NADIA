@@ -565,6 +565,20 @@ proteomics_heatmap <- function(data,
   # Convertir a tibble (requerido por tidyHeatmap)
   hm_data <- tibble::as_tibble(hm_data)
 
+  # Preparar column_split si se solicita (para separación visual entre condiciones)
+  col_split_vector <- NULL
+  if (split_by_condition) {
+    # Obtener el orden de muestras únicas tal como aparecen en los datos
+    sample_info <- hm_data %>%
+      select(SampleID, Condition) %>%
+      distinct()
+
+    # Mantener el orden original de SampleID en los datos
+    sample_order_vec <- unique(as.character(hm_data$SampleID))
+    sample_info <- sample_info[match(sample_order_vec, as.character(sample_info$SampleID)), ]
+    col_split_vector <- factor(sample_info$Condition, levels = unique(sample_info$Condition))
+  }
+
   # Crear heatmap base
   hm <- hm_data %>%
     heatmap(
@@ -581,14 +595,10 @@ proteomics_heatmap <- function(data,
       column_names_gp = grid::gpar(fontsize = column_names_size),
       column_names_rot = column_names_rotation,
       row_title = row_title,
-      column_title = column_title
+      column_title = column_title,
+      column_split = col_split_vector,
+      column_title_gp = grid::gpar(fontsize = 0)  # Ocultar títulos de split
     )
-
-  # Añadir separación por condición si se solicita (usando annotation_group)
-  if (split_by_condition) {
-    hm <- hm %>%
-      annotation_group(Condition)
-  }
 
   # Añadir anotación de Condition como barra de color si se solicita
   if (show_annotation) {
