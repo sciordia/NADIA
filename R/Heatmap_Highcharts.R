@@ -419,6 +419,7 @@ prepare_heatmap_data <- function(data,
 #' @param row_title Título para las filas
 #' @param column_title Título para las columnas
 #' @param show_annotation Mostrar anotación de Condition (default: TRUE)
+#' @param split_by_condition Dividir el heatmap por condición (default: FALSE)
 #' @param row_names_size Tamaño de fuente de nombres de fila (default: 7)
 #' @param column_names_size Tamaño de fuente de nombres de columna (default: 9)
 #' @param column_names_rotation Rotación de nombres de columna en grados (default: 45)
@@ -436,6 +437,15 @@ prepare_heatmap_data <- function(data,
 #'   mode = "all",
 #'   scale_data = "row",
 #'   sample_order = "condition",
+#'   condition_order = c("A", "B", "C", "D")
+#' )
+#'
+#' # Heatmap con separación por condición
+#' hm_split <- proteomics_heatmap(
+#'   data = hm_input,
+#'   mode = "any",
+#'   scale_data = "row",
+#'   split_by_condition = TRUE,
 #'   condition_order = c("A", "B", "C", "D")
 #' )
 #'
@@ -471,6 +481,7 @@ proteomics_heatmap <- function(data,
                                row_title = "Proteins",
                                column_title = "Samples",
                                show_annotation = TRUE,
+                               split_by_condition = FALSE,
                                row_names_size = 7,
                                column_names_size = 9,
                                column_names_rotation = 45) {
@@ -582,6 +593,12 @@ proteomics_heatmap <- function(data,
       )
   }
 
+  # Dividir por condición si se solicita
+  if (split_by_condition) {
+    hm <- hm %>%
+      split_columns(Condition)
+  }
+
   hm
 }
 
@@ -609,6 +626,7 @@ proteomics_heatmap <- function(data,
 #' @param palette_annotation Paleta para anotación de Condition
 #' @param reverse_palette Invertir paleta de valores (default: FALSE)
 #' @param show_annotation Mostrar anotación de Condition (default: TRUE)
+#' @param split_by_condition Dividir el heatmap por condición (default: FALSE)
 #' @param row_names_size Tamaño de fuente de nombres de fila (default: 7)
 #' @param column_names_size Tamaño de fuente de nombres de columna (default: 9)
 #' @param column_names_rotation Rotación de nombres de columna (default: 45)
@@ -669,6 +687,7 @@ proteomics_heatmap_list <- function(data,
                                     palette_annotation = NULL,
                                     reverse_palette = FALSE,
                                     show_annotation = TRUE,
+                                    split_by_condition = FALSE,
                                     row_names_size = 7,
                                     column_names_size = 9,
                                     column_names_rotation = 45) {
@@ -740,6 +759,7 @@ proteomics_heatmap_list <- function(data,
         row_title = row_title,
         column_title = "Samples",
         show_annotation = show_annotation,
+        split_by_condition = split_by_condition,
         row_names_size = row_names_size,
         column_names_size = column_names_size,
         column_names_rotation = column_names_rotation
