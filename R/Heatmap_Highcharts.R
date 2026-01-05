@@ -552,10 +552,6 @@ proteomics_heatmap <- function(data,
   # 4) Crear heatmap con tidyHeatmap
   # ---------------------------------------------------------------------------
 
-  # Configurar padding derecho extra cuando la leyenda de anotación está oculta
-  # para evitar que se corte el nombre de la anotación
-  right_padding <- if (show_annotation && !show_annotation_legend) 15 else 2
-
   # Crear heatmap base
   hm <- hm_data %>%
     heatmap(
@@ -572,12 +568,7 @@ proteomics_heatmap <- function(data,
       column_names_gp = grid::gpar(fontsize = column_names_size),
       column_names_rot = column_names_rotation,
       row_title = row_title,
-      column_title = column_title,
-      heatmap_legend_param = list(
-        legend_direction = "vertical",
-        title_position = "topcenter"
-      ),
-      padding = grid::unit(c(2, 2, 2, right_padding), "mm")
+      column_title = column_title
     )
 
   # Añadir anotación de Condition si se solicita
@@ -586,7 +577,8 @@ proteomics_heatmap <- function(data,
       annotation_tile(
         Condition,
         palette = annotation_colors,
-        show_legend = show_annotation_legend
+        show_legend = show_annotation_legend,
+        annotation_name_side = "left"
       )
   }
 
