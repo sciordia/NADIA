@@ -584,19 +584,19 @@ proteomics_heatmap <- function(data,
       column_title = column_title
     )
 
-  # Añadir anotación de Condition si se solicita
+  # Añadir separación por condición si se solicita (usando annotation_group)
+  if (split_by_condition) {
+    hm <- hm %>%
+      annotation_group(Condition)
+  }
+
+  # Añadir anotación de Condition como barra de color si se solicita
   if (show_annotation) {
     hm <- hm %>%
       annotation_tile(
         Condition,
         palette = annotation_colors
       )
-  }
-
-  # Dividir por condición si se solicita
-  if (split_by_condition) {
-    hm <- hm %>%
-      split_columns(Condition)
   }
 
   hm
