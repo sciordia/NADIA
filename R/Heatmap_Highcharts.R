@@ -5,6 +5,7 @@
 library(tidyHeatmap)
 library(dplyr)
 library(tidyr)
+library(tibble)
 
 
 # -----------------------------------------------------------------------------
@@ -550,8 +551,8 @@ proteomics_heatmap <- function(data,
   # 4) Crear heatmap con tidyHeatmap
   # ---------------------------------------------------------------------------
 
-  # Configurar parámetros de grid para ComplexHeatmap
-  gpar_settings <- grid::gpar(fontsize = row_names_size)
+  # Convertir a tibble (requerido por tidyHeatmap)
+  hm_data <- tibble::as_tibble(hm_data)
 
   # Crear heatmap base
   hm <- hm_data %>%
