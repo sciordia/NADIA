@@ -308,6 +308,21 @@ prepare_heatmap_data <- function(data,
 
   data <- as.data.frame(data)
 
+  # Para mode = "target", filtrar muestras solo a las condiciones de la comparación
+  if (mode == "target" && !is.null(comparison)) {
+    # Extraer condiciones de la comparación (ej: "B-A" -> c("B", "A"))
+    conds <- unique(trimws(strsplit(comparison, "[-|:]")[[1]]))
+    if (length(conds) >= 2) {
+      data <- data[data$Condition %in% conds, , drop = FALSE]
+      # Actualizar condition_order para solo incluir las condiciones relevantes
+      if (!is.null(condition_order)) {
+        condition_order <- condition_order[condition_order %in% conds]
+      } else {
+        condition_order <- conds
+      }
+    }
+  }
+
   # Obtener IDs de features según el modo
   ids <- get_feature_ids(data, mode = mode, alpha = alpha, comparison = comparison)
   if (length(ids) < 2) {
