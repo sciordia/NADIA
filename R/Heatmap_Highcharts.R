@@ -377,10 +377,10 @@ prepare_heatmap_data <- function(data,
 
   # Aplicar escalado si se solicita
   if (scale_data != "none") {
-    # Pivotar a matriz para escalar
+    # Pivotar a matriz para escalar (usar mean para posibles duplicados)
     mat_wide <- hm_data %>%
       select(SampleID, FeatureID, Intensity) %>%
-      pivot_wider(names_from = SampleID, values_from = Intensity) %>%
+      pivot_wider(names_from = SampleID, values_from = Intensity, values_fn = mean) %>%
       as.data.frame()
 
     rownames_feat <- mat_wide$FeatureID
