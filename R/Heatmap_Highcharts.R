@@ -355,7 +355,7 @@ prepare_heatmap_data <- function(data,
   }
 
   # Ordenar muestras según el criterio especificado
-  if (is.character(sample_order) && sample_order == "condition") {
+  if (is.character(sample_order) && length(sample_order) == 1 && sample_order == "condition") {
     # Ordenar por Condition y luego por Replicate
     if (!is.null(condition_order)) {
       hm_data <- hm_data %>%
@@ -421,7 +421,7 @@ prepare_heatmap_data <- function(data,
     }
 
     # Restaurar orden de factores si aplica
-    if (is.character(sample_order) && sample_order == "condition") {
+    if (is.character(sample_order) && length(sample_order) == 1 && sample_order == "condition") {
       if (!is.null(condition_order)) {
         hm_data <- hm_data %>%
           mutate(Condition = factor(Condition, levels = condition_order))
@@ -429,6 +429,10 @@ prepare_heatmap_data <- function(data,
       hm_data <- hm_data %>%
         arrange(Condition, as.numeric(Replicate)) %>%
         mutate(SampleID = factor(SampleID, levels = unique(SampleID)))
+    } else if (is.character(sample_order) && length(sample_order) > 1) {
+      # Restaurar orden personalizado
+      hm_data <- hm_data %>%
+        mutate(SampleID = factor(SampleID, levels = sample_order))
     }
   }
 
@@ -602,7 +606,7 @@ proteomics_heatmap <- function(data,
 
   # Determinar si aplicar clustering a columnas
   cluster_cols_final <- cluster_columns
-  if (is.character(sample_order) && sample_order != "clustering") {
+  if (is.character(sample_order) && (length(sample_order) > 1 || sample_order != "clustering")) {
     cluster_cols_final <- FALSE
   }
 
