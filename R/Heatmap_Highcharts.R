@@ -366,12 +366,23 @@ prepare_heatmap_data <- function(data,
       mutate(SampleID = factor(SampleID, levels = unique(SampleID)))
   } else if (is.character(sample_order) && length(sample_order) > 1) {
     # Orden personalizado (vector de SampleIDs)
-    if (!all(sample_order %in% unique(hm_data$SampleID))) {
-      missing <- setdiff(sample_order, unique(hm_data$SampleID))
-      warning("Muestras no encontradas en datos: ", paste(missing, collapse = ", "))
+    # Filtrar para incluir solo las muestras especificadas
+    samples_in_data <- unique(hm_data$SampleID)
+    valid_samples <- sample_order[sample_order %in% samples_in_data]
+
+    if (length(valid_samples) == 0) {
+      stop("Ninguna de las muestras especificadas en sample_order está en los datos")
     }
+
+    if (!all(sample_order %in% samples_in_data)) {
+      missing <- setdiff(sample_order, samples_in_data)
+      warning("Muestras no encontradas en datos (ignoradas): ", paste(missing, collapse = ", "))
+    }
+
+    # Filtrar datos para incluir solo las muestras especificadas
     hm_data <- hm_data %>%
-      mutate(SampleID = factor(SampleID, levels = sample_order))
+      filter(SampleID %in% valid_samples) %>%
+      mutate(SampleID = factor(SampleID, levels = valid_samples))
   }
   # Si sample_order == "clustering", dejamos que tidyHeatmap haga el clustering
 
