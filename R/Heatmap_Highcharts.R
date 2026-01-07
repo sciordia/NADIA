@@ -1057,19 +1057,23 @@ proteomics_heatmap <- function(data,
     # Preparar annotation_name_gp
     annot_name_gp <- grid::gpar(fontsize = row_annotation_name_size)
 
-    for (col in row_annotation_cols) {
-      if (col %in% names(hm_data)) {
-        hm <- suppressWarnings(
-          hm %>%
-            annotation_tile(
-              !!rlang::sym(col),
-              palette = row_annot_colors[[col]],
-              size = annot_size,
-              annotation_name_gp = annot_name_gp,
-              show_legend = show_annotation_legend
-            )
+    # Identificar las columnas válidas
+    valid_cols <- row_annotation_cols[row_annotation_cols %in% names(hm_data)]
+    n_cols <- length(valid_cols)
+
+    for (i in seq_along(valid_cols)) {
+      col <- valid_cols[i]
+      # Solo aplicar size en la última anotación (evita warning de tidyHeatmap)
+      use_size <- if (i == n_cols) annot_size else NULL
+
+      hm <- hm %>%
+        annotation_tile(
+          !!rlang::sym(col),
+          palette = row_annot_colors[[col]],
+          size = use_size,
+          annotation_name_gp = annot_name_gp,
+          show_legend = show_annotation_legend
         )
-      }
     }
   }
 
