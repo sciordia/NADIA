@@ -786,12 +786,16 @@ proteomics_heatmap <- function(data,
         }
       }
 
-      # Convertir valores vacíos a NA silenciosamente (para todas las columnas de anotación)
+      # Convertir valores vacíos al string "NA" (no NA_character_) para asignar color blanco
       for (col in row_annotation_cols) {
         values <- row_annot_data[[col]]
-        # Convertir strings vacíos o espacios en blanco a NA
         if (is.character(values)) {
-          row_annot_data[[col]] <- ifelse(trimws(values) == "", NA_character_, values)
+          # Convertir strings vacíos, espacios en blanco, y NA reales a string "NA"
+          row_annot_data[[col]] <- ifelse(
+            is.na(values) | trimws(values) == "",
+            "NA",
+            values
+          )
         }
       }
 
@@ -799,18 +803,21 @@ proteomics_heatmap <- function(data,
       feature_ids_in_data <- unique(hm_data$FeatureID)
       row_annot_data <- row_annot_data[row_annot_data$FeatureID %in% feature_ids_in_data, , drop = FALSE]
 
-      # Preparar paletas de colores para cada anotación (incluyendo NA con gris claro)
+      # Preparar paletas de colores para cada anotación (incluyendo "NA" con blanco)
       for (col in row_annotation_cols) {
-        # Obtener niveles únicos sin NA
-        levels_col <- unique(na.omit(row_annot_data[[col]]))
+        # Obtener niveles únicos excluyendo el placeholder "NA"
+        all_levels <- unique(row_annot_data[[col]])
+        levels_col <- all_levels[all_levels != "NA"]
+        has_na <- "NA" %in% all_levels
+
         if (!is.null(row_annotation_palette) && col %in% names(row_annotation_palette)) {
           colors_vec <- get_annotation_palette(levels_col, row_annotation_palette[[col]])
         } else {
           colors_vec <- get_annotation_palette(levels_col, NULL)
         }
-        # Añadir color gris claro para valores NA
-        if (any(is.na(row_annot_data[[col]]))) {
-          colors_vec <- c(colors_vec, "NA" = "#D3D3D3")
+        # Añadir color blanco para valores "NA" (al final de la paleta)
+        if (has_na) {
+          colors_vec <- c(colors_vec, "NA" = "#FFFFFF")
         }
         row_annot_colors[[col]] <- colors_vec
       }
@@ -822,25 +829,47 @@ proteomics_heatmap <- function(data,
 
       # Ordenar filas por anotación si se especifica
       if (!is.null(row_order_by) && row_order_by %in% row_annotation_cols) {
-        # Obtener orden de FeatureIDs basado en la anotación
-        feature_order <- row_annot_data %>%
-          arrange(!!rlang::sym(row_order_by)) %>%
-          pull(FeatureID) %>%
-          unique()
+        # Crear un orden explícito basado en la columna de anotación
+        # Primero ordenar row_annot_data por la columna especificada
+        row_annot_sorted <- row_annot_data %>%
+          arrange(!!rlang::sym(row_order_by))
+
+        # Obtener el orden de FeatureIDs
+        feature_order <- unique(row_annot_sorted$FeatureID)
+
+        # Convertir FeatureID a factor con el orden correcto
         hm_data <- hm_data %>%
-          mutate(FeatureID = factor(FeatureID, levels = feature_order))
+          mutate(FeatureID = factor(FeatureID, levels = feature_order)) %>%
+          arrange(FeatureID)  # Ordenar explícitamente los datos
       }
 
-      # Preparar row_split si se especifica
+      # Preparar row_split si se especifica (DESPUÉS de ordenar)
       if (!is.null(split_rows_by) && split_rows_by %in% row_annotation_cols) {
-        # Obtener el vector de split ordenado por FeatureID
-        feature_info <- hm_data %>%
+        # Obtener FeatureIDs únicos en el orden actual de hm_data
+        if (!is.null(row_order_by)) {
+          # Si hay orden, usar los niveles del factor
+          ordered_features <- levels(hm_data$FeatureID)
+        } else {
+          ordered_features <- unique(as.character(hm_data$FeatureID))
+        }
+
+        # Crear mapping de FeatureID a valor de split
+        feature_to_split <- row_annot_data %>%
           select(FeatureID, all_of(split_rows_by)) %>%
           distinct()
-        feature_order_vec <- unique(as.character(hm_data$FeatureID))
-        feature_info <- feature_info[match(feature_order_vec, as.character(feature_info$FeatureID)), ]
-        row_split_vector <- factor(feature_info[[split_rows_by]],
-                                   levels = unique(feature_info[[split_rows_by]]))
+        feature_to_split <- stats::setNames(
+          feature_to_split[[split_rows_by]],
+          feature_to_split$FeatureID
+        )
+
+        # Crear vector de split en el orden correcto
+        split_values <- feature_to_split[ordered_features]
+
+        # Determinar orden de niveles del split (según aparición en datos ordenados)
+        split_levels <- unique(split_values)
+        split_levels <- split_levels[!is.na(split_levels)]
+
+        row_split_vector <- factor(split_values, levels = split_levels)
       }
     }
   }
