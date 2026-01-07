@@ -548,6 +548,11 @@ prepare_heatmap_data <- function(data,
 #'   Default: NULL (usa todas las columnas excepto FeatureID)
 #' @param row_annotation_palette Lista nombrada de paletas para cada anotación.
 #'   Ejemplo: list(Pathway = "brewer:Set1", Function = c("red", "blue", "green"))
+#' @param row_annotation_size Ancho de las barras de anotación de filas. Puede ser:
+#'   - Número: interpretado como centímetros (ej: 0.3 = 0.3cm)
+#'   - Objeto unit: grid::unit(0.3, "cm")
+#'   - NULL: usa el valor por defecto de tidyHeatmap
+#' @param row_annotation_name_size Tamaño de fuente del nombre de las anotaciones de fila (default: 8)
 #' @param row_order_by Nombre de columna de anotación para ordenar filas (default: NULL)
 #' @param split_rows_by Nombre de columna de anotación para separar filas en grupos (default: NULL)
 #' @param scale_data Tipo de escalado: "none", "row", "column" (default: "row")
@@ -642,6 +647,8 @@ proteomics_heatmap <- function(data,
                                row_annotation = NULL,
                                row_annotation_cols = NULL,
                                row_annotation_palette = NULL,
+                               row_annotation_size = NULL,
+                               row_annotation_name_size = 8,
                                row_order_by = NULL,
                                split_rows_by = NULL,
                                scale_data = c("row", "none", "column"),
@@ -1037,6 +1044,19 @@ proteomics_heatmap <- function(data,
 
   # Añadir anotaciones de fila personalizadas (suppressWarnings para manejar NA silenciosamente)
   if (!is.null(row_annot_data) && length(row_annotation_cols) > 0) {
+    # Preparar size como unit si es numérico
+    annot_size <- NULL
+    if (!is.null(row_annotation_size)) {
+      if (is.numeric(row_annotation_size)) {
+        annot_size <- grid::unit(row_annotation_size, "cm")
+      } else {
+        annot_size <- row_annotation_size
+      }
+    }
+
+    # Preparar annotation_name_gp
+    annot_name_gp <- grid::gpar(fontsize = row_annotation_name_size)
+
     for (col in row_annotation_cols) {
       if (col %in% names(hm_data)) {
         hm <- suppressWarnings(
@@ -1044,6 +1064,8 @@ proteomics_heatmap <- function(data,
             annotation_tile(
               !!rlang::sym(col),
               palette = row_annot_colors[[col]],
+              size = annot_size,
+              annotation_name_gp = annot_name_gp,
               show_legend = show_annotation_legend
             )
         )
@@ -1138,6 +1160,8 @@ proteomics_heatmap <- function(data,
 #' @param row_annotation Anotaciones para filas (ruta TSV o data.frame)
 #' @param row_annotation_cols Columnas a usar como anotaciones de fila
 #' @param row_annotation_palette Lista de paletas para anotaciones de fila
+#' @param row_annotation_size Ancho de las barras de anotación de filas (número en cm o unit)
+#' @param row_annotation_name_size Tamaño de fuente del nombre de anotaciones de fila (default: 8)
 #' @param row_order_by Columna de anotación para ordenar filas
 #' @param split_rows_by Columna de anotación para separar filas en grupos
 #' @param scale_data Tipo de escalado: "none", "row", "column" (default: "row")
@@ -1224,6 +1248,8 @@ proteomics_heatmap_list <- function(data,
                                     row_annotation = NULL,
                                     row_annotation_cols = NULL,
                                     row_annotation_palette = NULL,
+                                    row_annotation_size = NULL,
+                                    row_annotation_name_size = 8,
                                     row_order_by = NULL,
                                     split_rows_by = NULL,
                                     scale_data = c("row", "none", "column"),
@@ -1337,6 +1363,8 @@ proteomics_heatmap_list <- function(data,
         row_annotation = row_annotation,
         row_annotation_cols = row_annotation_cols,
         row_annotation_palette = row_annotation_palette,
+        row_annotation_size = row_annotation_size,
+        row_annotation_name_size = row_annotation_name_size,
         row_order_by = row_order_by,
         split_rows_by = split_rows_by,
         scale_data = scale_data,
