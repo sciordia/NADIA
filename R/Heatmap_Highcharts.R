@@ -16,6 +16,36 @@ library(tibble)
 
 
 # -----------------------------------------------------------------------------
+# Método print para heatmaps con título personalizado
+# -----------------------------------------------------------------------------
+
+#' @export
+print.proteomics_heatmap <- function(x, ...) {
+  title <- attr(x, "heatmap_title")
+  title_size <- attr(x, "heatmap_title_size") %||% 14
+  title_face <- attr(x, "heatmap_title_face") %||% "bold"
+
+  # Obtener el objeto ComplexHeatmap subyacente
+  if (inherits(x, "InputHeatmap")) {
+    # tidyHeatmap InputHeatmap object
+    ht <- x@ht
+  } else {
+    ht <- x
+  }
+
+  # Dibujar con título
+  ComplexHeatmap::draw(
+    ht,
+    column_title = title,
+    column_title_gp = grid::gpar(fontsize = title_size, fontface = title_face),
+    ...
+  )
+
+  invisible(x)
+}
+
+
+# -----------------------------------------------------------------------------
 # Función para normalizar color hex (eliminar canal alpha si existe)
 # -----------------------------------------------------------------------------
 
@@ -484,6 +514,9 @@ prepare_heatmap_data <- function(data,
 #' @param row_names_size Tamaño de fuente de nombres de fila (default: 7)
 #' @param column_names_size Tamaño de fuente de nombres de columna (default: 9)
 #' @param column_names_rotation Rotación de nombres de columna en grados (default: 45)
+#' @param heatmap_title Título principal del heatmap (default: NULL, sin título)
+#' @param heatmap_title_size Tamaño de fuente del título principal (default: 14)
+#' @param heatmap_title_face Estilo de fuente del título: "plain", "bold", "italic", "bold.italic" (default: "bold")
 #'
 #' @return Objeto tidyHeatmap/ComplexHeatmap
 #'
@@ -547,10 +580,14 @@ proteomics_heatmap <- function(data,
                                palette_adjp = NULL,
                                row_names_size = 7,
                                column_names_size = 9,
-                               column_names_rotation = 45) {
+                               column_names_rotation = 45,
+                               heatmap_title = NULL,
+                               heatmap_title_size = 14,
+                               heatmap_title_face = c("bold", "plain", "italic", "bold.italic")) {
 
   mode <- match.arg(mode)
   scale_data <- match.arg(scale_data)
+  heatmap_title_face <- match.arg(heatmap_title_face)
 
   # ---------------------------------------------------------------------------
   # 1) Preparar datos
@@ -724,6 +761,17 @@ proteomics_heatmap <- function(data,
       )
   }
 
+  # ---------------------------------------------------------------------------
+  # 5) Añadir título principal si se especifica
+  # ---------------------------------------------------------------------------
+
+  if (!is.null(heatmap_title) && nzchar(heatmap_title)) {
+    attr(hm, "heatmap_title") <- heatmap_title
+    attr(hm, "heatmap_title_size") <- heatmap_title_size
+    attr(hm, "heatmap_title_face") <- heatmap_title_face
+    class(hm) <- c("proteomics_heatmap", class(hm))
+  }
+
   hm
 }
 
@@ -757,6 +805,10 @@ proteomics_heatmap <- function(data,
 #' @param row_names_size Tamaño de fuente de nombres de fila (default: 7)
 #' @param column_names_size Tamaño de fuente de nombres de columna (default: 9)
 #' @param column_names_rotation Rotación de nombres de columna (default: 45)
+#' @param heatmap_title Título principal del heatmap (default: NULL, sin título).
+#'   Se puede usar "\{mode\}" como placeholder que será reemplazado por el nombre del modo
+#' @param heatmap_title_size Tamaño de fuente del título principal (default: 14)
+#' @param heatmap_title_face Estilo de fuente del título (default: "bold")
 #'
 #' @return Lista nombrada de objetos tidyHeatmap
 #'
@@ -819,7 +871,10 @@ proteomics_heatmap_list <- function(data,
                                     palette_adjp = NULL,
                                     row_names_size = 7,
                                     column_names_size = 9,
-                                    column_names_rotation = 45) {
+                                    column_names_rotation = 45,
+                                    heatmap_title = NULL,
+                                    heatmap_title_size = 14,
+                                    heatmap_title_face = "bold") {
 
   scale_data <- match.arg(scale_data)
 
@@ -868,6 +923,12 @@ proteomics_heatmap_list <- function(data,
       row_title <- paste0("DEPs (", m, ")")
     }
 
+    # Procesar título (reemplazar {mode} si existe)
+    current_title <- NULL
+    if (!is.null(heatmap_title)) {
+      current_title <- gsub("\\{mode\\}", m, heatmap_title)
+    }
+
     # Intentar generar heatmap (puede fallar si no hay suficientes proteínas)
     hm <- tryCatch({
       proteomics_heatmap(
@@ -893,7 +954,10 @@ proteomics_heatmap_list <- function(data,
         palette_adjp = palette_adjp,
         row_names_size = row_names_size,
         column_names_size = column_names_size,
-        column_names_rotation = column_names_rotation
+        column_names_rotation = column_names_rotation,
+        heatmap_title = current_title,
+        heatmap_title_size = heatmap_title_size,
+        heatmap_title_face = heatmap_title_face
       )
     }, error = function(e) {
       warning("Error generando heatmap para '", m, "': ", e$message)
@@ -1000,6 +1064,26 @@ proteomics_heatmap_list <- function(data,
 #   cluster_columns = FALSE
 # )
 # hm_custom
+
+# --- Heatmap con título personalizado ---
+# hm_title <- proteomics_heatmap(
+#   data = hm_input,
+#   mode = "any",
+#   scale_data = "row",
+#   heatmap_title = "Differential Expression Analysis",
+#   heatmap_title_size = 16,
+#   heatmap_title_face = "bold"
+# )
+# hm_title
+
+# --- Lista de heatmaps con títulos dinámicos ---
+# hm_list <- proteomics_heatmap_list(
+#   data = hm_input,
+#   modes = c("all", "any", "B-A"),
+#   heatmap_title = "Proteomics Heatmap: {mode}",
+#   heatmap_title_size = 14
+# )
+# # Los títulos serán: "Proteomics Heatmap: all", "Proteomics Heatmap: any", "Proteomics Heatmap: B-A"
 
 # --- Paletas disponibles ---
 # Divergentes (buenas para datos escalados):
