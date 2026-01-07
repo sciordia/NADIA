@@ -786,18 +786,33 @@ proteomics_heatmap <- function(data,
         }
       }
 
+      # Convertir valores vacíos a NA silenciosamente (para todas las columnas de anotación)
+      for (col in row_annotation_cols) {
+        values <- row_annot_data[[col]]
+        # Convertir strings vacíos o espacios en blanco a NA
+        if (is.character(values)) {
+          row_annot_data[[col]] <- ifelse(trimws(values) == "", NA_character_, values)
+        }
+      }
+
       # Filtrar solo FeatureIDs presentes en los datos
       feature_ids_in_data <- unique(hm_data$FeatureID)
       row_annot_data <- row_annot_data[row_annot_data$FeatureID %in% feature_ids_in_data, , drop = FALSE]
 
-      # Preparar paletas de colores para cada anotación
+      # Preparar paletas de colores para cada anotación (incluyendo NA con gris claro)
       for (col in row_annotation_cols) {
+        # Obtener niveles únicos sin NA
         levels_col <- unique(na.omit(row_annot_data[[col]]))
         if (!is.null(row_annotation_palette) && col %in% names(row_annotation_palette)) {
-          row_annot_colors[[col]] <- get_annotation_palette(levels_col, row_annotation_palette[[col]])
+          colors_vec <- get_annotation_palette(levels_col, row_annotation_palette[[col]])
         } else {
-          row_annot_colors[[col]] <- get_annotation_palette(levels_col, NULL)
+          colors_vec <- get_annotation_palette(levels_col, NULL)
         }
+        # Añadir color gris claro para valores NA
+        if (any(is.na(row_annot_data[[col]]))) {
+          colors_vec <- c(colors_vec, "NA" = "#D3D3D3")
+        }
+        row_annot_colors[[col]] <- colors_vec
       }
 
       # Unir anotaciones con hm_data
@@ -965,16 +980,18 @@ proteomics_heatmap <- function(data,
       )
   }
 
-  # Añadir anotaciones de fila personalizadas
+  # Añadir anotaciones de fila personalizadas (suppressWarnings para manejar NA silenciosamente)
   if (!is.null(row_annot_data) && length(row_annotation_cols) > 0) {
     for (col in row_annotation_cols) {
       if (col %in% names(hm_data)) {
-        hm <- hm %>%
-          annotation_tile(
-            !!rlang::sym(col),
-            palette = row_annot_colors[[col]],
-            show_legend = show_annotation_legend
-          )
+        hm <- suppressWarnings(
+          hm %>%
+            annotation_tile(
+              !!rlang::sym(col),
+              palette = row_annot_colors[[col]],
+              show_legend = show_annotation_legend
+            )
+        )
       }
     }
   }
