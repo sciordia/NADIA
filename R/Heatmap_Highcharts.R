@@ -805,27 +805,53 @@ proteomics_heatmap <- function(data,
 
       # Preparar paletas de colores para cada anotación (incluyendo "NA" con blanco)
       for (col in row_annotation_cols) {
-        # Obtener niveles únicos excluyendo el placeholder "NA"
+        # Obtener niveles únicos
         all_levels <- unique(row_annot_data[[col]])
-        levels_col <- all_levels[all_levels != "NA"]
         has_na <- "NA" %in% all_levels
 
-        if (!is.null(row_annotation_palette) && col %in% names(row_annotation_palette)) {
-          colors_vec <- get_annotation_palette(levels_col, row_annotation_palette[[col]])
-        } else {
-          colors_vec <- get_annotation_palette(levels_col, NULL)
-        }
-        # Añadir color blanco para valores "NA" (al final de la paleta)
+        # Separar niveles reales de "NA" y ordenar: primero reales, luego "NA"
+        real_levels <- sort(all_levels[all_levels != "NA"])
         if (has_na) {
-          colors_vec <- c(colors_vec, "NA" = "#FFFFFF")
+          ordered_levels <- c(real_levels, "NA")
+        } else {
+          ordered_levels <- real_levels
         }
-        row_annot_colors[[col]] <- colors_vec
+
+        # Convertir la columna a factor con niveles ordenados
+        row_annot_data[[col]] <- factor(row_annot_data[[col]], levels = ordered_levels)
+
+        # Obtener colores para niveles reales
+        if (!is.null(row_annotation_palette) && col %in% names(row_annotation_palette)) {
+          real_colors <- get_annotation_palette(real_levels, row_annotation_palette[[col]])
+        } else {
+          real_colors <- get_annotation_palette(real_levels, NULL)
+        }
+
+        # Construir paleta final en el EXACTO orden de los niveles del factor
+        # Esto asegura que tidyHeatmap asigne los colores correctamente
+        final_palette <- character(length(ordered_levels))
+        names(final_palette) <- ordered_levels
+        for (lvl in ordered_levels) {
+          if (lvl == "NA") {
+            final_palette[lvl] <- "#FFFFFF"
+          } else {
+            final_palette[lvl] <- real_colors[lvl]
+          }
+        }
+        row_annot_colors[[col]] <- final_palette
       }
 
       # Unir anotaciones con hm_data
       cols_to_join <- c("FeatureID", row_annotation_cols)
       hm_data <- hm_data %>%
         left_join(row_annot_data[, cols_to_join, drop = FALSE], by = "FeatureID")
+
+      # Asegurar que los factores se mantienen después del join
+      for (col in row_annotation_cols) {
+        if (col %in% names(hm_data) && col %in% names(row_annot_data)) {
+          hm_data[[col]] <- factor(hm_data[[col]], levels = levels(row_annot_data[[col]]))
+        }
+      }
 
       # Ordenar filas por anotación si se especifica
       if (!is.null(row_order_by) && row_order_by %in% row_annotation_cols) {
