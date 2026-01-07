@@ -552,6 +552,10 @@ prepare_heatmap_data <- function(data,
 #' @param row_dend_width Ancho del dendrograma de filas. Mismo formato que column_dend_height
 #' @param show_heatmap_legend Mostrar leyenda del heatmap (default: TRUE)
 #' @param show_annotation_legend Mostrar leyenda de las anotaciones (default: TRUE)
+#' @param border_color Color del borde de las celdas del heatmap. Puede ser:
+#'   - NULL o FALSE: sin borde (default)
+#'   - TRUE: borde negro
+#'   - String de color: color específico (ej: "black", "grey", "#CCCCCC")
 #' @param heatmap_title Título principal del heatmap (default: NULL, sin título)
 #' @param heatmap_title_size Tamaño de fuente del título principal (default: 14)
 #' @param heatmap_title_face Estilo de fuente del título: "plain", "bold", "italic", "bold.italic" (default: "bold")
@@ -623,6 +627,7 @@ proteomics_heatmap <- function(data,
                                row_dend_width = NULL,
                                show_heatmap_legend = TRUE,
                                show_annotation_legend = TRUE,
+                               border_color = NULL,
                                heatmap_title = NULL,
                                heatmap_title_size = 14,
                                heatmap_title_face = c("bold", "plain", "italic", "bold.italic")) {
@@ -630,6 +635,16 @@ proteomics_heatmap <- function(data,
   mode <- match.arg(mode)
   scale_data <- match.arg(scale_data)
   heatmap_title_face <- match.arg(heatmap_title_face)
+
+  # Procesar border_color
+  rect_gp <- NULL
+  if (!is.null(border_color) && !isFALSE(border_color)) {
+    if (isTRUE(border_color)) {
+      rect_gp <- grid::gpar(col = "black")
+    } else {
+      rect_gp <- grid::gpar(col = border_color)
+    }
+  }
 
   # Convertir tamaños de dendrogramas a unidades grid si son numéricos
   if (!is.null(column_dend_height) && is.numeric(column_dend_height)) {
@@ -729,13 +744,16 @@ proteomics_heatmap <- function(data,
     col_split_vector <- factor(sample_info$Condition, levels = unique(sample_info$Condition))
   }
 
-  # Preparar argumentos opcionales para dendrogramas
-  dend_args <- list()
+  # Preparar argumentos opcionales
+  extra_args <- list()
   if (!is.null(column_dend_height)) {
-    dend_args$column_dend_height <- column_dend_height
+    extra_args$column_dend_height <- column_dend_height
   }
   if (!is.null(row_dend_width)) {
-    dend_args$row_dend_width <- row_dend_width
+    extra_args$row_dend_width <- row_dend_width
+  }
+  if (!is.null(rect_gp)) {
+    extra_args$rect_gp <- rect_gp
   }
 
   # Crear heatmap base
@@ -759,7 +777,7 @@ proteomics_heatmap <- function(data,
       column_split = col_split_vector,
       show_heatmap_legend = show_heatmap_legend
     ),
-    dend_args
+    extra_args
   )
 
   hm <- do.call(tidyHeatmap::heatmap, hm_args)
@@ -878,6 +896,7 @@ proteomics_heatmap <- function(data,
 #' @param row_dend_width Ancho del dendrograma de filas (número en mm o unit)
 #' @param show_heatmap_legend Mostrar leyenda del heatmap (default: TRUE)
 #' @param show_annotation_legend Mostrar leyenda de las anotaciones (default: TRUE)
+#' @param border_color Color del borde de las celdas (NULL, TRUE, o color)
 #' @param heatmap_title Título principal del heatmap (default: NULL, sin título).
 #'   Se puede usar "\{mode\}" como placeholder que será reemplazado por el nombre del modo
 #' @param heatmap_title_size Tamaño de fuente del título principal (default: 14)
@@ -949,6 +968,7 @@ proteomics_heatmap_list <- function(data,
                                     row_dend_width = NULL,
                                     show_heatmap_legend = TRUE,
                                     show_annotation_legend = TRUE,
+                                    border_color = NULL,
                                     heatmap_title = NULL,
                                     heatmap_title_size = 14,
                                     heatmap_title_face = "bold") {
@@ -1036,6 +1056,7 @@ proteomics_heatmap_list <- function(data,
         row_dend_width = row_dend_width,
         show_heatmap_legend = show_heatmap_legend,
         show_annotation_legend = show_annotation_legend,
+        border_color = border_color,
         heatmap_title = current_title,
         heatmap_title_size = heatmap_title_size,
         heatmap_title_face = heatmap_title_face
