@@ -340,6 +340,7 @@ get_annotation_palette <- function(levels, palette = NULL) {
 #' @param mode Modo de filtrado: "all", "any", o "target"
 #' @param alpha Umbral de significancia para modo "target" (default: 0.05)
 #' @param comparison Nombre de la comparación para modo "target" (ej: "B-A")
+#' @param feature_ids Vector de FeatureIDs específicos (si se proporciona, ignora mode/alpha)
 #' @param scale_data Tipo de escalado: "none", "row", "column" (default: "row")
 #' @param sample_order Orden de muestras: "clustering", "condition", o vector personalizado
 #' @param condition_order Orden de condiciones cuando sample_order = "condition"
@@ -349,6 +350,7 @@ prepare_heatmap_data <- function(data,
                                  mode = c("all", "any", "target"),
                                  alpha = 0.05,
                                  comparison = NULL,
+                                 feature_ids = NULL,
                                  scale_data = c("row", "none", "column"),
                                  sample_order = c("clustering", "condition", "custom"),
                                  condition_order = NULL) {
@@ -384,10 +386,24 @@ prepare_heatmap_data <- function(data,
     }
   }
 
-  # Obtener IDs de features según el modo
-  ids <- get_feature_ids(data, mode = mode, alpha = alpha, comparison = comparison)
+  # Obtener IDs de features según el modo o usar los proporcionados
+  if (!is.null(feature_ids) && length(feature_ids) > 0) {
+    # Usar IDs proporcionados directamente
+    available_ids <- unique(data$FeatureID)
+    ids <- feature_ids[feature_ids %in% available_ids]
+    if (length(ids) < length(feature_ids)) {
+      missing <- setdiff(feature_ids, available_ids)
+      warning("FeatureIDs no encontrados en datos (ignorados): ",
+              paste(head(missing, 5), collapse = ", "),
+              if (length(missing) > 5) paste0(" ... y ", length(missing) - 5, " más"))
+    }
+  } else {
+    # Usar filtrado por mode
+    ids <- get_feature_ids(data, mode = mode, alpha = alpha, comparison = comparison)
+  }
+
   if (length(ids) < 2) {
-    stop("Subset '", mode, "' sin suficientes proteínas (mínimo 2). Encontradas: ", length(ids))
+    stop("Subset sin suficientes proteínas (mínimo 2). Encontradas: ", length(ids))
   }
 
   # Filtrar datos
@@ -522,6 +538,8 @@ prepare_heatmap_data <- function(data,
 #' @param mode Modo de filtrado de proteínas: "all", "any", o "target"
 #' @param alpha Umbral de significancia para proteínas DEPs (default: 0.05)
 #' @param comparison Nombre de la comparación para modo "target" (ej: "B-A")
+#' @param feature_ids Vector de FeatureIDs específicos a mostrar (default: NULL, usa filtrado por mode).
+#'   Si se proporciona, solo se muestran estas proteínas, ignorando el filtrado por mode/alpha.
 #' @param scale_data Tipo de escalado: "none", "row", "column" (default: "row")
 #' @param sample_order Orden de muestras: "clustering", "condition", o vector personalizado
 #' @param condition_order Orden de condiciones cuando sample_order = "condition"
@@ -608,6 +626,7 @@ proteomics_heatmap <- function(data,
                                mode = c("all", "any", "target"),
                                alpha = 0.05,
                                comparison = NULL,
+                               feature_ids = NULL,
                                scale_data = c("row", "none", "column"),
                                sample_order = "clustering",
                                condition_order = NULL,
@@ -679,6 +698,7 @@ proteomics_heatmap <- function(data,
     mode = mode,
     alpha = alpha,
     comparison = comparison,
+    feature_ids = feature_ids,
     scale_data = scale_data,
     sample_order = sample_order,
     condition_order = condition_order
@@ -893,6 +913,7 @@ proteomics_heatmap <- function(data,
 #' @param modes Vector de modos a generar: "all", "any", y/o nombres de comparaciones
 #'   (default: c("all", "any"))
 #' @param alpha Umbral de significancia para proteínas DEPs (default: 0.05)
+#' @param feature_ids Vector de FeatureIDs específicos a mostrar (default: NULL)
 #' @param scale_data Tipo de escalado: "none", "row", "column" (default: "row")
 #' @param sample_order Orden de muestras: "clustering", "condition", o vector personalizado
 #' @param condition_order Orden de condiciones cuando sample_order = "condition"
@@ -969,6 +990,7 @@ proteomics_heatmap <- function(data,
 proteomics_heatmap_list <- function(data,
                                     modes = c("all", "any"),
                                     alpha = 0.05,
+                                    feature_ids = NULL,
                                     scale_data = c("row", "none", "column"),
                                     sample_order = "clustering",
                                     condition_order = NULL,
@@ -1059,6 +1081,7 @@ proteomics_heatmap_list <- function(data,
         mode = internal_mode,
         alpha = alpha,
         comparison = comparison,
+        feature_ids = feature_ids,
         scale_data = scale_data,
         sample_order = sample_order,
         condition_order = condition_order,
