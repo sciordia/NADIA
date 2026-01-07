@@ -540,6 +540,16 @@ prepare_heatmap_data <- function(data,
 #' @param comparison Nombre de la comparación para modo "target" (ej: "B-A")
 #' @param feature_ids Vector de FeatureIDs específicos a mostrar (default: NULL, usa filtrado por mode).
 #'   Si se proporciona, solo se muestran estas proteínas, ignorando el filtrado por mode/alpha.
+#' @param row_annotation Anotaciones para filas (FeatureIDs). Puede ser:
+#'   - Ruta a archivo TSV con columna "FeatureID" y columnas categóricas adicionales
+#'   - Data frame con la misma estructura
+#'   - NULL: sin anotaciones de fila (default)
+#' @param row_annotation_cols Vector de nombres de columnas a mostrar como anotaciones.
+#'   Default: NULL (usa todas las columnas excepto FeatureID)
+#' @param row_annotation_palette Lista nombrada de paletas para cada anotación.
+#'   Ejemplo: list(Pathway = "brewer:Set1", Function = c("red", "blue", "green"))
+#' @param row_order_by Nombre de columna de anotación para ordenar filas (default: NULL)
+#' @param split_rows_by Nombre de columna de anotación para separar filas en grupos (default: NULL)
 #' @param scale_data Tipo de escalado: "none", "row", "column" (default: "row")
 #' @param sample_order Orden de muestras: "clustering", "condition", o vector personalizado
 #' @param condition_order Orden de condiciones cuando sample_order = "condition"
@@ -629,6 +639,11 @@ proteomics_heatmap <- function(data,
                                alpha = 0.05,
                                comparison = NULL,
                                feature_ids = NULL,
+                               row_annotation = NULL,
+                               row_annotation_cols = NULL,
+                               row_annotation_palette = NULL,
+                               row_order_by = NULL,
+                               split_rows_by = NULL,
                                scale_data = c("row", "none", "column"),
                                sample_order = "clustering",
                                condition_order = NULL,
@@ -735,6 +750,86 @@ proteomics_heatmap <- function(data,
     message("Datos exportados a: ", export_path)
   }
 
+  # ---------------------------------------------------------------------------
+  # 1c) Procesar anotaciones de fila
+  # ---------------------------------------------------------------------------
+
+  row_annot_data <- NULL
+  row_annot_colors <- list()
+  row_split_vector <- NULL
+
+  if (!is.null(row_annotation)) {
+    # Cargar anotaciones si es ruta a archivo
+    if (is.character(row_annotation) && length(row_annotation) == 1 && file.exists(row_annotation)) {
+      row_annot_data <- readr::read_tsv(row_annotation, show_col_types = FALSE)
+    } else if (is.data.frame(row_annotation)) {
+      row_annot_data <- as.data.frame(row_annotation)
+    } else {
+      warning("row_annotation debe ser ruta a archivo TSV o data.frame")
+    }
+
+    if (!is.null(row_annot_data)) {
+      # Validar columna FeatureID
+      if (!("FeatureID" %in% names(row_annot_data))) {
+        stop("El archivo de anotaciones debe tener una columna 'FeatureID'")
+      }
+
+      # Determinar columnas a usar
+      all_annot_cols <- setdiff(names(row_annot_data), "FeatureID")
+      if (is.null(row_annotation_cols)) {
+        row_annotation_cols <- all_annot_cols
+      } else {
+        missing_cols <- setdiff(row_annotation_cols, all_annot_cols)
+        if (length(missing_cols) > 0) {
+          warning("Columnas de anotación no encontradas: ", paste(missing_cols, collapse = ", "))
+          row_annotation_cols <- intersect(row_annotation_cols, all_annot_cols)
+        }
+      }
+
+      # Filtrar solo FeatureIDs presentes en los datos
+      feature_ids_in_data <- unique(hm_data$FeatureID)
+      row_annot_data <- row_annot_data[row_annot_data$FeatureID %in% feature_ids_in_data, , drop = FALSE]
+
+      # Preparar paletas de colores para cada anotación
+      for (col in row_annotation_cols) {
+        levels_col <- unique(na.omit(row_annot_data[[col]]))
+        if (!is.null(row_annotation_palette) && col %in% names(row_annotation_palette)) {
+          row_annot_colors[[col]] <- get_annotation_palette(levels_col, row_annotation_palette[[col]])
+        } else {
+          row_annot_colors[[col]] <- get_annotation_palette(levels_col, NULL)
+        }
+      }
+
+      # Unir anotaciones con hm_data
+      cols_to_join <- c("FeatureID", row_annotation_cols)
+      hm_data <- hm_data %>%
+        left_join(row_annot_data[, cols_to_join, drop = FALSE], by = "FeatureID")
+
+      # Ordenar filas por anotación si se especifica
+      if (!is.null(row_order_by) && row_order_by %in% row_annotation_cols) {
+        # Obtener orden de FeatureIDs basado en la anotación
+        feature_order <- row_annot_data %>%
+          arrange(!!rlang::sym(row_order_by)) %>%
+          pull(FeatureID) %>%
+          unique()
+        hm_data <- hm_data %>%
+          mutate(FeatureID = factor(FeatureID, levels = feature_order))
+      }
+
+      # Preparar row_split si se especifica
+      if (!is.null(split_rows_by) && split_rows_by %in% row_annotation_cols) {
+        # Obtener el vector de split ordenado por FeatureID
+        feature_info <- hm_data %>%
+          select(FeatureID, all_of(split_rows_by)) %>%
+          distinct()
+        feature_order_vec <- unique(as.character(hm_data$FeatureID))
+        feature_info <- feature_info[match(feature_order_vec, as.character(feature_info$FeatureID)), ]
+        row_split_vector <- factor(feature_info[[split_rows_by]],
+                                   levels = unique(feature_info[[split_rows_by]]))
+      }
+    }
+  }
+
   # Determinar número de proteínas para auto-configuración
   n_proteins <- length(unique(hm_data$FeatureID))
   n_samples <- length(unique(hm_data$SampleID))
@@ -790,6 +885,12 @@ proteomics_heatmap <- function(data,
     cluster_cols_final <- FALSE
   }
 
+  # Determinar si aplicar clustering a filas
+  cluster_rows_final <- cluster_rows
+  if (!is.null(row_order_by) || !is.null(split_rows_by)) {
+    cluster_rows_final <- FALSE
+  }
+
   # ---------------------------------------------------------------------------
   # 4) Crear heatmap con tidyHeatmap
   # ---------------------------------------------------------------------------
@@ -822,6 +923,9 @@ proteomics_heatmap <- function(data,
   if (!is.null(rect_gp)) {
     extra_args$rect_gp <- rect_gp
   }
+  if (!is.null(row_split_vector)) {
+    extra_args$row_split <- row_split_vector
+  }
 
   # Crear heatmap base
   hm_args <- c(
@@ -831,7 +935,7 @@ proteomics_heatmap <- function(data,
       .column = rlang::sym("SampleID"),
       .value = rlang::sym("Intensity"),
       scale = "none",
-      cluster_rows = cluster_rows,
+      cluster_rows = cluster_rows_final,
       cluster_columns = cluster_cols_final,
       palette_value = palette_func,
       show_row_names = show_row_names,
@@ -859,6 +963,20 @@ proteomics_heatmap <- function(data,
         palette = annotation_colors,
         show_legend = show_annotation_legend
       )
+  }
+
+  # Añadir anotaciones de fila personalizadas
+  if (!is.null(row_annot_data) && length(row_annotation_cols) > 0) {
+    for (col in row_annotation_cols) {
+      if (col %in% names(hm_data)) {
+        hm <- hm %>%
+          annotation_tile(
+            !!rlang::sym(col),
+            palette = row_annot_colors[[col]],
+            show_legend = show_annotation_legend
+          )
+      }
+    }
   }
 
   # Añadir anotación de adjP para mode = "target" (anotación de filas)
@@ -945,6 +1063,11 @@ proteomics_heatmap <- function(data,
 #'   (default: c("all", "any"))
 #' @param alpha Umbral de significancia para proteínas DEPs (default: 0.05)
 #' @param feature_ids Vector de FeatureIDs específicos a mostrar (default: NULL)
+#' @param row_annotation Anotaciones para filas (ruta TSV o data.frame)
+#' @param row_annotation_cols Columnas a usar como anotaciones de fila
+#' @param row_annotation_palette Lista de paletas para anotaciones de fila
+#' @param row_order_by Columna de anotación para ordenar filas
+#' @param split_rows_by Columna de anotación para separar filas en grupos
 #' @param scale_data Tipo de escalado: "none", "row", "column" (default: "row")
 #' @param sample_order Orden de muestras: "clustering", "condition", o vector personalizado
 #' @param condition_order Orden de condiciones cuando sample_order = "condition"
@@ -1026,6 +1149,11 @@ proteomics_heatmap_list <- function(data,
                                     modes = c("all", "any"),
                                     alpha = 0.05,
                                     feature_ids = NULL,
+                                    row_annotation = NULL,
+                                    row_annotation_cols = NULL,
+                                    row_annotation_palette = NULL,
+                                    row_order_by = NULL,
+                                    split_rows_by = NULL,
                                     scale_data = c("row", "none", "column"),
                                     sample_order = "clustering",
                                     condition_order = NULL,
@@ -1134,6 +1262,11 @@ proteomics_heatmap_list <- function(data,
         alpha = alpha,
         comparison = comparison,
         feature_ids = feature_ids,
+        row_annotation = row_annotation,
+        row_annotation_cols = row_annotation_cols,
+        row_annotation_palette = row_annotation_palette,
+        row_order_by = row_order_by,
+        split_rows_by = split_rows_by,
         scale_data = scale_data,
         sample_order = sample_order,
         condition_order = condition_order,
