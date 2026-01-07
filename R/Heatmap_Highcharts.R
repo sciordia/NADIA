@@ -977,6 +977,8 @@ proteomics_heatmap <- function(data,
 #' @param heatmap_title_face Estilo de fuente del título (default: "bold")
 #' @param export_path Ruta base para exportar datos a TSV (default: NULL).
 #'   Se añadirá el nombre del modo al archivo (ej: "export_all.tsv", "export_B-A.tsv")
+#' @param export_modes Vector de modos a exportar (default: NULL, exporta todos).
+#'   Solo aplica si export_path está definido. Ejemplo: c("all", "B-A")
 #'
 #' @return Lista nombrada de objetos tidyHeatmap
 #'
@@ -1053,7 +1055,8 @@ proteomics_heatmap_list <- function(data,
                                     heatmap_title = NULL,
                                     heatmap_title_size = 14,
                                     heatmap_title_face = "bold",
-                                    export_path = NULL) {
+                                    export_path = NULL,
+                                    export_modes = NULL) {
 
   scale_data <- match.arg(scale_data)
 
@@ -1111,12 +1114,16 @@ proteomics_heatmap_list <- function(data,
     # Procesar export_path (añadir modo al nombre del archivo)
     current_export_path <- NULL
     if (!is.null(export_path) && nzchar(export_path)) {
-      # Separar directorio, nombre y extensión
-      dir_path <- dirname(export_path)
-      base_name <- tools::file_path_sans_ext(basename(export_path))
-      ext <- tools::file_ext(export_path)
-      if (nzchar(ext)) ext <- paste0(".", ext) else ext <- ".tsv"
-      current_export_path <- file.path(dir_path, paste0(base_name, "_", m, ext))
+      # Verificar si este modo debe exportarse
+      should_export <- is.null(export_modes) || m %in% export_modes
+      if (should_export) {
+        # Separar directorio, nombre y extensión
+        dir_path <- dirname(export_path)
+        base_name <- tools::file_path_sans_ext(basename(export_path))
+        ext <- tools::file_ext(export_path)
+        if (nzchar(ext)) ext <- paste0(".", ext) else ext <- ".tsv"
+        current_export_path <- file.path(dir_path, paste0(base_name, "_", m, ext))
+      }
     }
 
     # Intentar generar heatmap (puede fallar si no hay suficientes proteínas)
