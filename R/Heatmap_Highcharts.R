@@ -536,6 +536,8 @@ prepare_heatmap_data <- function(data,
 #' @param column_title Título para las columnas
 #' @param row_title_size Tamaño de fuente del título de filas (default: 10)
 #' @param column_title_size Tamaño de fuente del título de columnas (default: 10)
+#' @param show_row_title Mostrar título de filas (default: TRUE)
+#' @param show_column_title Mostrar título de columnas (default: TRUE)
 #' @param show_annotation Mostrar anotación de Condition (default: TRUE)
 #' @param split_by_condition Dividir el heatmap por condición (default: FALSE)
 #' @param show_adjp_annotation Mostrar anotación de adjP en filas para mode="target" (default: TRUE)
@@ -620,6 +622,8 @@ proteomics_heatmap <- function(data,
                                column_title = "Samples",
                                row_title_size = 10,
                                column_title_size = 10,
+                               show_row_title = TRUE,
+                               show_column_title = TRUE,
                                show_annotation = TRUE,
                                split_by_condition = FALSE,
                                show_adjp_annotation = TRUE,
@@ -648,6 +652,14 @@ proteomics_heatmap <- function(data,
     } else {
       rect_gp <- grid::gpar(col = border_color)
     }
+  }
+
+  # Procesar títulos (ocultar si show_*_title es FALSE)
+  if (!show_row_title) {
+    row_title <- NULL
+  }
+  if (!show_column_title) {
+    column_title <- NULL
   }
 
   # Convertir tamaños de dendrogramas a unidades grid si son numéricos
@@ -893,6 +905,8 @@ proteomics_heatmap <- function(data,
 #' @param reverse_palette Invertir paleta de valores (default: FALSE)
 #' @param row_title_size Tamaño de fuente del título de filas (default: 10)
 #' @param column_title_size Tamaño de fuente del título de columnas (default: 10)
+#' @param show_row_title Mostrar título de filas (default: TRUE)
+#' @param show_column_title Mostrar título de columnas (default: TRUE)
 #' @param show_annotation Mostrar anotación de Condition (default: TRUE)
 #' @param split_by_condition Dividir el heatmap por condición (default: FALSE)
 #' @param show_adjp_annotation Mostrar anotación de adjP en filas para comparaciones (default: TRUE)
@@ -967,6 +981,8 @@ proteomics_heatmap_list <- function(data,
                                     reverse_palette = FALSE,
                                     row_title_size = 10,
                                     column_title_size = 10,
+                                    show_row_title = TRUE,
+                                    show_column_title = TRUE,
                                     show_annotation = TRUE,
                                     split_by_condition = FALSE,
                                     show_adjp_annotation = TRUE,
@@ -1057,6 +1073,8 @@ proteomics_heatmap_list <- function(data,
         column_title = "Samples",
         row_title_size = row_title_size,
         column_title_size = column_title_size,
+        show_row_title = show_row_title,
+        show_column_title = show_column_title,
         show_annotation = show_annotation,
         split_by_condition = split_by_condition,
         show_adjp_annotation = show_adjp_annotation,
