@@ -42,11 +42,24 @@ wrap_heatmap_with_title <- function(hm, title, title_size = 14, title_face = "bo
 
 #' @export
 print.proteomics_heatmap <- function(x, ...) {
-  # Obtener el objeto ComplexHeatmap subyacente
-
   hm <- x$heatmap
+
+  # Convertir InputHeatmap a ComplexHeatmap usando el método de tidyHeatmap
   if (inherits(hm, "InputHeatmap")) {
-    ht <- hm@ht
+    # Usar as.list para extraer los componentes y luego reconstruir
+    # O simplemente convertir usando el método interno de tidyHeatmap
+    ht <- tryCatch({
+      # Intentar slot directo (versiones antiguas)
+      methods::slot(hm, "ht")
+    }, error = function(e) {
+      tryCatch({
+        # Intentar con input_heatmap (versiones más nuevas)
+        methods::slot(hm, "input_heatmap")
+      }, error = function(e2) {
+        # Usar la conversión de tidyHeatmap a ComplexHeatmap
+        tidyHeatmap::as_ComplexHeatmap(hm)
+      })
+    })
   } else {
     ht <- hm
   }
