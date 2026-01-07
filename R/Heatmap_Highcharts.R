@@ -551,6 +551,7 @@ prepare_heatmap_data <- function(data,
 #'   - NULL: usa el valor por defecto de ComplexHeatmap
 #' @param row_dend_width Ancho del dendrograma de filas. Mismo formato que column_dend_height
 #' @param show_heatmap_legend Mostrar leyenda del heatmap (default: TRUE)
+#' @param show_annotation_legend Mostrar leyenda de las anotaciones (default: TRUE)
 #' @param heatmap_title Título principal del heatmap (default: NULL, sin título)
 #' @param heatmap_title_size Tamaño de fuente del título principal (default: 14)
 #' @param heatmap_title_face Estilo de fuente del título: "plain", "bold", "italic", "bold.italic" (default: "bold")
@@ -621,6 +622,7 @@ proteomics_heatmap <- function(data,
                                column_dend_height = NULL,
                                row_dend_width = NULL,
                                show_heatmap_legend = TRUE,
+                               show_annotation_legend = TRUE,
                                heatmap_title = NULL,
                                heatmap_title_size = 14,
                                heatmap_title_face = c("bold", "plain", "italic", "bold.italic")) {
@@ -767,7 +769,8 @@ proteomics_heatmap <- function(data,
     hm <- hm %>%
       annotation_tile(
         Condition,
-        palette = annotation_colors
+        palette = annotation_colors,
+        show_legend = show_annotation_legend
       )
   }
 
@@ -820,7 +823,8 @@ proteomics_heatmap <- function(data,
     hm <- hm %>%
       annotation_tile(
         adjP,
-        palette = adjp_palette
+        palette = adjp_palette,
+        show_legend = show_annotation_legend
       )
   }
 
@@ -873,6 +877,7 @@ proteomics_heatmap <- function(data,
 #' @param column_dend_height Altura del dendrograma de columnas (número en mm o unit)
 #' @param row_dend_width Ancho del dendrograma de filas (número en mm o unit)
 #' @param show_heatmap_legend Mostrar leyenda del heatmap (default: TRUE)
+#' @param show_annotation_legend Mostrar leyenda de las anotaciones (default: TRUE)
 #' @param heatmap_title Título principal del heatmap (default: NULL, sin título).
 #'   Se puede usar "\{mode\}" como placeholder que será reemplazado por el nombre del modo
 #' @param heatmap_title_size Tamaño de fuente del título principal (default: 14)
@@ -943,6 +948,7 @@ proteomics_heatmap_list <- function(data,
                                     column_dend_height = NULL,
                                     row_dend_width = NULL,
                                     show_heatmap_legend = TRUE,
+                                    show_annotation_legend = TRUE,
                                     heatmap_title = NULL,
                                     heatmap_title_size = 14,
                                     heatmap_title_face = "bold") {
@@ -1029,6 +1035,7 @@ proteomics_heatmap_list <- function(data,
         column_dend_height = column_dend_height,
         row_dend_width = row_dend_width,
         show_heatmap_legend = show_heatmap_legend,
+        show_annotation_legend = show_annotation_legend,
         heatmap_title = current_title,
         heatmap_title_size = heatmap_title_size,
         heatmap_title_face = heatmap_title_face
