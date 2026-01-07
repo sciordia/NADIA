@@ -581,6 +581,8 @@ prepare_heatmap_data <- function(data,
 #' @param heatmap_title Título principal del heatmap (default: NULL, sin título)
 #' @param heatmap_title_size Tamaño de fuente del título principal (default: 14)
 #' @param heatmap_title_face Estilo de fuente del título: "plain", "bold", "italic", "bold.italic" (default: "bold")
+#' @param export_path Ruta para exportar los datos del heatmap a TSV (default: NULL, no exporta).
+#'   El archivo incluirá FeatureID, valores de intensidad por muestra, y metadatos (adjP si aplica).
 #'
 #' @return Objeto tidyHeatmap/ComplexHeatmap
 #'
@@ -657,7 +659,8 @@ proteomics_heatmap <- function(data,
                                border_color = NULL,
                                heatmap_title = NULL,
                                heatmap_title_size = 14,
-                               heatmap_title_face = c("bold", "plain", "italic", "bold.italic")) {
+                               heatmap_title_face = c("bold", "plain", "italic", "bold.italic"),
+                               export_path = NULL) {
 
   mode <- match.arg(mode)
   scale_data <- match.arg(scale_data)
@@ -703,6 +706,34 @@ proteomics_heatmap <- function(data,
     sample_order = sample_order,
     condition_order = condition_order
   )
+
+  # ---------------------------------------------------------------------------
+  # 1b) Exportar datos a TSV si se solicita
+  # ---------------------------------------------------------------------------
+
+  if (!is.null(export_path) && nzchar(export_path)) {
+    # Crear matriz wide con FeatureID como filas y SampleID como columnas
+    export_wide <- hm_data %>%
+      select(FeatureID, SampleID, Intensity) %>%
+      tidyr::pivot_wider(
+        names_from = SampleID,
+        values_from = Intensity,
+        values_fn = mean
+      )
+
+    # Añadir adjP si existe
+    if ("adjP" %in% names(hm_data)) {
+      adjp_data <- hm_data %>%
+        select(FeatureID, adjP) %>%
+        distinct()
+      export_wide <- export_wide %>%
+        left_join(adjp_data, by = "FeatureID")
+    }
+
+    # Exportar a TSV
+    readr::write_tsv(export_wide, export_path)
+    message("Datos exportados a: ", export_path)
+  }
 
   # Determinar número de proteínas para auto-configuración
   n_proteins <- length(unique(hm_data$FeatureID))
@@ -944,6 +975,8 @@ proteomics_heatmap <- function(data,
 #'   Se puede usar "\{mode\}" como placeholder que será reemplazado por el nombre del modo
 #' @param heatmap_title_size Tamaño de fuente del título principal (default: 14)
 #' @param heatmap_title_face Estilo de fuente del título (default: "bold")
+#' @param export_path Ruta base para exportar datos a TSV (default: NULL).
+#'   Se añadirá el nombre del modo al archivo (ej: "export_all.tsv", "export_B-A.tsv")
 #'
 #' @return Lista nombrada de objetos tidyHeatmap
 #'
@@ -1019,7 +1052,8 @@ proteomics_heatmap_list <- function(data,
                                     border_color = NULL,
                                     heatmap_title = NULL,
                                     heatmap_title_size = 14,
-                                    heatmap_title_face = "bold") {
+                                    heatmap_title_face = "bold",
+                                    export_path = NULL) {
 
   scale_data <- match.arg(scale_data)
 
@@ -1074,6 +1108,17 @@ proteomics_heatmap_list <- function(data,
       current_title <- gsub("\\{mode\\}", m, heatmap_title)
     }
 
+    # Procesar export_path (añadir modo al nombre del archivo)
+    current_export_path <- NULL
+    if (!is.null(export_path) && nzchar(export_path)) {
+      # Separar directorio, nombre y extensión
+      dir_path <- dirname(export_path)
+      base_name <- tools::file_path_sans_ext(basename(export_path))
+      ext <- tools::file_ext(export_path)
+      if (nzchar(ext)) ext <- paste0(".", ext) else ext <- ".tsv"
+      current_export_path <- file.path(dir_path, paste0(base_name, "_", m, ext))
+    }
+
     # Intentar generar heatmap (puede fallar si no hay suficientes proteínas)
     hm <- tryCatch({
       proteomics_heatmap(
@@ -1112,7 +1157,8 @@ proteomics_heatmap_list <- function(data,
         border_color = border_color,
         heatmap_title = current_title,
         heatmap_title_size = heatmap_title_size,
-        heatmap_title_face = heatmap_title_face
+        heatmap_title_face = heatmap_title_face,
+        export_path = current_export_path
       )
     }, error = function(e) {
       warning("Error generando heatmap para '", m, "': ", e$message)
