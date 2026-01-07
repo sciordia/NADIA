@@ -16,28 +16,46 @@ library(tibble)
 
 
 # -----------------------------------------------------------------------------
-# Método print para heatmaps con título personalizado
+# Wrapper y método print para heatmaps con título personalizado
 # -----------------------------------------------------------------------------
+
+#' Crear wrapper para heatmap con título
+#'
+#' @param hm Objeto tidyHeatmap (InputHeatmap)
+#' @param title Título del heatmap
+#' @param title_size Tamaño de fuente del título
+#' @param title_face Estilo de fuente del título
+#'
+#' @return Objeto proteomics_heatmap (lista S3)
+wrap_heatmap_with_title <- function(hm, title, title_size = 14, title_face = "bold") {
+
+  structure(
+    list(
+      heatmap = hm,
+      title = title,
+      title_size = title_size,
+      title_face = title_face
+    ),
+    class = "proteomics_heatmap"
+  )
+}
 
 #' @export
 print.proteomics_heatmap <- function(x, ...) {
-  title <- attr(x, "heatmap_title")
-  title_size <- attr(x, "heatmap_title_size") %||% 14
-  title_face <- attr(x, "heatmap_title_face") %||% "bold"
-
   # Obtener el objeto ComplexHeatmap subyacente
-  if (inherits(x, "InputHeatmap")) {
-    # tidyHeatmap InputHeatmap object
-    ht <- x@ht
+
+  hm <- x$heatmap
+  if (inherits(hm, "InputHeatmap")) {
+    ht <- hm@ht
   } else {
-    ht <- x
+    ht <- hm
   }
 
   # Dibujar con título
   ComplexHeatmap::draw(
     ht,
-    column_title = title,
-    column_title_gp = grid::gpar(fontsize = title_size, fontface = title_face),
+    column_title = x$title,
+    column_title_gp = grid::gpar(fontsize = x$title_size, fontface = x$title_face),
     ...
   )
 
@@ -766,10 +784,12 @@ proteomics_heatmap <- function(data,
   # ---------------------------------------------------------------------------
 
   if (!is.null(heatmap_title) && nzchar(heatmap_title)) {
-    attr(hm, "heatmap_title") <- heatmap_title
-    attr(hm, "heatmap_title_size") <- heatmap_title_size
-    attr(hm, "heatmap_title_face") <- heatmap_title_face
-    class(hm) <- c("proteomics_heatmap", class(hm))
+    hm <- wrap_heatmap_with_title(
+      hm = hm,
+      title = heatmap_title,
+      title_size = heatmap_title_size,
+      title_face = heatmap_title_face
+    )
   }
 
   hm
