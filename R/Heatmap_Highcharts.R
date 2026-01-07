@@ -545,6 +545,11 @@ prepare_heatmap_data <- function(data,
 #' @param row_names_size Tamaño de fuente de nombres de fila (default: 7)
 #' @param column_names_size Tamaño de fuente de nombres de columna (default: 9)
 #' @param column_names_rotation Rotación de nombres de columna en grados (default: 45)
+#' @param column_dend_height Altura del dendrograma de columnas. Puede ser:
+#'   - Número: interpretado como milímetros (ej: 30 = 30mm)
+#'   - Objeto unit: grid::unit(2, "cm")
+#'   - NULL: usa el valor por defecto de ComplexHeatmap
+#' @param row_dend_width Ancho del dendrograma de filas. Mismo formato que column_dend_height
 #' @param heatmap_title Título principal del heatmap (default: NULL, sin título)
 #' @param heatmap_title_size Tamaño de fuente del título principal (default: 14)
 #' @param heatmap_title_face Estilo de fuente del título: "plain", "bold", "italic", "bold.italic" (default: "bold")
@@ -612,6 +617,8 @@ proteomics_heatmap <- function(data,
                                row_names_size = 7,
                                column_names_size = 9,
                                column_names_rotation = 45,
+                               column_dend_height = NULL,
+                               row_dend_width = NULL,
                                heatmap_title = NULL,
                                heatmap_title_size = 14,
                                heatmap_title_face = c("bold", "plain", "italic", "bold.italic")) {
@@ -619,6 +626,14 @@ proteomics_heatmap <- function(data,
   mode <- match.arg(mode)
   scale_data <- match.arg(scale_data)
   heatmap_title_face <- match.arg(heatmap_title_face)
+
+  # Convertir tamaños de dendrogramas a unidades grid si son numéricos
+  if (!is.null(column_dend_height) && is.numeric(column_dend_height)) {
+    column_dend_height <- grid::unit(column_dend_height, "mm")
+  }
+  if (!is.null(row_dend_width) && is.numeric(row_dend_width)) {
+    row_dend_width <- grid::unit(row_dend_width, "mm")
+  }
 
   # ---------------------------------------------------------------------------
   # 1) Preparar datos
@@ -710,13 +725,23 @@ proteomics_heatmap <- function(data,
     col_split_vector <- factor(sample_info$Condition, levels = unique(sample_info$Condition))
   }
 
+  # Preparar argumentos opcionales para dendrogramas
+  dend_args <- list()
+  if (!is.null(column_dend_height)) {
+    dend_args$column_dend_height <- column_dend_height
+  }
+  if (!is.null(row_dend_width)) {
+    dend_args$row_dend_width <- row_dend_width
+  }
+
   # Crear heatmap base
-  hm <- hm_data %>%
-    heatmap(
-      .row = FeatureID,
-      .column = SampleID,
-      .value = Intensity,
-      scale = "none",  # Ya escalamos antes
+  hm_args <- c(
+    list(
+      .data = hm_data,
+      .row = rlang::sym("FeatureID"),
+      .column = rlang::sym("SampleID"),
+      .value = rlang::sym("Intensity"),
+      scale = "none",
       cluster_rows = cluster_rows,
       cluster_columns = cluster_cols_final,
       palette_value = palette_func,
@@ -728,7 +753,11 @@ proteomics_heatmap <- function(data,
       row_title = row_title,
       column_title = column_title,
       column_split = col_split_vector
-    )
+    ),
+    dend_args
+  )
+
+  hm <- do.call(tidyHeatmap::heatmap, hm_args)
 
   # Añadir anotación de Condition como barra de color si se solicita
   if (show_annotation) {
@@ -838,6 +867,8 @@ proteomics_heatmap <- function(data,
 #' @param row_names_size Tamaño de fuente de nombres de fila (default: 7)
 #' @param column_names_size Tamaño de fuente de nombres de columna (default: 9)
 #' @param column_names_rotation Rotación de nombres de columna (default: 45)
+#' @param column_dend_height Altura del dendrograma de columnas (número en mm o unit)
+#' @param row_dend_width Ancho del dendrograma de filas (número en mm o unit)
 #' @param heatmap_title Título principal del heatmap (default: NULL, sin título).
 #'   Se puede usar "\{mode\}" como placeholder que será reemplazado por el nombre del modo
 #' @param heatmap_title_size Tamaño de fuente del título principal (default: 14)
@@ -905,6 +936,8 @@ proteomics_heatmap_list <- function(data,
                                     row_names_size = 7,
                                     column_names_size = 9,
                                     column_names_rotation = 45,
+                                    column_dend_height = NULL,
+                                    row_dend_width = NULL,
                                     heatmap_title = NULL,
                                     heatmap_title_size = 14,
                                     heatmap_title_face = "bold") {
@@ -988,6 +1021,8 @@ proteomics_heatmap_list <- function(data,
         row_names_size = row_names_size,
         column_names_size = column_names_size,
         column_names_rotation = column_names_rotation,
+        column_dend_height = column_dend_height,
+        row_dend_width = row_dend_width,
         heatmap_title = current_title,
         heatmap_title_size = heatmap_title_size,
         heatmap_title_face = heatmap_title_face
