@@ -1644,12 +1644,9 @@ proteomics_heatmap_interactive <- function(data,
       row.names = colnames(mat)
     )
 
-    # Obtener paleta de colores
-    condition_levels <- unique(sample_info$Condition)
-    if (!is.null(condition_order)) {
-      condition_levels <- condition_order[condition_order %in% condition_levels]
-    }
-    col_palette <- get_annotation_palette(condition_levels, palette_annotation)
+    # Obtener paleta de colores para TODAS las condiciones presentes
+    all_conditions <- unique(as.character(sample_info$Condition))
+    col_palette <- get_annotation_palette(all_conditions, palette_annotation)
     col_side_palette <- list(Condition = col_palette)
   }
 
