@@ -1236,6 +1236,24 @@ proteomics_heatmap <- function(data,
     width_pixels <- round(plot_width * export_dpi)
     height_pixels <- round(plot_height * export_dpi)
 
+    # Función para dibujar el heatmap según su tipo
+    draw_heatmap <- function(hm_obj) {
+      if (inherits(hm_obj, "proteomics_heatmap")) {
+        # Objeto con título - usar el método print que ya maneja todo
+        print(hm_obj)
+      } else if (inherits(hm_obj, c("Heatmap", "HeatmapList"))) {
+        # ComplexHeatmap nativo
+        ComplexHeatmap::draw(hm_obj)
+      } else if (inherits(hm_obj, "InputHeatmap")) {
+        # tidyHeatmap - convertir a ComplexHeatmap y dibujar
+        ht <- tidyHeatmap::as_ComplexHeatmap(hm_obj)
+        ComplexHeatmap::draw(ht)
+      } else {
+        # Fallback para otros tipos
+        print(hm_obj)
+      }
+    }
+
     tryCatch({
       if (file_ext == "png") {
         grDevices::png(
@@ -1244,7 +1262,7 @@ proteomics_heatmap <- function(data,
           height = height_pixels,
           res = export_dpi
         )
-        print(hm)
+        draw_heatmap(hm)
         grDevices::dev.off()
         message("Heatmap exportado a PNG: ", export_file,
                 " (", width_pixels, "x", height_pixels, "px)")
@@ -1255,7 +1273,7 @@ proteomics_heatmap <- function(data,
           width = plot_width,
           height = plot_height
         )
-        print(hm)
+        draw_heatmap(hm)
         grDevices::dev.off()
         message("Heatmap exportado a SVG: ", export_file,
                 " (", plot_width, "x", plot_height, "in)")
@@ -1266,7 +1284,7 @@ proteomics_heatmap <- function(data,
           width = plot_width,
           height = plot_height
         )
-        print(hm)
+        draw_heatmap(hm)
         grDevices::dev.off()
         message("Heatmap exportado a PDF: ", export_file,
                 " (", plot_width, "x", plot_height, "in)")
