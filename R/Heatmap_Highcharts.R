@@ -553,7 +553,12 @@ prepare_heatmap_data <- function(data,
 #'   - Objeto unit: grid::unit(0.3, "cm")
 #'   - NULL: usa el valor por defecto de tidyHeatmap
 #' @param row_annotation_name_size Tamaño de fuente del nombre de las anotaciones de fila (default: 8)
-#' @param row_order_by Nombre de columna de anotación para ordenar filas (default: NULL)
+#' @param row_order_by Orden de filas. Puede ser:
+#'   - NULL: sin ordenamiento específico (default)
+#'   - "clustering": ordenar por clustering jerárquico
+#'   - Nombre de columna: ordenar por esa anotación (ej: "Specie")
+#'   - Vector de columnas: ordenar secuencialmente (ej: c("Specie", "Process", "Function"))
+#'   - Incluir "adjP" cuando mode = "target" para ordenar por p-valor ajustado
 #' @param split_rows_by Nombre de columna de anotación para separar filas en grupos (default: NULL)
 #' @param scale_data Tipo de escalado: "none", "row", "column" (default: "row")
 #' @param sample_order Orden de muestras: "clustering", "condition", o vector personalizado
@@ -864,20 +869,44 @@ proteomics_heatmap <- function(data,
         }
       }
 
-      # Ordenar filas por anotación si se especifica
-      if (!is.null(row_order_by) && row_order_by %in% row_annotation_cols) {
-        # Crear un orden explícito basado en la columna de anotación
-        # Primero ordenar row_annot_data por la columna especificada
-        row_annot_sorted <- row_annot_data %>%
-          arrange(!!rlang::sym(row_order_by))
+      # Ordenar filas por anotación(es) si se especifica (excepto "clustering")
+      if (!is.null(row_order_by) && !identical(row_order_by, "clustering")) {
+        # Determinar columnas válidas para ordenar
+        # Incluir columnas de anotación y adjP (si existe en hm_data)
+        valid_order_cols <- row_annotation_cols
+        if ("adjP" %in% names(hm_data)) {
+          valid_order_cols <- c(valid_order_cols, "adjP")
+        }
 
-        # Obtener el orden de FeatureIDs
-        feature_order <- unique(row_annot_sorted$FeatureID)
+        # Filtrar solo columnas válidas del vector row_order_by
+        order_cols <- row_order_by[row_order_by %in% valid_order_cols]
 
-        # Convertir FeatureID a factor con el orden correcto
-        hm_data <- hm_data %>%
-          mutate(FeatureID = factor(FeatureID, levels = feature_order)) %>%
-          arrange(FeatureID)  # Ordenar explícitamente los datos
+        if (length(order_cols) > 0) {
+          # Preparar datos para ordenar (combinar anotaciones con adjP si es necesario)
+          order_data <- row_annot_data
+
+          # Añadir adjP a order_data si se necesita para ordenar
+          if ("adjP" %in% order_cols && "adjP" %in% names(hm_data)) {
+            adjp_data <- hm_data %>%
+              select(FeatureID, adjP) %>%
+              distinct()
+            order_data <- order_data %>%
+              left_join(adjp_data, by = "FeatureID")
+          }
+
+          # Ordenar por múltiples columnas secuencialmente
+          order_syms <- rlang::syms(order_cols)
+          order_data_sorted <- order_data %>%
+            arrange(!!!order_syms)
+
+          # Obtener el orden de FeatureIDs
+          feature_order <- unique(order_data_sorted$FeatureID)
+
+          # Convertir FeatureID a factor con el orden correcto
+          hm_data <- hm_data %>%
+            mutate(FeatureID = factor(FeatureID, levels = feature_order)) %>%
+            arrange(FeatureID)  # Ordenar explícitamente los datos
+        }
       }
 
       # Preparar row_split si se especifica (DESPUÉS de ordenar)
@@ -908,6 +937,26 @@ proteomics_heatmap <- function(data,
 
         row_split_vector <- factor(split_values, levels = split_levels)
       }
+    }
+  }
+
+  # Ordenar por adjP si se especifica y no hay anotaciones de fila
+  # (cuando hay anotaciones, el ordenamiento ya se maneja arriba)
+  if (!is.null(row_order_by) && !identical(row_order_by, "clustering") &&
+      (is.null(row_annot_data) || length(row_annotation_cols) == 0)) {
+    # Verificar si se solicita ordenar por adjP
+    if ("adjP" %in% row_order_by && "adjP" %in% names(hm_data)) {
+      # Obtener orden de FeatureIDs por adjP
+      adjp_order <- hm_data %>%
+        select(FeatureID, adjP) %>%
+        distinct() %>%
+        arrange(adjP)
+      feature_order <- adjp_order$FeatureID
+
+      # Convertir FeatureID a factor con el orden correcto
+      hm_data <- hm_data %>%
+        mutate(FeatureID = factor(FeatureID, levels = feature_order)) %>%
+        arrange(FeatureID)
     }
   }
 
@@ -968,9 +1017,16 @@ proteomics_heatmap <- function(data,
 
   # Determinar si aplicar clustering a filas
   cluster_rows_final <- cluster_rows
-  if (!is.null(row_order_by) || !is.null(split_rows_by)) {
-    cluster_rows_final <- FALSE
+  if (!is.null(row_order_by)) {
+    if (identical(row_order_by, "clustering")) {
+      # row_order_by = "clustering" activa el clustering de filas
+      cluster_rows_final <- TRUE
+    } else {
+      # Ordenar por columnas específicas desactiva clustering
+      cluster_rows_final <- FALSE
+    }
   }
+  # split_rows_by es compatible con clustering (agrupa dentro de cada split)
 
   # ---------------------------------------------------------------------------
   # 4) Crear heatmap con tidyHeatmap
@@ -1170,7 +1226,7 @@ proteomics_heatmap <- function(data,
 #' @param row_annotation_palette Lista de paletas para anotaciones de fila
 #' @param row_annotation_size Ancho de las barras de anotación de filas (número en cm o unit)
 #' @param row_annotation_name_size Tamaño de fuente del nombre de anotaciones de fila (default: 8)
-#' @param row_order_by Columna de anotación para ordenar filas
+#' @param row_order_by Orden de filas: "clustering", columna(s) de anotación, o incluir "adjP" para mode="target"
 #' @param split_rows_by Columna de anotación para separar filas en grupos
 #' @param scale_data Tipo de escalado: "none", "row", "column" (default: "row")
 #' @param sample_order Orden de muestras: "clustering", "condition", o vector personalizado
