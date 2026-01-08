@@ -689,9 +689,8 @@ proteomics_heatmap <- function(data,
   heatmap_title_face <- match.arg(heatmap_title_face)
 
   # Suprimir mensajes de ComplexHeatmap (use_raster, magick)
-  old_ht_message <- ComplexHeatmap::ht_opt("message")
+  # Se establece para toda la sesión ya que los mensajes aparecen al dibujar, no al crear
   ComplexHeatmap::ht_opt(message = FALSE)
-  on.exit(ComplexHeatmap::ht_opt(message = old_ht_message), add = TRUE)
 
   # Procesar border_color
   rect_gp <- NULL
