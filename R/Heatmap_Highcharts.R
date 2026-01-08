@@ -1639,14 +1639,31 @@ proteomics_heatmap_interactive <- function(data,
     sample_info <- sample_info[match(colnames(mat), sample_info$SampleID), ]
 
     # Crear data frame de anotación de columna
+    condition_values <- as.character(sample_info$Condition)
+    # Reemplazar NA por string "NA"
+    condition_values[is.na(condition_values)] <- "NA"
+
     col_side_colors <- data.frame(
-      Condition = as.character(sample_info$Condition),
-      row.names = colnames(mat)
+      Condition = condition_values,
+      row.names = colnames(mat),
+      stringsAsFactors = FALSE
     )
 
-    # Obtener paleta de colores para TODAS las condiciones presentes
-    all_conditions <- unique(as.character(sample_info$Condition))
-    col_palette <- get_annotation_palette(all_conditions, palette_annotation)
+    # Obtener los valores EXACTOS que están en col_side_colors
+    # (esto garantiza que la paleta tenga todos los niveles necesarios)
+    actual_levels <- unique(col_side_colors$Condition)
+
+    # Separar niveles reales de "NA"
+    real_levels <- actual_levels[actual_levels != "NA"]
+
+    # Obtener paleta de colores para niveles reales
+    col_palette <- get_annotation_palette(real_levels, palette_annotation)
+
+    # Añadir color para "NA" si existe
+    if ("NA" %in% actual_levels) {
+      col_palette <- c(col_palette, "NA" = "#CCCCCC")
+    }
+
     col_side_palette <- list(Condition = col_palette)
   }
 
