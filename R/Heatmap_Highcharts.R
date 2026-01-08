@@ -1866,6 +1866,18 @@ proteomics_heatmap_interactive <- function(data,
   # 9) Crear heatmap con heatmaply
   # ---------------------------------------------------------------------------
 
+  # DEBUG: Verificar coincidencia de paleta y valores
+  if (!is.null(col_side_colors)) {
+    actual_values <- unique(col_side_colors$Condition)
+    palette_names <- names(col_side_palette$Condition)
+    missing_in_palette <- setdiff(actual_values, palette_names)
+    if (length(missing_in_palette) > 0) {
+      message("DEBUG - Valores en datos sin color en paleta: ", paste(missing_in_palette, collapse = ", "))
+      message("DEBUG - Valores en datos: ", paste(actual_values, collapse = ", "))
+      message("DEBUG - Nombres en paleta: ", paste(palette_names, collapse = ", "))
+    }
+  }
+
   # Preparar argumentos
   heatmaply_args <- list(
     x = mat,
