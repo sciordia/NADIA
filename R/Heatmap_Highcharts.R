@@ -607,9 +607,12 @@ prepare_heatmap_data <- function(data,
 #'   - .png: Imagen PNG (raster)
 #'   - .svg: Imagen SVG (vectorial)
 #'   - .pdf: Documento PDF (vectorial)
-#' @param plot_width Ancho del gráfico en píxeles (default: 1200)
-#' @param plot_height Alto del gráfico en píxeles (default: 900)
-#' @param export_dpi Resolución para PNG en puntos por pulgada (default: 300)
+#' @param plot_width Ancho del gráfico en pulgadas (default: 10).
+#'   Para calcular píxeles: píxeles = pulgadas × dpi (ej: 10" × 300dpi = 3000px)
+#' @param plot_height Alto del gráfico en pulgadas (default: 8).
+#'   Para calcular píxeles: píxeles = pulgadas × dpi (ej: 8" × 300dpi = 2400px)
+#' @param export_dpi Resolución para PNG en puntos por pulgada (default: 300).
+#'   Mayor dpi = más detalle. Valores comunes: 72 (web), 150 (draft), 300 (publicación)
 #'
 #' @return Objeto tidyHeatmap/ComplexHeatmap
 #'
@@ -696,8 +699,8 @@ proteomics_heatmap <- function(data,
                                heatmap_title_face = c("bold", "plain", "italic", "bold.italic"),
                                export_path = NULL,
                                export_file = NULL,
-                               plot_width = 1200,
-                               plot_height = 900,
+                               plot_width = 10,
+                               plot_height = 8,
                                export_dpi = 300) {
 
   mode <- match.arg(mode)
@@ -1229,41 +1232,44 @@ proteomics_heatmap <- function(data,
       dir.create(export_dir, recursive = TRUE)
     }
 
-    # Convertir píxeles a pulgadas para PDF y SVG
-    width_inches <- plot_width / export_dpi
-    height_inches <- plot_height / export_dpi
+    # Calcular píxeles para PNG (pulgadas × dpi)
+    width_pixels <- round(plot_width * export_dpi)
+    height_pixels <- round(plot_height * export_dpi)
 
     tryCatch({
       if (file_ext == "png") {
         grDevices::png(
           filename = export_file,
-          width = plot_width,
-          height = plot_height,
+          width = width_pixels,
+          height = height_pixels,
           res = export_dpi
         )
         print(hm)
         grDevices::dev.off()
-        message("Heatmap exportado a PNG: ", export_file)
+        message("Heatmap exportado a PNG: ", export_file,
+                " (", width_pixels, "x", height_pixels, "px)")
 
       } else if (file_ext == "svg") {
         grDevices::svg(
           filename = export_file,
-          width = width_inches,
-          height = height_inches
+          width = plot_width,
+          height = plot_height
         )
         print(hm)
         grDevices::dev.off()
-        message("Heatmap exportado a SVG: ", export_file)
+        message("Heatmap exportado a SVG: ", export_file,
+                " (", plot_width, "x", plot_height, "in)")
 
       } else if (file_ext == "pdf") {
         grDevices::pdf(
           file = export_file,
-          width = width_inches,
-          height = height_inches
+          width = plot_width,
+          height = plot_height
         )
         print(hm)
         grDevices::dev.off()
-        message("Heatmap exportado a PDF: ", export_file)
+        message("Heatmap exportado a PDF: ", export_file,
+                " (", plot_width, "x", plot_height, "in)")
 
       } else {
         warning("Formato no soportado: ", file_ext, ". Use .png, .svg o .pdf")
@@ -1335,8 +1341,8 @@ proteomics_heatmap <- function(data,
 #'   Solo aplica si export_path está definido. Ejemplo: c("all", "B-A")
 #' @param export_file Ruta base para exportar gráficos. Se añade el modo al nombre.
 #'   El formato se detecta por extensión (.png, .svg, .pdf)
-#' @param plot_width Ancho del gráfico en píxeles (default: 1200)
-#' @param plot_height Alto del gráfico en píxeles (default: 900)
+#' @param plot_width Ancho del gráfico en pulgadas (default: 10)
+#' @param plot_height Alto del gráfico en pulgadas (default: 8)
 #' @param export_dpi Resolución para PNG en puntos por pulgada (default: 300)
 #'
 #' @return Lista nombrada de objetos tidyHeatmap
@@ -1424,8 +1430,8 @@ proteomics_heatmap_list <- function(data,
                                     export_path = NULL,
                                     export_modes = NULL,
                                     export_file = NULL,
-                                    plot_width = 1200,
-                                    plot_height = 900,
+                                    plot_width = 10,
+                                    plot_height = 8,
                                     export_dpi = 300) {
 
   scale_data <- match.arg(scale_data)
