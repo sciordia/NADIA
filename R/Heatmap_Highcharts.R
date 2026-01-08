@@ -1898,7 +1898,8 @@ proteomics_heatmap_interactive <- function(data,
   # Añadir anotaciones de columna si existen
   if (!is.null(col_side_colors)) {
     heatmaply_args$col_side_colors <- col_side_colors
-    heatmaply_args$col_side_palette <- col_side_palette
+    # Temporalmente NO pasar paleta para debug
+    # heatmaply_args$col_side_palette <- col_side_palette
   }
 
   # Añadir anotaciones de fila si existen
