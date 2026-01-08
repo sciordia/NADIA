@@ -603,6 +603,13 @@ prepare_heatmap_data <- function(data,
 #' @param heatmap_title_face Estilo de fuente del título: "plain", "bold", "italic", "bold.italic" (default: "bold")
 #' @param export_path Ruta para exportar los datos del heatmap a TSV (default: NULL, no exporta).
 #'   El archivo incluirá FeatureID, valores de intensidad por muestra, y metadatos (adjP si aplica).
+#' @param export_file Ruta para exportar el gráfico. El formato se detecta por la extensión:
+#'   - .png: Imagen PNG (raster)
+#'   - .svg: Imagen SVG (vectorial)
+#'   - .pdf: Documento PDF (vectorial)
+#' @param plot_width Ancho del gráfico en píxeles (default: 1200)
+#' @param plot_height Alto del gráfico en píxeles (default: 900)
+#' @param export_dpi Resolución para PNG en puntos por pulgada (default: 300)
 #'
 #' @return Objeto tidyHeatmap/ComplexHeatmap
 #'
@@ -687,7 +694,11 @@ proteomics_heatmap <- function(data,
                                heatmap_title = NULL,
                                heatmap_title_size = 14,
                                heatmap_title_face = c("bold", "plain", "italic", "bold.italic"),
-                               export_path = NULL) {
+                               export_path = NULL,
+                               export_file = NULL,
+                               plot_width = 1200,
+                               plot_height = 900,
+                               export_dpi = 300) {
 
   mode <- match.arg(mode)
   scale_data <- match.arg(scale_data)
@@ -1204,6 +1215,66 @@ proteomics_heatmap <- function(data,
     )
   }
 
+  # ---------------------------------------------------------------------------
+  # 6) Exportar gráfico si se especifica
+  # ---------------------------------------------------------------------------
+
+  if (!is.null(export_file) && nzchar(export_file)) {
+    # Detectar formato por extensión
+    file_ext <- tolower(tools::file_ext(export_file))
+
+    # Crear directorio si no existe
+    export_dir <- dirname(export_file)
+    if (!dir.exists(export_dir) && export_dir != ".") {
+      dir.create(export_dir, recursive = TRUE)
+    }
+
+    # Convertir píxeles a pulgadas para PDF y SVG
+    width_inches <- plot_width / export_dpi
+    height_inches <- plot_height / export_dpi
+
+    tryCatch({
+      if (file_ext == "png") {
+        grDevices::png(
+          filename = export_file,
+          width = plot_width,
+          height = plot_height,
+          res = export_dpi
+        )
+        print(hm)
+        grDevices::dev.off()
+        message("Heatmap exportado a PNG: ", export_file)
+
+      } else if (file_ext == "svg") {
+        grDevices::svg(
+          filename = export_file,
+          width = width_inches,
+          height = height_inches
+        )
+        print(hm)
+        grDevices::dev.off()
+        message("Heatmap exportado a SVG: ", export_file)
+
+      } else if (file_ext == "pdf") {
+        grDevices::pdf(
+          file = export_file,
+          width = width_inches,
+          height = height_inches
+        )
+        print(hm)
+        grDevices::dev.off()
+        message("Heatmap exportado a PDF: ", export_file)
+
+      } else {
+        warning("Formato no soportado: ", file_ext, ". Use .png, .svg o .pdf")
+      }
+    }, error = function(e) {
+      # Asegurar que el dispositivo gráfico se cierre en caso de error
+      try(grDevices::dev.off(), silent = TRUE)
+      warning("Error al exportar heatmap: ", e$message)
+    })
+  }
+
   hm
 }
 
@@ -1262,6 +1333,11 @@ proteomics_heatmap <- function(data,
 #'   Se añadirá el nombre del modo al archivo (ej: "export_all.tsv", "export_B-A.tsv")
 #' @param export_modes Vector de modos a exportar (default: NULL, exporta todos).
 #'   Solo aplica si export_path está definido. Ejemplo: c("all", "B-A")
+#' @param export_file Ruta base para exportar gráficos. Se añade el modo al nombre.
+#'   El formato se detecta por extensión (.png, .svg, .pdf)
+#' @param plot_width Ancho del gráfico en píxeles (default: 1200)
+#' @param plot_height Alto del gráfico en píxeles (default: 900)
+#' @param export_dpi Resolución para PNG en puntos por pulgada (default: 300)
 #'
 #' @return Lista nombrada de objetos tidyHeatmap
 #'
@@ -1346,7 +1422,11 @@ proteomics_heatmap_list <- function(data,
                                     heatmap_title_size = 14,
                                     heatmap_title_face = "bold",
                                     export_path = NULL,
-                                    export_modes = NULL) {
+                                    export_modes = NULL,
+                                    export_file = NULL,
+                                    plot_width = 1200,
+                                    plot_height = 900,
+                                    export_dpi = 300) {
 
   scale_data <- match.arg(scale_data)
 
@@ -1416,6 +1496,21 @@ proteomics_heatmap_list <- function(data,
       }
     }
 
+    # Procesar export_file (añadir modo al nombre del archivo de gráfico)
+    current_export_file <- NULL
+    if (!is.null(export_file) && nzchar(export_file)) {
+      # Verificar si este modo debe exportarse
+      should_export <- is.null(export_modes) || m %in% export_modes
+      if (should_export) {
+        # Separar directorio, nombre y extensión
+        dir_path <- dirname(export_file)
+        base_name <- tools::file_path_sans_ext(basename(export_file))
+        ext <- tools::file_ext(export_file)
+        if (nzchar(ext)) ext <- paste0(".", ext) else ext <- ".png"
+        current_export_file <- file.path(dir_path, paste0(base_name, "_", m, ext))
+      }
+    }
+
     # Intentar generar heatmap (puede fallar si no hay suficientes proteínas)
     hm <- tryCatch({
       proteomics_heatmap(
@@ -1462,7 +1557,11 @@ proteomics_heatmap_list <- function(data,
         heatmap_title = current_title,
         heatmap_title_size = heatmap_title_size,
         heatmap_title_face = heatmap_title_face,
-        export_path = current_export_path
+        export_path = current_export_path,
+        export_file = current_export_file,
+        plot_width = plot_width,
+        plot_height = plot_height,
+        export_dpi = export_dpi
       )
     }, error = function(e) {
       warning("Error generando heatmap para '", m, "': ", e$message)
