@@ -1888,9 +1888,9 @@ proteomics_heatmap_interactive <- function(data,
     showticklabels = c(show_row_names, show_column_names),
     fontsize_row = fontsize_row,
     fontsize_col = fontsize_col,
-    xlab = column_title,
-    ylab = row_title,
-    main = heatmap_title,
+    xlab = column_title %||% "",
+    ylab = row_title %||% "",
+    main = heatmap_title %||% "",
     na.value = na_color,
     hide_colorbar = !show_legend
   )
