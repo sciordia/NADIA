@@ -984,10 +984,14 @@ cluster_profile_highchart <- function(result,
       line_color <- cluster_color
 
     } else if (color_mode == "zscore") {
-      # Color basado en z-score promedio de la proteína
-      avg_zscore <- mean(zscore_row, na.rm = TRUE)
+      # Color basado en el z-score del último punto (o el más extremo)
+      # Esto muestra la tendencia final del perfil
+      last_zscore <- zscore_row[length(zscore_row)]
+      # Alternativamente: usar el z-score más extremo
+      # extreme_idx <- which.max(abs(zscore_row))
+      # extreme_zscore <- zscore_row[extreme_idx]
       line_color <- interpolate_color(
-        avg_zscore,
+        last_zscore,
         low_color = palette_gradient[1],
         mid_color = palette_gradient[2],
         high_color = palette_gradient[3],
@@ -1002,8 +1006,8 @@ cluster_profile_highchart <- function(result,
         low_color = palette_gradient[1],
         mid_color = palette_gradient[2],
         high_color = palette_gradient[3],
-        midpoint = (mem_min + 1) / 2,
-        limits = c(mem_min, 1)
+        midpoint = (mem_min_threshold + 1) / 2,
+        limits = c(mem_min_threshold, 1)
       )
     }
 
@@ -1016,11 +1020,14 @@ cluster_profile_highchart <- function(result,
       )
     })
 
+    # IMPORTANTE: Para líneas en Highcharts, usar 'opacity' como propiedad de serie
+    # además del color (rgba no siempre funciona para líneas)
     list(
       name = feature_id,
       type = "line",
       data = points,
-      color = hex_to_rgba(line_color, opacity),
+      color = line_color,
+      opacity = opacity,
       lineWidth = line_width,
       marker = list(enabled = FALSE),
       enableMouseTracking = TRUE,
@@ -1028,6 +1035,7 @@ cluster_profile_highchart <- function(result,
       states = list(
         hover = list(
           lineWidth = line_width + 1.5,
+          opacity = 1,
           enabled = TRUE
         )
       )
@@ -1185,6 +1193,7 @@ cluster_profile_highchart <- function(result,
       type = series$type,
       data = series$data,
       color = series$color,
+      opacity = series$opacity,
       lineWidth = series$lineWidth,
       marker = series$marker,
       enableMouseTracking = series$enableMouseTracking,
