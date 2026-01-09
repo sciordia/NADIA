@@ -789,7 +789,652 @@ pattern_profiler <- function(data,
 
 
 # =============================================================================
-# EJEMPLOS DE USO (comentados)
+# VISUALIZACIÓN CON HIGHCHARTS
+# =============================================================================
+
+#' Preparar datos de perfiles para un cluster específico
+#'
+#' @param result Resultado de pattern_profiler()
+#' @param cluster Número de cluster
+#' @param min_membership Filtro de membership mínima (default: usa el de result)
+#' @return Lista con datos preparados para visualización
+prepare_cluster_profile_data <- function(result, cluster, min_membership = NULL) {
+
+  if (is.null(min_membership)) {
+    min_membership <- result$min_membership
+  }
+
+  # Filtrar proteínas del cluster con membership suficiente
+  mt <- result$membership_table
+  conditions <- result$conditions
+
+  cluster_data <- mt[mt$Cluster == cluster & mt$MaxMembership >= min_membership, , drop = FALSE]
+
+  if (nrow(cluster_data) == 0) {
+    return(NULL)
+  }
+
+  # Extraer z-scores (columnas de condiciones)
+  zscore_cols <- intersect(conditions, names(cluster_data))
+  zscores <- as.matrix(cluster_data[, zscore_cols, drop = FALSE])
+  rownames(zscores) <- cluster_data$FeatureID
+
+  # Calcular centroide (media o mediana)
+  centroid <- colMeans(zscores, na.rm = TRUE)
+
+  list(
+    cluster = cluster,
+    n_proteins = nrow(cluster_data),
+    conditions = conditions,
+    zscores = zscores,
+    centroid = centroid,
+    memberships = cluster_data$MaxMembership,
+    feature_ids = cluster_data$FeatureID,
+    min_membership = min_membership
+  )
+}
+
+
+#' Gráfico de Perfil de Cluster con Highcharts
+#'
+#' Genera un gráfico interactivo mostrando los perfiles de expresión
+#' de las proteínas en un cluster específico.
+#'
+#' @param result Resultado de pattern_profiler()
+#' @param cluster Número de cluster a visualizar
+#' @param min_membership Filtro de membership mínima
+#' @param color_mode Modo de coloración: "zscore" o "membership"
+#' @param show_centroid Mostrar línea central (default: TRUE)
+#' @param centroid_summary Método para centroide: "mean" o "median"
+#' @param palette_gradient Vector de 3 colores para gradiente c(low, mid, high)
+#' @param cluster_color Color base para el cluster (para centroide)
+#' @param line_width Ancho de líneas de perfil (default: 1.5)
+#' @param centroid_width Ancho de línea del centroide (default: 3)
+#' @param opacity_range Rango de opacidad c(min, max) basado en membership
+#' @param title Título personalizado (opcional)
+#' @param height Altura del gráfico en píxeles
+#'
+#' @return Objeto highchart
+cluster_profile_highchart <- function(result,
+                                       cluster,
+                                       min_membership = NULL,
+                                       color_mode = c("zscore", "membership"),
+                                       show_centroid = TRUE,
+                                       centroid_summary = c("mean", "median"),
+                                       palette_gradient = c("#2166AC", "#F7F7F7", "#B2182B"),
+                                       cluster_color = NULL,
+                                       line_width = 1.5,
+                                       centroid_width = 3,
+                                       opacity_range = c(0.15, 0.6),
+                                       title = NULL,
+                                       height = NULL) {
+
+  color_mode <- match.arg(color_mode)
+  centroid_summary <- match.arg(centroid_summary)
+
+  # ---------------------------------------------------------------------------
+  # 1) Preparar datos del cluster
+  # ---------------------------------------------------------------------------
+  profile_data <- prepare_cluster_profile_data(result, cluster, min_membership)
+
+  if (is.null(profile_data)) {
+    warning(sprintf("Cluster %d: sin proteínas con membership >= %.2f",
+                    cluster, min_membership %||% result$min_membership))
+    return(NULL)
+  }
+
+  conditions <- profile_data$conditions
+  zscores <- profile_data$zscores
+  memberships <- profile_data$memberships
+  feature_ids <- profile_data$feature_ids
+  n_proteins <- profile_data$n_proteins
+
+  # ---------------------------------------------------------------------------
+  # 2) Calcular centroide
+  # ---------------------------------------------------------------------------
+  if (centroid_summary == "mean") {
+    centroid <- colMeans(zscores, na.rm = TRUE)
+  } else {
+    centroid <- apply(zscores, 2, median, na.rm = TRUE)
+  }
+
+  # ---------------------------------------------------------------------------
+  # 3) Configurar color del cluster
+  # ---------------------------------------------------------------------------
+  if (is.null(cluster_color)) {
+    cluster_palette <- configure_cluster_palette(result$optimal_c)
+    cluster_color <- cluster_palette[cluster]
+  }
+
+  # ---------------------------------------------------------------------------
+  # 4) Título del gráfico
+  # ---------------------------------------------------------------------------
+  if (is.null(title)) {
+    title <- sprintf("Cluster %d (n = %d, membership >= %.2f)",
+                     cluster, n_proteins, profile_data$min_membership)
+  }
+
+  # ---------------------------------------------------------------------------
+  # 5) Construir series de líneas de perfil
+  # ---------------------------------------------------------------------------
+  profile_series <- lapply(seq_len(n_proteins), function(i) {
+    zscore_row <- as.numeric(zscores[i, ])
+    membership_val <- memberships[i]
+    feature_id <- feature_ids[i]
+
+    # Calcular opacidad basada en membership
+    mem_norm <- (membership_val - min(memberships)) /
+                max(1e-8, (max(memberships) - min(memberships)))
+    opacity <- opacity_range[1] + mem_norm * (opacity_range[2] - opacity_range[1])
+
+    # Determinar color según modo
+    if (color_mode == "zscore") {
+      # Color basado en z-score promedio de la proteína
+      avg_zscore <- mean(zscore_row, na.rm = TRUE)
+      line_color <- interpolate_color(
+        avg_zscore,
+        low_color = palette_gradient[1],
+        mid_color = palette_gradient[2],
+        high_color = palette_gradient[3],
+        midpoint = 0,
+        limits = c(-2, 2)
+      )
+    } else {
+      # Color basado en membership
+      line_color <- interpolate_color(
+        membership_val,
+        low_color = palette_gradient[1],
+        mid_color = palette_gradient[2],
+        high_color = palette_gradient[3],
+        midpoint = 0.7,
+        limits = c(profile_data$min_membership, 1)
+      )
+    }
+
+    # Construir puntos de la línea
+    points <- lapply(seq_along(conditions), function(j) {
+      list(
+        x = j - 1,
+        y = round(zscore_row[j], 4),
+        condition = conditions[j]
+      )
+    })
+
+    list(
+      name = feature_id,
+      type = "line",
+      data = points,
+      color = hex_to_rgba(line_color, opacity),
+      lineWidth = line_width,
+      marker = list(enabled = FALSE),
+      enableMouseTracking = TRUE,
+      showInLegend = FALSE,
+      states = list(
+        hover = list(
+          lineWidth = line_width + 1,
+          enabled = TRUE
+        )
+      ),
+      custom = list(
+        membership = round(membership_val, 3),
+        featureID = feature_id
+      )
+    )
+  })
+
+  # ---------------------------------------------------------------------------
+  # 6) Serie del centroide
+  # ---------------------------------------------------------------------------
+  centroid_series <- NULL
+  if (show_centroid) {
+    centroid_points <- lapply(seq_along(conditions), function(j) {
+      list(
+        x = j - 1,
+        y = round(centroid[j], 4),
+        condition = conditions[j]
+      )
+    })
+
+    centroid_series <- list(
+      name = paste("Centroid (", centroid_summary, ")", sep = ""),
+      type = "line",
+      data = centroid_points,
+      color = darken_hex(cluster_color, 0.2),
+      lineWidth = centroid_width,
+      marker = list(
+        enabled = TRUE,
+        symbol = "circle",
+        radius = 5,
+        fillColor = cluster_color,
+        lineColor = darken_hex(cluster_color, 0.3),
+        lineWidth = 2
+      ),
+      zIndex = 10,
+      showInLegend = TRUE
+    )
+  }
+
+  # ---------------------------------------------------------------------------
+  # 7) Construir highchart
+  # ---------------------------------------------------------------------------
+  hc <- highchart() |>
+    hc_chart(
+      type = "line",
+      backgroundColor = "#FFFFFF",
+      style = list(fontFamily = "Inter, -apple-system, sans-serif"),
+      height = height,
+      zoomType = "xy"
+    ) |>
+    hc_title(
+      text = title,
+      style = list(
+        fontSize = "18px",
+        fontWeight = "600",
+        color = "#1D3557"
+      )
+    ) |>
+    hc_subtitle(
+      text = sprintf("Color by %s | Opacity by membership",
+                     ifelse(color_mode == "zscore", "z-score", "membership")),
+      style = list(
+        fontSize = "12px",
+        color = "#6C757D"
+      )
+    ) |>
+    hc_xAxis(
+      categories = conditions,
+      title = list(
+        text = "Condition",
+        style = list(
+          fontSize = "13px",
+          fontWeight = "bold",
+          color = "#212529"
+        )
+      ),
+      labels = list(
+        style = list(
+          fontSize = "12px",
+          color = "#495057"
+        )
+      ),
+      lineColor = "#DEE2E6",
+      tickColor = "#DEE2E6",
+      gridLineWidth = 0
+    ) |>
+    hc_yAxis(
+      title = list(
+        text = "z-score",
+        style = list(
+          fontSize = "13px",
+          fontWeight = "bold",
+          color = "#212529"
+        )
+      ),
+      labels = list(
+        style = list(
+          fontSize = "11px",
+          color = "#495057"
+        )
+      ),
+      lineColor = "#DEE2E6",
+      lineWidth = 1,
+      gridLineColor = "#F1F3F4",
+      gridLineDashStyle = "Dot",
+      plotLines = list(
+        list(
+          value = 0,
+          color = "#ADB5BD",
+          width = 1,
+          dashStyle = "Dash",
+          zIndex = 1
+        )
+      )
+    ) |>
+    hc_tooltip(
+      useHTML = TRUE,
+      backgroundColor = "rgba(255, 255, 255, 0.95)",
+      borderColor = "#DEE2E6",
+      borderRadius = 8,
+      shadow = TRUE,
+      style = list(fontSize = "12px"),
+      headerFormat = "",
+      pointFormat = paste0(
+        "<div style='padding: 4px;'>",
+        "<b style='font-size: 13px; color: #1D3557;'>{series.name}</b><br/>",
+        "<span style='color: #6C757D;'>Condition:</span> <b>{point.condition}</b><br/>",
+        "<span style='color: #6C757D;'>z-score:</span> <b>{point.y:.3f}</b>",
+        "</div>"
+      )
+    ) |>
+    hc_legend(
+      enabled = show_centroid,
+      layout = "horizontal",
+      align = "center",
+      verticalAlign = "bottom",
+      itemStyle = list(
+        fontSize = "12px",
+        fontWeight = "normal",
+        color = "#495057"
+      )
+    ) |>
+    hc_exporting(
+      enabled = TRUE,
+      buttons = list(
+        contextButton = list(
+          menuItems = c("downloadPNG", "downloadSVG", "downloadPDF")
+        )
+      )
+    )
+
+  # Añadir series de perfiles
+  for (series in profile_series) {
+    hc <- hc |> hc_add_series(
+      name = series$name,
+      type = series$type,
+      data = series$data,
+      color = series$color,
+      lineWidth = series$lineWidth,
+      marker = series$marker,
+      enableMouseTracking = series$enableMouseTracking,
+      showInLegend = series$showInLegend,
+      states = series$states
+    )
+  }
+
+  # Añadir centroide si corresponde
+  if (!is.null(centroid_series)) {
+    hc <- hc |> hc_add_series(
+      name = centroid_series$name,
+      type = centroid_series$type,
+      data = centroid_series$data,
+      color = centroid_series$color,
+      lineWidth = centroid_series$lineWidth,
+      marker = centroid_series$marker,
+      zIndex = centroid_series$zIndex,
+      showInLegend = centroid_series$showInLegend
+    )
+  }
+
+  hc
+}
+
+
+#' Lista de Gráficos de Perfil de Clusters con Highcharts
+#'
+#' Genera una lista de gráficos interactivos para todos los clusters.
+#'
+#' @param result Resultado de pattern_profiler()
+#' @param clusters Vector de clusters a visualizar (NULL = todos)
+#' @param min_membership Filtro de membership mínima
+#' @param color_mode Modo de coloración: "zscore" o "membership"
+#' @param show_centroid Mostrar línea central (default: TRUE)
+#' @param centroid_summary Método para centroide: "mean" o "median"
+#' @param palette_gradient Vector de 3 colores para gradiente
+#' @param palette Paleta para colores de clusters (NULL, "ggsci::", "brewer:")
+#' @param line_width Ancho de líneas de perfil
+#' @param centroid_width Ancho de línea del centroide
+#' @param opacity_range Rango de opacidad basado en membership
+#' @param height Altura de cada gráfico en píxeles
+#'
+#' @return Lista nombrada de objetos highchart
+#'
+#' @examples
+#' \dontrun{
+#' # Ejecutar clustering
+#' result <- pattern_profiler(
+#'   data = data,
+#'   filter_mode = "any",
+#'   condition_order = c("A", "B", "C", "D")
+#' )
+#'
+#' # Generar gráficos para todos los clusters
+#' hc_profiles <- cluster_profile_highchart_list(result)
+#'
+#' # Visualizar cluster 1
+#' hc_profiles[["Cluster_1"]]
+#'
+#' # Con opciones personalizadas
+#' hc_profiles <- cluster_profile_highchart_list(
+#'   result,
+#'   color_mode = "membership",
+#'   palette = "ggsci::nrc_npg",
+#'   min_membership = 0.6
+#' )
+#' }
+cluster_profile_highchart_list <- function(result,
+                                            clusters = NULL,
+                                            min_membership = NULL,
+                                            color_mode = c("zscore", "membership"),
+                                            show_centroid = TRUE,
+                                            centroid_summary = c("mean", "median"),
+                                            palette_gradient = c("#2166AC", "#F7F7F7", "#B2182B"),
+                                            palette = NULL,
+                                            line_width = 1.5,
+                                            centroid_width = 3,
+                                            opacity_range = c(0.15, 0.6),
+                                            height = NULL) {
+
+  color_mode <- match.arg(color_mode)
+  centroid_summary <- match.arg(centroid_summary)
+
+  # Determinar clusters a visualizar
+  if (is.null(clusters)) {
+    clusters <- seq_len(result$optimal_c)
+  }
+
+  # Configurar paleta de colores para clusters
+  cluster_colors <- configure_cluster_palette(result$optimal_c, palette)
+
+  # Generar gráficos
+  hc_list <- lapply(clusters, function(k) {
+    hc <- tryCatch({
+      cluster_profile_highchart(
+        result = result,
+        cluster = k,
+        min_membership = min_membership,
+        color_mode = color_mode,
+        show_centroid = show_centroid,
+        centroid_summary = centroid_summary,
+        palette_gradient = palette_gradient,
+        cluster_color = cluster_colors[k],
+        line_width = line_width,
+        centroid_width = centroid_width,
+        opacity_range = opacity_range,
+        height = height
+      )
+    }, error = function(e) {
+      warning(sprintf("Error generando gráfico para Cluster %d: %s", k, e$message))
+      return(NULL)
+    })
+
+    hc
+  })
+
+  names(hc_list) <- paste0("Cluster_", clusters)
+  Filter(Negate(is.null), hc_list)
+}
+
+
+#' Gráfico de Resumen de Todos los Clusters (Centroides)
+#'
+#' Genera un gráfico comparativo mostrando los centroides de todos los clusters.
+#'
+#' @param result Resultado de pattern_profiler()
+#' @param clusters Vector de clusters a incluir (NULL = todos)
+#' @param min_membership Filtro de membership mínima
+#' @param centroid_summary Método para centroide: "mean" o "median"
+#' @param palette Paleta de colores para clusters
+#' @param line_width Ancho de líneas
+#' @param show_markers Mostrar marcadores en los puntos (default: TRUE)
+#' @param title Título personalizado
+#' @param height Altura del gráfico
+#'
+#' @return Objeto highchart
+cluster_centroids_highchart <- function(result,
+                                         clusters = NULL,
+                                         min_membership = NULL,
+                                         centroid_summary = c("mean", "median"),
+                                         palette = NULL,
+                                         line_width = 2.5,
+                                         show_markers = TRUE,
+                                         title = NULL,
+                                         height = NULL) {
+
+  centroid_summary <- match.arg(centroid_summary)
+
+  if (is.null(min_membership)) {
+    min_membership <- result$min_membership
+  }
+
+  # Determinar clusters
+  if (is.null(clusters)) {
+    clusters <- seq_len(result$optimal_c)
+  }
+
+  # Configurar colores
+  cluster_colors <- configure_cluster_palette(result$optimal_c, palette)
+
+  conditions <- result$conditions
+
+  # Título
+  if (is.null(title)) {
+    title <- sprintf("Cluster Centroids (%s)", centroid_summary)
+  }
+
+  # ---------------------------------------------------------------------------
+  # Construir highchart base
+  # ---------------------------------------------------------------------------
+  hc <- highchart() |>
+    hc_chart(
+      type = "line",
+      backgroundColor = "#FFFFFF",
+      style = list(fontFamily = "Inter, -apple-system, sans-serif"),
+      height = height,
+      zoomType = "xy"
+    ) |>
+    hc_title(
+      text = title,
+      style = list(
+        fontSize = "18px",
+        fontWeight = "600",
+        color = "#1D3557"
+      )
+    ) |>
+    hc_subtitle(
+      text = sprintf("Membership >= %.2f", min_membership),
+      style = list(
+        fontSize = "12px",
+        color = "#6C757D"
+      )
+    ) |>
+    hc_xAxis(
+      categories = conditions,
+      title = list(
+        text = "Condition",
+        style = list(
+          fontSize = "13px",
+          fontWeight = "bold",
+          color = "#212529"
+        )
+      ),
+      labels = list(
+        style = list(
+          fontSize = "12px",
+          color = "#495057"
+        )
+      ),
+      lineColor = "#DEE2E6",
+      tickColor = "#DEE2E6"
+    ) |>
+    hc_yAxis(
+      title = list(
+        text = "z-score",
+        style = list(
+          fontSize = "13px",
+          fontWeight = "bold",
+          color = "#212529"
+        )
+      ),
+      gridLineColor = "#F1F3F4",
+      gridLineDashStyle = "Dot",
+      plotLines = list(
+        list(value = 0, color = "#ADB5BD", width = 1, dashStyle = "Dash")
+      )
+    ) |>
+    hc_legend(
+      enabled = TRUE,
+      layout = "horizontal",
+      align = "center",
+      verticalAlign = "bottom",
+      itemStyle = list(fontSize = "12px", fontWeight = "normal", color = "#495057")
+    ) |>
+    hc_tooltip(
+      useHTML = TRUE,
+      shared = FALSE,
+      headerFormat = "",
+      pointFormat = paste0(
+        "<div style='padding: 4px;'>",
+        "<b style='color: {series.color};'>{series.name}</b><br/>",
+        "<span style='color: #6C757D;'>Condition:</span> <b>{point.category}</b><br/>",
+        "<span style='color: #6C757D;'>z-score:</span> <b>{point.y:.3f}</b><br/>",
+        "<span style='color: #6C757D;'>n proteins:</span> <b>{point.n}</b>",
+        "</div>"
+      )
+    ) |>
+    hc_exporting(
+      enabled = TRUE,
+      buttons = list(
+        contextButton = list(
+          menuItems = c("downloadPNG", "downloadSVG", "downloadPDF")
+        )
+      )
+    )
+
+  # ---------------------------------------------------------------------------
+  # Añadir serie por cluster
+  # ---------------------------------------------------------------------------
+  for (k in clusters) {
+    profile_data <- prepare_cluster_profile_data(result, k, min_membership)
+
+    if (is.null(profile_data)) next
+
+    # Calcular centroide
+    if (centroid_summary == "mean") {
+      centroid <- colMeans(profile_data$zscores, na.rm = TRUE)
+    } else {
+      centroid <- apply(profile_data$zscores, 2, median, na.rm = TRUE)
+    }
+
+    # Construir puntos
+    points <- lapply(seq_along(conditions), function(j) {
+      list(
+        y = round(centroid[j], 4),
+        n = profile_data$n_proteins
+      )
+    })
+
+    hc <- hc |> hc_add_series(
+      name = sprintf("Cluster %d (n=%d)", k, profile_data$n_proteins),
+      data = points,
+      color = cluster_colors[k],
+      lineWidth = line_width,
+      marker = list(
+        enabled = show_markers,
+        symbol = "circle",
+        radius = 5,
+        fillColor = cluster_colors[k],
+        lineColor = darken_hex(cluster_colors[k], 0.2),
+        lineWidth = 1
+      )
+    )
+  }
+
+  hc
+}
+
+
+# =============================================================================
+# EJEMPLOS DE USO
 # =============================================================================
 
 # --- Cargar datos ---
@@ -807,17 +1452,39 @@ pattern_profiler <- function(data,
 #   min_membership = 0.5
 # )
 
-# --- Ejecutar con número fijo de clusters ---
-# result <- pattern_profiler(
-#   data = data,
-#   filter_mode = "any",
-#   condition_order = c("A", "B", "C", "D"),
-#   auto_select_c = FALSE,
-#   c = 4,
-#   min_membership = 0.7
-# )
-
 # --- Ver resultados ---
 # result$optimal_c
 # result$selection_metrics
 # head(result$membership_table)
+
+# --- Generar gráficos de perfiles por cluster ---
+# hc_profiles <- cluster_profile_highchart_list(result)
+# hc_profiles[["Cluster_1"]]
+# hc_profiles[["Cluster_2"]]
+
+# --- Gráfico de un cluster específico ---
+# hc_c1 <- cluster_profile_highchart(
+#   result,
+#   cluster = 1,
+#   color_mode = "zscore",
+#   min_membership = 0.6
+# )
+# hc_c1
+
+# --- Gráfico de centroides comparativo ---
+# hc_centroids <- cluster_centroids_highchart(result)
+# hc_centroids
+
+# --- Con paleta personalizada ---
+# hc_profiles <- cluster_profile_highchart_list(
+#   result,
+#   palette = "ggsci::nrc_npg",
+#   color_mode = "membership"
+# )
+
+# --- Cambiar gradiente de colores ---
+# hc_profiles <- cluster_profile_highchart_list(
+#   result,
+#   palette_gradient = c("blue", "white", "red"),
+#   opacity_range = c(0.2, 0.8)
+# )
