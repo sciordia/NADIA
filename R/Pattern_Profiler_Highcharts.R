@@ -843,11 +843,13 @@ prepare_cluster_profile_data <- function(result, cluster, min_membership = NULL)
 #' @param result Resultado de pattern_profiler()
 #' @param cluster Número de cluster a visualizar
 #' @param min_membership Filtro de membership mínima
-#' @param color_mode Modo de coloración: "zscore" o "membership"
+#' @param color_mode Modo de coloración: "cluster" (color del cluster),
+#'   "zscore" (gradiente por z-score), o "membership" (gradiente por membership)
 #' @param show_centroid Mostrar línea central (default: TRUE)
 #' @param centroid_summary Método para centroide: "mean" o "median"
 #' @param palette_gradient Vector de 3 colores para gradiente c(low, mid, high)
-#' @param cluster_color Color base para el cluster (para centroide)
+#'   Solo usado cuando color_mode = "zscore" o "membership"
+#' @param cluster_color Color base para el cluster (opcional, se auto-asigna)
 #' @param line_width Ancho de líneas de perfil (default: 1.5)
 #' @param centroid_width Ancho de línea del centroide (default: 3)
 #' @param opacity_range Rango de opacidad c(min, max) basado en membership
@@ -858,14 +860,14 @@ prepare_cluster_profile_data <- function(result, cluster, min_membership = NULL)
 cluster_profile_highchart <- function(result,
                                        cluster,
                                        min_membership = NULL,
-                                       color_mode = c("zscore", "membership"),
+                                       color_mode = c("cluster", "zscore", "membership"),
                                        show_centroid = TRUE,
                                        centroid_summary = c("mean", "median"),
-                                       palette_gradient = c("#2166AC", "#F7F7F7", "#B2182B"),
+                                       palette_gradient = c("#2166AC", "#DDDDDD", "#B2182B"),
                                        cluster_color = NULL,
                                        line_width = 1.5,
                                        centroid_width = 3,
-                                       opacity_range = c(0.15, 0.6),
+                                       opacity_range = c(0.3, 0.8),
                                        title = NULL,
                                        height = NULL) {
 
@@ -897,13 +899,15 @@ cluster_profile_highchart <- function(result,
   } else {
     centroid <- apply(zscores, 2, median, na.rm = TRUE)
   }
+  # Convertir a vector sin nombres para evitar warnings de jsonlite
+  centroid <- as.numeric(centroid)
 
   # ---------------------------------------------------------------------------
   # 3) Configurar color del cluster
   # ---------------------------------------------------------------------------
   if (is.null(cluster_color)) {
     cluster_palette <- configure_cluster_palette(result$optimal_c)
-    cluster_color <- cluster_palette[cluster]
+    cluster_color <- unname(cluster_palette[cluster])
   }
 
   # ---------------------------------------------------------------------------
@@ -917,18 +921,35 @@ cluster_profile_highchart <- function(result,
   # ---------------------------------------------------------------------------
   # 5) Construir series de líneas de perfil
   # ---------------------------------------------------------------------------
+  # Calcular rango de memberships para normalización
+  mem_min <- min(memberships)
+  mem_max <- max(memberships)
+  mem_range <- max(1e-8, mem_max - mem_min)
+
+  # Calcular rango de z-scores para modo zscore
+  if (color_mode == "zscore") {
+    all_zscores <- as.numeric(zscores)
+    zscore_range <- c(
+      max(-3, quantile(all_zscores, 0.05, na.rm = TRUE)),
+      min(3, quantile(all_zscores, 0.95, na.rm = TRUE))
+    )
+  }
+
   profile_series <- lapply(seq_len(n_proteins), function(i) {
     zscore_row <- as.numeric(zscores[i, ])
     membership_val <- memberships[i]
     feature_id <- feature_ids[i]
 
-    # Calcular opacidad basada en membership
-    mem_norm <- (membership_val - min(memberships)) /
-                max(1e-8, (max(memberships) - min(memberships)))
+    # Calcular opacidad basada en membership (normalizada)
+    mem_norm <- (membership_val - mem_min) / mem_range
     opacity <- opacity_range[1] + mem_norm * (opacity_range[2] - opacity_range[1])
 
     # Determinar color según modo
-    if (color_mode == "zscore") {
+    if (color_mode == "cluster") {
+      # Usar color del cluster directamente
+      line_color <- cluster_color
+
+    } else if (color_mode == "zscore") {
       # Color basado en z-score promedio de la proteína
       avg_zscore <- mean(zscore_row, na.rm = TRUE)
       line_color <- interpolate_color(
@@ -937,24 +958,25 @@ cluster_profile_highchart <- function(result,
         mid_color = palette_gradient[2],
         high_color = palette_gradient[3],
         midpoint = 0,
-        limits = c(-2, 2)
+        limits = zscore_range
       )
+
     } else {
-      # Color basado en membership
+      # color_mode == "membership"
       line_color <- interpolate_color(
         membership_val,
         low_color = palette_gradient[1],
         mid_color = palette_gradient[2],
         high_color = palette_gradient[3],
-        midpoint = 0.7,
-        limits = c(profile_data$min_membership, 1)
+        midpoint = (mem_min + 1) / 2,
+        limits = c(mem_min, 1)
       )
     }
 
-    # Construir puntos de la línea
+    # Construir puntos de la línea (como lista, no vector nombrado)
     points <- lapply(seq_along(conditions), function(j) {
       list(
-        x = j - 1,
+        x = as.integer(j - 1),
         y = round(zscore_row[j], 4),
         condition = conditions[j]
       )
@@ -971,13 +993,9 @@ cluster_profile_highchart <- function(result,
       showInLegend = FALSE,
       states = list(
         hover = list(
-          lineWidth = line_width + 1,
+          lineWidth = line_width + 1.5,
           enabled = TRUE
         )
-      ),
-      custom = list(
-        membership = round(membership_val, 3),
-        featureID = feature_id
       )
     )
   })
@@ -989,14 +1007,14 @@ cluster_profile_highchart <- function(result,
   if (show_centroid) {
     centroid_points <- lapply(seq_along(conditions), function(j) {
       list(
-        x = j - 1,
+        x = as.integer(j - 1),
         y = round(centroid[j], 4),
         condition = conditions[j]
       )
     })
 
     centroid_series <- list(
-      name = paste("Centroid (", centroid_summary, ")", sep = ""),
+      name = paste0("Centroid (", centroid_summary, ")"),
       type = "line",
       data = centroid_points,
       color = darken_hex(cluster_color, 0.2),
@@ -1166,10 +1184,10 @@ cluster_profile_highchart <- function(result,
 #' @param result Resultado de pattern_profiler()
 #' @param clusters Vector de clusters a visualizar (NULL = todos)
 #' @param min_membership Filtro de membership mínima
-#' @param color_mode Modo de coloración: "zscore" o "membership"
+#' @param color_mode Modo de coloración: "cluster", "zscore" o "membership"
 #' @param show_centroid Mostrar línea central (default: TRUE)
 #' @param centroid_summary Método para centroide: "mean" o "median"
-#' @param palette_gradient Vector de 3 colores para gradiente
+#' @param palette_gradient Vector de 3 colores para gradiente (solo zscore/membership)
 #' @param palette Paleta para colores de clusters (NULL, "ggsci::", "brewer:")
 #' @param line_width Ancho de líneas de perfil
 #' @param centroid_width Ancho de línea del centroide
@@ -1187,31 +1205,30 @@ cluster_profile_highchart <- function(result,
 #'   condition_order = c("A", "B", "C", "D")
 #' )
 #'
-#' # Generar gráficos para todos los clusters
+#' # Generar gráficos para todos los clusters (color por cluster)
 #' hc_profiles <- cluster_profile_highchart_list(result)
 #'
 #' # Visualizar cluster 1
 #' hc_profiles[["Cluster_1"]]
 #'
-#' # Con opciones personalizadas
+#' # Con gradiente por z-score
 #' hc_profiles <- cluster_profile_highchart_list(
 #'   result,
-#'   color_mode = "membership",
-#'   palette = "ggsci::nrc_npg",
-#'   min_membership = 0.6
+#'   color_mode = "zscore",
+#'   palette_gradient = c("blue", "gray", "red")
 #' )
 #' }
 cluster_profile_highchart_list <- function(result,
                                             clusters = NULL,
                                             min_membership = NULL,
-                                            color_mode = c("zscore", "membership"),
+                                            color_mode = c("cluster", "zscore", "membership"),
                                             show_centroid = TRUE,
                                             centroid_summary = c("mean", "median"),
-                                            palette_gradient = c("#2166AC", "#F7F7F7", "#B2182B"),
+                                            palette_gradient = c("#2166AC", "#DDDDDD", "#B2182B"),
                                             palette = NULL,
                                             line_width = 1.5,
                                             centroid_width = 3,
-                                            opacity_range = c(0.15, 0.6),
+                                            opacity_range = c(0.3, 0.8),
                                             height = NULL) {
 
   color_mode <- match.arg(color_mode)
@@ -1457,7 +1474,7 @@ cluster_centroids_highchart <- function(result,
 # result$selection_metrics
 # head(result$membership_table)
 
-# --- Generar gráficos de perfiles por cluster ---
+# --- Generar gráficos de perfiles por cluster (color del cluster) ---
 # hc_profiles <- cluster_profile_highchart_list(result)
 # hc_profiles[["Cluster_1"]]
 # hc_profiles[["Cluster_2"]]
@@ -1466,25 +1483,34 @@ cluster_centroids_highchart <- function(result,
 # hc_c1 <- cluster_profile_highchart(
 #   result,
 #   cluster = 1,
-#   color_mode = "zscore",
-#   min_membership = 0.6
+#   color_mode = "cluster",  # "cluster", "zscore", o "membership"
+#   min_membership = 0.5
 # )
 # hc_c1
+
+# --- Gráfico con gradiente por z-score ---
+# hc_zscore <- cluster_profile_highchart(
+#   result,
+#   cluster = 1,
+#   color_mode = "zscore",
+#   palette_gradient = c("blue", "lightgray", "red")
+# )
+# hc_zscore
 
 # --- Gráfico de centroides comparativo ---
 # hc_centroids <- cluster_centroids_highchart(result)
 # hc_centroids
 
-# --- Con paleta personalizada ---
+# --- Con paleta de colores personalizada para clusters ---
 # hc_profiles <- cluster_profile_highchart_list(
 #   result,
-#   palette = "ggsci::nrc_npg",
-#   color_mode = "membership"
+#   palette = "ggsci::nrc_npg"
 # )
 
-# --- Cambiar gradiente de colores ---
+# --- Con gradiente por membership ---
 # hc_profiles <- cluster_profile_highchart_list(
 #   result,
-#   palette_gradient = c("blue", "white", "red"),
-#   opacity_range = c(0.2, 0.8)
+#   color_mode = "membership",
+#   palette_gradient = c("#440154", "#21918c", "#fde725"),  # viridis
+#   opacity_range = c(0.4, 0.9)
 # )
