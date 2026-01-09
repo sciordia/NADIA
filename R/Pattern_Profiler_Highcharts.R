@@ -86,31 +86,62 @@ darken_hex <- function(hex, factor = 0.3) {
 #' Interpolar color en gradiente basado en valor
 #'
 #' @param value Valor a mapear (típicamente z-score o membership)
-#' @param low_color Color para valores bajos
-#' @param mid_color Color para valores medios
-#' @param high_color Color para valores altos
+#' @param low_color Color para valores bajos (hex o nombre)
+#' @param mid_color Color para valores medios (hex o nombre)
+#' @param high_color Color para valores altos (hex o nombre)
 #' @param midpoint Punto medio del gradiente
 #' @param limits Vector c(min, max) para los límites
 #' @return Color hex interpolado
-interpolate_color <- function(value, low_color = "#2166AC", mid_color = "#F7F7F7",
+interpolate_color <- function(value, low_color = "#2166AC", mid_color = "#CCCCCC",
                                high_color = "#B2182B", midpoint = 0,
                                limits = c(-3, 3)) {
-  # Normalizar valor a rango 0-1
-  value <- max(limits[1], min(limits[2], value))
 
-  if (value <= midpoint) {
-    t <- (value - limits[1]) / (midpoint - limits[1])
-    col1 <- col2rgb(low_color) / 255
-    col2 <- col2rgb(mid_color) / 255
-  } else {
-    t <- (value - midpoint) / (limits[2] - midpoint)
-    col1 <- col2rgb(mid_color) / 255
-    col2 <- col2rgb(high_color) / 255
+  # Convertir nombres de colores a hex si es necesario
+  to_hex <- function(col) {
+    if (grepl("^#", col)) return(col)
+    rgb_vals <- col2rgb(col)
+    sprintf("#%02X%02X%02X", rgb_vals[1], rgb_vals[2], rgb_vals[3])
   }
 
-  r <- round((col1[1] + t * (col2[1] - col1[1])) * 255)
-  g <- round((col1[2] + t * (col2[2] - col1[2])) * 255)
-  b <- round((col1[3] + t * (col2[3] - col1[3])) * 255)
+  low_color <- to_hex(low_color)
+  mid_color <- to_hex(mid_color)
+  high_color <- to_hex(high_color)
+
+  # Función para parsear hex a RGB
+  hex_to_rgb <- function(hex) {
+    hex <- gsub("^#", "", hex)
+    c(
+      strtoi(substr(hex, 1, 2), base = 16),
+      strtoi(substr(hex, 3, 4), base = 16),
+      strtoi(substr(hex, 5, 6), base = 16)
+    )
+  }
+
+  # Normalizar valor a los límites
+  value <- max(limits[1], min(limits[2], value))
+
+  # Evitar división por cero
+  lower_range <- midpoint - limits[1]
+  upper_range <- limits[2] - midpoint
+
+  if (value <= midpoint) {
+    t <- if (lower_range > 0) (value - limits[1]) / lower_range else 0.5
+    col1 <- hex_to_rgb(low_color)
+    col2 <- hex_to_rgb(mid_color)
+  } else {
+    t <- if (upper_range > 0) (value - midpoint) / upper_range else 0.5
+    col1 <- hex_to_rgb(mid_color)
+    col2 <- hex_to_rgb(high_color)
+  }
+
+  r <- round(col1[1] + t * (col2[1] - col1[1]))
+  g <- round(col1[2] + t * (col2[2] - col1[2]))
+  b <- round(col1[3] + t * (col2[3] - col1[3]))
+
+  # Asegurar valores en rango válido
+  r <- max(0, min(255, r))
+  g <- max(0, min(255, g))
+  b <- max(0, min(255, b))
 
   sprintf("#%02X%02X%02X", r, g, b)
 }
@@ -921,17 +952,19 @@ cluster_profile_highchart <- function(result,
   # ---------------------------------------------------------------------------
   # 5) Construir series de líneas de perfil
   # ---------------------------------------------------------------------------
-  # Calcular rango de memberships para normalización
-  mem_min <- min(memberships)
-  mem_max <- max(memberships)
-  mem_range <- max(1e-8, mem_max - mem_min)
+  # Calcular rango de memberships para normalización de opacidad
+  # Usamos el rango desde min_membership hasta 1 (no el rango observado)
+  # para que la opacidad refleje membership absoluta
+  mem_min_threshold <- profile_data$min_membership
+  mem_range_for_opacity <- 1 - mem_min_threshold
 
   # Calcular rango de z-scores para modo zscore
   if (color_mode == "zscore") {
     all_zscores <- as.numeric(zscores)
+    zscore_q <- quantile(all_zscores, c(0.05, 0.95), na.rm = TRUE)
     zscore_range <- c(
-      max(-3, quantile(all_zscores, 0.05, na.rm = TRUE)),
-      min(3, quantile(all_zscores, 0.95, na.rm = TRUE))
+      max(-3, min(-0.5, zscore_q[1])),  # Al menos -0.5 para tener contraste
+      min(3, max(0.5, zscore_q[2]))      # Al menos 0.5 para tener contraste
     )
   }
 
@@ -940,8 +973,9 @@ cluster_profile_highchart <- function(result,
     membership_val <- memberships[i]
     feature_id <- feature_ids[i]
 
-    # Calcular opacidad basada en membership (normalizada)
-    mem_norm <- (membership_val - mem_min) / mem_range
+    # Calcular opacidad basada en membership absoluta (desde threshold hasta 1)
+    mem_norm <- (membership_val - mem_min_threshold) / max(0.01, mem_range_for_opacity)
+    mem_norm <- max(0, min(1, mem_norm))  # Asegurar en [0,1]
     opacity <- opacity_range[1] + mem_norm * (opacity_range[2] - opacity_range[1])
 
     # Determinar color según modo
@@ -1308,10 +1342,11 @@ cluster_centroids_highchart <- function(result,
     clusters <- seq_len(result$optimal_c)
   }
 
-  # Configurar colores
-  cluster_colors <- configure_cluster_palette(result$optimal_c, palette)
+  # Configurar colores (sin nombres para evitar warnings jsonlite)
+  cluster_colors <- unname(configure_cluster_palette(result$optimal_c, palette))
 
-  conditions <- result$conditions
+  # Convertir conditions a vector sin nombres
+  conditions <- as.character(result$conditions)
 
   # Título
   if (is.null(title)) {
@@ -1345,7 +1380,7 @@ cluster_centroids_highchart <- function(result,
       )
     ) |>
     hc_xAxis(
-      categories = conditions,
+      categories = as.list(conditions),
       title = list(
         text = "Condition",
         style = list(
@@ -1392,7 +1427,7 @@ cluster_centroids_highchart <- function(result,
       pointFormat = paste0(
         "<div style='padding: 4px;'>",
         "<b style='color: {series.color};'>{series.name}</b><br/>",
-        "<span style='color: #6C757D;'>Condition:</span> <b>{point.category}</b><br/>",
+        "<span style='color: #6C757D;'>Condition:</span> <b>{point.condition}</b><br/>",
         "<span style='color: #6C757D;'>z-score:</span> <b>{point.y:.3f}</b><br/>",
         "<span style='color: #6C757D;'>n proteins:</span> <b>{point.n}</b>",
         "</div>"
@@ -1415,32 +1450,38 @@ cluster_centroids_highchart <- function(result,
 
     if (is.null(profile_data)) next
 
-    # Calcular centroide
+    # Calcular centroide (convertir a vector numérico sin nombres)
     if (centroid_summary == "mean") {
-      centroid <- colMeans(profile_data$zscores, na.rm = TRUE)
+      centroid <- as.numeric(colMeans(profile_data$zscores, na.rm = TRUE))
     } else {
-      centroid <- apply(profile_data$zscores, 2, median, na.rm = TRUE)
+      centroid <- as.numeric(apply(profile_data$zscores, 2, median, na.rm = TRUE))
     }
 
-    # Construir puntos
+    n_prots <- as.integer(profile_data$n_proteins)
+    k_color <- cluster_colors[k]
+
+    # Construir puntos con x explícito (formato que Highcharts entiende bien)
     points <- lapply(seq_along(conditions), function(j) {
       list(
+        x = as.integer(j - 1),
         y = round(centroid[j], 4),
-        n = profile_data$n_proteins
+        condition = conditions[j],
+        n = n_prots
       )
     })
 
     hc <- hc |> hc_add_series(
-      name = sprintf("Cluster %d (n=%d)", k, profile_data$n_proteins),
+      name = sprintf("Cluster %d (n=%d)", k, n_prots),
+      type = "line",
       data = points,
-      color = cluster_colors[k],
+      color = k_color,
       lineWidth = line_width,
       marker = list(
         enabled = show_markers,
         symbol = "circle",
         radius = 5,
-        fillColor = cluster_colors[k],
-        lineColor = darken_hex(cluster_colors[k], 0.2),
+        fillColor = k_color,
+        lineColor = darken_hex(k_color, 0.2),
         lineWidth = 1
       )
     )
