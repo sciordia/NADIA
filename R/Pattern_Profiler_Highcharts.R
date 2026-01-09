@@ -14,6 +14,16 @@ library(highcharter)
 library(dplyr)
 library(tidyr)
 
+# Dependencias de Bioconductor (requeridas para clustering)
+if (!requireNamespace("Biobase", quietly = TRUE)) {
+  stop("Instala 'Biobase' desde Bioconductor: BiocManager::install('Biobase')")
+}
+if (!requireNamespace("Mfuzz", quietly = TRUE)) {
+  stop("Instala 'Mfuzz' desde Bioconductor: BiocManager::install('Mfuzz')")
+}
+library(Biobase)
+library(Mfuzz)
+
 
 # -----------------------------------------------------------------------------
 # Operador null-coalesce
