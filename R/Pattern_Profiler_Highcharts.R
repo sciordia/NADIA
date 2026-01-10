@@ -290,7 +290,7 @@ cluster_profile_highchart <- function(data,
   } else {
     centroid <- apply(zscores, 2, median, na.rm = TRUE)
   }
-  centroid <- as.numeric(centroid)
+  centroid <- unname(as.numeric(centroid))
 
   # Configurar color del cluster
   if (is.null(cluster_color)) {
@@ -313,8 +313,8 @@ cluster_profile_highchart <- function(data,
   # Construir series de líneas de perfil (sin interactividad)
   # ---------------------------------------------------------------------------
   profile_series <- lapply(seq_len(n_proteins), function(i) {
-    zscore_row <- as.numeric(zscores[i, ])
-    feature_id <- feature_ids[i]
+    zscore_row <- unname(as.numeric(zscores[i, ]))
+    feature_id <- as.character(feature_ids[i])
 
     points <- lapply(seq_along(conditions), function(j) {
       list(
@@ -344,22 +344,26 @@ cluster_profile_highchart <- function(data,
       list(
         x = as.integer(j - 1),
         y = round(centroid[j], 4),
-        condition = conditions[j]
+        condition = unname(conditions[j])
       )
     })
+
+    # Colores limpios sin nombres
+    centroid_line_color <- darken_hex(cluster_color, 0.2)
+    centroid_marker_line <- darken_hex(cluster_color, 0.3)
 
     centroid_series <- list(
       name = paste0("Centroid (", centroid_summary, ")"),
       type = "line",
       data = centroid_points,
-      color = darken_hex(cluster_color, 0.2),
+      color = centroid_line_color,
       lineWidth = centroid_width,
       marker = list(
         enabled = TRUE,
         symbol = "circle",
         radius = 5,
         fillColor = cluster_color,
-        lineColor = darken_hex(cluster_color, 0.3),
+        lineColor = centroid_marker_line,
         lineWidth = 2
       ),
       zIndex = 10,
@@ -388,7 +392,7 @@ cluster_profile_highchart <- function(data,
       )
     ) |>
     hc_xAxis(
-      categories = conditions,
+      categories = as.list(unname(conditions)),
       title = list(
         text = "Condition",
         style = list(
@@ -571,7 +575,7 @@ cluster_profile_highchart_list <- function(data,
         min_membership = min_membership,
         show_centroid = show_centroid,
         centroid_summary = centroid_summary,
-        cluster_color = cluster_colors[as.character(k)],
+        cluster_color = unname(cluster_colors[as.character(k)]),
         line_width = line_width,
         line_opacity = line_opacity,
         centroid_width = centroid_width,
@@ -660,10 +664,10 @@ cluster_centroids_highchart <- function(data,
     centroid <- apply(cluster_data, 2, agg_fun, na.rm = TRUE)
 
     list(
-      cluster = k,
-      centroid = as.numeric(centroid),
-      n_proteins = n_proteins,
-      color = cluster_colors[as.character(k)]
+      cluster = as.integer(k),
+      centroid = unname(as.numeric(centroid)),
+      n_proteins = as.integer(n_proteins),
+      color = unname(cluster_colors[as.character(k)])
     )
   })
 
@@ -697,7 +701,7 @@ cluster_centroids_highchart <- function(data,
       )
     ) |>
     hc_xAxis(
-      categories = conditions,
+      categories = as.list(unname(conditions)),
       title = list(
         text = "Condition",
         style = list(
@@ -777,28 +781,34 @@ cluster_centroids_highchart <- function(data,
 
   # Añadir series de centroides
   for (item in centroids_list) {
+    # Construir puntos con valores limpios (sin nombres)
     points <- lapply(seq_along(conditions), function(j) {
       list(
         x = as.integer(j - 1),
         y = round(item$centroid[j], 4),
-        condition = conditions[j]
+        condition = unname(conditions[j])
       )
     })
+
+    # Color limpio sin nombres
+    series_color <- unname(item$color)
+    darker_color <- darken_hex(series_color, 0.2)
 
     hc <- hc |> hc_add_series(
       name = sprintf("Cluster %d (n=%d)", item$cluster, item$n_proteins),
       type = "line",
       data = points,
-      color = item$color,
+      color = series_color,
       lineWidth = line_width,
       marker = list(
         enabled = show_markers,
         symbol = "circle",
         radius = 4,
-        fillColor = item$color,
-        lineColor = darken_hex(item$color, 0.2),
+        fillColor = series_color,
+        lineColor = darker_color,
         lineWidth = 1
-      )
+      ),
+      connectNulls = TRUE
     )
   }
 
