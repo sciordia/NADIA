@@ -128,21 +128,32 @@ extract_se_data <- function(se_proc, assay_name = NULL) {
 #' adjP_* por cada comparación, y calcula sig_any.
 #'
 #' @param feature_ids Vector de IDs de features
-#' @param DEPs_results DataFrame con columnas Protein.IDs, adj.P.Val, Comparison
+#' @param DEPs_results DataFrame con columnas Protein.IDs, adj.P.Val, Comparison, Assay
+#' @param assay_name Nombre del assay para filtrar DEPs_results
 #' @param alpha Umbral de significancia (default: 0.05)
 #'
 #' @return DataFrame con FeatureID, adjP_*, sig_any
-merge_significance_info <- function(feature_ids, DEPs_results, alpha = 0.05) {
+merge_significance_info <- function(feature_ids, DEPs_results, assay_name, alpha = 0.05) {
 
   DEPs_results <- as.data.frame(DEPs_results)
 
   # Validar columnas requeridas
-
-  required_cols <- c("Protein.IDs", "adj.P.Val", "Comparison")
+  required_cols <- c("Protein.IDs", "adj.P.Val", "Comparison", "Assay")
   missing_cols <- setdiff(required_cols, names(DEPs_results))
   if (length(missing_cols) > 0) {
     stop("Columnas faltantes en DEPs_results: ", paste(missing_cols, collapse = ", "))
   }
+
+  # Filtrar por Assay
+  available_assays <- unique(DEPs_results$Assay)
+  if (!(assay_name %in% available_assays)) {
+    stop(sprintf("Assay '%s' no encontrado en DEPs_results. Disponibles: %s",
+                 assay_name, paste(available_assays, collapse = ", ")))
+  }
+
+  DEPs_results <- DEPs_results[DEPs_results$Assay == assay_name, ]
+  message(sprintf("   - Filtrado DEPs_results por Assay = '%s' (%d filas)",
+                  assay_name, nrow(DEPs_results)))
 
   # Pivotar a formato ancho: una fila por proteína, columnas adjP_* por comparación
   sig_wide <- DEPs_results %>%
@@ -637,8 +648,8 @@ build_long_output <- function(cl, eset_std, conditions, min_membership) {
 #' Genera archivo parquet en formato LONG para visualización.
 #'
 #' @param se_proc SummarizedExperiment con datos de intensidad
-#' @param DEPs_results DataFrame con resultados de expresión diferencial
-#' @param assay_name Nombre del assay a usar (NULL = primero)
+#' @param DEPs_results DataFrame con resultados de expresión diferencial (debe tener columna 'Assay')
+#' @param assay_name Nombre del assay a usar (default: "LoessCyc"). Se usa para filtrar DEPs_results también.
 #' @param filter_mode Modo de filtrado: "any", "all", "specific"
 #' @param alpha Umbral de significancia (default: 0.05)
 #' @param comparison Comparación específica (para filter_mode="specific")
@@ -667,7 +678,7 @@ build_long_output <- function(cl, eset_std, conditions, min_membership) {
 #' }
 pattern_profiler_analysis <- function(se_proc,
                                        DEPs_results,
-                                       assay_name = NULL,
+                                       assay_name = "LoessCyc",
                                        filter_mode = c("any", "all", "specific"),
                                        alpha = 0.05,
                                        comparison = NULL,
@@ -709,6 +720,7 @@ pattern_profiler_analysis <- function(se_proc,
   feature_info <- merge_significance_info(
     se_data$feature_ids,
     DEPs_results,
+    assay_name = se_data$assay_name,
     alpha = alpha
   )
 
@@ -880,17 +892,16 @@ pattern_profiler_analysis <- function(se_proc,
 # =============================================================================
 
 # --- Uso típico ---
-# library(SummarizedExperiment)
+# Los objetos 'se_proc' (SummarizedExperiment) y 'DEPs_results' (dataframe)
+# ya están cargados en el environment desde pasos previos del pipeline.
+#
 # source("R/Pattern_Profiler_Analysis.R")
 #
-# # Cargar datos
-# se_proc <- readRDS("data/se_processed.rds")
-# DEPs_results <- readr::read_tsv("data/DEPs_results.tsv")
-#
-# # Ejecutar análisis
+# # Ejecutar análisis (usa assay 'LoessCyc' por defecto)
 # result <- pattern_profiler_analysis(
 #   se_proc = se_proc,
 #   DEPs_results = DEPs_results,
+#   assay_name = "LoessCyc",  # default, filtra también DEPs_results por esta columna
 #   filter_mode = "any",
 #   condition_order = c("A", "B", "C", "D"),
 #   c_range = 2:8,
@@ -902,3 +913,12 @@ pattern_profiler_analysis <- function(se_proc,
 # # Ver resultados
 # result$optimal_c
 # result$selection_metrics
+#
+# --- Usar un assay diferente ---
+# result <- pattern_profiler_analysis(
+#   se_proc = se_proc,
+#   DEPs_results = DEPs_results,
+#   assay_name = "log2",  # Usar log2 en lugar de LoessCyc
+#   filter_mode = "any",
+#   condition_order = c("A", "B", "C", "D")
+# )
