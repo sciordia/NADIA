@@ -227,8 +227,6 @@ detect_condition_columns <- function(data) {
 #' @param line_width Ancho de líneas de perfil (default: 1)
 #' @param line_opacity Opacidad de líneas (default: 0.4)
 #' @param centroid_width Ancho de línea del centroide (default: 3)
-#' @param use_gradient Usar gradiente de color basado en z-score (default: TRUE)
-#' @param gradient_colors Colores para gradiente c(bajo, alto). NULL = azul->rojo
 #' @param title Título personalizado (opcional)
 #' @param height Altura del gráfico en píxeles
 #'
@@ -252,8 +250,6 @@ cluster_profile_highchart <- function(data,
                                        line_width = 1,
                                        line_opacity = 0.4,
                                        centroid_width = 3,
-                                       use_gradient = TRUE,
-                                       gradient_colors = NULL,
                                        title = NULL,
                                        height = NULL) {
 
@@ -303,35 +299,14 @@ cluster_profile_highchart <- function(data,
     cluster_color <- unname(palette[as.character(cluster)])
   }
 
-  # Configurar colores de gradiente (bajo z-score -> alto z-score)
-  if (is.null(gradient_colors)) {
-    # Default: azul (bajo) -> rojo (alto) - estilo heatmap de expresión
-    gradient_low <- "#457B9D"   # Azul (sub-expresión)
-    gradient_high <- "#E63946"  # Rojo (sobre-expresión)
-  } else {
-    gradient_low <- gradient_colors[1]
-    gradient_high <- gradient_colors[2]
-  }
+  # Color de líneas con opacidad
+  line_color <- hex_to_rgba(cluster_color, line_opacity)
 
-  # Color de líneas: gradiente o sólido con opacidad
-  if (use_gradient) {
-    # Gradiente vertical: y1=0 (arriba, z-score alto), y2=1 (abajo, z-score bajo)
-    line_color <- list(
-      linearGradient = list(x1 = 0, y1 = 0, x2 = 0, y2 = 1),
-      stops = list(
-        list(0, gradient_high),
-        list(1, gradient_low)
-      )
-    )
-  } else {
-    line_color <- hex_to_rgba(cluster_color, line_opacity)
-  }
-
-  # Título: mostrar >= min_membership en lugar de rango
+  # Título
   if (is.null(title)) {
-    min_mem_used <- min(cluster_data$Membership)
-    title <- sprintf("Cluster %d (n = %d, membership >= %.2f)",
-                     cluster, n_proteins, min_mem_used)
+    mem_range <- range(cluster_data$Membership)
+    title <- sprintf("Cluster %d (n = %d, membership: %.2f - %.2f)",
+                     cluster, n_proteins, mem_range[1], mem_range[2])
   }
 
   # ---------------------------------------------------------------------------
@@ -546,10 +521,8 @@ cluster_profile_highchart <- function(data,
 #' @param centroid_summary Método para centroide: "mean" o "median"
 #' @param palette Paleta para colores de clusters
 #' @param line_width Ancho de líneas de perfil (default: 1)
-#' @param line_opacity Opacidad de líneas si use_gradient=FALSE (default: 0.4)
+#' @param line_opacity Opacidad de líneas (default: 0.4)
 #' @param centroid_width Ancho de línea del centroide (default: 3)
-#' @param use_gradient Usar gradiente de color basado en z-score (default: TRUE)
-#' @param gradient_colors Colores para gradiente c(bajo, alto). NULL = azul->rojo
 #' @param height Altura de cada gráfico en píxeles
 #'
 #' @return Lista nombrada de objetos highchart
@@ -573,8 +546,6 @@ cluster_profile_highchart_list <- function(data,
                                             line_width = 1,
                                             line_opacity = 0.4,
                                             centroid_width = 3,
-                                            use_gradient = TRUE,
-                                            gradient_colors = NULL,
                                             height = NULL) {
 
   centroid_summary <- match.arg(centroid_summary)
@@ -608,8 +579,6 @@ cluster_profile_highchart_list <- function(data,
         line_width = line_width,
         line_opacity = line_opacity,
         centroid_width = centroid_width,
-        use_gradient = use_gradient,
-        gradient_colors = gradient_colors,
         height = height
       )
     }, error = function(e) {
@@ -906,21 +875,9 @@ summarize_pattern_profiler <- function(data) {
 # # Definir orden de condiciones
 # conditions <- c("A", "B", "C", "D")
 #
-# # Gráfico de un cluster específico (con gradiente por defecto)
+# # Gráfico de un cluster específico
 # hc_c1 <- cluster_profile_highchart(data, cluster = 1, conditions = conditions)
 # hc_c1
-#
-# # Sin gradiente (color sólido con opacidad)
-# hc_c1_solid <- cluster_profile_highchart(
-#   data, cluster = 1, conditions = conditions,
-#   use_gradient = FALSE
-# )
-#
-# # Con gradiente personalizado (verde -> amarillo)
-# hc_c1_custom <- cluster_profile_highchart(
-#   data, cluster = 1, conditions = conditions,
-#   gradient_colors = c("#2A9D8F", "#E9C46A")
-# )
 #
 # # Lista de gráficos para todos los clusters
 # hc_profiles <- cluster_profile_highchart_list(data, conditions)
@@ -931,13 +888,6 @@ summarize_pattern_profiler <- function(data) {
 # hc_profiles <- cluster_profile_highchart_list(
 #   data, conditions,
 #   min_membership = 0.5
-# )
-#
-# # Sin gradiente (estilo clásico con opacidad)
-# hc_profiles <- cluster_profile_highchart_list(
-#   data, conditions,
-#   use_gradient = FALSE,
-#   line_opacity = 0.3
 # )
 #
 # # Gráfico de centroides comparativo
