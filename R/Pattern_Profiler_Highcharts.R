@@ -304,9 +304,9 @@ cluster_profile_highchart <- function(data,
 
   # Título
   if (is.null(title)) {
-    mem_range <- range(cluster_data$Membership)
-    title <- sprintf("Cluster %d (n = %d, membership: %.2f - %.2f)",
-                     cluster, n_proteins, mem_range[1], mem_range[2])
+    min_mem <- min(cluster_data$Membership)
+    title <- sprintf("Cluster %d (n = %d, membership >= %.2f)",
+                     cluster, n_proteins, min_mem)
   }
 
   # ---------------------------------------------------------------------------
