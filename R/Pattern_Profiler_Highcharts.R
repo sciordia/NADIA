@@ -304,9 +304,10 @@ cluster_profile_highchart <- function(data,
 
   # Título
   if (is.null(title)) {
-    mem_range <- range(cluster_data$Membership)
-    title <- sprintf("Cluster %d (n = %d, membership: %.2f - %.2f)",
-                     cluster, n_proteins, mem_range[1], mem_range[2])
+    # Usar el min_membership especificado o el mínimo real de los datos
+    effective_min_mem <- min_membership %||% min(cluster_data$Membership)
+    title <- sprintf("Cluster %d (n = %d, membership >= %.2f)",
+                     cluster, n_proteins, effective_min_mem)
   }
 
   # ---------------------------------------------------------------------------
@@ -409,7 +410,9 @@ cluster_profile_highchart <- function(data,
       ),
       lineColor = "#DEE2E6",
       tickColor = "#DEE2E6",
-      gridLineWidth = 0
+      gridLineWidth = 0,
+      minPadding = 0.02,
+      maxPadding = 0.02
     ) |>
     hc_yAxis(
       title = list(
@@ -717,7 +720,9 @@ cluster_centroids_highchart <- function(data,
         )
       ),
       lineColor = "#DEE2E6",
-      tickColor = "#DEE2E6"
+      tickColor = "#DEE2E6",
+      minPadding = 0.02,
+      maxPadding = 0.02
     ) |>
     hc_yAxis(
       title = list(
