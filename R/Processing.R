@@ -657,9 +657,12 @@
 #' @param condition_vector Vector de condiciones alineado con columnas
 #' @param comparisons Vector de comparaciones
 #' @param covariate Covariable opcional para el modelo
+#' @param eBayes_trend Usar estimación de tendencia en eBayes (default: TRUE)
+#' @param eBayes_robust Usar estimación robusta en eBayes (default: TRUE)
 #' @return Objeto fit de limma
 #' @keywords internal
-.perform_limma <- function(data, condition_vector, comparisons, covariate = NULL) {
+.perform_limma <- function(data, condition_vector, comparisons, covariate = NULL,
+                           eBayes_trend = TRUE, eBayes_robust = TRUE) {
   if (!requireNamespace("limma", quietly = TRUE)) {
     stop("Se requiere el paquete 'limma'")
   }
@@ -685,7 +688,7 @@
   # Ajustar modelo
   fit <- limma::lmFit(data, design)
   fit <- limma::contrasts.fit(fit, contrast_matrix)
-  fit <- limma::eBayes(fit, trend = TRUE, robust = TRUE)
+  fit <- limma::eBayes(fit, trend = eBayes_trend, robust = eBayes_robust)
 
   fit
 }
@@ -748,6 +751,8 @@
 #' @param logFC_down Umbral inferior de logFC (default: -1)
 #' @param p_adj Usar p-valor ajustado (default: TRUE)
 #' @param alpha Umbral de significancia (default: 0.05)
+#' @param eBayes_trend Usar estimación de tendencia en eBayes (default: TRUE)
+#' @param eBayes_robust Usar estimación robusta en eBayes (default: TRUE)
 #' @return Data frame con resultados DE
 #' @keywords internal
 .run_DE <- function(
@@ -759,7 +764,9 @@
     logFC_up = 1,
     logFC_down = -1,
     p_adj = TRUE,
-    alpha = 0.05
+    alpha = 0.05,
+    eBayes_trend = TRUE,
+    eBayes_robust = TRUE
 ) {
   stopifnot(inherits(se, "SummarizedExperiment"))
 
@@ -786,7 +793,8 @@
   condition_vec <- cd[[condition_column]]
 
   # Ejecutar limma
-  fit <- .perform_limma(x, condition_vec, comparisons, covariate = NULL)
+  fit <- .perform_limma(x, condition_vec, comparisons, covariate = NULL,
+                        eBayes_trend = eBayes_trend, eBayes_robust = eBayes_robust)
 
   # Extraer resultados
   if (!logFC) {
@@ -852,6 +860,8 @@
 #' @param control Condición control para comparaciones. Si NULL, compara todas
 #' @param logFC_threshold Umbral logFC para significancia (default: 0)
 #' @param alpha Umbral p-valor ajustado (default: 0.05)
+#' @param eBayes_trend Usar estimación de tendencia en eBayes (default: TRUE, recomendado para proteómica)
+#' @param eBayes_robust Usar estimación robusta en eBayes (default: TRUE, recomendado para proteómica)
 #' @param export_normalized Exportar matriz normalizada (default: TRUE)
 #' @param export_imputed Exportar matriz imputada (default: TRUE)
 #' @param verbose Mostrar mensajes de progreso (default: TRUE)
@@ -903,6 +913,8 @@ process_proteomics <- function(
     control = NULL,
     logFC_threshold = 0,
     alpha = 0.05,
+    eBayes_trend = TRUE,
+    eBayes_robust = TRUE,
     export_normalized = TRUE,
     export_imputed = TRUE,
     verbose = TRUE
@@ -1171,7 +1183,9 @@ process_proteomics <- function(
     logFC_up = logFC_threshold,
     logFC_down = -logFC_threshold,
     p_adj = TRUE,
-    alpha = alpha
+    alpha = alpha,
+    eBayes_trend = eBayes_trend,
+    eBayes_robust = eBayes_robust
   )
 
   if (verbose) {
@@ -1218,6 +1232,8 @@ process_proteomics <- function(
       mar_method = mar_method,
       logFC_threshold = logFC_threshold,
       alpha = alpha,
+      eBayes_trend = eBayes_trend,
+      eBayes_robust = eBayes_robust,
       export_dir = export_dir
     )
   )
