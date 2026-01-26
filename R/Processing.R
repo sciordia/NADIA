@@ -818,18 +818,11 @@
     results <- merge(results, gene_map, by = "Protein.IDs", all.x = TRUE, sort = FALSE)
   }
 
-  # Agregar IDs
-  if ("IDs" %in% names(rd)) {
-    id_map <- rd[, c("Protein.IDs", "IDs"), drop = FALSE]
-    id_map <- unique(id_map)
-    results <- merge(results, id_map, by = "Protein.IDs", all.x = TRUE, sort = FALSE)
-  }
-
   # Agregar columna Assay
   results$Assay <- assay_name
 
   # Reordenar columnas
-  col_order <- c("Protein.IDs", "Gene.Names", "IDs", "logFC", "P.Value",
+  col_order <- c("Protein.IDs", "Gene.Names", "logFC", "P.Value",
                  "adj.P.Val", "Change", "Comparison", "Assay")
   col_order <- intersect(col_order, names(results))
   results <- results[, col_order]
