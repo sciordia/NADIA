@@ -685,7 +685,7 @@
   # Ajustar modelo
   fit <- limma::lmFit(data, design)
   fit <- limma::contrasts.fit(fit, contrast_matrix)
-  fit <- limma::eBayes(fit)
+  fit <- limma::eBayes(fit, trend = TRUE, robust = TRUE)
 
   fit
 }
