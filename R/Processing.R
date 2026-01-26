@@ -11,12 +11,12 @@
 # Dependencias requeridas:
 #   - SummarizedExperiment, S4Vectors
 #   - limma
-#   - dplyr
-#   - readr
+#   - readr (opcional, para exportación)
 #
-# Dependencias opcionales (para imputación):
-#   - MSnbase, Biobase (para imputación MNAR con método "min")
+# Dependencias opcionales:
 #   - rrcovNA (para imputación MAR con impSeqRob)
+#
+# Nota: La imputación MNAR (método "min") NO requiere dependencias externas.
 #
 # Autor: Sergio Ciordia
 # Licencia: MIT
@@ -267,11 +267,25 @@
   mnar
 }
 
-#' Imputación mixta: MAR/MCAR con impSeqRob/knn, MNAR con "min"
+#' Imputación MNAR con valor mínimo
+#'
+#' Reemplaza todos los NA con el valor mínimo de la matriz.
+#' Implementación equivalente a MsCoreUtils::impute_min() sin dependencias.
+#'
+#' @param x Matriz numérica
+#' @return Matriz con NA reemplazados por el mínimo global
+#' @keywords internal
+.impute_min <- function(x) {
+  val <- min(x, na.rm = TRUE)
+  x[is.na(x)] <- val
+  x
+}
+
+#' Imputación mixta: MAR/MCAR con impSeqRob, MNAR con "min"
 #'
 #' Realiza imputación en dos etapas:
-#' 1. MAR/MCAR: impSeqRob (rrcovNA) o knn
-#' 2. MNAR: MSnbase::impute(method = "min") solo en celdas MNAR
+#' 1. MAR/MCAR: impSeqRob (rrcovNA) - robusto y recomendado
+#' 2. MNAR: valor mínimo global (sin dependencias externas)
 #'
 #' @param x Matriz de intensidades log2
 #' @param condition Vector de condiciones alineado con columnas
@@ -279,9 +293,8 @@
 #' @param prop_present_in_other_condition Proporción presente en otras condiciones (default: 0.0)
 #' @param min_present_in_other_condition Mínimo de valores presentes (default: 1)
 #' @param require_n_other_conditions Condiciones requeridas con presencia (default: 1)
-#' @param mar_method Método MAR: "impSeqRob", "knn", o "none" (default: "impSeqRob")
+#' @param mar_method Método MAR: "impSeqRob" o "none" (default: "impSeqRob")
 #' @param impSeqRob_args Lista de argumentos para impSeqRob (default: list(alpha = 0.9))
-#' @param knn_backend Backend para knn: "MSnbase" o "impute" (default: "MSnbase")
 #' @return Lista con:
 #'   - x_imputed: Matriz imputada
 #'   - mnar_mask: Máscara de celdas MNAR
@@ -294,14 +307,12 @@
     prop_present_in_other_condition = 0.0,
     min_present_in_other_condition = 1,
     require_n_other_conditions = 1,
-    mar_method = c("impSeqRob", "knn", "none"),
-    impSeqRob_args = list(alpha = 0.9, norm_impute = FALSE, check_data = FALSE, verbose = TRUE),
-    knn_backend = c("MSnbase", "impute")
+    mar_method = c("impSeqRob", "none"),
+    impSeqRob_args = list(alpha = 0.9, norm_impute = FALSE, check_data = FALSE, verbose = TRUE)
 ) {
   x <- as.matrix(x)
   stopifnot(ncol(x) == length(condition))
   mar_method <- match.arg(mar_method)
-  knn_backend <- match.arg(knn_backend)
 
   # Construir máscaras
   mnar_mask <- .mnar_mask_by_condition(
@@ -313,7 +324,7 @@
   )
   mar_mask <- is.na(x) & !mnar_mask
 
-  # ---- Etapa 1: Imputación MAR/MCAR ----
+  # ---- Etapa 1: Imputación MAR/MCAR con impSeqRob ----
   x_stage1 <- x
   if (mar_method == "impSeqRob") {
     if (!requireNamespace("rrcovNA", quietly = TRUE)) {
@@ -334,33 +345,13 @@
     imp1 <- do.call(rrcovNA::impSeqRob, c(list(x = x), args_final))
     x_imp1 <- if (is.list(imp1) && !is.null(imp1$x)) imp1$x else as.matrix(imp1)
     x_stage1[mar_mask] <- x_imp1[mar_mask]
-
-  } else if (mar_method == "knn") {
-    if (knn_backend == "MSnbase") {
-      if (!requireNamespace("MSnbase", quietly = TRUE) || !requireNamespace("Biobase", quietly = TRUE)) {
-        stop("Para knn con 'MSnbase' necesitas 'MSnbase' y 'Biobase'.")
-      }
-      msn <- MSnbase::MSnSet(exprs = x)
-      msn_knn <- MSnbase::impute(msn, method = "knn", rowmax = 0.9)
-      x_knn <- Biobase::exprs(msn_knn)
-      x_stage1[mar_mask] <- x_knn[mar_mask]
-    } else {
-      if (!requireNamespace("impute", quietly = TRUE)) {
-        stop("Para knn con backend 'impute' necesitas el paquete 'impute'.")
-      }
-      x_knn <- impute::impute.knn(x)$data
-      x_stage1[mar_mask] <- x_knn[mar_mask]
-    }
   }
   # else: "none" -> deja MAR/MCAR como NA
 
-  # ---- Etapa 2: Imputación MNAR con MSnbase::impute("min") ----
-  if (!requireNamespace("MSnbase", quietly = TRUE) || !requireNamespace("Biobase", quietly = TRUE)) {
-    stop("Para la imputación MNAR con 'min' necesitas 'MSnbase' y 'Biobase'.")
-  }
-  msn_stage1 <- MSnbase::MSnSet(exprs = x_stage1)
-  msn_min <- MSnbase::impute(msn_stage1, method = "min")
-  x_min_all <- Biobase::exprs(msn_min)
+  # ---- Etapa 2: Imputación MNAR con valor mínimo ----
+  # Implementación simple equivalente a MsCoreUtils::impute_min()
+  # Sin dependencia de MSnbase/Biobase
+  x_min_all <- .impute_min(x_stage1)
 
   x_final <- x_stage1
   x_final[mnar_mask] <- x_min_all[mnar_mask]
