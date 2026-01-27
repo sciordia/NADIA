@@ -468,6 +468,167 @@
   x_out
 }
 
+#' Convierte SummarizedExperiment a formato largo
+#'
+#' @param se SummarizedExperiment
+#' @param assay_names Vector de nombres de assays a incluir. Si NULL, usa todos
+#' @return Data frame en formato largo con columnas: Column, Assay, Intensity, Condition, Replicate, Protein.IDs
+#' @keywords internal
+.se_to_long <- function(se, assay_names = NULL) {
+  stopifnot(inherits(se, "SummarizedExperiment"))
+
+  # Obtener assays disponibles
+  available_assays <- SummarizedExperiment::assayNames(se)
+  if (is.null(assay_names)) {
+    assay_names <- available_assays
+  } else {
+    assay_names <- intersect(assay_names, available_assays)
+    if (length(assay_names) == 0) {
+      stop("Ninguno de los assays especificados está disponible")
+    }
+  }
+
+  # Obtener metadata
+  cd <- as.data.frame(SummarizedExperiment::colData(se))
+  rd <- as.data.frame(SummarizedExperiment::rowData(se))
+
+  # Procesar cada assay
+  result_list <- lapply(assay_names, function(assay_name) {
+    mat <- SummarizedExperiment::assay(se, assay_name)
+
+    # Convertir a data frame largo
+    df_list <- lapply(seq_len(ncol(mat)), function(j) {
+      sample_name <- colnames(mat)[j]
+      data.frame(
+        Column = sample_name,
+        Assay = assay_name,
+        Intensity = mat[, j],
+        Protein.IDs = rownames(mat),
+        stringsAsFactors = FALSE
+      )
+    })
+
+    do.call(rbind, df_list)
+  })
+
+  long_df <- do.call(rbind, result_list)
+
+  # Añadir información de Condition y Replicate desde colData
+  if ("Condition" %in% names(cd)) {
+    long_df$Condition <- cd[long_df$Column, "Condition"]
+  }
+  if ("Replicate" %in% names(cd)) {
+    long_df$Replicate <- cd[long_df$Column, "Replicate"]
+  }
+
+  # Reordenar columnas
+  col_order <- c("Column", "Assay", "Intensity", "Condition", "Replicate", "Protein.IDs")
+  col_order <- intersect(col_order, names(long_df))
+  long_df <- long_df[, col_order, drop = FALSE]
+
+  rownames(long_df) <- NULL
+  long_df
+}
+
+#' Prepara datos para PCA con información de expresión diferencial
+#'
+#' @param se SummarizedExperiment
+#' @param DEPs_results Data frame con resultados DE
+#' @param assay_name Nombre del assay a usar
+#' @param alpha Umbral de significancia para sig_any
+#' @return Data frame con intensidades y columnas adjP por comparación
+#' @keywords internal
+.prepare_pca_input <- function(se, DEPs_results, assay_name, alpha = 0.05) {
+  stopifnot(inherits(se, "SummarizedExperiment"))
+
+  # Verificar assay
+  if (!assay_name %in% SummarizedExperiment::assayNames(se)) {
+    stop("Assay '", assay_name, "' no encontrado en SE")
+  }
+
+  # Obtener matriz de intensidades
+  mat <- SummarizedExperiment::assay(se, assay_name)
+  cd <- as.data.frame(SummarizedExperiment::colData(se))
+
+  # Convertir a formato largo
+  long_list <- lapply(seq_len(ncol(mat)), function(j) {
+    sample_name <- colnames(mat)[j]
+    data.frame(
+      SampleID = sample_name,
+      FeatureID = rownames(mat),
+      Intensity = mat[, j],
+      stringsAsFactors = FALSE
+    )
+  })
+  long_df <- do.call(rbind, long_list)
+
+  # Añadir Condition y Replicate
+  if ("Condition" %in% names(cd)) {
+    long_df$Condition <- cd[long_df$SampleID, "Condition"]
+  }
+  if ("Replicate" %in% names(cd)) {
+    long_df$Replicate <- cd[long_df$SampleID, "Replicate"]
+  }
+
+  # Obtener comparaciones únicas de DEPs_results
+  comparisons <- unique(DEPs_results$Comparison)
+
+  # Crear columnas adjP por comparación
+  for (comp in comparisons) {
+    subset_de <- DEPs_results[DEPs_results$Comparison == comp, ]
+    # Mapear adj.P.Val por Protein.IDs
+    adjp_map <- setNames(subset_de$adj.P.Val, subset_de$Protein.IDs)
+    col_name <- paste0("adjP_", comp)
+    long_df[[col_name]] <- adjp_map[long_df$FeatureID]
+  }
+
+  # Crear columna sig_any: TRUE si es significativo en al menos una comparación
+  adjp_cols <- grep("^adjP_", names(long_df), value = TRUE)
+  if (length(adjp_cols) > 0) {
+    adjp_mat <- as.matrix(long_df[, adjp_cols, drop = FALSE])
+    long_df$sig_any <- apply(adjp_mat, 1, function(x) any(x < alpha, na.rm = TRUE))
+  } else {
+    long_df$sig_any <- FALSE
+  }
+
+  rownames(long_df) <- NULL
+  long_df
+}
+
+#' Exporta data frame a TSV y/o Parquet
+#'
+#' @param data Data frame a exportar
+#' @param filepath_base Ruta base sin extensión
+#' @param format "tsv", "parquet", o "both"
+#' @return Invisible NULL
+#' @keywords internal
+.export_data <- function(data, filepath_base, format = "tsv") {
+  format <- match.arg(format, c("tsv", "parquet", "both"))
+
+  # Exportar TSV
+  if (format %in% c("tsv", "both")) {
+    tsv_file <- paste0(filepath_base, ".tsv")
+    if (requireNamespace("readr", quietly = TRUE)) {
+      readr::write_tsv(data, tsv_file)
+    } else {
+      write.table(data, tsv_file, sep = "\t", quote = FALSE, row.names = FALSE)
+    }
+  }
+
+  # Exportar Parquet
+  if (format %in% c("parquet", "both")) {
+    if (!requireNamespace("arrow", quietly = TRUE)) {
+      warning("Paquete 'arrow' no instalado. No se puede exportar a Parquet. ",
+              "Instálalo con: install.packages('arrow')")
+    } else {
+      parquet_file <- paste0(filepath_base, ".parquet")
+      arrow::write_parquet(data, parquet_file)
+    }
+  }
+
+  invisible(NULL)
+}
+
 # =============================================================================
 # FUNCIONES REPLICADAS DE PRONE (internas)
 # =============================================================================
@@ -857,6 +1018,10 @@
 #' @param eBayes_robust Usar estimación robusta en eBayes (default: TRUE, recomendado para proteómica)
 #' @param export_normalized Exportar matriz normalizada (default: TRUE)
 #' @param export_imputed Exportar matriz imputada (default: TRUE)
+#' @param export_format Formato de exportación para archivos de visualización: "tsv", "parquet", o "both" (default: "tsv")
+#' @param export_volcano Exportar VolcanoPlot_Input (default: TRUE)
+#' @param export_boxplot Exportar BoxPlot_Input (default: TRUE)
+#' @param export_pca Exportar PCA_Input (default: TRUE)
 #' @param verbose Mostrar mensajes de progreso (default: TRUE)
 #'
 #' @return Lista de clase proteomics_result con:
@@ -910,6 +1075,10 @@ process_proteomics <- function(
     eBayes_robust = TRUE,
     export_normalized = TRUE,
     export_imputed = TRUE,
+    export_format = "tsv",
+    export_volcano = TRUE,
+    export_boxplot = TRUE,
+    export_pca = TRUE,
     verbose = TRUE
 ) {
   # =========================================================================
@@ -1209,7 +1378,38 @@ process_proteomics <- function(
   if (verbose) cat("- Exportado:", basename(de_file), "\n")
 
   # =========================================================================
-  # 11. RETORNAR RESULTADO
+  # 11. EXPORTAR ARCHIVOS PARA VISUALIZACIÓN
+  # =========================================================================
+
+  if (export_volcano || export_boxplot || export_pca) {
+    if (verbose) cat("\n=== EXPORTANDO ARCHIVOS PARA VISUALIZACIÓN ===\n")
+
+    # 11.1 VolcanoPlot_Input (DEPs_results)
+    if (export_volcano) {
+      volcano_file <- file.path(export_dir, "VolcanoPlot_Input")
+      .export_data(DEPs_results, volcano_file, export_format)
+      if (verbose) cat("- VolcanoPlot_Input exportado\n")
+    }
+
+    # 11.2 BoxPlot_Input (SE -> formato largo)
+    if (export_boxplot) {
+      boxplot_data <- .se_to_long(se_proc, assay_names = c("log2", assay_name))
+      boxplot_file <- file.path(export_dir, "BoxPlot_Input")
+      .export_data(boxplot_data, boxplot_file, export_format)
+      if (verbose) cat("- BoxPlot_Input exportado\n")
+    }
+
+    # 11.3 PCA_Input (SE + DE en formato largo)
+    if (export_pca) {
+      pca_data <- .prepare_pca_input(se_proc, DEPs_results, assay_name, alpha)
+      pca_file <- file.path(export_dir, "PCA_Input")
+      .export_data(pca_data, pca_file, export_format)
+      if (verbose) cat("- PCA_Input exportado\n")
+    }
+  }
+
+  # =========================================================================
+  # 12. RETORNAR RESULTADO
   # =========================================================================
 
   result <- list(
@@ -1227,7 +1427,11 @@ process_proteomics <- function(
       alpha = alpha,
       eBayes_trend = eBayes_trend,
       eBayes_robust = eBayes_robust,
-      export_dir = export_dir
+      export_dir = export_dir,
+      export_format = export_format,
+      export_volcano = export_volcano,
+      export_boxplot = export_boxplot,
+      export_pca = export_pca
     )
   )
 
