@@ -1046,7 +1046,15 @@ proteomics_heatmap <- function(data,
   # 4) Crear heatmap con tidyHeatmap
   # ---------------------------------------------------------------------------
 
-  # Convertir a tibble (requerido por tidyHeatmap)
+  # Convertir a tibble con tipos base de R (evita problemas con clases de arrow/parquet)
+  # tidyHeatmap usa `class(x) %in% ...` que falla si class() devuelve múltiples valores
+  hm_data <- as.data.frame(lapply(hm_data, function(col) {
+    if (is.factor(col)) return(factor(as.character(col), levels = levels(col)))
+    if (is.logical(col)) return(as.logical(col))
+    if (is.numeric(col)) return(as.numeric(col))
+    if (is.character(col)) return(as.character(col))
+    col
+  }), stringsAsFactors = FALSE)
   hm_data <- tibble::as_tibble(hm_data)
 
   # Preparar column_split si se solicita (para separación visual entre condiciones)
