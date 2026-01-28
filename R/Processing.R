@@ -1363,35 +1363,20 @@ process_proteomics <- function(
   }
 
   # =========================================================================
-  # 10. EXPORTAR RESULTADOS DE
-  # =========================================================================
-
-  if (verbose) cat("\n=== EXPORTANDO RESULTADOS ===\n")
-
-  de_file <- file.path(export_dir, "DEPs_results.tsv")
-  if (requireNamespace("readr", quietly = TRUE)) {
-    readr::write_tsv(DEPs_results, de_file)
-  } else {
-    write.table(DEPs_results, de_file, sep = "\t", quote = FALSE, row.names = FALSE)
-  }
-
-  if (verbose) cat("- Exportado:", basename(de_file), "\n")
-
-  # =========================================================================
-  # 11. EXPORTAR ARCHIVOS PARA VISUALIZACIÓN
+  # 10. EXPORTAR ARCHIVOS PARA VISUALIZACIÓN
   # =========================================================================
 
   if (export_volcano || export_boxplot || export_pca) {
     if (verbose) cat("\n=== EXPORTANDO ARCHIVOS PARA VISUALIZACIÓN ===\n")
 
-    # 11.1 VolcanoPlot_Input (DEPs_results)
+    # 10.1 VolcanoPlot_Input (DEPs_results)
     if (export_volcano) {
       volcano_file <- file.path(export_dir, "VolcanoPlot_Input")
       .export_data(DEPs_results, volcano_file, export_format)
       if (verbose) cat("- VolcanoPlot_Input exportado\n")
     }
 
-    # 11.2 BoxPlot_Input (SE -> formato largo)
+    # 10.2 BoxPlot_Input (SE -> formato largo)
     if (export_boxplot) {
       boxplot_data <- .se_to_long(se_proc, assay_names = c("log2", assay_name))
       boxplot_file <- file.path(export_dir, "BoxPlot_Input")
@@ -1399,7 +1384,7 @@ process_proteomics <- function(
       if (verbose) cat("- BoxPlot_Input exportado\n")
     }
 
-    # 11.3 PCA_Input (SE + DE en formato largo)
+    # 10.3 PCA_Input (SE + DE en formato largo)
     if (export_pca) {
       pca_data <- .prepare_pca_input(se_proc, DEPs_results, assay_name, alpha)
       pca_file <- file.path(export_dir, "PCA_Input")
@@ -1409,7 +1394,7 @@ process_proteomics <- function(
   }
 
   # =========================================================================
-  # 12. RETORNAR RESULTADO
+  # 11. RETORNAR RESULTADO
   # =========================================================================
 
   result <- list(
