@@ -1,46 +1,44 @@
 # =============================================================================
-# Procesamiento de Datos Proteómicos
+# Procesamiento de Datos Proteomicos (Coordinador)
 # =============================================================================
 #
-# Funciones para procesar datos proteómicos de Spectronaut:
-#   - Filtrado por presencia en grupos
-#   - Normalización (Cyclic Loess)
-#   - Imputación mixta (MAR + MNAR)
-#   - Análisis diferencial (limma)
+# Funcion principal que coordina el pipeline completo:
+#   1. Normalization.R - Filtrado, normalizacion Cyclic Loess
+#   2. Imputation.R   - Imputacion mixta MAR + MNAR
+#   3. DEAnalysis.R   - Analisis diferencial con limma
 #
-# Dependencias requeridas:
-#   - SummarizedExperiment, S4Vectors
-#   - limma
-#   - readr (opcional, para exportación)
-#
-# Dependencias opcionales:
-#   - rrcovNA (para imputación MAR con impSeqRob)
-#
-# Nota: La imputación MNAR (método "min") NO requiere dependencias externas.
+# Dependencias: ver modulos individuales
 #
 # Autor: Sergio Ciordia
 # Licencia: MIT
 # =============================================================================
 
-# --- Operador %||% (coalescencia nula) ---
-`%||%` <- function(a, b) if (is.null(a)) b else a
+# --- Source sub-modules ---
+.self_dir <- if (sys.nframe() > 0) dirname(sys.frame(1)$ofile) else "R"
+.self_dir <- if (is.null(.self_dir) || .self_dir == "") "R" else .self_dir
+source(file.path(.self_dir, "Normalization.R"))
+source(file.path(.self_dir, "Imputation.R"))
+source(file.path(.self_dir, "DEAnalysis.R"))
+
+# --- Null coalescing operator ---
+if (!exists("%||%", mode = "function")) {
+  `%||%` <- function(a, b) if (is.null(a)) b else a
+}
 
 # =============================================================================
-# FUNCIONES LINKER (internas)
+# LINKER FUNCTIONS (internal)
 # =============================================================================
 
-#' Prepara metadata desde el objeto spectronaut_data
+#' Prepare metadata from spectronaut_data object
 #'
-#' @param preprocessing Lista de clase spectronaut_data
-#' @return Data frame con columnas: Column, Condition, Replicate
+#' @param preprocessing spectronaut_data list
+#' @return Data frame with columns: Column, Condition, Replicate
 #' @keywords internal
 .prepare_metadata <- function(preprocessing) {
   stopifnot(inherits(preprocessing, "spectronaut_data"))
 
-
   md <- preprocessing$metadata
 
-  # Renombrar columnas al formato esperado
   result <- data.frame(
     Column = md$Coding,
     Condition = md$R.Condition,
@@ -52,26 +50,26 @@
   result
 }
 
-#' Prepara datos de proteínas desde el objeto spectronaut_data
+#' Prepare protein data from spectronaut_data object
 #'
-#' @param preprocessing Lista de clase spectronaut_data
-#' @return Data frame con columnas: ProteinGroups, GeneNames, UniqPepts, y columnas de intensidad
+#' @param preprocessing spectronaut_data list
+#' @return Data frame with columns: ProteinGroups, GeneNames, UniqPepts, and intensity columns
 #' @keywords internal
 .prepare_protein_data <- function(preprocessing) {
   stopifnot(inherits(preprocessing, "spectronaut_data"))
 
   pq <- preprocessing$protein_quant
 
-  # Identificar columnas de cantidad (PG.Quantity_*)
+  # Identify quantity columns (PG.Quantity_*)
   quantity_cols <- grep("^PG\\.Quantity_", names(pq), value = TRUE)
   if (length(quantity_cols) == 0) {
     stop("No se encontraron columnas PG.Quantity_* en protein_quant")
   }
 
-  # Identificar columnas de péptidos únicos (PG.NrOfStrippedSequencesUsedForQuantification_*)
+  # Identify unique peptide columns
   pept_cols <- grep("^PG\\.NrOfStrippedSequencesUsedForQuantification_", names(pq), value = TRUE)
 
-  # Calcular UniqPepts como el máximo por fila
+  # Compute UniqPepts as max per row
   if (length(pept_cols) > 0) {
     pept_mat <- as.matrix(pq[, pept_cols, drop = FALSE])
     UniqPepts <- apply(pept_mat, 1, function(x) max(x, na.rm = TRUE))
@@ -80,7 +78,7 @@
     UniqPepts <- rep(NA_integer_, nrow(pq))
   }
 
-  # Construir resultado
+  # Build result
   result <- data.frame(
     ProteinGroups = pq$PG.ProteinGroups,
     GeneNames = pq$PG.Genes,
@@ -88,7 +86,7 @@
     stringsAsFactors = FALSE
   )
 
-  # Agregar columnas de intensidad con nombres simplificados (Condicion_Replica)
+  # Add intensity columns with simplified names (Condition_Replicate)
   intensity_data <- pq[, quantity_cols, drop = FALSE]
   names(intensity_data) <- gsub("^PG\\.Quantity_", "", names(intensity_data))
 
@@ -97,406 +95,34 @@
 }
 
 # =============================================================================
-# FUNCIONES REPLICADAS DE proteoDA (internas)
+# EXPORT UTILITY FUNCTIONS (internal)
 # =============================================================================
 
-#' Convierte valores cero a NA
-#'
-#' Reemplaza valores 0 en una matriz o data frame con NA.
-#' Útil para datos de DIA-NN donde 0 indica no detección.
-#'
-#' @param data Matriz o data frame numérico
-#' @return Objeto del mismo tipo con 0 convertidos a NA
-#' @keywords internal
-.zero_to_missing <- function(data) {
-  if (is.data.frame(data)) {
-    numeric_cols <- sapply(data, is.numeric)
-    data[numeric_cols] <- lapply(data[numeric_cols], function(x) {
-      x[x == 0] <- NA
-      x
-    })
-  } else if (is.matrix(data)) {
-    data[data == 0] <- NA
-  }
-  data
-}
-
-#' Filtra proteínas por presencia en grupos
-#'
-#' Mantiene proteínas que tienen suficientes valores no-NA en al menos
-#' un número mínimo de grupos experimentales.
-#'
-#' @param data Matrix de intensidades (proteínas × muestras)
-#' @param metadata Data frame con información de muestras
-#' @param min_reps Mínimo de réplicas con valores no-NA por grupo.
-#'   Si NULL, se usa la mitad del tamaño del grupo más pequeño.
-#' @param min_groups Mínimo de grupos que deben cumplir min_reps (default: 1)
-#' @param grouping_column Nombre de la columna de agrupación en metadata (default: "Condition")
-#' @return Lista con:
-#'   - data: Matriz filtrada
-#'   - keep: Vector lógico de filas conservadas
-#'   - summary: Resumen del filtrado
-#' @keywords internal
-.filter_proteins_by_group <- function(
-    data,
-    metadata,
-    min_reps = NULL,
-    min_groups = 1,
-    grouping_column = "Condition"
-) {
-  # Validaciones
-  stopifnot(is.matrix(data) || is.data.frame(data))
-  data <- as.matrix(data)
-
-  if (!grouping_column %in% names(metadata)) {
-    stop("La columna '", grouping_column, "' no existe en metadata")
-  }
-
-  # Alinear muestras
-  if (!is.null(rownames(metadata))) {
-    common_samples <- intersect(colnames(data), rownames(metadata))
-    if (length(common_samples) == 0) {
-      stop("No hay muestras en común entre data y metadata")
-    }
-    data <- data[, common_samples, drop = FALSE]
-    metadata <- metadata[common_samples, , drop = FALSE]
-  }
-
-  groups <- as.factor(metadata[[grouping_column]])
-  group_levels <- levels(groups)
-
-  # Calcular min_reps automáticamente si no se especifica
-  if (is.null(min_reps)) {
-    group_sizes <- table(groups)
-    min_reps <- max(1, floor(min(group_sizes) / 2))
-  }
-
-  # Calcular número de valores no-NA por grupo para cada proteína
-  n_present_per_group <- sapply(group_levels, function(g) {
-    cols <- which(groups == g)
-    if (length(cols) == 0) return(rep(0, nrow(data)))
-    rowSums(!is.na(data[, cols, drop = FALSE]))
-  })
-
-  if (!is.matrix(n_present_per_group)) {
-    n_present_per_group <- matrix(n_present_per_group, ncol = 1)
-  }
-
-  # Contar grupos que cumplen el criterio
-  groups_ok <- rowSums(n_present_per_group >= min_reps)
-  keep <- groups_ok >= min_groups
-
-  list(
-    data = data[keep, , drop = FALSE],
-    keep = keep,
-    n_present_per_group = n_present_per_group,
-    summary = list(
-      n_total = nrow(data),
-      n_keep = sum(keep),
-      n_drop = sum(!keep),
-      min_reps = min_reps,
-      min_groups = min_groups
-    )
-  )
-}
-
-# =============================================================================
-# FUNCIONES DE IMPUTACIÓN (internas)
-# =============================================================================
-
-#' Máscara MNAR por condición con evidencia en otras condiciones
-#'
-#' Identifica celdas candidatas a MNAR: NA en una condición pero con
-#' presencia suficiente en otras condiciones.
-#'
-#' @param x Matriz de intensidades (proteínas × muestras)
-#' @param condition Vector de condiciones alineado con columnas
-#' @param prop_na_in_condition Proporción mínima de NA en la condición (default: 1.0 = 100%)
-#' @param prop_present_in_other_condition Proporción mínima de no-NA en otra condición (default: 0.0)
-#' @param min_present_in_other_condition Número mínimo absoluto de no-NA en otra condición (default: 1)
-#' @param require_n_other_conditions Número de otras condiciones que deben cumplir (default: 1)
-#' @param drop_empty_levels Eliminar niveles vacíos del factor (default: TRUE)
-#' @return Matriz lógica de mismas dimensiones indicando celdas MNAR
-#' @keywords internal
-.mnar_mask_by_condition <- function(
-    x, condition,
-    prop_na_in_condition = 1.0,
-    prop_present_in_other_condition = 0.0,
-    min_present_in_other_condition = 1,
-    require_n_other_conditions = 1,
-    drop_empty_levels = TRUE
-) {
-  stopifnot(is.matrix(x) || is.data.frame(x))
-  x <- as.matrix(x)
-  stopifnot(ncol(x) == length(condition))
-  stopifnot(prop_na_in_condition >= 0 && prop_na_in_condition <= 1)
-  stopifnot(prop_present_in_other_condition >= 0 && prop_present_in_other_condition <= 1)
-  stopifnot(min_present_in_other_condition >= 0)
-  stopifnot(require_n_other_conditions >= 1)
-
-  condition <- as.factor(condition)
-  if (drop_empty_levels) condition <- droplevels(condition)
-
-  mnar <- matrix(FALSE, nrow = nrow(x), ncol = ncol(x), dimnames = dimnames(x))
-
-  for (g in levels(condition)) {
-    jg <- which(condition == g)
-    jn <- which(condition != g)
-    if (length(jg) == 0) next
-
-    # % NA dentro de g
-    frac_na_g <- rowMeans(is.na(x[, jg, drop = FALSE]))
-    cond_na_ok <- frac_na_g >= prop_na_in_condition
-
-    # Evidencia en otras condiciones (evaluada por condición)
-    present_ok_n <- integer(nrow(x))
-    for (h in setdiff(levels(condition), g)) {
-      jh <- which(condition == h)
-      if (length(jh) == 0) next
-      frac_present_h <- rowMeans(!is.na(x[, jh, drop = FALSE]))
-      count_present_h <- rowSums(!is.na(x[, jh, drop = FALSE]))
-      ok_h <- (frac_present_h >= prop_present_in_other_condition) &
-        (count_present_h >= min_present_in_other_condition)
-      present_ok_n <- present_ok_n + as.integer(ok_h)
-    }
-    cond_present_ok <- present_ok_n >= require_n_other_conditions
-
-    rows_mnar_g <- cond_na_ok & cond_present_ok
-    if (any(rows_mnar_g)) mnar[rows_mnar_g, jg] <- TRUE
-  }
-  mnar
-}
-
-#' Imputación MNAR con valor mínimo
-#'
-#' Reemplaza todos los NA con el valor mínimo de la matriz.
-#' Implementación equivalente a MsCoreUtils::impute_min() sin dependencias.
-#'
-#' @param x Matriz numérica
-#' @return Matriz con NA reemplazados por el mínimo global
-#' @keywords internal
-.impute_min <- function(x) {
-  val <- min(x, na.rm = TRUE)
-  x[is.na(x)] <- val
-  x
-}
-
-#' Imputación mixta: MAR/MCAR con impSeqRob, MNAR con "min"
-#'
-#' Realiza imputación en dos etapas:
-#' 1. MAR/MCAR: impSeqRob (rrcovNA) - robusto y recomendado
-#' 2. MNAR: valor mínimo global (sin dependencias externas)
-#'
-#' @param x Matriz de intensidades log2
-#' @param condition Vector de condiciones alineado con columnas
-#' @param prop_na_in_condition Proporción de NA para clasificar MNAR (default: 1.0)
-#' @param prop_present_in_other_condition Proporción presente en otras condiciones (default: 0.0)
-#' @param min_present_in_other_condition Mínimo de valores presentes (default: 1)
-#' @param require_n_other_conditions Condiciones requeridas con presencia (default: 1)
-#' @param mar_method Método MAR: "impSeqRob" o "none" (default: "impSeqRob")
-#' @param impSeqRob_args Lista de argumentos para impSeqRob (default: list(alpha = 0.9))
-#' @return Lista con:
-#'   - x_imputed: Matriz imputada
-#'   - mnar_mask: Máscara de celdas MNAR
-#'   - mar_mask: Máscara de celdas MAR
-#'   - summary: Estadísticas de imputación
-#' @keywords internal
-.impute_mixed <- function(
-    x, condition,
-    prop_na_in_condition = 1.0,
-    prop_present_in_other_condition = 0.0,
-    min_present_in_other_condition = 1,
-    require_n_other_conditions = 1,
-    mar_method = c("impSeqRob", "none"),
-    impSeqRob_args = list(alpha = 0.9, norm_impute = FALSE, check_data = FALSE, verbose = TRUE)
-) {
-  x <- as.matrix(x)
-  stopifnot(ncol(x) == length(condition))
-  mar_method <- match.arg(mar_method)
-
-  # Construir máscaras
-  mnar_mask <- .mnar_mask_by_condition(
-    x, condition,
-    prop_na_in_condition = prop_na_in_condition,
-    prop_present_in_other_condition = prop_present_in_other_condition,
-    min_present_in_other_condition = min_present_in_other_condition,
-    require_n_other_conditions = require_n_other_conditions
-  )
-  mar_mask <- is.na(x) & !mnar_mask
-
-  # ---- Etapa 1: Imputación MAR/MCAR con impSeqRob ----
-  x_stage1 <- x
-  if (mar_method == "impSeqRob") {
-    if (!requireNamespace("rrcovNA", quietly = TRUE)) {
-      stop("Para mar_method = 'impSeqRob' necesitas el paquete 'rrcovNA'.")
-    }
-    # Validar argumentos
-    allowed <- c("alpha", "norm_impute", "check_data", "verbose")
-    bad <- setdiff(names(impSeqRob_args), allowed)
-    if (length(bad)) {
-      warning("Argumentos no soportados para impSeqRob(): ",
-              paste(bad, collapse = ", "), ". Se ignoran.")
-    }
-    args_final <- modifyList(
-      list(alpha = 0.9, norm_impute = FALSE, check_data = FALSE, verbose = TRUE),
-      impSeqRob_args[names(impSeqRob_args) %in% allowed]
-    )
-
-    imp1 <- do.call(rrcovNA::impSeqRob, c(list(x = x), args_final))
-    x_imp1 <- if (is.list(imp1) && !is.null(imp1$x)) imp1$x else as.matrix(imp1)
-    x_stage1[mar_mask] <- x_imp1[mar_mask]
-  }
-  # else: "none" -> deja MAR/MCAR como NA
-
-  # ---- Etapa 2: Imputación MNAR con valor mínimo ----
-  # Implementación simple equivalente a MsCoreUtils::impute_min()
-  # Sin dependencia de MSnbase/Biobase
-  x_min_all <- .impute_min(x_stage1)
-
-  x_final <- x_stage1
-  x_final[mnar_mask] <- x_min_all[mnar_mask]
-
-  # Resumen de NA
-  na0 <- mean(is.na(x))
-  na1 <- mean(is.na(x_stage1))
-  naF <- mean(is.na(x_final))
-
-  list(
-    x_imputed = x_final,
-    mnar_mask = mnar_mask,
-    mar_mask = mar_mask,
-    summary = list(
-      na_rate_initial = na0,
-      na_rate_after_mar = na1,
-      na_rate_final = naF,
-      pct_na_marked_mnar = ifelse(any(is.na(x)), mean(mnar_mask[is.na(x)]), NA_real_)
-    )
-  )
-}
-
-#' Prefiltrado de proteínas por reglas MNAR
-#'
-#' Mantiene una proteína si:
-#' (A) Tiene MNAR en ≥1 condición, O
-#' (B) Presenta señal suficiente en ≥ require_n_other_conditions condiciones
-#'
-#' @param x Matriz de intensidades log2
-#' @param condition Vector de condiciones
-#' @param prop_na_in_condition Proporción NA para MNAR (default: 0.51)
-#' @param prop_present_in_other_condition Proporción presente requerida (default: 0.5)
-#' @param min_present_in_other_condition Mínimo de valores presentes (default: 1)
-#' @param require_n_other_conditions Condiciones requeridas (default: 1)
-#' @return Lista con:
-#'   - keep: Vector lógico de filas a conservar
-#'   - summary: Resumen del filtrado
-#' @keywords internal
-.prefilter_by_rules <- function(
-    x, condition,
-    prop_na_in_condition = 0.51,
-    prop_present_in_other_condition = 0.5,
-    min_present_in_other_condition = 1,
-    require_n_other_conditions = 1
-) {
-  cond <- as.factor(condition)
-
-  # 1) Máscara MNAR
-  mnar_mask <- .mnar_mask_by_condition(
-    x, cond,
-    prop_na_in_condition = prop_na_in_condition,
-    prop_present_in_other_condition = prop_present_in_other_condition,
-    min_present_in_other_condition = min_present_in_other_condition,
-    require_n_other_conditions = require_n_other_conditions
-  )
-  row_has_mnar <- rowSums(mnar_mask) > 0
-
-  # 2) Presencia por condición
-  levs <- levels(cond)
-  present_ok_mat <- sapply(levs, function(g) {
-    jg <- which(cond == g)
-    if (length(jg) == 0) return(rep(FALSE, nrow(x)))
-    frac_present_g <- rowMeans(!is.na(x[, jg, drop = FALSE]))
-    count_present_g <- rowSums(!is.na(x[, jg, drop = FALSE]))
-    (frac_present_g >= prop_present_in_other_condition) &
-      (count_present_g >= min_present_in_other_condition)
-  })
-  if (!is.matrix(present_ok_mat)) present_ok_mat <- cbind(present_ok_mat)
-
-  n_conditions_with_presence <- rowSums(present_ok_mat)
-  row_has_presence <- n_conditions_with_presence >= require_n_other_conditions
-
-  # 3) Vector final
-  keep <- row_has_mnar | row_has_presence
-
-  list(
-    keep = keep,
-    row_has_mnar = row_has_mnar,
-    n_conditions_with_presence = n_conditions_with_presence,
-    present_ok_by_condition = `colnames<-`(present_ok_mat, levs),
-    mnar_mask = mnar_mask,
-    summary = list(
-      n_total = nrow(x),
-      n_keep = sum(keep),
-      n_drop = sum(!keep),
-      n_with_MNAR = sum(row_has_mnar),
-      n_with_presence_rule = sum(row_has_presence)
-    )
-  )
-}
-
-#' Renombra rownames usando columna de IDs
-#'
-#' @param x_df Matriz o data frame con rownames como ProteinGroups
-#' @param rd Data frame de rowData con columna de IDs
-#' @param id_col Nombre de la columna de IDs (default: "IDs")
-#' @return Data frame con rownames renombrados
-#' @keywords internal
-.rename_rownames_from_rd <- function(x_df, rd, id_col = "IDs") {
-  stopifnot(all(rownames(x_df) %in% rownames(rd)))
-  ids <- rd[rownames(x_df), id_col, drop = TRUE] |> as.character()
-  if (anyNA(ids)) {
-    pg_missing <- rownames(x_df)[is.na(ids)]
-    stop(sprintf("IDs faltantes para %d ProteinGroups (ejemplos: %s)",
-                 length(pg_missing), paste(head(pg_missing, 10), collapse = ", ")))
-  }
-  if (anyDuplicated(ids)) {
-    warning(sprintf("IDs duplicados detectados: %d. Se aplicará make.unique().",
-                    sum(duplicated(ids))))
-    ids <- make.unique(ids)
-  }
-  x_out <- as.data.frame(x_df, check.names = FALSE)
-  rownames(x_out) <- ids
-  x_out
-}
-
-#' Convierte SummarizedExperiment a formato largo
+#' Convert SummarizedExperiment to long format
 #'
 #' @param se SummarizedExperiment
-#' @param assay_names Vector de nombres de assays a incluir. Si NULL, usa todos
-#' @return Data frame en formato largo con columnas: Column, Assay, Intensity, Condition, Replicate, Protein.IDs
+#' @param assay_names Assay names to include. If NULL, uses all
+#' @return Data frame in long format
 #' @keywords internal
 .se_to_long <- function(se, assay_names = NULL) {
   stopifnot(inherits(se, "SummarizedExperiment"))
 
-  # Obtener assays disponibles
   available_assays <- SummarizedExperiment::assayNames(se)
   if (is.null(assay_names)) {
     assay_names <- available_assays
   } else {
     assay_names <- intersect(assay_names, available_assays)
     if (length(assay_names) == 0) {
-      stop("Ninguno de los assays especificados está disponible")
+      stop("Ninguno de los assays especificados esta disponible")
     }
   }
 
-  # Obtener metadata
   cd <- as.data.frame(SummarizedExperiment::colData(se))
   rd <- as.data.frame(SummarizedExperiment::rowData(se))
 
-  # Procesar cada assay
   result_list <- lapply(assay_names, function(assay_name) {
     mat <- SummarizedExperiment::assay(se, assay_name)
 
-    # Convertir a data frame largo
     df_list <- lapply(seq_len(ncol(mat)), function(j) {
       sample_name <- colnames(mat)[j]
       data.frame(
@@ -513,7 +139,6 @@
 
   long_df <- do.call(rbind, result_list)
 
-  # Añadir información de Condition y Replicate desde colData
   if ("Condition" %in% names(cd)) {
     long_df$Condition <- cd[long_df$Column, "Condition"]
   }
@@ -521,7 +146,6 @@
     long_df$Replicate <- cd[long_df$Column, "Replicate"]
   }
 
-  # Reordenar columnas
   col_order <- c("Column", "Assay", "Intensity", "Condition", "Replicate", "Protein.IDs")
   col_order <- intersect(col_order, names(long_df))
   long_df <- long_df[, col_order, drop = FALSE]
@@ -530,27 +154,24 @@
   long_df
 }
 
-#' Prepara datos para PCA con información de expresión diferencial
+#' Prepare PCA input with differential expression information
 #'
 #' @param se SummarizedExperiment
-#' @param DEPs_results Data frame con resultados DE
-#' @param assay_name Nombre del assay a usar
-#' @param alpha Umbral de significancia para sig_any
-#' @return Data frame con intensidades y columnas adjP por comparación
+#' @param DEPs_results Data frame with DE results
+#' @param assay_name Assay name to use
+#' @param alpha Significance threshold for sig_any
+#' @return Data frame with intensities and adjP columns per comparison
 #' @keywords internal
 .prepare_pca_input <- function(se, DEPs_results, assay_name, alpha = 0.05) {
   stopifnot(inherits(se, "SummarizedExperiment"))
 
-  # Verificar assay
   if (!assay_name %in% SummarizedExperiment::assayNames(se)) {
     stop("Assay '", assay_name, "' no encontrado en SE")
   }
 
-  # Obtener matriz de intensidades
   mat <- SummarizedExperiment::assay(se, assay_name)
   cd <- as.data.frame(SummarizedExperiment::colData(se))
 
-  # Convertir a formato largo
   long_list <- lapply(seq_len(ncol(mat)), function(j) {
     sample_name <- colnames(mat)[j]
     data.frame(
@@ -562,7 +183,6 @@
   })
   long_df <- do.call(rbind, long_list)
 
-  # Añadir Condition y Replicate
   if ("Condition" %in% names(cd)) {
     long_df$Condition <- cd[long_df$SampleID, "Condition"]
   }
@@ -570,19 +190,15 @@
     long_df$Replicate <- cd[long_df$SampleID, "Replicate"]
   }
 
-  # Obtener comparaciones únicas de DEPs_results
   comparisons <- unique(DEPs_results$Comparison)
 
-  # Crear columnas adjP por comparación
   for (comp in comparisons) {
     subset_de <- DEPs_results[DEPs_results$Comparison == comp, ]
-    # Mapear adj.P.Val por Protein.IDs
     adjp_map <- setNames(subset_de$adj.P.Val, subset_de$Protein.IDs)
     col_name <- paste0("adjP_", comp)
     long_df[[col_name]] <- adjp_map[long_df$FeatureID]
   }
 
-  # Crear columna sig_any: TRUE si es significativo en al menos una comparación
   adjp_cols <- grep("^adjP_", names(long_df), value = TRUE)
   if (length(adjp_cols) > 0) {
     adjp_mat <- as.matrix(long_df[, adjp_cols, drop = FALSE])
@@ -595,17 +211,16 @@
   long_df
 }
 
-#' Exporta data frame a TSV y/o Parquet
+#' Export data frame to TSV and/or Parquet
 #'
-#' @param data Data frame a exportar
-#' @param filepath_base Ruta base sin extensión
-#' @param format "tsv", "parquet", o "both"
+#' @param data Data frame to export
+#' @param filepath_base Base path without extension
+#' @param format "tsv", "parquet", or "both"
 #' @return Invisible NULL
 #' @keywords internal
 .export_data <- function(data, filepath_base, format = "tsv") {
   format <- match.arg(format, c("tsv", "parquet", "both"))
 
-  # Exportar TSV
   if (format %in% c("tsv", "both")) {
     tsv_file <- paste0(filepath_base, ".tsv")
     if (requireNamespace("readr", quietly = TRUE)) {
@@ -615,11 +230,10 @@
     }
   }
 
-  # Exportar Parquet
   if (format %in% c("parquet", "both")) {
     if (!requireNamespace("arrow", quietly = TRUE)) {
       warning("Paquete 'arrow' no instalado. No se puede exportar a Parquet. ",
-              "Instálalo con: install.packages('arrow')")
+              "Instalalo con: install.packages('arrow')")
     } else {
       parquet_file <- paste0(filepath_base, ".parquet")
       arrow::write_parquet(data, parquet_file)
@@ -630,429 +244,69 @@
 }
 
 # =============================================================================
-# FUNCIONES REPLICADAS DE PRONE (internas)
+# MAIN FUNCTION
 # =============================================================================
 
-#' Crea un SummarizedExperiment desde datos proteómicos
+#' Process proteomics data from Spectronaut
 #'
-#' @param data Data frame con proteínas y valores de intensidad
-#' @param metadata Data frame con información de muestras
-#' @param protein_column Nombre de columna con IDs de proteína
-#' @param gene_column Nombre de columna con nombres de genes
-#' @param condition_column Nombre de columna de condición en metadata
-#' @param label_column Nombre de columna de etiqueta de muestra en metadata
-#' @return SummarizedExperiment con assays: raw, log2
-#' @keywords internal
-.load_proteomics_data <- function(
-    data,
-    metadata,
-    protein_column = "ProteinGroups",
-    gene_column = "GeneNames",
-    condition_column = "Condition",
-    label_column = "Column"
-) {
-  if (!requireNamespace("SummarizedExperiment", quietly = TRUE)) {
-    stop("Se requiere el paquete 'SummarizedExperiment'")
-  }
-
-  # Validar columnas requeridas
-  if (!protein_column %in% names(data)) {
-    stop("Columna '", protein_column, "' no encontrada en data")
-  }
-  if (!label_column %in% names(metadata)) {
-    stop("Columna '", label_column, "' no encontrada en metadata")
-  }
-  if (!condition_column %in% names(metadata)) {
-    stop("Columna '", condition_column, "' no encontrada en metadata")
-  }
-
-  # Identificar columnas de intensidad
-  annotation_cols <- c(protein_column, gene_column, "UniqPepts")
-  annotation_cols <- intersect(annotation_cols, names(data))
-  intensity_cols <- setdiff(names(data), annotation_cols)
-
-  # Extraer matrices
-  annotation <- data[, annotation_cols, drop = FALSE]
-  intensity <- as.matrix(data[, intensity_cols, drop = FALSE])
-  storage.mode(intensity) <- "double"
-
-  # IDs únicos
-  protein_ids <- as.character(annotation[[protein_column]])
-  protein_ids <- make.unique(protein_ids)
-  rownames(intensity) <- protein_ids
-  rownames(annotation) <- protein_ids
-
-  # Alinear metadata con columnas de intensidad
-  rownames(metadata) <- metadata[[label_column]]
-  common_samples <- intersect(colnames(intensity), rownames(metadata))
-
-  if (length(common_samples) == 0) {
-    stop("No hay muestras en común entre data y metadata")
-  }
-
-  intensity <- intensity[, common_samples, drop = FALSE]
-  metadata <- metadata[common_samples, , drop = FALSE]
-
-  # Crear rowData
-  row_data <- S4Vectors::DataFrame(annotation)
-  names(row_data)[names(row_data) == protein_column] <- "Protein.IDs"
-  if (gene_column %in% names(row_data)) {
-    names(row_data)[names(row_data) == gene_column] <- "Gene.Names"
-  }
-  row_data$IDs <- rownames(row_data)
-
-  # Crear colData
-  col_data <- S4Vectors::DataFrame(metadata)
-
-  # Crear assays: raw y log2
-  raw_assay <- intensity
-  log2_assay <- log2(intensity)
-
-  # Crear SummarizedExperiment
-  se <- SummarizedExperiment::SummarizedExperiment(
-    assays = list(raw = raw_assay, log2 = log2_assay),
-    rowData = row_data,
-    colData = col_data,
-    metadata = list(
-      condition = condition_column,
-      label = label_column
-    )
-  )
-
-  se
-}
-
-#' Resumen de valores NA en un SummarizedExperiment
+#' Complete processing pipeline: filtering, normalization, imputation
+#' and differential expression analysis. Coordinates sub-modules
+#' Normalization.R, Imputation.R, and DEAnalysis.R.
 #'
-#' @param se SummarizedExperiment
-#' @param assay_name Nombre del assay a evaluar (default: "log2")
-#' @return Data frame con estadísticas de NA por muestra
-#' @keywords internal
-.get_NA_overview <- function(se, assay_name = "log2") {
-  stopifnot(inherits(se, "SummarizedExperiment"))
-
-  if (!assay_name %in% SummarizedExperiment::assayNames(se)) {
-    stop("Assay '", assay_name, "' no encontrado")
-  }
-
-  x <- SummarizedExperiment::assay(se, assay_name)
-
-  # Por muestra
-  total_vals <- nrow(x)
-  na_counts <- colSums(is.na(x))
-  na_pct <- na_counts / total_vals * 100
-
-  sample_stats <- data.frame(
-    Sample = colnames(x),
-    Total.Values = total_vals,
-    NA.Values = na_counts,
-    NA.Percentage = round(na_pct, 2),
-    stringsAsFactors = FALSE
-  )
-
-  # Global
-  total_cells <- length(x)
-  total_na <- sum(is.na(x))
-
-  attr(sample_stats, "global") <- list(
-    Total.Cells = total_cells,
-    Total.NA = total_na,
-    NA.Percentage = round(total_na / total_cells * 100, 2)
-  )
-
-  sample_stats
-}
-
-#' Genera comparaciones para análisis diferencial
+#' @param preprocessing spectronaut_data list (result of preprocess_spectronaut)
+#' @param export_dir Output directory for exported files (default: "./results")
+#' @param min_reps_filter Minimum replicates for filtering. If NULL, auto-computed
+#' @param min_groups_filter Minimum groups for filtering (default: 1)
+#' @param cyclic_loess_method Cyclic Loess method: "fast" or "pairs" (default: "fast")
+#' @param cyclic_loess_iterations Number of iterations for Cyclic Loess (default: 3)
+#' @param cyclic_loess_span Span parameter for Cyclic Loess (default: 0.7)
+#' @param prop_na_mnar NA proportion for MNAR classification (default: 0.51)
+#' @param prop_present_mar Present proportion for MAR (default: 0.5)
+#' @param min_present_mar Minimum present values for MAR (default: 1)
+#' @param require_n_conditions Required conditions with presence (default: 1)
+#' @param mar_method MAR imputation method (default: "impSeqRob")
+#' @param comparisons Comparisons for DE. If NULL, generates all pairwise
+#' @param control Control condition. If NULL, compares all
+#' @param logFC_threshold LogFC threshold for significance (default: 0)
+#' @param alpha Adjusted p-value threshold (default: 0.05)
+#' @param eBayes_trend Use trend estimation in eBayes (default: TRUE)
+#' @param eBayes_robust Use robust estimation in eBayes (default: TRUE)
+#' @param export_normalized Export normalized matrix (default: TRUE)
+#' @param export_imputed Export imputed matrix (default: TRUE)
+#' @param export_format Export format: "tsv", "parquet", or "both" (default: "tsv")
+#' @param export_volcano Export VolcanoPlot_Input (default: TRUE)
+#' @param export_boxplot Export BoxPlot_Input (default: TRUE)
+#' @param export_pca Export PCA_Input (default: TRUE)
+#' @param verbose Print progress messages (default: TRUE)
 #'
-#' @param se SummarizedExperiment
-#' @param condition_column Columna de condición (si NULL, usa metadata del SE)
-#' @param control Condición control. Si NULL, genera todas las comparaciones pareadas
-#' @return Factor con comparaciones en formato "Tratamiento-Control"
-#' @keywords internal
-.specify_comparisons <- function(
-    se,
-    condition_column = NULL,
-    control = NULL
-) {
-  stopifnot(inherits(se, "SummarizedExperiment"))
-
-  # Obtener columna de condición
-  if (is.null(condition_column)) {
-    condition_column <- S4Vectors::metadata(se)$condition %||% "Condition"
-  }
-
-  cd <- as.data.frame(SummarizedExperiment::colData(se))
-  if (!condition_column %in% names(cd)) {
-    stop("Columna '", condition_column, "' no encontrada en colData")
-  }
-
-  conditions <- unique(as.character(cd[[condition_column]]))
-
-  if (!is.null(control)) {
-    if (!control %in% conditions) {
-      stop("Control '", control, "' no está en las condiciones: ",
-           paste(conditions, collapse = ", "))
-    }
-    # Comparaciones vs control
-    others <- setdiff(conditions, control)
-    comparisons <- paste0(others, "-", control)
-  } else {
-    # Todas las comparaciones pareadas
-    comparisons <- character()
-    for (i in seq_along(conditions)) {
-      for (j in seq_along(conditions)) {
-        if (i < j) {
-          comparisons <- c(comparisons, paste0(conditions[j], "-", conditions[i]))
-        }
-      }
-    }
-  }
-
-  factor(comparisons)
-}
-
-#' Ejecuta análisis limma
-#'
-#' @param data Matriz de intensidades log2
-#' @param condition_vector Vector de condiciones alineado con columnas
-#' @param comparisons Vector de comparaciones
-#' @param covariate Covariable opcional para el modelo
-#' @param eBayes_trend Usar estimación de tendencia en eBayes (default: TRUE)
-#' @param eBayes_robust Usar estimación robusta en eBayes (default: TRUE)
-#' @return Objeto fit de limma
-#' @keywords internal
-.perform_limma <- function(data, condition_vector, comparisons, covariate = NULL,
-                           eBayes_trend = TRUE, eBayes_robust = TRUE) {
-  if (!requireNamespace("limma", quietly = TRUE)) {
-    stop("Se requiere el paquete 'limma'")
-  }
-
-  condition <- factor(condition_vector)
-
-  # Crear matriz de diseño
-  if (is.null(covariate)) {
-    design <- model.matrix(~ 0 + condition)
-    colnames(design) <- levels(condition)
-  } else {
-    design <- model.matrix(~ 0 + condition + covariate)
-    colnames(design)[seq_along(levels(condition))] <- levels(condition)
-  }
-
-  # Crear matriz de contrastes
-  contrast_strings <- as.character(comparisons)
-  contrast_matrix <- limma::makeContrasts(
-    contrasts = contrast_strings,
-    levels = design
-  )
-
-  # Ajustar modelo
-  fit <- limma::lmFit(data, design)
-  fit <- limma::contrasts.fit(fit, contrast_matrix)
-  fit <- limma::eBayes(fit, trend = eBayes_trend, robust = eBayes_robust)
-
-  fit
-}
-
-#' Extrae resultados de limma fit
-#'
-#' @param fit Objeto fit de limma
-#' @param comparisons Vector de comparaciones
-#' @param logFC_up Umbral superior de logFC para "Up"
-#' @param logFC_down Umbral inferior de logFC para "Down"
-#' @param alpha Umbral de significancia
-#' @param p_adj Usar p-valor ajustado (TRUE) o no ajustado (FALSE)
-#' @return Data frame con resultados
-#' @keywords internal
-.extract_limma_results <- function(
-    fit,
-    comparisons,
-    logFC_up = 1,
-    logFC_down = -1,
-    alpha = 0.05,
-    p_adj = TRUE
-) {
-  results_list <- lapply(seq_along(comparisons), function(i) {
-    comp <- as.character(comparisons[i])
-    tt <- limma::topTable(fit, coef = i, number = Inf, sort.by = "none")
-
-    # Columnas estándar
-    df <- data.frame(
-      Protein.IDs = rownames(tt),
-      logFC = tt$logFC,
-      P.Value = tt$P.Value,
-      adj.P.Val = tt$adj.P.Val,
-      stringsAsFactors = FALSE
-    )
-
-    # Clasificar cambios
-    p_col <- if (p_adj) "adj.P.Val" else "P.Value"
-    df$Change <- "No Change"
-    df$Change[df$logFC >= logFC_up & df[[p_col]] < alpha] <- "Up"
-    df$Change[df$logFC <= logFC_down & df[[p_col]] < alpha] <- "Down"
-    df$Change <- factor(df$Change, levels = c("Up", "Down", "No Change"))
-
-    df$Comparison <- comp
-    df
-  })
-
-  do.call(rbind, results_list)
-}
-
-#' Ejecuta análisis de expresión diferencial
-#'
-#' Función principal que coordina el análisis DE con limma.
-#'
-#' @param se SummarizedExperiment con datos procesados
-#' @param comparisons Comparaciones a realizar (resultado de .specify_comparisons)
-#' @param assay_name Nombre del assay a usar. Si NULL, usa el último disponible
-#' @param condition_column Columna de condición. Si NULL, usa metadata del SE
-#' @param logFC Aplicar filtro por logFC (default: TRUE)
-#' @param logFC_up Umbral superior de logFC (default: 1)
-#' @param logFC_down Umbral inferior de logFC (default: -1)
-#' @param p_adj Usar p-valor ajustado (default: TRUE)
-#' @param alpha Umbral de significancia (default: 0.05)
-#' @param eBayes_trend Usar estimación de tendencia en eBayes (default: TRUE)
-#' @param eBayes_robust Usar estimación robusta en eBayes (default: TRUE)
-#' @return Data frame con resultados DE
-#' @keywords internal
-.run_DE <- function(
-    se,
-    comparisons,
-    assay_name = NULL,
-    condition_column = NULL,
-    logFC = TRUE,
-    logFC_up = 1,
-    logFC_down = -1,
-    p_adj = TRUE,
-    alpha = 0.05,
-    eBayes_trend = TRUE,
-    eBayes_robust = TRUE
-) {
-  stopifnot(inherits(se, "SummarizedExperiment"))
-
-  # Determinar assay
-  if (is.null(assay_name)) {
-    assay_names <- SummarizedExperiment::assayNames(se)
-    assay_name <- assay_names[length(assay_names)]
-  }
-
-  if (!assay_name %in% SummarizedExperiment::assayNames(se)) {
-    stop("Assay '", assay_name, "' no encontrado")
-  }
-
-  # Obtener datos
-  x <- SummarizedExperiment::assay(se, assay_name)
-  cd <- as.data.frame(SummarizedExperiment::colData(se))
-  rd <- as.data.frame(SummarizedExperiment::rowData(se))
-
-  # Columna de condición
-  if (is.null(condition_column)) {
-    condition_column <- S4Vectors::metadata(se)$condition %||% "Condition"
-  }
-
-  condition_vec <- cd[[condition_column]]
-
-  # Ejecutar limma
-  fit <- .perform_limma(x, condition_vec, comparisons, covariate = NULL,
-                        eBayes_trend = eBayes_trend, eBayes_robust = eBayes_robust)
-
-  # Extraer resultados
-  if (!logFC) {
-    logFC_up <- 0
-    logFC_down <- 0
-  }
-
-  results <- .extract_limma_results(
-    fit, comparisons,
-    logFC_up = logFC_up,
-    logFC_down = logFC_down,
-    alpha = alpha,
-    p_adj = p_adj
-  )
-
-  # Agregar información de genes
-  if ("Gene.Names" %in% names(rd)) {
-    gene_map <- rd[, c("Protein.IDs", "Gene.Names"), drop = FALSE]
-    gene_map <- unique(gene_map)
-    names(gene_map) <- c("Protein.IDs", "Gene.Names")
-    results <- merge(results, gene_map, by = "Protein.IDs", all.x = TRUE, sort = FALSE)
-  }
-
-  # Agregar columna Assay
-  results$Assay <- assay_name
-
-  # Reordenar columnas
-  col_order <- c("Protein.IDs", "Gene.Names", "logFC", "P.Value",
-                 "adj.P.Val", "Change", "Comparison", "Assay")
-  col_order <- intersect(col_order, names(results))
-  results <- results[, col_order]
-
-  results
-}
-
-# =============================================================================
-# FUNCIÓN PRINCIPAL
-# =============================================================================
-
-#' Procesa datos proteómicos de Spectronaut
-#'
-#' Pipeline completo de procesamiento: filtrado, normalización, imputación
-#' y análisis de expresión diferencial.
-#'
-#' @param preprocessing Lista de clase spectronaut_data (resultado de preprocess_spectronaut)
-#' @param export_dir Directorio de salida para archivos exportados (default: "./results")
-#' @param min_reps_filter Mínimo de réplicas para filtrado. Si NULL, se calcula automáticamente
-#' @param min_groups_filter Mínimo de grupos para filtrado (default: 1)
-#' @param normalization_method Método de normalización (default: "cyclicloess")
-#' @param prop_na_mnar Proporción de NA para clasificar como MNAR (default: 0.51)
-#' @param prop_present_mar Proporción presente para MAR (default: 0.5)
-#' @param min_present_mar Mínimo de valores presentes para MAR (default: 1)
-#' @param require_n_conditions Número de condiciones requeridas con presencia (default: 1)
-#' @param mar_method Método de imputación MAR (default: "impSeqRob")
-#' @param comparisons Comparaciones para DE. Si NULL, genera todas las pareadas
-#' @param control Condición control para comparaciones. Si NULL, compara todas
-#' @param logFC_threshold Umbral logFC para significancia (default: 0)
-#' @param alpha Umbral p-valor ajustado (default: 0.05)
-#' @param eBayes_trend Usar estimación de tendencia en eBayes (default: TRUE, recomendado para proteómica)
-#' @param eBayes_robust Usar estimación robusta en eBayes (default: TRUE, recomendado para proteómica)
-#' @param export_normalized Exportar matriz normalizada (default: TRUE)
-#' @param export_imputed Exportar matriz imputada (default: TRUE)
-#' @param export_format Formato de exportación para archivos de visualización: "tsv", "parquet", o "both" (default: "tsv")
-#' @param export_volcano Exportar VolcanoPlot_Input (default: TRUE)
-#' @param export_boxplot Exportar BoxPlot_Input (default: TRUE)
-#' @param export_pca Exportar PCA_Input (default: TRUE)
-#' @param verbose Mostrar mensajes de progreso (default: TRUE)
-#'
-#' @return Lista de clase proteomics_result con:
+#' @return List of class proteomics_result with:
 #'   \itemize{
-#'     \item se_proc: SummarizedExperiment procesado con todos los assays
-#'     \item DEPs_results: Data frame con resultados de expresión diferencial
-#'     \item comparisons: Comparaciones realizadas
-#'     \item parameters: Parámetros utilizados
+#'     \item se_proc: Processed SummarizedExperiment with all assays
+#'     \item DEPs_results: Data frame with differential expression results
+#'     \item comparisons: Comparisons performed
+#'     \item parameters: Parameters used
 #'   }
 #'
 #' @examples
 #' \dontrun{
-#' # 1. Preprocesar datos de Spectronaut
+#' # 1. Preprocess Spectronaut data
 #' preprocessing <- preprocess_spectronaut(
 #'   file_path = "data/Spectronaut_Report.tsv",
 #'   condition_order = c("A", "B", "C", "D")
 #' )
 #'
-#' # 2. Procesar (normalización, imputación, DE)
+#' # 2. Process (normalization, imputation, DE)
 #' result <- process_proteomics(
 #'   preprocessing = preprocessing,
 #'   export_dir = "./results",
+#'   cyclic_loess_method = "fast",
+#'   cyclic_loess_iterations = 3,
 #'   alpha = 0.05
 #' )
 #'
-#' # 3. Acceder a resultados
-#' result$se_proc        # SummarizedExperiment procesado
-#' result$DEPs_results   # Resultados diferenciales
-#'
-#' # 4. Visualización con funciones existentes
-#' # volcano_highchart_list(result$DEPs_results, ...)
+#' # 3. Access results
+#' result$se_proc        # Processed SummarizedExperiment
+#' result$DEPs_results   # Differential results
 #' }
 #'
 #' @export
@@ -1061,7 +315,9 @@ process_proteomics <- function(
     export_dir = "./results",
     min_reps_filter = NULL,
     min_groups_filter = 1,
-    normalization_method = "cyclicloess",
+    cyclic_loess_method = "fast",
+    cyclic_loess_iterations = 3,
+    cyclic_loess_span = 0.7,
     prop_na_mnar = 0.51,
     prop_present_mar = 0.5,
     min_present_mar = 1,
@@ -1082,28 +338,19 @@ process_proteomics <- function(
     verbose = TRUE
 ) {
   # =========================================================================
-  # VALIDACIONES
+  # VALIDATIONS
   # =========================================================================
 
   if (!inherits(preprocessing, "spectronaut_data")) {
     stop("El argumento 'preprocessing' debe ser resultado de preprocess_spectronaut()")
   }
 
-  # Crear directorio de salida
   if (!dir.exists(export_dir)) {
     dir.create(export_dir, recursive = TRUE)
   }
 
-  # Verificar paquetes requeridos
-  required_packages <- c("SummarizedExperiment", "limma")
-  for (pkg in required_packages) {
-    if (!requireNamespace(pkg, quietly = TRUE)) {
-      stop("Se requiere el paquete '", pkg, "'. Instálalo con BiocManager::install('", pkg, "')")
-    }
-  }
-
   # =========================================================================
-  # 1. PREPARAR DATOS DESDE PREPROCESSING
+  # 1. PREPARE DATA FROM PREPROCESSING
   # =========================================================================
 
   if (verbose) cat("=== PREPARANDO DATOS ===\n")
@@ -1113,87 +360,30 @@ process_proteomics <- function(
 
   if (verbose) {
     cat("- Metadatos:", nrow(metadata), "muestras\n")
-    cat("- Proteínas:", nrow(protein_data), "proteínas iniciales\n")
+    cat("- Proteinas:", nrow(protein_data), "proteinas iniciales\n")
   }
 
   # =========================================================================
-  # 2. CONVERTIR CEROS A NA
+  # 2. NORMALIZATION (Normalization.R)
   # =========================================================================
 
-  if (verbose) cat("\n=== CONVIRTIENDO CEROS A NA ===\n")
-
-  # Identificar columnas de intensidad
-  annotation_cols <- c("ProteinGroups", "GeneNames", "UniqPepts")
-  intensity_cols <- setdiff(names(protein_data), annotation_cols)
-
-  # Convertir ceros
-  intensity_mat <- as.matrix(protein_data[, intensity_cols])
-  intensity_mat <- .zero_to_missing(intensity_mat)
-  rownames(intensity_mat) <- protein_data$ProteinGroups
-
-  n_zeros <- sum(protein_data[, intensity_cols] == 0, na.rm = TRUE)
-  if (verbose) cat("- Ceros convertidos a NA:", n_zeros, "\n")
-
-  # =========================================================================
-  # 3. FILTRAR PROTEÍNAS POR GRUPO
-  # =========================================================================
-
-  if (verbose) cat("\n=== FILTRANDO PROTEÍNAS POR PRESENCIA ===\n")
-
-  filtered <- .filter_proteins_by_group(
-    data = intensity_mat,
+  norm_result <- normalize_proteomics(
+    data = protein_data,
     metadata = metadata,
     min_reps = min_reps_filter,
     min_groups = min_groups_filter,
-    grouping_column = "Condition"
+    cyclic_loess_method = cyclic_loess_method,
+    cyclic_loess_iterations = cyclic_loess_iterations,
+    cyclic_loess_span = cyclic_loess_span,
+    verbose = verbose
   )
 
-  if (verbose) {
-    cat("- Proteínas antes:", filtered$summary$n_total, "\n")
-    cat("- Proteínas después:", filtered$summary$n_keep, "\n")
-    cat("- Proteínas eliminadas:", filtered$summary$n_drop, "\n")
-    cat("- Min réplicas:", filtered$summary$min_reps, "\n")
-    cat("- Min grupos:", filtered$summary$min_groups, "\n")
-  }
+  se <- norm_result$se
 
-  # Filtrar protein_data
-  protein_data_filtered <- protein_data[filtered$keep, , drop = FALSE]
-
-  # =========================================================================
-  # 4. CREAR SUMMARIZEDEXPERIMENT
-  # =========================================================================
-
-  if (verbose) cat("\n=== CREANDO SUMMARIZEDEXPERIMENT ===\n")
-
-  se <- .load_proteomics_data(
-    data = protein_data_filtered,
-    metadata = metadata,
-    protein_column = "ProteinGroups",
-    gene_column = "GeneNames",
-    condition_column = "Condition",
-    label_column = "Column"
-  )
-
-  if (verbose) {
-    na_overview <- .get_NA_overview(se, "log2")
-    global_na <- attr(na_overview, "global")
-    cat("- NA global:", global_na$NA.Percentage, "%\n")
-  }
-
-  # =========================================================================
-  # 5. NORMALIZACIÓN
-  # =========================================================================
-
-  if (verbose) cat("\n=== NORMALIZANDO (", normalization_method, ") ===\n")
-
-  x_log2 <- SummarizedExperiment::assay(se, "log2")
-
-  x_norm <- limma::normalizeBetweenArrays(x_log2, method = normalization_method)
-  rownames(x_norm) <- rownames(x_log2)
-
-  # Exportar matriz normalizada
+  # Export normalized matrix
   if (export_normalized) {
-    norm_file <- file.path(export_dir, paste0("matrix_log2_", normalization_method, ".tsv"))
+    x_norm <- SummarizedExperiment::assay(se, "normalized")
+    norm_file <- file.path(export_dir, "matrix_log2_cyclicloess.tsv")
     if (requireNamespace("readr", quietly = TRUE)) {
       readr::write_tsv(
         data.frame(ProteinGroups = rownames(x_norm), x_norm, check.names = FALSE),
@@ -1209,57 +399,31 @@ process_proteomics <- function(
   }
 
   # =========================================================================
-  # 6. PREFILTRADO POR REGLAS MNAR
+  # 3. IMPUTATION (Imputation.R)
   # =========================================================================
 
-  if (verbose) cat("\n=== PREFILTRADO POR REGLAS MNAR ===\n")
+  # Compute dynamic assay name (backward compat)
+  assay_label <- paste0(tools::toTitleCase(gsub("cyclic", "Cyc", "cyclicloess")))
+  # Result: "Cycloess"
 
-  cd <- as.data.frame(SummarizedExperiment::colData(se))
-  condition_vec <- as.factor(cd$Condition)
-
-  pf <- .prefilter_by_rules(
-    x = x_norm,
-    condition = condition_vec,
-    prop_na_in_condition = prop_na_mnar,
-    prop_present_in_other_condition = prop_present_mar,
-    min_present_in_other_condition = min_present_mar,
-    require_n_other_conditions = require_n_conditions
+  imp_result <- impute_proteomics(
+    se = se,
+    normalized_assay_name = "normalized",
+    imputed_assay_name = assay_label,
+    prop_na_mnar = prop_na_mnar,
+    prop_present_mar = prop_present_mar,
+    min_present_mar = min_present_mar,
+    require_n_conditions = require_n_conditions,
+    mar_method = mar_method,
+    verbose = verbose
   )
-  keep_rows <- pf$keep
 
-  if (verbose) {
-    cat("- Proteínas conservadas:", pf$summary$n_keep, "\n")
-    cat("- Proteínas eliminadas:", pf$summary$n_drop, "\n")
-  }
+  se_proc <- imp_result$se
 
-  x_norm_prefilt <- x_norm[keep_rows, , drop = FALSE]
-
-  # =========================================================================
-  # 7. IMPUTACIÓN MIXTA
-  # =========================================================================
-
-  if (verbose) cat("\n=== IMPUTACIÓN MIXTA (MAR + MNAR) ===\n")
-
-  res_impute <- .impute_mixed(
-    x = x_norm_prefilt,
-    condition = condition_vec,
-    prop_na_in_condition = prop_na_mnar,
-    prop_present_in_other_condition = prop_present_mar,
-    min_present_in_other_condition = min_present_mar,
-    require_n_other_conditions = require_n_conditions,
-    mar_method = mar_method
-  )
-  x_imputed <- res_impute$x_imputed
-
-  if (verbose) {
-    cat("- NA inicial:", round(res_impute$summary$na_rate_initial * 100, 2), "%\n")
-    cat("- NA después MAR:", round(res_impute$summary$na_rate_after_mar * 100, 2), "%\n")
-    cat("- NA final:", round(res_impute$summary$na_rate_final * 100, 2), "%\n")
-  }
-
-  # Exportar matriz imputada
+  # Export imputed matrix
   if (export_imputed) {
-    imp_file <- file.path(export_dir, paste0("matrix_log2_", normalization_method, "_imputed.tsv"))
+    x_imputed <- SummarizedExperiment::assay(se_proc, assay_label)
+    imp_file <- file.path(export_dir, "matrix_log2_cyclicloess_imputed.tsv")
     if (requireNamespace("readr", quietly = TRUE)) {
       readr::write_tsv(
         data.frame(ProteinGroups = rownames(x_imputed), x_imputed, check.names = FALSE),
@@ -1275,118 +439,51 @@ process_proteomics <- function(
   }
 
   # =========================================================================
-  # 8. ACTUALIZAR SUMMARIZEDEXPERIMENT
+  # 4. DIFFERENTIAL EXPRESSION ANALYSIS (DEAnalysis.R)
   # =========================================================================
 
-  if (verbose) cat("\n=== ACTUALIZANDO SUMMARIZEDEXPERIMENT ===\n")
-
-  # Filtrar SE a las filas procesadas
-  rd <- as.data.frame(SummarizedExperiment::rowData(se))
-
-  # Renombrar rownames de x_imputed usando IDs
-  if ("IDs" %in% names(rd)) {
-    rd_subset <- rd[rownames(x_imputed), , drop = FALSE]
-    x_imputed_ids <- .rename_rownames_from_rd(x_imputed, rd_subset, id_col = "IDs")
-  } else {
-    x_imputed_ids <- x_imputed
-  }
-
-  # Alinear SE con matriz imputada
-  common_ids <- intersect(rownames(se), rownames(x_imputed_ids))
-  if (length(common_ids) == 0) {
-    # Intentar con Protein.IDs
-    common_ids <- intersect(rd$Protein.IDs, rownames(x_imputed))
-    if (length(common_ids) > 0) {
-      se_subset <- se[rd$Protein.IDs %in% common_ids, ]
-      mat <- x_imputed[common_ids, colnames(se_subset), drop = FALSE]
-    } else {
-      stop("No hay IDs en común entre SE y matriz imputada")
-    }
-  } else {
-    se_subset <- se[common_ids, ]
-    mat <- as.matrix(x_imputed_ids[common_ids, colnames(se_subset), drop = FALSE])
-  }
-
-  storage.mode(mat) <- "double"
-
-  # Agregar assay normalizado+imputado
-  assay_name <- paste0(
-    tools::toTitleCase(gsub("cyclic", "Cyc", normalization_method))
-  )
-  SummarizedExperiment::assay(se_subset, assay_name) <- mat
-
-  se_proc <- se_subset
-
-  if (verbose) {
-    cat("- Assays disponibles:", paste(SummarizedExperiment::assayNames(se_proc), collapse = ", "), "\n")
-    cat("- Proteínas finales:", nrow(se_proc), "\n")
-  }
-
-  # =========================================================================
-  # 9. ANÁLISIS DIFERENCIAL
-  # =========================================================================
-
-  if (verbose) cat("\n=== ANÁLISIS DIFERENCIAL (limma) ===\n")
-
-  # Generar comparaciones si no se especifican
-  if (is.null(comparisons)) {
-    comparisons <- .specify_comparisons(se_proc, condition_column = "Condition", control = control)
-  }
-
-  if (verbose) cat("- Comparaciones:", paste(comparisons, collapse = ", "), "\n")
-
-  # Ejecutar análisis DE
-  DEPs_results <- .run_DE(
+  de_result <- de_analysis_proteomics(
     se = se_proc,
+    assay_name = assay_label,
     comparisons = comparisons,
-    assay_name = assay_name,
-    condition_column = "Condition",
-    logFC = TRUE,
-    logFC_up = logFC_threshold,
-    logFC_down = -logFC_threshold,
-    p_adj = TRUE,
+    control = control,
+    logFC_threshold = logFC_threshold,
     alpha = alpha,
+    p_adj = TRUE,
     eBayes_trend = eBayes_trend,
-    eBayes_robust = eBayes_robust
+    eBayes_robust = eBayes_robust,
+    condition_column = "Condition",
+    verbose = verbose
   )
 
-  if (verbose) {
-    n_sig <- sum(DEPs_results$Change != "No Change")
-    cat("- Proteínas diferenciales (total):", n_sig, "\n")
-
-    for (comp in unique(DEPs_results$Comparison)) {
-      subset <- DEPs_results[DEPs_results$Comparison == comp, ]
-      n_up <- sum(subset$Change == "Up")
-      n_down <- sum(subset$Change == "Down")
-      cat("  ", comp, ": Up=", n_up, ", Down=", n_down, "\n", sep = "")
-    }
-  }
+  DEPs_results <- de_result$DEPs_results
+  comparisons <- de_result$comparisons
 
   # =========================================================================
-  # 10. EXPORTAR ARCHIVOS PARA VISUALIZACIÓN
+  # 5. EXPORT VISUALIZATION FILES
   # =========================================================================
 
   if (export_volcano || export_boxplot || export_pca) {
-    if (verbose) cat("\n=== EXPORTANDO ARCHIVOS PARA VISUALIZACIÓN ===\n")
+    if (verbose) cat("\n=== EXPORTANDO ARCHIVOS PARA VISUALIZACION ===\n")
 
-    # 10.1 VolcanoPlot_Input (DEPs_results)
+    # 5.1 VolcanoPlot_Input (DEPs_results)
     if (export_volcano) {
       volcano_file <- file.path(export_dir, "VolcanoPlot_Input")
       .export_data(DEPs_results, volcano_file, export_format)
       if (verbose) cat("- VolcanoPlot_Input exportado\n")
     }
 
-    # 10.2 BoxPlot_Input (SE -> formato largo)
+    # 5.2 BoxPlot_Input (SE -> long format)
     if (export_boxplot) {
-      boxplot_data <- .se_to_long(se_proc, assay_names = c("log2", assay_name))
+      boxplot_data <- .se_to_long(se_proc, assay_names = c("log2", assay_label))
       boxplot_file <- file.path(export_dir, "BoxPlot_Input")
       .export_data(boxplot_data, boxplot_file, export_format)
       if (verbose) cat("- BoxPlot_Input exportado\n")
     }
 
-    # 10.3 PCA_Input (SE + DE en formato largo)
+    # 5.3 PCA_Input (SE + DE in long format)
     if (export_pca) {
-      pca_data <- .prepare_pca_input(se_proc, DEPs_results, assay_name, alpha)
+      pca_data <- .prepare_pca_input(se_proc, DEPs_results, assay_label, alpha)
       pca_file <- file.path(export_dir, "PCA_Input")
       .export_data(pca_data, pca_file, export_format)
       if (verbose) cat("- PCA_Input exportado\n")
@@ -1394,7 +491,7 @@ process_proteomics <- function(
   }
 
   # =========================================================================
-  # 11. RETORNAR RESULTADO
+  # 6. RETURN RESULT
   # =========================================================================
 
   result <- list(
@@ -1402,9 +499,12 @@ process_proteomics <- function(
     DEPs_results = DEPs_results,
     comparisons = comparisons,
     parameters = list(
-      min_reps_filter = filtered$summary$min_reps,
+      min_reps_filter = norm_result$filter_summary$min_reps,
       min_groups_filter = min_groups_filter,
-      normalization_method = normalization_method,
+      normalization_method = "cyclicloess",
+      cyclic_loess_method = cyclic_loess_method,
+      cyclic_loess_iterations = cyclic_loess_iterations,
+      cyclic_loess_span = cyclic_loess_span,
       prop_na_mnar = prop_na_mnar,
       prop_present_mar = prop_present_mar,
       mar_method = mar_method,
@@ -1428,25 +528,25 @@ process_proteomics <- function(
 }
 
 # =============================================================================
-# MÉTODO PRINT
+# PRINT METHOD
 # =============================================================================
 
-#' Método print para proteomics_result
+#' Print method for proteomics_result
 #'
-#' @param x Objeto proteomics_result
-#' @param ... Argumentos adicionales (ignorados)
+#' @param x proteomics_result object
+#' @param ... Additional arguments (ignored)
 #' @export
 print.proteomics_result <- function(x, ...) {
-  cat("=== Resultado de Procesamiento Proteómico ===\n\n")
+  cat("=== Resultado de Procesamiento Proteomico ===\n\n")
 
-  # Resumen del SE
+  # SE summary
   se <- x$se_proc
   cat("SummarizedExperiment:\n")
-  cat("  - Proteínas:", nrow(se), "\n")
+  cat("  - Proteinas:", nrow(se), "\n")
   cat("  - Muestras:", ncol(se), "\n")
   cat("  - Assays:", paste(SummarizedExperiment::assayNames(se), collapse = ", "), "\n")
 
-  # Resumen de condiciones
+  # Condition summary
   cd <- as.data.frame(SummarizedExperiment::colData(se))
   if ("Condition" %in% names(cd)) {
     cat("  - Condiciones:", paste(unique(cd$Condition), collapse = ", "), "\n")
@@ -1456,7 +556,6 @@ print.proteomics_result <- function(x, ...) {
   cat("  - Total filas:", nrow(x$DEPs_results), "\n")
   cat("  - Comparaciones:", paste(unique(x$DEPs_results$Comparison), collapse = ", "), "\n")
 
-  # Resumen por comparación
   for (comp in unique(x$DEPs_results$Comparison)) {
     subset <- x$DEPs_results[x$DEPs_results$Comparison == comp, ]
     n_up <- sum(subset$Change == "Up", na.rm = TRUE)
@@ -1464,45 +563,14 @@ print.proteomics_result <- function(x, ...) {
     cat("    ", comp, ": Up=", n_up, ", Down=", n_down, "\n", sep = "")
   }
 
-  cat("\nParámetros:\n")
-  cat("  - Normalización:", x$parameters$normalization_method, "\n")
+  cat("\nParametros:\n")
+  cat("  - Normalizacion:", x$parameters$normalization_method, "\n")
+  cat("    - Cyclic Loess method:", x$parameters$cyclic_loess_method, "\n")
+  cat("    - Cyclic Loess iterations:", x$parameters$cyclic_loess_iterations, "\n")
+  cat("    - Cyclic Loess span:", x$parameters$cyclic_loess_span, "\n")
   cat("  - Alpha:", x$parameters$alpha, "\n")
   cat("  - logFC threshold:", x$parameters$logFC_threshold, "\n")
   cat("  - Directorio salida:", x$parameters$export_dir, "\n")
 
   invisible(x)
 }
-
-# =============================================================================
-# EJEMPLOS DE USO (comentados)
-# =============================================================================
-
-# # Flujo completo de procesamiento
-# #
-# # 1. Preprocesar datos de Spectronaut
-# # preprocessing <- preprocess_spectronaut(
-# #   file_path = "data/Spectronaut_Report.tsv",
-# #   condition_order = c("A", "B", "C", "D")
-# # )
-# #
-# # 2. Procesar (normalización, imputación, DE)
-# # result <- process_proteomics(
-# #   preprocessing = preprocessing,
-# #   export_dir = "./results",
-# #   alpha = 0.05,
-# #   logFC_threshold = 0.5
-# # )
-# #
-# # 3. Acceder a resultados
-# # result$se_proc        # SummarizedExperiment procesado
-# # result$DEPs_results   # Resultados diferenciales
-# #
-# # 4. Usar funciones de visualización existentes
-# # source("./R/Volcano_Plot_Highcharts.R")
-# # volcano_highchart_list(
-# #   result$DEPs_results,
-# #   logFC_col = "logFC",
-# #   pval_col = "adj.P.Val",
-# #   gene_col = "Gene.Names",
-# #   comparison_col = "Comparison"
-# # )
