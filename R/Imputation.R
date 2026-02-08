@@ -315,6 +315,7 @@ if (!exists("%||%", mode = "function")) {
 #' @return List with:
 #'   \itemize{
 #'     \item se: SummarizedExperiment with imputed assay added
+#'     \item x_imputed: Raw imputed matrix (for direct export, avoids SE alignment issues)
 #'     \item prefilter_summary: Pre-filtering summary
 #'     \item imputation_summary: Imputation statistics
 #'     \item mnar_mask: MNAR mask matrix
@@ -428,10 +429,12 @@ impute_proteomics <- function(
   # Align SE with imputed matrix
   common_ids <- intersect(rownames(se), rownames(x_imputed_ids))
   if (length(common_ids) == 0) {
-    # Try with Protein.IDs
+    # Fallback: try matching via Protein.IDs column
     common_ids <- intersect(rd$Protein.IDs, rownames(x_imputed))
     if (length(common_ids) > 0) {
-      se_subset <- se[rd$Protein.IDs %in% common_ids, ]
+      # Use match() to get first occurrence only (avoids duplicate expansion with %in%)
+      idx <- match(common_ids, rd$Protein.IDs)
+      se_subset <- se[idx, ]
       mat <- x_imputed[common_ids, colnames(se_subset), drop = FALSE]
     } else {
       stop("No hay IDs en comun entre SE y matriz imputada")
@@ -439,6 +442,14 @@ impute_proteomics <- function(
   } else {
     se_subset <- se[common_ids, ]
     mat <- as.matrix(x_imputed_ids[common_ids, colnames(se_subset), drop = FALSE])
+  }
+
+  # Assertion: SE subset must not exceed imputed matrix
+  if (nrow(se_subset) > nrow(x_imputed)) {
+    warning("SE alineado tiene ", nrow(se_subset), " filas vs ",
+            nrow(x_imputed), " en matriz imputada. Ajustando.")
+    se_subset <- se[rownames(x_imputed), ]
+    mat <- as.matrix(x_imputed[, colnames(se_subset), drop = FALSE])
   }
 
   storage.mode(mat) <- "double"
@@ -458,6 +469,7 @@ impute_proteomics <- function(
 
   list(
     se = se_subset,
+    x_imputed = x_imputed,
     prefilter_summary = pf$summary,
     imputation_summary = res_impute$summary,
     mnar_mask = res_impute$mnar_mask,

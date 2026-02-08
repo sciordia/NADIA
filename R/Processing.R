@@ -420,18 +420,20 @@ process_proteomics <- function(
 
   se_proc <- imp_result$se
 
-  # Export imputed matrix
+  # Export imputed matrix (use raw matrix, matching pre-split behavior)
   if (export_imputed) {
-    x_imputed <- SummarizedExperiment::assay(se_proc, assay_label)
+    x_imputed_export <- imp_result$x_imputed
     imp_file <- file.path(export_dir, "matrix_log2_cyclicloess_imputed.tsv")
     if (requireNamespace("readr", quietly = TRUE)) {
       readr::write_tsv(
-        data.frame(ProteinGroups = rownames(x_imputed), x_imputed, check.names = FALSE),
+        data.frame(ProteinGroups = rownames(x_imputed_export),
+                   x_imputed_export, check.names = FALSE),
         imp_file
       )
     } else {
       write.table(
-        data.frame(ProteinGroups = rownames(x_imputed), x_imputed, check.names = FALSE),
+        data.frame(ProteinGroups = rownames(x_imputed_export),
+                   x_imputed_export, check.names = FALSE),
         imp_file, sep = "\t", quote = FALSE, row.names = FALSE
       )
     }
