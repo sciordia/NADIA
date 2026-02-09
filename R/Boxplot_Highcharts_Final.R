@@ -491,21 +491,21 @@ boxplot_highchart_list <- function(
 # hc_boxplots[["LoessCyc"]]
 
 # --- Con título personalizado ---
-hc_boxplots <- boxplot_highchart_list(
-  data     = se_proc,
-  assays   = "LoessCyc",
-  color_by = "Condition",
-  title    = "Distribución de Intensidades por Muestra",
-  subtitle = "Normalización LOESS cíclica"
-)
-hc_boxplots[["LoessCyc"]]
+# hc_boxplots <- boxplot_highchart_list(
+#   data     = se_proc,
+#   assays   = "LoessCyc",
+#   color_by = "Condition",
+#   title    = "Distribución de Intensidades por Muestra",
+#   subtitle = "Normalización LOESS cíclica"
+# )
+# hc_boxplots[["LoessCyc"]]
 
 # --- Orientación vertical ---
-hc_boxplots <- boxplot_highchart_list(
-  data       = se_proc,
-  color_by   = "Condition",
-  horizontal = FALSE
-)
+# hc_boxplots <- boxplot_highchart_list(
+#   data       = se_proc,
+#   color_by   = "Condition",
+#   horizontal = FALSE
+# )
 
 # --- Con paleta personalizada ---
 # hc_boxplots <- boxplot_highchart_list(
@@ -522,12 +522,12 @@ hc_boxplots <- boxplot_highchart_list(
 # )
 
 # --- Personalizar tamaño y jitter de outliers ---
-hc_boxplots <- boxplot_highchart_list(
-  data           = se_proc,
-  color_by       = "Condition",
-  outlier_jitter = 0,
-  outlier_size   = 3
-)
+# hc_boxplots <- boxplot_highchart_list(
+#   data           = se_proc,
+#   color_by       = "Condition",
+#   outlier_jitter = 0,
+#   outlier_size   = 3
+# )
 
 # --- Personalizar ancho de las cajas (útil según número de muestras) ---
 # hc_boxplots <- boxplot_highchart_list(
