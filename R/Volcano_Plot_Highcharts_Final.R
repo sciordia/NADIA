@@ -20,7 +20,8 @@ library(paletteer)
 #' @param palette Nombre de paleta de paletteer (ej: "ggsci::default_jco"). Usa 3 colores: up, down, ns
 #' @param show_top_genes Número de genes top a etiquetar por significancia (default: 0)
 #' @param highlight_genes Vector de nombres de genes a resaltar manualmente (default: NULL)
-#' @param title Título personalizado del gráfico (default: NULL, usa "Comparison (Assay)")
+#' @param title Título personalizado del gráfico (default: NULL, usa "Comparison (Assay)").
+#'   Usa \code{\{comparison\}} como placeholder (ej: "Volcano Plot: \{comparison\}" -> "Volcano Plot: B-A")
 #'
 #' @return Lista de objetos highchart
 volcano_highchart_list <- function(
@@ -142,7 +143,7 @@ volcano_highchart_list <- function(
     
     # --- Título del plot ---
     if (!is.null(title)) {
-      title_txt <- title
+      title_txt <- gsub("{comparison}", comp, title, fixed = TRUE)
     } else {
       assay_label <- get_assay_label(dt)
       title_txt <- if (assay_label != "") paste0(comp, " (", assay_label, ")") else comp

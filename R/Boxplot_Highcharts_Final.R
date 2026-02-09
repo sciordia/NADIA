@@ -69,8 +69,10 @@ calc_boxplot_stats <- function(x, coef = 1.5) {
 #' @param color_by Columna para colorear (default: "Condition")
 #' @param group_order Orden de los grupos/condiciones
 #' @param palette Paleta de colores: "ggsci::palette", "brewer:Name", o vector
-#' @param title Título del gráfico (opcional)
-#' @param subtitle Subtítulo del gráfico (opcional)
+#' @param title Título del gráfico (opcional).
+#'   Usa \code{\{assay\}} como placeholder (ej: "Boxplot: \{assay\}" -> "Boxplot: Cycloess")
+#' @param subtitle Subtítulo del gráfico (opcional).
+#'   Usa \code{\{assay\}} como placeholder
 #' @param show_outliers Mostrar outliers fuera de los bigotes (default: TRUE)
 #' @param outlier_jitter Cantidad de jitter horizontal para los outliers (default: 0.15)
 #' @param outlier_size Radio de los puntos outliers (default: 3)
@@ -307,7 +309,7 @@ boxplot_highchart_list <- function(
 
     # Título del gráfico (asegurar que es string)
     if (!is.null(title)) {
-      chart_title <- as.character(title)
+      chart_title <- gsub("{assay}", current_assay, as.character(title), fixed = TRUE)
     } else {
       chart_title <- if (current_assay %in% names(assay_labels)) {
         as.character(assay_labels[current_assay])
@@ -459,8 +461,9 @@ boxplot_highchart_list <- function(
 
     # Subtítulo
     if (!is.null(subtitle)) {
+      sub_text <- gsub("{assay}", current_assay, as.character(subtitle), fixed = TRUE)
       hc <- hc %>% hc_subtitle(
-        text = subtitle,
+        text = sub_text,
         style = list(
           fontSize = "13px",
           color = "#6C757D"
