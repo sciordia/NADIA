@@ -846,7 +846,7 @@ benchmark_auc_bars_gg <- function(
         hjust = 0.5, face = "bold", size = 15, color = "#1D3557"
       ),
       plot.subtitle = ggplot2::element_text(
-        hjust = 0.5, size = 10, color = "#E63946", face = "italic"
+        hjust = 0.5, size = 8, color = "#E63946", face = "italic"
       ),
       axis.text = ggplot2::element_text(size = 11, color = "#495057"),
       panel.grid.major.y = ggplot2::element_blank(),
