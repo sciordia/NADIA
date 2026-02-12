@@ -830,7 +830,7 @@ benchmark_auc_bars_gg <- function(
                         color = "#E63946", linewidth = 0.6) +
     ggplot2::scale_fill_gradient2(
       low = "#E63946", mid = "#F4D35E", high = "#1a9850",
-      midpoint = 0.75, limits = c(0, 1),
+      midpoint = 0.5, limits = c(0, 1),
       name = "AUC"
     ) +
     ggplot2::coord_flip(ylim = c(0, max(plot_data$AUC, na.rm = TRUE) * 1.15)) +
