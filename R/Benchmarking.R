@@ -1026,6 +1026,129 @@ benchmark_signif_bars_gg <- function(
 
 
 # =============================================================================
+# ROC CURVES (ggplot2 via pROC)
+# =============================================================================
+
+#' ROC Curves by Comparison (ggplot2)
+#'
+#' Generates ROC curves for each comparison using pROC::ggroc().
+#' Requires the pROC package.
+#'
+#' @param classified_df Classified data frame (output of .classify_all_comparisons)
+#' @param p_col P-value column name used as predictor score
+#' @param comparisons Comparisons to include (NULL = all)
+#' @param title Plot title
+#' @param zoom If TRUE, zoom into the low-FPR region (x = 0 to 0.1)
+#' @param palette RColorBrewer palette name (default: "Set1")
+#'
+#' @return ggplot2 object or NULL if pROC is not available
+#' @export
+benchmark_roc_gg <- function(
+    classified_df,
+    p_col = "adj.P.Val",
+    comparisons = NULL,
+    title = "ROC Curves by Comparison",
+    zoom = FALSE,
+    palette = "Set1"
+) {
+  if (!requireNamespace("pROC", quietly = TRUE)) {
+    warning("Paquete 'pROC' no instalado. No se pueden generar curvas ROC.\n",
+            "Instalar con: install.packages('pROC')")
+    return(NULL)
+  }
+
+  # Compute score: -log10(p-value) — higher = more significant
+  p_col <- .detect_p_col(classified_df, p_col)
+  classified_df$score <- -log10(pmax(as.numeric(classified_df[[p_col]]), 1e-300))
+
+  # Filter comparisons
+  if (!is.null(comparisons)) {
+    classified_df <- classified_df[classified_df$Comparison %in% comparisons, , drop = FALSE]
+  }
+
+  # Filter valid rows
+  classified_df <- classified_df[!is.na(classified_df$truth) & !is.na(classified_df$score), ,
+                                 drop = FALSE]
+
+  if (nrow(classified_df) == 0) {
+    warning("No hay datos validos para generar curvas ROC")
+    return(NULL)
+  }
+
+  # Build ROC objects per comparison
+  comp_list <- split(classified_df, classified_df$Comparison)
+
+  roc_list <- lapply(comp_list, function(d) {
+    if (length(unique(d$truth)) < 2 || nrow(d) < 10) return(NULL)
+    tryCatch(
+      pROC::roc(response = d$truth, predictor = d$score, quiet = TRUE),
+      error = function(e) NULL
+    )
+  })
+
+  roc_list <- Filter(Negate(is.null), roc_list)
+
+  if (length(roc_list) == 0) {
+    warning("No se pudieron generar curvas ROC para ninguna comparacion")
+    return(NULL)
+  }
+
+  # AUC labels for legend
+  aucs <- vapply(roc_list, function(r) as.numeric(pROC::auc(r)), numeric(1))
+  labels <- paste0(names(roc_list), " (AUC=", sprintf("%.3f", aucs), ")")
+
+  # Build plot
+  gg <- pROC::ggroc(roc_list, legacy.axes = TRUE, linewidth = 1) +
+    ggplot2::geom_abline(
+      slope = 1, intercept = 0,
+      linetype = "dashed", color = "gray50", linewidth = 0.5
+    ) +
+    ggplot2::labs(
+      title = title,
+      subtitle = if (zoom) {
+        "Zoom: low False Positive Rate region (0-10%)"
+      } else {
+        "Diagonal = random classifier"
+      },
+      x = "False Positive Rate (1 - Specificity)",
+      y = "True Positive Rate (Sensitivity)",
+      color = "Comparison"
+    ) +
+    ggplot2::theme_minimal(base_size = 13) +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(
+        hjust = 0.5, face = "bold", size = 15, color = "#1D3557"
+      ),
+      plot.subtitle = ggplot2::element_text(
+        hjust = 0.5, size = 11, color = "#6C757D"
+      ),
+      legend.position = "right",
+      legend.text = ggplot2::element_text(size = 10),
+      legend.title = ggplot2::element_text(face = "bold"),
+      panel.grid.minor = ggplot2::element_blank()
+    )
+
+  # Apply palette
+  if (requireNamespace("RColorBrewer", quietly = TRUE)) {
+    n_colors <- min(length(roc_list), RColorBrewer::brewer.pal.info[palette, "maxcolors"])
+    pal_colors <- RColorBrewer::brewer.pal(max(n_colors, 3), palette)
+    gg <- gg + ggplot2::scale_color_manual(values = pal_colors, labels = labels)
+  } else {
+    gg <- gg + ggplot2::scale_color_discrete(labels = labels)
+  }
+
+  # Zoom or full view
+  if (zoom) {
+    gg <- gg + ggplot2::coord_cartesian(xlim = c(0, 0.1), ylim = c(0, 1))
+  } else {
+    gg <- gg + ggplot2::coord_cartesian(xlim = c(0, 1), ylim = c(0, 1))
+  }
+
+  gg
+}
+
+
+# =============================================================================
 # BENCHMARK VOLCANO PLOT — HIGHCHARTER
 # =============================================================================
 
@@ -1703,6 +1826,25 @@ benchmarking_proteomics <- function(
 
   if (verbose) cat("  - Total volcanos generados:", length(hc_volcano_list), "\n")
 
+  # ROC curves (require pROC)
+  gg_roc <- tryCatch({
+    if (verbose) cat("  - Curvas ROC (ggplot2 + pROC)\n")
+    benchmark_roc_gg(classified_df, p_col = p_col, comparisons = comps)
+  }, error = function(e) {
+    warning("Error generando curvas ROC: ", e$message)
+    NULL
+  })
+
+  gg_roc_zoom <- tryCatch({
+    if (verbose) cat("  - Curvas ROC zoom (ggplot2 + pROC)\n")
+    benchmark_roc_gg(classified_df, p_col = p_col, comparisons = comps,
+                     title = "ROC Curves by Comparison (Zoom)",
+                     zoom = TRUE)
+  }, error = function(e) {
+    warning("Error generando curvas ROC zoom: ", e$message)
+    NULL
+  })
+
   # === STEP 7: Performance summary ===
   metrics_table$Performance <- ifelse(
     is.na(metrics_table$F1), "NA",
@@ -1775,6 +1917,16 @@ benchmarking_proteomics <- function(
                     file.path(output_dir, "benchmark_signif_bars.png"),
                     width = 10, height = 6)
     if (verbose) cat("  - benchmark_signif_bars.png\n")
+
+    .export_gg_plot(gg_roc,
+                    file.path(output_dir, "benchmark_roc.png"),
+                    width = 10, height = 7)
+    if (verbose) cat("  - benchmark_roc.png\n")
+
+    .export_gg_plot(gg_roc_zoom,
+                    file.path(output_dir, "benchmark_roc_zoom.png"),
+                    width = 10, height = 7)
+    if (verbose) cat("  - benchmark_roc_zoom.png\n")
   }
 
   if (verbose) cat("\n=== BENCHMARKING COMPLETADO ===\n\n")
@@ -1790,6 +1942,8 @@ benchmarking_proteomics <- function(
     gg_auc_bars          = gg_auc_bars,
     gg_metrics_bars      = gg_metrics_bars,
     gg_signif_bars       = gg_signif_bars,
+    gg_roc               = gg_roc,
+    gg_roc_zoom          = gg_roc_zoom,
     hc_volcano_list      = hc_volcano_list,
     parameters           = list(
       alpha          = alpha,
@@ -1837,6 +1991,8 @@ benchmarking_proteomics <- function(
 # result$gg_auc_bars
 # result$gg_metrics_bars
 # result$gg_signif_bars
+# result$gg_roc
+# result$gg_roc_zoom
 #
 # # --- View Highcharter volcanos ---
 # result$hc_volcano_list[["B/A"]]
