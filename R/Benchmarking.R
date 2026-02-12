@@ -1561,6 +1561,69 @@ benchmark_volcano_hc_list <- function(
 
 
 # =============================================================================
+# SIGNIFICANT PROTEINS SUMMARY
+# =============================================================================
+
+#' Summarize significant proteins per comparison and species
+#'
+#' Generates a summary table with counts of significant and non-significant
+#' proteins broken down by species and direction (up/down), plus derived
+#' percentages and ratios.
+#'
+#' @param classified_df Data frame from .classify_all_comparisons() with
+#'   columns: Comparison, Species, logFC, truth, predicted, classification,
+#'   and the p-value column
+#' @param alpha Significance threshold
+#' @param p_col P-value column name
+#' @return Data frame with per-comparison summary
+#' @keywords internal
+.summarize_significant_proteins <- function(classified_df, alpha, p_col) {
+  comps <- unique(classified_df$Comparison)
+  species_all <- sort(unique(classified_df$Species))
+
+  rows <- lapply(comps, function(comp) {
+    df_comp <- classified_df[classified_df$Comparison == comp, , drop = FALSE]
+    pvals <- suppressWarnings(as.numeric(df_comp[[p_col]]))
+    lfc <- as.numeric(df_comp$logFC)
+    is_signif <- !is.na(pvals) & pvals <= alpha
+
+    row <- data.frame(Comparison = comp, stringsAsFactors = FALSE)
+    row$n_nonsignif <- sum(!is_signif, na.rm = TRUE)
+
+    n_up_total <- 0L
+    n_down_total <- 0L
+
+    for (sp in species_all) {
+      sp_mask <- df_comp$Species == sp
+      sp_signif <- is_signif & sp_mask
+
+      n_up   <- sum(sp_signif & !is.na(lfc) & lfc > 0, na.rm = TRUE)
+      n_down <- sum(sp_signif & !is.na(lfc) & lfc < 0, na.rm = TRUE)
+
+      col_up   <- paste0("n_signif_up_",   tolower(sp))
+      col_down <- paste0("n_signif_down_", tolower(sp))
+      row[[col_up]]   <- n_up
+      row[[col_down]] <- n_down
+
+      n_up_total   <- n_up_total   + n_up
+      n_down_total <- n_down_total + n_down
+    }
+
+    row$n_signif_total      <- sum(is_signif, na.rm = TRUE)
+    row$total_proteins      <- row$n_nonsignif + row$n_signif_total
+    row$pct_signif          <- 100 * row$n_signif_total / pmax(row$total_proteins, 1)
+    row$n_signif_up_total   <- n_up_total
+    row$n_signif_down_total <- n_down_total
+    row$up_down_ratio       <- ifelse(n_down_total == 0, NA_real_,
+                                      n_up_total / n_down_total)
+    row
+  })
+
+  do.call(rbind, rows)
+}
+
+
+# =============================================================================
 # EXPORT
 # =============================================================================
 
@@ -1746,6 +1809,19 @@ benchmarking_proteomics <- function(
   # === STEP 4: Confusion by species ===
   confusion_by_species_df <- .confusion_by_species(classified_df)
 
+  # === STEP 4b: Significant proteins summary ===
+  signif_summary_df <- .summarize_significant_proteins(classified_df, alpha, p_col)
+  if (verbose) {
+    cat("\n--- Resumen de proteinas significativas ---\n")
+    for (i in seq_len(nrow(signif_summary_df))) {
+      cat(sprintf("  %s: %d/%d significativas (%.1f%%)\n",
+                  signif_summary_df$Comparison[i],
+                  signif_summary_df$n_signif_total[i],
+                  signif_summary_df$total_proteins[i],
+                  signif_summary_df$pct_signif[i]))
+    }
+  }
+
   # === STEP 5: Dispersion ===
   if (verbose) cat("\n--- Metricas de dispersion ---\n")
   dispersion_df <- compute_dispersion_metrics(de_res, ev, alpha, lfc_thr, p_col,
@@ -1880,6 +1956,12 @@ benchmarking_proteomics <- function(
     )
     if (verbose) cat("  - benchmark_dispersion.tsv\n")
 
+    .export_benchmark_data(
+      signif_summary_df,
+      file.path(output_dir, "significant_summary.tsv"), "tsv"
+    )
+    if (verbose) cat("  - significant_summary.tsv\n")
+
     # Summary with Performance column
     summary_df <- metrics_table[, c("Comparison", "Sensitivity", "Specificity",
                                     "Precision", "F1", "AUC", "Accuracy",
@@ -1933,6 +2015,7 @@ benchmarking_proteomics <- function(
   list(
     metrics_table        = metrics_table,
     confusion_by_species = confusion_by_species_df,
+    signif_summary       = signif_summary_df,
     dispersion_metrics   = dispersion_df,
     classified_df        = classified_df,
     gg_heatmap           = gg_heatmap,
