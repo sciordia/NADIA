@@ -339,6 +339,12 @@ if (!exists("%||%", mode = "function")) {
 #' @return Named numeric vector with metrics
 #' @keywords internal
 .compute_metrics <- function(tp, fp, tn, fn) {
+  # Convert to double to avoid integer overflow in MCC computation
+  tp <- as.double(tp)
+  fp <- as.double(fp)
+  tn <- as.double(tn)
+  fn <- as.double(fn)
+
   total <- tp + fp + tn + fn
 
   sensitivity <- if ((tp + fn) > 0) tp / (tp + fn) else NA_real_
