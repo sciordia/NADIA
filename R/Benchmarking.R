@@ -1958,9 +1958,9 @@ benchmarking_proteomics <- function(
 
     .export_benchmark_data(
       signif_summary_df,
-      file.path(output_dir, "significant_summary.tsv"), "tsv"
+      file.path(output_dir, "benchmark_significant_summary.tsv"), "tsv"
     )
-    if (verbose) cat("  - significant_summary.tsv\n")
+    if (verbose) cat("  - benchmark_significant_summary.tsv\n")
 
     # Summary with Performance column
     summary_df <- metrics_table[, c("Comparison", "Sensitivity", "Specificity",
