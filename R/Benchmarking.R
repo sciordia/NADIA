@@ -686,7 +686,7 @@ benchmark_heatmap_gg <- function(
       size = text_size, color = "black", fontface = "bold"
     ) +
     ggplot2::scale_fill_gradient2(
-      low = "#E63946", mid = "#F4D35E", high = "#2A9D8F",
+      low = "#E63946", mid = "#F4D35E", high = "#1a9850",
       midpoint = 0.5, limits = c(0, 1),
       na.value = "#CCCCCC",
       name = "Value"
@@ -828,18 +828,15 @@ benchmark_auc_bars_gg <- function(
     ) +
     ggplot2::geom_hline(yintercept = 0.5, linetype = "dashed",
                         color = "#E63946", linewidth = 0.6) +
-    ggplot2::annotate(
-      "text", x = 0.5, y = 0.5, label = "Random (0.5)",
-      hjust = -0.1, vjust = -0.5, size = 3, color = "#E63946", fontface = "italic"
-    ) +
     ggplot2::scale_fill_gradient2(
-      low = "#E63946", mid = "#F4D35E", high = "#2A9D8F",
+      low = "#E63946", mid = "#F4D35E", high = "#1a9850",
       midpoint = 0.75, limits = c(0, 1),
       name = "AUC"
     ) +
     ggplot2::coord_flip(ylim = c(0, max(plot_data$AUC, na.rm = TRUE) * 1.15)) +
     ggplot2::labs(
       title = title,
+      subtitle = "Dashed line: Random classifier (AUC = 0.5)",
       x = NULL,
       y = "Area Under the Curve (AUC)"
     ) +
@@ -848,10 +845,13 @@ benchmark_auc_bars_gg <- function(
       plot.title = ggplot2::element_text(
         hjust = 0.5, face = "bold", size = 15, color = "#1D3557"
       ),
+      plot.subtitle = ggplot2::element_text(
+        hjust = 0.5, size = 10, color = "#E63946", face = "italic"
+      ),
       axis.text = ggplot2::element_text(size = 11, color = "#495057"),
       panel.grid.major.y = ggplot2::element_blank(),
       panel.grid.minor = ggplot2::element_blank(),
-      legend.position = "none"
+      legend.position = "right"
     )
 
   gg
@@ -916,8 +916,6 @@ benchmark_metrics_bars_gg <- function(
                         ggplot2::aes(x = Comparison, y = Value, fill = Metric)) +
     ggplot2::geom_col(position = ggplot2::position_dodge(width = 0.8),
                       width = bar_width) +
-    ggplot2::geom_hline(yintercept = c(0.5, 0.8), linetype = "dashed",
-                        color = "#ADB5BD", linewidth = 0.4) +
     ggplot2::scale_fill_manual(values = used_colors) +
     ggplot2::scale_y_continuous(limits = c(0, 1.05), breaks = seq(0, 1, 0.2)) +
     ggplot2::labs(
@@ -996,7 +994,7 @@ benchmark_signif_bars_gg <- function(
   gg <- ggplot2::ggplot(count_df,
                         ggplot2::aes(x = Comparison, y = Count, fill = Species)) +
     ggplot2::geom_col(position = "stack", width = 0.7) +
-    ggplot2::facet_wrap(~ Direction, scales = "free_y") +
+    ggplot2::facet_wrap(~ Direction) +
     ggplot2::scale_fill_manual(values = sp_colors) +
     ggplot2::labs(
       title = title,
