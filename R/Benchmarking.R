@@ -773,10 +773,13 @@ benchmark_confusion_gg <- function(
   # Create label combining Comparison + Species
   confusion_df$Label <- paste0(confusion_df$Comparison, "\n", confusion_df$Species)
 
-  # Factorise Label preserving Comparison order from input
-  comp_levels <- unique(confusion_df$Comparison)
+  # Factorise Label: rev() so first comparison appears at top of Y axis;
+
+  # sort Species decreasing so ggplot Y (bottom→top) reads A→Z (top→bottom)
+  comp_levels <- rev(unique(confusion_df$Comparison))
   label_levels <- unlist(lapply(comp_levels, function(comp) {
-    sp <- unique(confusion_df$Species[confusion_df$Comparison == comp])
+    sp <- sort(unique(confusion_df$Species[confusion_df$Comparison == comp]),
+               decreasing = TRUE)
     paste0(comp, "\n", sp)
   }))
   confusion_df$Label <- factor(confusion_df$Label, levels = label_levels)
@@ -1129,6 +1132,97 @@ benchmark_signif_bars_gg <- function(
       title = title,
       x = NULL,
       y = "Number of Proteins",
+      fill = "Species"
+    ) +
+    ggplot2::theme_minimal(base_size = 13) +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(
+        hjust = 0.5, face = "bold", size = 15, color = "#1D3557"
+      ),
+      axis.text.x = ggplot2::element_text(
+        size = 11, angle = 45, hjust = 1, color = "#495057"
+      ),
+      axis.text.y = ggplot2::element_text(size = 11, color = "#495057"),
+      strip.text = ggplot2::element_text(
+        face = "bold", size = 12, color = "#1D3557"
+      ),
+      legend.position = "bottom",
+      legend.title = ggplot2::element_text(face = "bold"),
+      panel.grid.major.x = ggplot2::element_blank()
+    )
+
+  gg
+}
+
+
+#' Significant Proteins Stacked Bars - Percentage (ggplot2)
+#'
+#' Stacked bar chart showing the percentage (0-100%) of significant proteins
+#' by species and direction (UP/DOWN) for each comparison.
+#'
+#' @param classified_df Classified data frame (output of .classify_all_comparisons)
+#' @param ev Expected values data frame
+#' @param species_colors Named vector of colors per species (optional)
+#' @param title Plot title
+#'
+#' @return ggplot2 object
+#' @export
+benchmark_signif_bars_pct_gg <- function(
+    classified_df,
+    ev,
+    species_colors = NULL,
+    title = "Significant Proteins (%) by Species and Direction"
+) {
+  # Filter significant proteins
+  sig_df <- classified_df[classified_df$predicted == 1, , drop = FALSE]
+
+  if (nrow(sig_df) == 0) {
+    warning("No hay proteinas significativas para graficar")
+    return(NULL)
+  }
+
+  # Assign direction based on logFC
+  sig_df$Direction <- ifelse(sig_df$logFC > 0, "UP", "DOWN")
+
+  # Count by Comparison x Species x Direction
+  count_df <- as.data.frame(
+    table(
+      Comparison = sig_df$Comparison,
+      Species    = sig_df$Species,
+      Direction  = sig_df$Direction
+    ),
+    stringsAsFactors = FALSE
+  )
+  names(count_df)[4] <- "Count"
+  count_df <- count_df[count_df$Count > 0, , drop = FALSE]
+  count_df$Comparison <- factor(count_df$Comparison,
+                                levels = unique(classified_df$Comparison))
+
+  if (nrow(count_df) == 0) {
+    warning("No hay datos para graficar tras el conteo")
+    return(NULL)
+  }
+
+  # Calculate total proteins per Comparison x Direction for percentage
+  totals <- stats::aggregate(Count ~ Comparison + Direction, data = count_df, FUN = sum)
+  names(totals)[3] <- "Total"
+  count_df <- merge(count_df, totals, by = c("Comparison", "Direction"))
+  count_df$Pct <- count_df$Count / count_df$Total * 100
+
+  # Configure species colors
+  all_species <- unique(count_df$Species)
+  sp_colors <- .configure_species_colors(all_species, species_colors)
+
+  gg <- ggplot2::ggplot(count_df,
+                        ggplot2::aes(x = Comparison, y = Pct, fill = Species)) +
+    ggplot2::geom_col(position = "stack", width = 0.7) +
+    ggplot2::facet_wrap(~ Direction) +
+    ggplot2::scale_fill_manual(values = sp_colors) +
+    ggplot2::scale_y_continuous(limits = c(0, 100)) +
+    ggplot2::labs(
+      title = title,
+      x = NULL,
+      y = "Percentage of Proteins (%)",
       fill = "Species"
     ) +
     ggplot2::theme_minimal(base_size = 13) +
@@ -1841,11 +1935,12 @@ benchmark_volcano_hc_list <- function(
 #'     \item dispersion_metrics: Dispersion stats per Comparison x Species
 #'     \item classified_df: Full classified data frame
 #'     \item gg_heatmap: ggplot2 performance heatmap
-#'     \item gg_confusion: ggplot2 confusion matrix heatmap (by species)
+#'     \item gg_confusion_by_species: ggplot2 confusion matrix heatmap (by species)
 #'     \item gg_confusion_overall: ggplot2 confusion matrix heatmap (aggregated)
 #'     \item gg_auc_bars: ggplot2 AUC bar chart
 #'     \item gg_metrics_bars: ggplot2 grouped metrics bar chart
-#'     \item gg_signif_bars: ggplot2 significant proteins stacked bars
+#'     \item gg_signif_bars: ggplot2 significant proteins stacked bars (absolute)
+#'     \item gg_signif_bars_pct: ggplot2 significant proteins stacked bars (percentage)
 #'     \item hc_volcano_list: Named list of Highcharter volcano plots
 #'     \item parameters: List of parameters used
 #'   }
@@ -1988,7 +2083,7 @@ benchmarking_proteomics <- function(
     NULL
   })
 
-  gg_confusion <- tryCatch({
+  gg_confusion_by_species <- tryCatch({
     if (verbose) cat("  - Heatmap de confusion by species (ggplot2)\n")
     benchmark_confusion_gg(confusion_by_species_df)
   }, error = function(e) {
@@ -2025,6 +2120,14 @@ benchmarking_proteomics <- function(
     benchmark_signif_bars_gg(classified_df, ev, species_colors = sp_colors)
   }, error = function(e) {
     warning("Error generando signif bars: ", e$message)
+    NULL
+  })
+
+  gg_signif_bars_pct <- tryCatch({
+    if (verbose) cat("  - Barras de significativas en porcentaje (ggplot2)\n")
+    benchmark_signif_bars_pct_gg(classified_df, ev, species_colors = sp_colors)
+  }, error = function(e) {
+    warning("Error generando signif bars pct: ", e$message)
     NULL
   })
 
@@ -2128,10 +2231,10 @@ benchmarking_proteomics <- function(
                     width = 10, height = 6)
     if (verbose) cat("  - benchmark_heatmap.png\n")
 
-    .export_gg_plot(gg_confusion,
-                    file.path(output_dir, "benchmark_confusion.png"),
+    .export_gg_plot(gg_confusion_by_species,
+                    file.path(output_dir, "benchmark_confusion_by_species.png"),
                     width = 10, height = 7)
-    if (verbose) cat("  - benchmark_confusion.png\n")
+    if (verbose) cat("  - benchmark_confusion_by_species.png\n")
 
     .export_gg_plot(gg_confusion_overall,
                     file.path(output_dir, "benchmark_confusion_overall.png"),
@@ -2152,6 +2255,11 @@ benchmarking_proteomics <- function(
                     file.path(output_dir, "benchmark_signif_bars.png"),
                     width = 10, height = 6)
     if (verbose) cat("  - benchmark_signif_bars.png\n")
+
+    .export_gg_plot(gg_signif_bars_pct,
+                    file.path(output_dir, "benchmark_signif_bars_pct.png"),
+                    width = 10, height = 6)
+    if (verbose) cat("  - benchmark_signif_bars_pct.png\n")
 
     .export_gg_plot(gg_roc,
                     file.path(output_dir, "benchmark_roc.png"),
@@ -2175,12 +2283,13 @@ benchmarking_proteomics <- function(
     dispersion_metrics   = dispersion_df,
     classified_df        = classified_df,
     gg_heatmap           = gg_heatmap,
-    gg_confusion         = gg_confusion,
-    gg_confusion_overall = gg_confusion_overall,
-    gg_auc_bars          = gg_auc_bars,
-    gg_metrics_bars      = gg_metrics_bars,
-    gg_signif_bars       = gg_signif_bars,
-    gg_roc               = gg_roc,
+    gg_confusion_by_species = gg_confusion_by_species,
+    gg_confusion_overall    = gg_confusion_overall,
+    gg_auc_bars             = gg_auc_bars,
+    gg_metrics_bars         = gg_metrics_bars,
+    gg_signif_bars          = gg_signif_bars,
+    gg_signif_bars_pct      = gg_signif_bars_pct,
+    gg_roc                  = gg_roc,
     gg_roc_zoom          = gg_roc_zoom,
     hc_volcano_list      = hc_volcano_list,
     parameters           = list(
@@ -2226,11 +2335,12 @@ benchmarking_proteomics <- function(
 #
 # # --- View ggplot2 visualizations ---
 # result$gg_heatmap
-# result$gg_confusion
+# result$gg_confusion_by_species
 # result$gg_confusion_overall
 # result$gg_auc_bars
 # result$gg_metrics_bars
 # result$gg_signif_bars
+# result$gg_signif_bars_pct
 # result$gg_roc
 # result$gg_roc_zoom
 #
