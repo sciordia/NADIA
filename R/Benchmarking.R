@@ -799,30 +799,39 @@ benchmark_confusion_gg <- function(
   plot_long$Category <- gsub("_pct$", "", plot_long$Category)
   plot_long$Category <- factor(plot_long$Category, levels = c("TP", "FP", "FN", "TN"))
 
-  # Base colors per category
-  fill_colors <- c(
+  # Base colors per category (full-intensity target)
+  base_colors <- c(
     "TP" = "#2A9D8F",
     "FP" = "#E63946",
     "FN" = "#F4A261",
     "TN" = "#457B9D"
   )
 
-  # Intensity: alpha scaled by percentage (floor at 0.15 so empty cells are visible)
-  plot_long$intensity <- pmax(plot_long$Percentage / 100, 0.15)
+  # Blend white → base color by intensity (direct hex, no alpha mixing)
+  .blend_to_white <- function(hex, intensity) {
+    rgb_base <- grDevices::col2rgb(hex)[, 1]
+    rgb_out  <- round(255 + (rgb_base - 255) * intensity)
+    grDevices::rgb(rgb_out[1], rgb_out[2], rgb_out[3], maxColorValue = 255)
+  }
 
-  # Adaptive text color: white on intense cells, dark on faint cells
+  plot_long$intensity <- pmax(plot_long$Percentage / 100, 0.08)
+  plot_long$fill_hex  <- mapply(
+    function(cat, int) .blend_to_white(base_colors[cat], int),
+    as.character(plot_long$Category), plot_long$intensity
+  )
+
+  # Adaptive text color: white on dark cells, dark grey on light cells
   plot_long$text_color <- ifelse(plot_long$intensity >= 0.45, "white", "#333333")
 
   gg <- ggplot2::ggplot(plot_long,
                         ggplot2::aes(x = Category, y = Label)) +
-    ggplot2::geom_tile(ggplot2::aes(fill = Category, alpha = intensity),
+    ggplot2::geom_tile(ggplot2::aes(fill = fill_hex),
                        color = "white", linewidth = 0.8) +
     ggplot2::geom_text(
       ggplot2::aes(label = sprintf("%.1f%%", Percentage), color = text_color),
       size = text_size, fontface = "bold"
     ) +
-    ggplot2::scale_fill_manual(values = fill_colors, name = "Classification") +
-    ggplot2::scale_alpha_identity() +
+    ggplot2::scale_fill_identity() +
     ggplot2::scale_color_identity() +
     ggplot2::labs(
       title = title,
