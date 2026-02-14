@@ -514,6 +514,45 @@ compute_benchmark_metrics <- function(de_res, ev,
 }
 
 
+#' Compute overall confusion matrix per comparison
+#'
+#' Aggregates TP/FP/TN/FN across all species for each comparison.
+#'
+#' @param confusion_by_species_df Data frame from .confusion_by_species()
+#' @return Data frame with one row per Comparison
+#' @keywords internal
+.confusion_overall <- function(confusion_by_species_df) {
+  comps <- unique(confusion_by_species_df$Comparison)
+
+  result_list <- lapply(comps, function(comp) {
+    df_comp <- confusion_by_species_df[confusion_by_species_df$Comparison == comp, , drop = FALSE]
+
+    n_total <- sum(df_comp$N)
+    tp <- sum(df_comp$TP)
+    fp <- sum(df_comp$FP)
+    tn <- sum(df_comp$TN)
+    fn <- sum(df_comp$FN)
+
+    data.frame(
+      Comparison = comp,
+      N          = n_total,
+      TP         = tp,
+      FP         = fp,
+      TN         = tn,
+      FN         = fn,
+      TP_pct     = round(tp / n_total * 100, 1),
+      FP_pct     = round(fp / n_total * 100, 1),
+      TN_pct     = round(tn / n_total * 100, 1),
+      FN_pct     = round(fn / n_total * 100, 1),
+      Accuracy   = round((tp + tn) / n_total, 4),
+      stringsAsFactors = FALSE
+    )
+  })
+
+  do.call(rbind, result_list)
+}
+
+
 # =============================================================================
 # DISPERSION METRICS
 # =============================================================================
@@ -1704,6 +1743,7 @@ benchmark_volcano_hc_list <- function(
 #'   \itemize{
 #'     \item metrics_table: Classification metrics per comparison
 #'     \item confusion_by_species: Confusion matrix per Comparison x Species
+#'     \item confusion_overall: Confusion matrix aggregated per Comparison
 #'     \item dispersion_metrics: Dispersion stats per Comparison x Species
 #'     \item classified_df: Full classified data frame
 #'     \item gg_heatmap: ggplot2 performance heatmap
@@ -1806,8 +1846,9 @@ benchmarking_proteomics <- function(
     }
   }
 
-  # === STEP 4: Confusion by species ===
+  # === STEP 4: Confusion matrices ===
   confusion_by_species_df <- .confusion_by_species(classified_df)
+  confusion_overall_df    <- .confusion_overall(confusion_by_species_df)
 
   # === STEP 4b: Significant proteins summary ===
   signif_summary_df <- .summarize_significant_proteins(classified_df, alpha, p_col)
@@ -1951,6 +1992,12 @@ benchmarking_proteomics <- function(
     if (verbose) cat("  - benchmark_confusion_by_species.tsv\n")
 
     .export_benchmark_data(
+      confusion_overall_df,
+      file.path(output_dir, "benchmark_confusion_overall.tsv"), "tsv"
+    )
+    if (verbose) cat("  - benchmark_confusion_overall.tsv\n")
+
+    .export_benchmark_data(
       dispersion_df,
       file.path(output_dir, "benchmark_dispersion.tsv"), "tsv"
     )
@@ -2015,6 +2062,7 @@ benchmarking_proteomics <- function(
   list(
     metrics_table        = metrics_table,
     confusion_by_species = confusion_by_species_df,
+    confusion_overall    = confusion_overall_df,
     signif_summary       = signif_summary_df,
     dispersion_metrics   = dispersion_df,
     classified_df        = classified_df,
@@ -2065,6 +2113,7 @@ benchmarking_proteomics <- function(
 # result$metrics_table
 # result$dispersion_metrics
 # result$confusion_by_species
+# result$confusion_overall
 #
 # # --- View ggplot2 visualizations ---
 # result$gg_heatmap
