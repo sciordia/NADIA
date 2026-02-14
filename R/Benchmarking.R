@@ -1306,7 +1306,7 @@ benchmark_volcano_hc <- function(
         data = ns_points,
         color = ns_color,
         marker = list(
-          radius = point_size - 1,
+          radius = point_size,
           symbol = "circle",
           lineWidth = 0
         ),
