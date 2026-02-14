@@ -827,6 +827,84 @@ benchmark_confusion_gg <- function(
   gg
 }
 
+#' Overall Confusion Matrix Heatmap (ggplot2)
+#'
+#' Heatmap of Comparisons x (TP%, FP%, FN%, TN%) aggregated across all species,
+#' with white-to-blue gradient fill by percentage.
+#'
+#' @param confusion_overall_df Data frame from .confusion_overall()
+#' @param title Plot title
+#' @param text_size Size of cell text labels
+#' @param axis_text_size Size of axis text
+#'
+#' @return ggplot2 object
+#' @export
+benchmark_confusion_overall_gg <- function(
+    confusion_overall_df,
+    title = "Confusion Matrix by Comparison (Overall)",
+    text_size = 4,
+    axis_text_size = 11
+) {
+  pct_cols <- c("TP_pct", "FP_pct", "FN_pct", "TN_pct")
+  available_pct <- intersect(pct_cols, names(confusion_overall_df))
+
+  plot_long <- tidyr::pivot_longer(
+    confusion_overall_df[, c("Comparison", available_pct), drop = FALSE],
+    cols = -Comparison,
+    names_to = "Category",
+    values_to = "Percentage"
+  )
+
+  plot_long$Category <- gsub("_pct$", "", plot_long$Category)
+  plot_long$Category <- factor(
+    plot_long$Category,
+    levels = c("TP", "FP", "FN", "TN"),
+    labels = c("True Positive\n(Cambios Detectados)",
+               "False Positive\n(HUMAN mal clasificado)",
+               "False Negative\n(Cambios perdidos)",
+               "True Negative\n(HUMAN correcto)")
+  )
+
+  gg <- ggplot2::ggplot(plot_long,
+                        ggplot2::aes(x = Category, y = Comparison, fill = Percentage)) +
+    ggplot2::geom_tile(color = "white", linewidth = 0.5) +
+    ggplot2::geom_text(
+      ggplot2::aes(label = sprintf("%.1f%%", Percentage)),
+      size = text_size, color = "black"
+    ) +
+    ggplot2::scale_fill_gradient2(
+      low = "white", high = "#3182bd",
+      limits = c(0, 100),
+      name = "Percentage"
+    ) +
+    ggplot2::labs(
+      title = title,
+      subtitle = "TP=ECOLI/YEAST detectados, TN=HUMAN sin cambio, FP=HUMAN con cambio falso",
+      x = NULL,
+      y = NULL
+    ) +
+    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(
+        hjust = 0.5, face = "bold", size = 14, color = "#1D3557"
+      ),
+      plot.subtitle = ggplot2::element_text(
+        hjust = 0.5, size = 10, color = "#6C757D"
+      ),
+      axis.text.x = ggplot2::element_text(
+        size = axis_text_size, angle = 45, hjust = 1, vjust = 1, color = "#495057"
+      ),
+      axis.text.y = ggplot2::element_text(
+        size = axis_text_size, color = "#495057"
+      ),
+      panel.grid = ggplot2::element_blank(),
+      legend.position = "right"
+    )
+
+  gg
+}
+
+
 #' AUC Bar Chart (ggplot2)
 #'
 #' Horizontal bar chart of AUC per comparison, colored by value,
@@ -1747,7 +1825,8 @@ benchmark_volcano_hc_list <- function(
 #'     \item dispersion_metrics: Dispersion stats per Comparison x Species
 #'     \item classified_df: Full classified data frame
 #'     \item gg_heatmap: ggplot2 performance heatmap
-#'     \item gg_confusion: ggplot2 confusion matrix heatmap
+#'     \item gg_confusion: ggplot2 confusion matrix heatmap (by species)
+#'     \item gg_confusion_overall: ggplot2 confusion matrix heatmap (aggregated)
 #'     \item gg_auc_bars: ggplot2 AUC bar chart
 #'     \item gg_metrics_bars: ggplot2 grouped metrics bar chart
 #'     \item gg_signif_bars: ggplot2 significant proteins stacked bars
@@ -1894,10 +1973,18 @@ benchmarking_proteomics <- function(
   })
 
   gg_confusion <- tryCatch({
-    if (verbose) cat("  - Heatmap de confusion (ggplot2)\n")
+    if (verbose) cat("  - Heatmap de confusion by species (ggplot2)\n")
     benchmark_confusion_gg(confusion_by_species_df)
   }, error = function(e) {
     warning("Error generando confusion heatmap: ", e$message)
+    NULL
+  })
+
+  gg_confusion_overall <- tryCatch({
+    if (verbose) cat("  - Heatmap de confusion overall (ggplot2)\n")
+    benchmark_confusion_overall_gg(confusion_overall_df)
+  }, error = function(e) {
+    warning("Error generando confusion overall heatmap: ", e$message)
     NULL
   })
 
@@ -2030,6 +2117,11 @@ benchmarking_proteomics <- function(
                     width = 10, height = 7)
     if (verbose) cat("  - benchmark_confusion.png\n")
 
+    .export_gg_plot(gg_confusion_overall,
+                    file.path(output_dir, "benchmark_confusion_overall.png"),
+                    width = 10, height = 6)
+    if (verbose) cat("  - benchmark_confusion_overall.png\n")
+
     .export_gg_plot(gg_auc_bars,
                     file.path(output_dir, "benchmark_auc_bars.png"),
                     width = 8, height = 5)
@@ -2068,6 +2160,7 @@ benchmarking_proteomics <- function(
     classified_df        = classified_df,
     gg_heatmap           = gg_heatmap,
     gg_confusion         = gg_confusion,
+    gg_confusion_overall = gg_confusion_overall,
     gg_auc_bars          = gg_auc_bars,
     gg_metrics_bars      = gg_metrics_bars,
     gg_signif_bars       = gg_signif_bars,
@@ -2118,6 +2211,7 @@ benchmarking_proteomics <- function(
 # # --- View ggplot2 visualizations ---
 # result$gg_heatmap
 # result$gg_confusion
+# result$gg_confusion_overall
 # result$gg_auc_bars
 # result$gg_metrics_bars
 # result$gg_signif_bars
