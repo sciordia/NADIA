@@ -773,6 +773,14 @@ benchmark_confusion_gg <- function(
   # Create label combining Comparison + Species
   confusion_df$Label <- paste0(confusion_df$Comparison, "\n", confusion_df$Species)
 
+  # Factorise Label preserving Comparison order from input
+  comp_levels <- unique(confusion_df$Comparison)
+  label_levels <- unlist(lapply(comp_levels, function(comp) {
+    sp <- unique(confusion_df$Species[confusion_df$Comparison == comp])
+    paste0(comp, "\n", sp)
+  }))
+  confusion_df$Label <- factor(confusion_df$Label, levels = label_levels)
+
   # Reshape percentages to long format
   pct_cols <- c("TP_pct", "FP_pct", "FN_pct", "TN_pct")
   available_pct <- intersect(pct_cols, names(confusion_df))
@@ -855,6 +863,8 @@ benchmark_confusion_overall_gg <- function(
     values_to = "Percentage"
   )
 
+  plot_long$Comparison <- factor(plot_long$Comparison,
+                                 levels = unique(confusion_overall_df$Comparison))
   plot_long$Category <- gsub("_pct$", "", plot_long$Category)
   plot_long$Category <- factor(
     plot_long$Category,
@@ -1098,6 +1108,8 @@ benchmark_signif_bars_gg <- function(
   )
   names(count_df)[4] <- "Count"
   count_df <- count_df[count_df$Count > 0, , drop = FALSE]
+  count_df$Comparison <- factor(count_df$Comparison,
+                                levels = unique(classified_df$Comparison))
 
   if (nrow(count_df) == 0) {
     warning("No hay datos para graficar tras el conteo")
@@ -1189,6 +1201,10 @@ benchmark_roc_gg <- function(
     warning("No hay datos validos para generar curvas ROC")
     return(NULL)
   }
+
+  # Factorise Comparison to preserve input order in split() and legend
+  comp_order <- unique(classified_df$Comparison)
+  classified_df$Comparison <- factor(classified_df$Comparison, levels = comp_order)
 
   # Build ROC objects per comparison
   comp_list <- split(classified_df, classified_df$Comparison)
