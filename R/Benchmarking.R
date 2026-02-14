@@ -1162,7 +1162,7 @@ benchmark_roc_gg <- function(
 #' @param lfc_thr Log fold-change threshold
 #' @param p_col P-value column
 #' @param species_colors Named vector of colors per species
-#' @param point_size Marker radius (default: 4)
+#' @param point_size Marker radius (default: 3)
 #' @param title Custom title (optional)
 #' @param height Chart height in pixels (optional)
 #'
@@ -1176,7 +1176,7 @@ benchmark_volcano_hc <- function(
     lfc_thr = 0,
     p_col = "adj.P.Val",
     species_colors = NULL,
-    point_size = 4,
+    point_size = 3,
     title = NULL,
     height = NULL
 ) {
@@ -1367,7 +1367,7 @@ benchmark_volcano_hc <- function(
     ) |>
     highcharter::hc_title(
       text = title,
-      style = list(fontSize = "16px", fontWeight = "600", color = "#1D3557")
+      style = list(fontSize = "17px", fontWeight = "600", color = "#1D3557")
     ) |>
     highcharter::hc_xAxis(
       title = list(
@@ -1462,7 +1462,7 @@ benchmark_volcano_hc <- function(
       highcharter::hc_subtitle(
         text = subtitle_html,
         useHTML = TRUE,
-        style = list(fontSize = "11px", color = "#6C757D")
+        style = list(fontSize = "12px", color = "#6C757D")
       )
   }
 
@@ -1496,7 +1496,7 @@ benchmark_volcano_hc <- function(
 #' @param comparisons Comparisons to include (NULL = all)
 #' @param assay Assay to filter (NULL = all)
 #' @param species_colors Named vector of colors per species (optional)
-#' @param point_size Marker radius (default: 4)
+#' @param point_size Marker radius (default: 3)
 #' @param height Chart height in pixels (optional)
 #'
 #' @return Named list of highchart objects
@@ -1511,7 +1511,7 @@ benchmark_volcano_hc_list <- function(
     comparisons = NULL,
     assay = NULL,
     species_colors = NULL,
-    point_size = 4,
+    point_size = 3,
     height = NULL
 ) {
   # Prepare data
@@ -1891,7 +1891,7 @@ benchmarking_proteomics <- function(
       de_res, ev, disp = dispersion_df,
       alpha = alpha, lfc_thr = lfc_thr, p_col = p_col,
       comparisons = comps, assay = assay,
-      species_colors = sp_colors, point_size = 4
+      species_colors = sp_colors, point_size = 3
     )
   }, error = function(e) {
     warning("Error generando volcano plots: ", e$message)
