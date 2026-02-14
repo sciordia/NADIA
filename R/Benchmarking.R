@@ -884,52 +884,64 @@ benchmark_confusion_overall_gg <- function(
     values_to = "Percentage"
   )
 
+  # Reverse comparison order so first comparison appears at top of Y axis
   plot_long$Comparison <- factor(plot_long$Comparison,
-                                 levels = unique(confusion_overall_df$Comparison))
+                                 levels = rev(unique(confusion_overall_df$Comparison)))
   plot_long$Category <- gsub("_pct$", "", plot_long$Category)
-  plot_long$Category <- factor(
-    plot_long$Category,
-    levels = c("TP", "FP", "FN", "TN"),
-    labels = c("True Positive\n(Cambios Detectados)",
-               "False Positive\n(HUMAN mal clasificado)",
-               "False Negative\n(Cambios perdidos)",
-               "True Negative\n(HUMAN correcto)")
+  plot_long$Category <- factor(plot_long$Category, levels = c("TP", "FP", "FN", "TN"))
+
+  # Base colors per category (same as by_species)
+  base_colors <- c(
+    "TP" = "#2A9D8F",
+    "FP" = "#E63946",
+    "FN" = "#F4A261",
+    "TN" = "#457B9D"
   )
 
+  # Blend white → base color by intensity (direct hex, no alpha)
+  .blend_to_white <- function(hex, intensity) {
+    rgb_base <- grDevices::col2rgb(hex)[, 1]
+    rgb_out  <- round(255 + (rgb_base - 255) * intensity)
+    grDevices::rgb(rgb_out[1], rgb_out[2], rgb_out[3], maxColorValue = 255)
+  }
+
+  plot_long$intensity  <- pmax(plot_long$Percentage / 100, 0.08)
+  plot_long$fill_hex   <- mapply(
+    function(cat, int) .blend_to_white(base_colors[cat], int),
+    as.character(plot_long$Category), plot_long$intensity
+  )
+
+  # Adaptive text color: white on dark cells, dark grey on light cells
+  plot_long$text_color <- ifelse(plot_long$intensity >= 0.45, "white", "#333333")
+
   gg <- ggplot2::ggplot(plot_long,
-                        ggplot2::aes(x = Category, y = Comparison, fill = Percentage)) +
-    ggplot2::geom_tile(color = "white", linewidth = 0.5) +
+                        ggplot2::aes(x = Category, y = Comparison)) +
+    ggplot2::geom_tile(ggplot2::aes(fill = fill_hex),
+                       color = "white", linewidth = 0.5) +
     ggplot2::geom_text(
-      ggplot2::aes(label = sprintf("%.1f%%", Percentage)),
-      size = text_size, color = "black"
+      ggplot2::aes(label = sprintf("%.1f%%", Percentage), color = text_color),
+      size = text_size, fontface = "bold"
     ) +
-    ggplot2::scale_fill_gradient2(
-      low = "white", high = "#3182bd",
-      limits = c(0, 100),
-      name = "Percentage"
-    ) +
+    ggplot2::scale_fill_identity() +
+    ggplot2::scale_color_identity() +
     ggplot2::labs(
       title = title,
-      subtitle = "TP=ECOLI/YEAST detectados, TN=HUMAN sin cambio, FP=HUMAN con cambio falso",
       x = NULL,
       y = NULL
     ) +
-    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme_minimal(base_size = 13) +
     ggplot2::theme(
       plot.title = ggplot2::element_text(
         hjust = 0.5, face = "bold", size = 14, color = "#1D3557"
       ),
-      plot.subtitle = ggplot2::element_text(
-        hjust = 0.5, size = 10, color = "#6C757D"
-      ),
       axis.text.x = ggplot2::element_text(
-        size = axis_text_size, angle = 45, hjust = 1, vjust = 1, color = "#495057"
+        size = axis_text_size, face = "bold", color = "#495057"
       ),
       axis.text.y = ggplot2::element_text(
         size = axis_text_size, color = "#495057"
       ),
       panel.grid = ggplot2::element_blank(),
-      legend.position = "right"
+      legend.position = "none"
     )
 
   gg
