@@ -164,7 +164,7 @@ if (!exists("%||%", mode = "function")) {
 
   tsd <- sd(x_trimmed)
   tmed <- median(x_trimmed)
-  tcv <- if (abs(tmed) > .Machine$double.eps) tsd / pmax(abs(tmed), 1e-8) else NA_real_
+  tcv <- if (abs(tmed) > .Machine$double.eps) tsd / pmax(abs(tmed), 1e-8) * 100 else NA_real_
 
   list(trimmed_sd = tsd, trimmed_cv = tcv)
 }
@@ -640,9 +640,9 @@ compute_dispersion_metrics <- function(de_res, ev,
 
       med_val <- median(lfc_values, na.rm = TRUE)
       sd_val  <- sd(lfc_values, na.rm = TRUE)
-      cv_val  <- if (abs(med_val) > .Machine$double.eps) sd_val / pmax(abs(med_val), 1e-8) else NA_real_
+      cv_val  <- if (abs(med_val) > .Machine$double.eps) sd_val / pmax(abs(med_val), 1e-8) * 100 else NA_real_
       mad_val <- mad(lfc_values, constant = 1, na.rm = TRUE)
-      rcv_val <- if (abs(med_val) > .Machine$double.eps) mad_val / pmax(abs(med_val), 1e-8) else NA_real_
+      rcv_val <- if (abs(med_val) > .Machine$double.eps) mad_val / pmax(abs(med_val), 1e-8) * 100 else NA_real_
       iqr_val <- IQR(lfc_values, na.rm = TRUE)
 
       tsd_cv <- .trimmed_sd_cv(lfc_values, trim)
@@ -1486,7 +1486,7 @@ benchmark_volcano_hc <- function(
       if (is.na(med)) return("")
 
       sprintf(
-        "<span style='color:%s;font-weight:bold;'>%s</span>: MED=%.2f MAD=%.3f RCV=%.1f%% (n=%d)",
+        "<span style='color:%s;font-weight:bold;'>%s</span>: MED=%.2f MAD=%.4f RCV=%.2f%% (n=%d)",
         sp_col, sp, med, mad, rcv, n
       )
     }, character(1))
@@ -2090,7 +2090,7 @@ benchmarking_proteomics <- function(
   if (verbose) {
     pos_disp <- dispersion_df[!is.na(dispersion_df$expected_logFC), , drop = FALSE]
     for (i in seq_len(nrow(pos_disp))) {
-      cat(sprintf("  %s | %s: MED=%.3f MAD=%.4f RCV=%.1f%% (n=%d)\n",
+      cat(sprintf("  %s | %s: MED=%.3f MAD=%.4f RCV=%.2f%% (n=%d)\n",
                   pos_disp$Comparison[i],
                   pos_disp$Species[i],
                   pos_disp$MED[i],
