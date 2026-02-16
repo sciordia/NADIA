@@ -288,6 +288,10 @@ if (!exists("%||%", mode = "function")) {
   # Positive species: significant AND correct direction
   pos_mask <- de_res_comp$Species %in% positive_species
   de_res_comp$predicted[pos_mask & is_significant & correct_direction] <- 1L
+  # Positive species: significant BUT wrong direction → FP (not FN)
+  wrong_dir_mask <- pos_mask & is_significant & !correct_direction
+  de_res_comp$truth[wrong_dir_mask] <- 0L
+  de_res_comp$predicted[wrong_dir_mask] <- 1L
   # Negative species: any significant = predicted positive (potential FP)
   de_res_comp$predicted[negative_mask & is_significant] <- 1L
 
