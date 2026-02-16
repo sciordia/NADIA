@@ -1486,7 +1486,7 @@ benchmark_volcano_hc <- function(
       if (is.na(med)) return("")
 
       sprintf(
-        "<span style='color:%s;font-weight:bold;'>%s</span>: MED=%.2f MAD=%.4f RCV=%.2f%% (n=%d)",
+        "<span style='color:%s;font-weight:bold;'>%s</span>: MED=%.2f MAD=%.2f RCV=%.2f%% (n=%d)",
         sp_col, sp, med, mad, rcv, n
       )
     }, character(1))
