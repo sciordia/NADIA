@@ -163,8 +163,8 @@ if (!exists("%||%", mode = "function")) {
   x_trimmed <- x_sorted[lo:hi]
 
   tsd <- sd(x_trimmed)
-  tmean <- mean(x_trimmed)
-  tcv <- if (abs(tmean) > .Machine$double.eps) abs(tsd / tmean) * 100 else NA_real_
+  tmed <- median(x_trimmed)
+  tcv <- if (abs(tmed) > .Machine$double.eps) tsd / pmax(abs(tmed), 1e-8) else NA_real_
 
   list(trimmed_sd = tsd, trimmed_cv = tcv)
 }
@@ -640,10 +640,9 @@ compute_dispersion_metrics <- function(de_res, ev,
 
       med_val <- median(lfc_values, na.rm = TRUE)
       sd_val  <- sd(lfc_values, na.rm = TRUE)
-      mean_val <- mean(lfc_values, na.rm = TRUE)
-      cv_val  <- if (abs(mean_val) > .Machine$double.eps) abs(sd_val / mean_val) * 100 else NA_real_
-      mad_val <- mad(lfc_values, na.rm = TRUE)
-      rcv_val <- if (abs(med_val) > .Machine$double.eps) abs(mad_val / med_val) * 100 else NA_real_
+      cv_val  <- if (abs(med_val) > .Machine$double.eps) sd_val / pmax(abs(med_val), 1e-8) else NA_real_
+      mad_val <- mad(lfc_values, constant = 1, na.rm = TRUE)
+      rcv_val <- if (abs(med_val) > .Machine$double.eps) mad_val / pmax(abs(med_val), 1e-8) else NA_real_
       iqr_val <- IQR(lfc_values, na.rm = TRUE)
 
       tsd_cv <- .trimmed_sd_cv(lfc_values, trim)
