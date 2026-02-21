@@ -6,11 +6,15 @@
 #   - Zero-to-NA conversion
 #   - Protein filtering by group presence
 #   - SummarizedExperiment creation
-#   - Cyclic Loess normalization (limma)
+#   - 22 normalization methods (cycloess default)
 #
-# Dependencies:
+# Dependencies (required):
 #   - SummarizedExperiment, S4Vectors
-#   - limma
+#
+# Dependencies (optional, per method):
+#   - limma          : cycloess
+#   - preprocessCore : Quantile, quantileNorm, GQuantileAlign
+#   - MASS           : Rlr, rlrNorm
 #
 # Author: Sergio Ciordia
 # License: MIT
@@ -22,7 +26,7 @@ if (!exists("%||%", mode = "function")) {
 }
 
 # =============================================================================
-# INTERNAL FUNCTIONS
+# INTERNAL HELPER FUNCTIONS
 # =============================================================================
 
 #' Convert zero values to NA
@@ -256,27 +260,185 @@ if (!exists("%||%", mode = "function")) {
 }
 
 # =============================================================================
+# INTERNAL NORMALIZATION FUNCTIONS
+# =============================================================================
+#
+# All functions return a numeric matrix in log2 scale with the same
+# rownames/colnames as the input.
+#
+# Grupo A (.norm_log2norm .. .norm_center_mean): receive x_raw (linear).
+# Grupo B (.norm_quantile .. .norm_center_quantile): receive x_log2.
+#
+# Note: eqmedians, center_median, center_mean belong to Grupo A (receive x_raw)
+# but apply log2() internally before the centering step.
+
+# --- Grupo A: x_raw → log2 ---
+
+.norm_log2norm <- function(x_raw) {
+  x <- log2(x_raw)
+  x[is.infinite(x)] <- NA
+  x
+}
+
+.norm_ginorm <- function(x_raw) {
+  col_sums <- colSums(x_raw, na.rm = TRUE)
+  x <- log2(sweep(x_raw, 2, col_sums / median(col_sums), "/"))
+  x[is.infinite(x)] <- NA
+  x
+}
+
+.norm_globalmean <- function(x_raw) {
+  col_sums <- colSums(x_raw, na.rm = TRUE)
+  x <- log2(sweep(x_raw, 2, col_sums / mean(col_sums), "/"))
+  x[is.infinite(x)] <- NA
+  x
+}
+
+.norm_median_raw <- function(x_raw) {
+  col_medians <- apply(x_raw, 2, median, na.rm = TRUE)
+  x <- log2(sweep(x_raw, 2, col_medians / mean(col_medians), "/"))
+  x[is.infinite(x)] <- NA
+  x
+}
+
+.norm_mean_raw <- function(x_raw) {
+  col_means <- colMeans(x_raw, na.rm = TRUE)
+  x <- log2(sweep(x_raw, 2, col_means / mean(col_means), "/"))
+  x[is.infinite(x)] <- NA
+  x
+}
+
+.norm_div_mean <- function(x_raw) {
+  col_means <- colMeans(x_raw, na.rm = TRUE)
+  x <- log2(sweep(x_raw, 2, col_means, "/"))
+  x[is.infinite(x)] <- NA
+  x
+}
+
+.norm_div_median <- function(x_raw) {
+  col_medians <- apply(x_raw, 2, median, na.rm = TRUE)
+  x <- log2(sweep(x_raw, 2, col_medians, "/"))
+  x[is.infinite(x)] <- NA
+  x
+}
+
+# These three receive x_raw but apply log2 internally before centering.
+
+.norm_eqmedians <- function(x_raw) {
+  x <- log2(x_raw)
+  x[is.infinite(x)] <- NA
+  col_medians <- apply(x, 2, median, na.rm = TRUE)
+  sweep(x, 2, col_medians - mean(col_medians), "-")
+}
+
+.norm_center_median <- function(x_raw) {
+  x <- log2(x_raw)
+  x[is.infinite(x)] <- NA
+  col_medians <- apply(x, 2, median, na.rm = TRUE)
+  sweep(x, 2, col_medians, "-")
+}
+
+.norm_center_mean <- function(x_raw) {
+  x <- log2(x_raw)
+  x[is.infinite(x)] <- NA
+  col_means <- colMeans(x, na.rm = TRUE)
+  sweep(x, 2, col_means, "-")
+}
+
+# --- Grupo B: x_log2 → log2 ---
+
+.norm_quantile <- function(x_log2) {
+  if (!requireNamespace("preprocessCore", quietly = TRUE)) {
+    stop("Se requiere 'preprocessCore' para el metodo Quantile. ",
+         "Instalalo con BiocManager::install('preprocessCore')")
+  }
+  x <- preprocessCore::normalize.quantiles(x_log2)
+  rownames(x) <- rownames(x_log2)
+  colnames(x) <- colnames(x_log2)
+  x
+}
+
+.norm_rlr <- function(x_log2) {
+  if (!requireNamespace("MASS", quietly = TRUE)) {
+    stop("Se requiere 'MASS' para el metodo Rlr. ",
+         "Instalalo con install.packages('MASS')")
+  }
+  row_medians <- apply(x_log2, 1, median, na.rm = TRUE)
+  x <- x_log2
+  for (j in seq_len(ncol(x_log2))) {
+    col   <- x_log2[, j]
+    valid <- !is.na(col) & !is.na(row_medians)
+    if (sum(valid) < 2L) next
+    fit       <- MASS::rlm(col[valid] ~ row_medians[valid])
+    intercept <- coef(fit)[1L]
+    slope     <- coef(fit)[2L]
+    if (is.na(slope) || abs(slope) < .Machine$double.eps) next
+    x[, j] <- (col - intercept) / slope
+  }
+  x
+}
+
+.norm_mad <- function(x_log2) {
+  grand_median <- median(x_log2, na.rm = TRUE)
+  grand_mad    <- mad(x_log2,    na.rm = TRUE)
+  col_medians  <- apply(x_log2, 2, median, na.rm = TRUE)
+  col_mads     <- apply(x_log2, 2, mad,    na.rm = TRUE)
+  col_mads[col_mads == 0] <- 1
+  x <- sweep(x_log2, 2, col_medians, "-")
+  x <- sweep(x,      2, col_mads,    "/")
+  x * grand_mad + grand_median
+}
+
+.norm_mediannorm <- function(x_log2) {
+  col_medians <- apply(x_log2, 2, median, na.rm = TRUE)
+  sweep(x_log2, 2, col_medians / mean(col_medians), "/")
+}
+
+.norm_meannorm <- function(x_log2) {
+  col_means <- colMeans(x_log2, na.rm = TRUE)
+  sweep(x_log2, 2, col_means / mean(col_means), "/")
+}
+
+.norm_center_quantile <- function(x_log2, q = 0.15) {
+  ref_quantiles <- apply(x_log2, 2, quantile, probs = q, na.rm = TRUE)
+  ref_center    <- median(ref_quantiles)
+  sweep(x_log2, 2, ref_quantiles - ref_center, "-")
+}
+
+# =============================================================================
 # MAIN FUNCTION
 # =============================================================================
 
 #' Normalize proteomics data
 #'
 #' Complete normalization pipeline: zero-to-NA conversion, protein filtering
-#' by group presence, SummarizedExperiment creation, and Cyclic Loess
-#' normalization.
+#' by group presence, SummarizedExperiment creation, and normalization with
+#' the selected method. Output is always in log2 scale.
 #'
 #' @param data Data frame with ProteinGroups, GeneNames, UniqPepts + intensity columns
 #' @param metadata Data frame with Column, Condition, Replicate
 #' @param min_reps Minimum replicates for filtering. NULL = auto: floor(min_group_size / 2)
 #' @param min_groups Minimum groups meeting min_reps (default: 1)
+#' @param norm_method Normalization method (default: "cycloess"). One of:
+#'   \itemize{
+#'     \item Grupo A (input: raw intensities): "log2Norm", "giNorm", "GlobalMedian",
+#'       "GlobalMean", "Median", "Mean", "div_mean", "div_median",
+#'       "eqmedians", "center_median", "center_mean"
+#'     \item Grupo B (input: log2 assay): "log2" (no extra normalization),
+#'       "Quantile", "quantileNorm", "GQuantileAlign",
+#'       "Rlr", "rlrNorm", "MAD", "cycloess",
+#'       "medianNorm", "meanNorm", "center_quantile"
+#'   }
 #' @param cyclic_loess_method Cyclic Loess method: "fast" or "pairs" (default: "fast")
 #' @param cyclic_loess_iterations Number of iterations for Cyclic Loess (default: 3)
 #' @param cyclic_loess_span Span parameter for Cyclic Loess (default: 0.7)
+#' @param center_quantile_q Quantile used by the "center_quantile" method (default: 0.15)
 #' @param verbose Print progress messages (default: TRUE)
 #'
 #' @return List with:
 #'   \itemize{
-#'     \item se: SummarizedExperiment with assays raw, log2, cycloess
+#'     \item se: SummarizedExperiment with assays raw, log2, and <norm_method>
+#'       (assays raw + log2 only when norm_method = "log2")
 #'     \item filter_summary: Filtering summary
 #'     \item na_overview: NA statistics
 #'   }
@@ -286,8 +448,13 @@ if (!exists("%||%", mode = "function")) {
 #' norm_result <- normalize_proteomics(
 #'   data = protein_data,
 #'   metadata = metadata,
-#'   cyclic_loess_method = "fast",
-#'   cyclic_loess_iterations = 3
+#'   norm_method = "cycloess",
+#'   cyclic_loess_method = "fast"
+#' )
+#' norm_result2 <- normalize_proteomics(
+#'   data = protein_data,
+#'   metadata = metadata,
+#'   norm_method = "giNorm"
 #' )
 #' }
 #'
@@ -295,24 +462,22 @@ if (!exists("%||%", mode = "function")) {
 normalize_proteomics <- function(
     data,
     metadata,
-    min_reps = NULL,
-    min_groups = 1,
-    cyclic_loess_method = c("fast", "pairs"),
+    min_reps                = NULL,
+    min_groups              = 1,
+    norm_method             = "cycloess",
+    cyclic_loess_method     = c("fast", "pairs"),
     cyclic_loess_iterations = 3,
-    cyclic_loess_span = 0.7,
-    verbose = TRUE
+    cyclic_loess_span       = 0.7,
+    center_quantile_q       = 0.15,
+    verbose                 = TRUE
 ) {
-  # Match method argument
+  # Match cycloess sub-parameters
   cyclic_loess_method <- match.arg(cyclic_loess_method)
 
   # Validate required packages
   if (!requireNamespace("SummarizedExperiment", quietly = TRUE)) {
     stop("Se requiere el paquete 'SummarizedExperiment'. ",
          "Instalalo con BiocManager::install('SummarizedExperiment')")
-  }
-  if (!requireNamespace("limma", quietly = TRUE)) {
-    stop("Se requiere el paquete 'limma'. ",
-         "Instalalo con BiocManager::install('limma')")
   }
 
   # =========================================================================
@@ -379,26 +544,68 @@ normalize_proteomics <- function(
   }
 
   # =========================================================================
-  # 4. CYCLIC LOESS NORMALIZATION
+  # 4. NORMALIZATION
   # =========================================================================
 
-  if (verbose) cat("\n=== NORMALIZANDO (Cyclic Loess: method=",
-                   cyclic_loess_method, ", iterations=",
-                   cyclic_loess_iterations, ", span=",
-                   cyclic_loess_span, ") ===\n", sep = "")
+  # Methods that accept x_raw as input.
+  # (eqmedians, center_median, center_mean apply log2 internally but still
+  #  receive x_raw to stay consistent with the other Grupo A methods.)
+  .raw_methods <- c(
+    "log2Norm", "giNorm", "GlobalMedian", "GlobalMean",
+    "Median", "Mean", "div_mean", "div_median",
+    "eqmedians", "center_median", "center_mean"
+  )
 
+  norm_method <- match.arg(norm_method, c(
+    "log2Norm", "giNorm", "eqmedians", "GlobalMedian", "GlobalMean",
+    "Median", "Mean", "center_median", "center_mean", "div_mean", "div_median",
+    "log2", "Quantile", "Rlr", "MAD", "cycloess",
+    "medianNorm", "meanNorm", "quantileNorm", "rlrNorm", "GQuantileAlign",
+    "center_quantile"
+  ))
+
+  x_raw  <- SummarizedExperiment::assay(se, "raw")
   x_log2 <- SummarizedExperiment::assay(se, "log2")
 
-  x_norm <- limma::normalizeCyclicLoess(
-    x_log2,
-    method = cyclic_loess_method,
-    iterations = cyclic_loess_iterations,
-    span = cyclic_loess_span
-  )
-  rownames(x_norm) <- rownames(x_log2)
+  if (verbose) cat("\n=== NORMALIZANDO (metodo:", norm_method, ") ===\n")
 
-  # Add normalized assay to SE
-  SummarizedExperiment::assay(se, "cycloess") <- x_norm
+  if (norm_method == "log2") {
+    if (verbose) cat("- Metodo 'log2': sin normalizacion adicional\n")
+  } else {
+    x_input <- if (norm_method %in% .raw_methods) x_raw else x_log2
+
+    x_norm <- switch(norm_method,
+      "log2Norm"        = .norm_log2norm(x_input),
+      "giNorm"          = ,
+      "GlobalMedian"    = .norm_ginorm(x_input),
+      "GlobalMean"      = .norm_globalmean(x_input),
+      "Median"          = .norm_median_raw(x_input),
+      "Mean"            = .norm_mean_raw(x_input),
+      "div_mean"        = .norm_div_mean(x_input),
+      "div_median"      = .norm_div_median(x_input),
+      "eqmedians"       = .norm_eqmedians(x_input),
+      "center_median"   = .norm_center_median(x_input),
+      "center_mean"     = .norm_center_mean(x_input),
+      "Quantile"        = ,
+      "quantileNorm"    = ,
+      "GQuantileAlign"  = .norm_quantile(x_input),
+      "Rlr"             = ,
+      "rlrNorm"         = .norm_rlr(x_input),
+      "MAD"             = .norm_mad(x_input),
+      "cycloess"        = limma::normalizeCyclicLoess(
+                            x_input,
+                            method     = cyclic_loess_method,
+                            iterations = cyclic_loess_iterations,
+                            span       = cyclic_loess_span),
+      "medianNorm"      = .norm_mediannorm(x_input),
+      "meanNorm"        = .norm_meannorm(x_input),
+      "center_quantile" = .norm_center_quantile(x_input, q = center_quantile_q)
+    )
+
+    rownames(x_norm) <- rownames(x_log2)
+    colnames(x_norm) <- colnames(x_log2)
+    SummarizedExperiment::assay(se, norm_method) <- x_norm
+  }
 
   if (verbose) cat("- Assays disponibles:",
                    paste(SummarizedExperiment::assayNames(se), collapse = ", "), "\n")

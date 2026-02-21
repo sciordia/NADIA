@@ -3,7 +3,7 @@
 # =============================================================================
 #
 # Funcion principal que coordina el pipeline completo:
-#   1. Normalization.R - Filtrado, normalizacion Cyclic Loess
+#   1. Normalization.R - Filtrado, multiples metodos de normalizacion
 #   2. Imputation.R   - Imputacion mixta MAR + MNAR
 #   3. DEAnalysis.R   - Analisis diferencial con limma
 #
@@ -257,9 +257,12 @@ if (!exists("%||%", mode = "function")) {
 #' @param export_dir Output directory for exported files (default: "./results")
 #' @param min_reps_filter Minimum replicates for filtering. If NULL, auto-computed
 #' @param min_groups_filter Minimum groups for filtering (default: 1)
+#' @param norm_method Normalization method passed to normalize_proteomics()
+#'   (default: "cycloess"). See normalize_proteomics() for all 22 options.
 #' @param cyclic_loess_method Cyclic Loess method: "fast" or "pairs" (default: "fast")
 #' @param cyclic_loess_iterations Number of iterations for Cyclic Loess (default: 3)
 #' @param cyclic_loess_span Span parameter for Cyclic Loess (default: 0.7)
+#' @param center_quantile_q Quantile for "center_quantile" method (default: 0.15)
 #' @param prop_na_mnar NA proportion for MNAR classification (default: 0.51)
 #' @param prop_present_mar Present proportion for MAR (default: 0.5)
 #' @param min_present_mar Minimum present values for MAR (default: 1)
@@ -315,9 +318,11 @@ process_proteomics <- function(
     export_dir = "./results",
     min_reps_filter = NULL,
     min_groups_filter = 1,
+    norm_method = "cycloess",
     cyclic_loess_method = "fast",
     cyclic_loess_iterations = 3,
     cyclic_loess_span = 0.7,
+    center_quantile_q = 0.15,
     prop_na_mnar = 0.51,
     prop_present_mar = 0.5,
     min_present_mar = 1,
@@ -372,18 +377,20 @@ process_proteomics <- function(
     metadata = metadata,
     min_reps = min_reps_filter,
     min_groups = min_groups_filter,
+    norm_method = norm_method,
     cyclic_loess_method = cyclic_loess_method,
     cyclic_loess_iterations = cyclic_loess_iterations,
     cyclic_loess_span = cyclic_loess_span,
+    center_quantile_q = center_quantile_q,
     verbose = verbose
   )
 
   se <- norm_result$se
 
-  # Export normalized matrix
-  if (export_normalized) {
-    x_norm <- SummarizedExperiment::assay(se, "cycloess")
-    norm_file <- file.path(export_dir, "matrix_log2_cyclicloess.tsv")
+  # Export normalized matrix (skip when norm_method = "log2": no extra assay)
+  if (export_normalized && norm_method != "log2") {
+    x_norm <- SummarizedExperiment::assay(se, norm_method)
+    norm_file <- file.path(export_dir, paste0("matrix_log2_", norm_method, ".tsv"))
     if (requireNamespace("readr", quietly = TRUE)) {
       readr::write_tsv(
         data.frame(ProteinGroups = rownames(x_norm), x_norm, check.names = FALSE),
@@ -406,7 +413,7 @@ process_proteomics <- function(
 
   imp_result <- impute_proteomics(
     se = se,
-    normalized_assay_name = "cycloess",
+    normalized_assay_name = norm_method,
     imputed_assay_name = assay_label,
     prop_na_mnar = prop_na_mnar,
     prop_present_mar = prop_present_mar,
@@ -421,7 +428,7 @@ process_proteomics <- function(
   # Export imputed matrix (use raw matrix, matching pre-split behavior)
   if (export_imputed) {
     x_imputed_export <- imp_result$x_imputed
-    imp_file <- file.path(export_dir, "matrix_log2_cyclicloess_imputed.tsv")
+    imp_file <- file.path(export_dir, paste0("matrix_log2_", norm_method, "_imputed.tsv"))
     if (requireNamespace("readr", quietly = TRUE)) {
       readr::write_tsv(
         data.frame(ProteinGroups = rownames(x_imputed_export),
@@ -501,10 +508,11 @@ process_proteomics <- function(
     parameters = list(
       min_reps_filter = norm_result$filter_summary$min_reps,
       min_groups_filter = min_groups_filter,
-      normalization_method = "cyclicloess",
+      norm_method = norm_method,
       cyclic_loess_method = cyclic_loess_method,
       cyclic_loess_iterations = cyclic_loess_iterations,
       cyclic_loess_span = cyclic_loess_span,
+      center_quantile_q = center_quantile_q,
       prop_na_mnar = prop_na_mnar,
       prop_present_mar = prop_present_mar,
       mar_method = mar_method,
@@ -564,10 +572,12 @@ print.proteomics_result <- function(x, ...) {
   }
 
   cat("\nParametros:\n")
-  cat("  - Normalizacion:", x$parameters$normalization_method, "\n")
-  cat("    - Cyclic Loess method:", x$parameters$cyclic_loess_method, "\n")
-  cat("    - Cyclic Loess iterations:", x$parameters$cyclic_loess_iterations, "\n")
-  cat("    - Cyclic Loess span:", x$parameters$cyclic_loess_span, "\n")
+  cat("  - Normalizacion:", x$parameters$norm_method, "\n")
+  if (identical(x$parameters$norm_method, "cycloess")) {
+    cat("    - Cyclic Loess method:", x$parameters$cyclic_loess_method, "\n")
+    cat("    - Cyclic Loess iterations:", x$parameters$cyclic_loess_iterations, "\n")
+    cat("    - Cyclic Loess span:", x$parameters$cyclic_loess_span, "\n")
+  }
   cat("  - Alpha:", x$parameters$alpha, "\n")
   cat("  - logFC threshold:", x$parameters$logFC_threshold, "\n")
   cat("  - Directorio salida:", x$parameters$export_dir, "\n")
