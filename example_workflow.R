@@ -15,7 +15,7 @@
 source("R/Preprocessing.R")
 
 preprocessing <- preprocess_spectronaut(
-  file_path = "data/Spectronaut_Report.tsv",
+  file_path = "data/Curso_Q24_DIA_Spectronaut_v20_Report.tsv",
   condition_order = c("A", "B", "C", "D"),
   export_dir = "./results"
 )
@@ -28,10 +28,11 @@ source("R/Processing.R")
 result <- process_proteomics(
   preprocessing = preprocessing,
   export_dir = "./results",
+  min_reps_filter = 3,
   cyclic_loess_method = "fast",
   cyclic_loess_iterations = 3,
   cyclic_loess_span = 0.7,
-  control = "A",
+  control = NULL,
   alpha = 0.05,
   export_format = "both"
 )
@@ -55,14 +56,14 @@ result$DEPs_results   # Differential expression results
 # source("R/Imputation.R")
 # imp_result <- impute_proteomics(
 #   se = norm_result$se,
-#   normalized_assay_name = "normalized",
-#   imputed_assay_name = "Cycloess"
+#   normalized_assay_name = "cycloess",
+#   imputed_assay_name = "ImpSeqRob_Min"
 # )
 #
 # source("R/DEAnalysis.R")
 # de_result <- de_analysis_proteomics(
 #   se = imp_result$se,
-#   assay_name = "Cycloess",
+#   assay_name = "ImpSeqRob_Min",
 #   control = "A",
 #   alpha = 0.05
 # )
@@ -75,31 +76,39 @@ source("R/Boxplot_Highcharts_Final.R")
 boxplot_data <- arrow::read_parquet("./results/BoxPlot_Input.parquet")
 
 hc_boxplots <- boxplot_highchart_list(
-  data = boxplot_data,
-  intensity_col = "Intensity",
-  group_col = "Column",
-  assay_col = "Assay",
-  condition_col = "Condition"
+  data        = boxplot_data,
+  assays      = c("log2", "ImpSeqRob_Min"),
+  color_by    = "Condition",
+  palette  = "ggsci::category10_d3",
+  group_order = c("A", "B", "C", "D"),
+  title = "Boxplot: {assay}",
+  box_width = 20,
+  horizontal = FALSE
 )
 
-# Display first boxplot
-hc_boxplots[[1]]
+hc_boxplots[["log2"]]
+hc_boxplots[["ImpSeqRob_Min"]]
+
 
 # ===== 4. VOLCANO PLOT =====
 # Interactive volcano plots for differential expression
 
 source("R/Volcano_Plot_Highcharts_Final.R")
 
-hc_volcanos <- volcano_highchart_list(
-  de_res = result$DEPs_results,
-  logFC_col = "logFC",
-  pval_col = "adj.P.Val",
-  gene_col = "Gene.Names",
-  comparison_col = "Comparison"
-)
+# --- 4.1 Volcano Plots ---                                                                                          
+volcano_plots <- volcano_highchart_list(                                                                             
+  de_res = result$DEPs_results,                                                                                                           
+  lfc_thr = 0,                                                                                             
+  alpha = 0.05,
+  point_size = 3,
+  p_col = "adj.P.Val",
+  show_top_genes = 10,
+  title = "Volcano Plot: {comparison}"                                                                                    
+)                                                                                                                    
 
-# Display first volcano plot
-hc_volcanos[[1]]
+# Mostrar un volcano plot                                                                                            
+volcano_plots[["B-A"]]   
+
 
 # ===== 5. PCA =====
 # Interactive PCA plots
@@ -108,16 +117,28 @@ source("R/PCA_Highcharts_Final.R")
 
 pca_input <- arrow::read_parquet("./results/PCA_Input.parquet")
 
+# --- Generar PCA plots con elipse de confianza ---
 hc_pcas <- pca_highchart_list(
-  pca_input = pca_input,
-  sample_col = "SampleID",
-  feature_col = "FeatureID",
-  intensity_col = "Intensity",
-  condition_col = "Condition"
+  pca_input     = pca_input,
+  modes         = c("all", "any", "B-A", "C-A", "D-A", "C-B", "D-B", "D-C"),
+  group_order   = c("A", "B", "C", "D"),
+  ellipse_type  = "confidence",
+  ellipse_level = 0.95,
+  ellipse_fill_opacity = 0.15,
+  point_size = 5,
+  filter_samples_to_comparison = TRUE,
+  show_labels = TRUE,
+  label_size = 12
 )
+hc_pcas[["all"]]
+hc_pcas[["any"]]
+hc_pcas[["B-A"]]
+hc_pcas[["C-A"]]
+hc_pcas[["D-A"]]
+hc_pcas[["C-B"]]
+hc_pcas[["D-B"]]
+hc_pcas[["D-C"]]
 
-# Display first PCA plot
-hc_pcas[[1]]
 
 # ===== 6. HEATMAP =====
 # Static heatmaps with clustering
@@ -132,18 +153,87 @@ hm <- proteomics_heatmap(
 # ===== 7. PATTERN PROFILER =====
 # Pattern profiling analysis and visualization
 
+# =============================================================================
+# PASO 1: ANÁLISIS DE CLUSTERING (Mfuzz soft-clustering)
+# =============================================================================
+
 source("R/Pattern_Profiler_Analysis.R")
 
+conditions = c("A", "B", "C", "D")
+
+# Requiere: se_proc (SummarizedExperiment) y DEPs_results (dataframe DE)
 pp_result <- pattern_profiler_analysis(
-  se = result$se_proc,
-  DEPs_results = result$DEPs_results
+  se_proc         = result$se_proc,
+  DEPs_results    = result$DEPs_results,
+  assay_name      = "ImpSeqRob_Min",       # assay del SE a usar
+  filter_mode     = "any",                 # "any", "all", o "specific"
+  alpha           = 0.05,                  # umbral de significancia
+  condition_order = conditions,            # orden del eje X
+  aggregate       = "median",              # agregación por condición
+  c_range         = 2:8,                   # rango de clusters a evaluar
+  auto_select_c   = TRUE,                  # selección automática de c
+  selection_method = "xb",                 # "xb", "consensus", o "elbow"
+  min_membership  = 0.25,                  # umbral de membresía
+  output_file     = "data/Pattern_Profiler_Input.parquet"
 )
+
+# Inspeccionar resultados
+pp_result$optimal_c          # número óptimo de clusters
+pp_result$selection_metrics  # métricas de evaluación (XB, FPC, AMM, Dmin)
+pp_result$cluster_counts     # proteínas por cluster
+
+
+# =============================================================================
+# PASO 2: VISUALIZACIÓN INTERACTIVA (Highcharts)
+# =============================================================================
 
 source("R/Pattern_Profiler_Highcharts.R")
 
-hc_patterns <- pattern_profiler_highchart_list(
-  data = pp_result
+# Leer datos desde el parquet generado
+data <- read_pattern_profiler_data("data/Pattern_Profiler_Input.parquet")
+
+# Ver resumen estadístico
+summary <- summarize_pattern_profiler(data)
+print(summary$cluster_summary)
+
+# --- Opción A: Gráfico de UN cluster específico ---
+hc_c1 <- cluster_profile_highchart(data,
+                                   cluster = 3,
+                                   conditions = conditions,
+                                   line_opacity = 0.6,
+                                   line_width = 1.2,
+                                   centroid_width = 4)
+hc_c1
+
+
+# --- Opción B: Lista de gráficos para TODOS los clusters ---
+hc_profiles <- cluster_profile_highchart_list(
+  data       = data,
+  conditions = conditions,
+  palette    = "ggsci::nrc_npg"  # paleta personalizada (opcional)
 )
+hc_profiles[["Cluster_1"]]
+hc_profiles[["Cluster_2"]]
+
+# --- Opción C: Gráfico comparativo de CENTROIDES ---
+hc_centroids <- cluster_centroids_highchart(
+  data       = data,
+  conditions = conditions
+)
+hc_centroids
+
+
+hc_patterns <- cluster_profile_highchart(
+  data = pp_result,
+  conditions = c("A", "B", "C", "D"),
+  cluster = 1,
+  line_opacity = 0.6,
+  line_width = 1.2,
+  centroid_width = 4
+)
+
+hc_patterns
+
 
 # Display first pattern plot
 hc_patterns[[1]]
