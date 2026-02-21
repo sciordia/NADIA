@@ -276,7 +276,7 @@ if (!exists("%||%", mode = "function")) {
 #'
 #' @return List with:
 #'   \itemize{
-#'     \item se: SummarizedExperiment with assays raw, log2, normalized
+#'     \item se: SummarizedExperiment with assays raw, log2, cycloess
 #'     \item filter_summary: Filtering summary
 #'     \item na_overview: NA statistics
 #'   }
@@ -398,7 +398,7 @@ normalize_proteomics <- function(
   rownames(x_norm) <- rownames(x_log2)
 
   # Add normalized assay to SE
-  SummarizedExperiment::assay(se, "normalized") <- x_norm
+  SummarizedExperiment::assay(se, "cycloess") <- x_norm
 
   if (verbose) cat("- Assays disponibles:",
                    paste(SummarizedExperiment::assayNames(se), collapse = ", "), "\n")

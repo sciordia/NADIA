@@ -382,7 +382,7 @@ process_proteomics <- function(
 
   # Export normalized matrix
   if (export_normalized) {
-    x_norm <- SummarizedExperiment::assay(se, "normalized")
+    x_norm <- SummarizedExperiment::assay(se, "cycloess")
     norm_file <- file.path(export_dir, "matrix_log2_cyclicloess.tsv")
     if (requireNamespace("readr", quietly = TRUE)) {
       readr::write_tsv(
@@ -402,13 +402,11 @@ process_proteomics <- function(
   # 3. IMPUTATION (Imputation.R)
   # =========================================================================
 
-  # Compute dynamic assay name (backward compat)
-  assay_label <- paste0(tools::toTitleCase(gsub("cyclic", "Cyc", "cyclicloess")))
-  # Result: "Cycloess"
+  assay_label <- "ImpSeqRob_Min"
 
   imp_result <- impute_proteomics(
     se = se,
-    normalized_assay_name = "normalized",
+    normalized_assay_name = "cycloess",
     imputed_assay_name = assay_label,
     prop_na_mnar = prop_na_mnar,
     prop_present_mar = prop_present_mar,

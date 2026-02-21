@@ -302,7 +302,7 @@ if (!exists("%||%", mode = "function")) {
 #' rowname renaming, and SummarizedExperiment update.
 #'
 #' @param se SummarizedExperiment with normalized assay (output of normalize_proteomics)
-#' @param normalized_assay_name Name of the normalized assay to use (default: "normalized")
+#' @param normalized_assay_name Name of the normalized assay to use (default: "cycloess")
 #' @param imputed_assay_name Name for the imputed assay (default: "imputed")
 #' @param prop_na_mnar NA proportion threshold for MNAR classification (default: 0.51)
 #' @param prop_present_mar Present proportion for MAR (default: 0.5)
@@ -326,16 +326,16 @@ if (!exists("%||%", mode = "function")) {
 #' \dontrun{
 #' imp_result <- impute_proteomics(
 #'   se = norm_result$se,
-#'   normalized_assay_name = "normalized",
-#'   imputed_assay_name = "Cycloess"
+#'   normalized_assay_name = "cycloess",
+#'   imputed_assay_name = "ImpSeqRob_Min"
 #' )
 #' }
 #'
 #' @export
 impute_proteomics <- function(
     se,
-    normalized_assay_name = "normalized",
-    imputed_assay_name = "imputed",
+    normalized_assay_name = "cycloess",
+    imputed_assay_name = "ImpSeqRob_Min",
     prop_na_mnar = 0.51,
     prop_present_mar = 0.5,
     min_present_mar = 1,

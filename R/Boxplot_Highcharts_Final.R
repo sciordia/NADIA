@@ -70,7 +70,7 @@ calc_boxplot_stats <- function(x, coef = 1.5) {
 #' @param group_order Orden de los grupos/condiciones
 #' @param palette Paleta de colores: "ggsci::palette", "brewer:Name", o vector
 #' @param title Título del gráfico (opcional).
-#'   Usa \code{\{assay\}} como placeholder (ej: "Boxplot: \{assay\}" -> "Boxplot: Cycloess")
+#'   Usa \code{\{assay\}} como placeholder (ej: "Boxplot: \{assay\}" -> "Boxplot: ImpSeqRob_Min")
 #' @param subtitle Subtítulo del gráfico (opcional).
 #'   Usa \code{\{assay\}} como placeholder
 #' @param show_outliers Mostrar outliers fuera de los bigotes (default: TRUE)

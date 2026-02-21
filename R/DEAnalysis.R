@@ -283,7 +283,7 @@ if (!exists("%||%", mode = "function")) {
 #' \dontrun{
 #' de_result <- de_analysis_proteomics(
 #'   se = imp_result$se,
-#'   assay_name = "Cycloess",
+#'   assay_name = "ImpSeqRob_Min",
 #'   control = "A",
 #'   alpha = 0.05
 #' )
