@@ -12,7 +12,7 @@
 #   - SummarizedExperiment, S4Vectors
 #
 # Dependencies (optional, per method):
-#   - limma : cycloess, quantiles.robust
+#   - limma : cycloess
 #   - MASS  : Rlr, rlrNorm
 #   - vsn   : vsn
 #   - MBQN  : MBQN
@@ -450,7 +450,33 @@ if (!exists("%||%", mode = "function")) {
 }
 
 .norm_quantile_robust <- function(x_log2) {
-  limma::normalizeQuantiles(x_log2, robust = TRUE)
+  # Quantile normalization robusta — base R, sin dependencias externas.
+  # Identica a .norm_quantile() pero usa la mediana (en lugar de la media)
+  # de los valores ordenados como distribucion de referencia, haciendola
+  # robusta frente a muestras con valores extremos.
+  # Equivalente a preprocessCore::normalize.quantiles.robust().
+  n_row <- nrow(x_log2)
+  n_col <- ncol(x_log2)
+  x_norm <- x_log2
+
+  sorted <- apply(x_log2, 2, sort, na.last = TRUE)
+  ref    <- apply(sorted, 1, median, na.rm = TRUE)
+
+  for (j in seq_len(n_col)) {
+    col   <- x_log2[, j]
+    valid <- !is.na(col)
+    n_j   <- sum(valid)
+    if (n_j == 0L) next
+    r <- rank(col[valid], ties.method = "average")
+    if (n_j == n_row) {
+      x_norm[valid, j] <- ref[round(r)]
+    } else {
+      ref_pos <- (r - 1) / max(n_j - 1L, 1L) * (n_row - 1L) + 1L
+      x_norm[valid, j] <- approx(seq_len(n_row), ref,
+                                  xout = ref_pos, rule = 2L)$y
+    }
+  }
+  x_norm
 }
 
 # =============================================================================
