@@ -6,14 +6,16 @@
 #   - Zero-to-NA conversion
 #   - Protein filtering by group presence
 #   - SummarizedExperiment creation
-#   - 22 normalization methods (cycloess default)
+#   - 27 normalization methods (cycloess default)
 #
 # Dependencies (required):
 #   - SummarizedExperiment, S4Vectors
 #
 # Dependencies (optional, per method):
-#   - limma : cycloess
+#   - limma : cycloess, quantiles.robust
 #   - MASS  : Rlr, rlrNorm
+#   - vsn   : vsn
+#   - MBQN  : MBQN
 #
 # Author: Sergio Ciordia
 # License: MIT
@@ -344,6 +346,21 @@ if (!exists("%||%", mode = "function")) {
   sweep(x, 2, col_means, "-")
 }
 
+.norm_vsn <- function(x_raw) {
+  if (!requireNamespace("vsn", quietly = TRUE)) {
+    stop("Se requiere 'vsn' para el metodo vsn. ",
+         "Instalalo con BiocManager::install('vsn')")
+  }
+  vsn::justvsn(x_raw)
+}
+
+.norm_max <- function(x_raw) {
+  col_maxs <- apply(x_raw, 2, max, na.rm = TRUE)
+  x <- log2(sweep(x_raw, 2, col_maxs / median(col_maxs), "/"))
+  x[is.infinite(x)] <- NA
+  x
+}
+
 # --- Grupo B: x_log2 → log2 ---
 
 .norm_quantile <- function(x_log2) {
@@ -424,6 +441,18 @@ if (!exists("%||%", mode = "function")) {
   sweep(x_log2, 2, ref_quantiles - ref_center, "-")
 }
 
+.norm_mbqn <- function(x_log2) {
+  if (!requireNamespace("MBQN", quietly = TRUE)) {
+    stop("Se requiere 'MBQN' para el metodo MBQN. ",
+         "Instalalo con BiocManager::install('MBQN')")
+  }
+  MBQN::mbqn(x_log2, FUN = mean, verbose = FALSE)
+}
+
+.norm_quantile_robust <- function(x_log2) {
+  limma::normalizeQuantiles(x_log2, robust = TRUE)
+}
+
 # =============================================================================
 # MAIN FUNCTION
 # =============================================================================
@@ -442,11 +471,13 @@ if (!exists("%||%", mode = "function")) {
 #'   \itemize{
 #'     \item Grupo A (input: raw intensities): "log2Norm", "giNorm", "GlobalMedian",
 #'       "GlobalMean", "Median", "Mean", "div_mean", "div_median",
-#'       "eqmedians", "center_median", "center_mean"
+#'       "eqmedians", "center_median", "center_mean",
+#'       "vsn", "sum", "max"
 #'     \item Grupo B (input: log2 assay): "log2" (no extra normalization),
 #'       "Quantile", "quantileNorm", "GQuantileAlign",
 #'       "Rlr", "rlrNorm", "MAD", "cycloess",
-#'       "medianNorm", "meanNorm", "center_quantile"
+#'       "medianNorm", "meanNorm", "center_quantile",
+#'       "MBQN", "quantiles.robust"
 #'   }
 #' @param cyclic_loess_method Cyclic Loess method: "fast" or "pairs" (default: "fast")
 #' @param cyclic_loess_iterations Number of iterations for Cyclic Loess (default: 3)
@@ -572,7 +603,8 @@ normalize_proteomics <- function(
   .raw_methods <- c(
     "log2Norm", "giNorm", "GlobalMedian", "GlobalMean",
     "Median", "Mean", "div_mean", "div_median",
-    "eqmedians", "center_median", "center_mean"
+    "eqmedians", "center_median", "center_mean",
+    "vsn", "sum", "max"
   )
 
   norm_method <- match.arg(norm_method, c(
@@ -580,7 +612,8 @@ normalize_proteomics <- function(
     "Median", "Mean", "center_median", "center_mean", "div_mean", "div_median",
     "log2", "Quantile", "Rlr", "MAD", "cycloess",
     "medianNorm", "meanNorm", "quantileNorm", "rlrNorm", "GQuantileAlign",
-    "center_quantile"
+    "center_quantile",
+    "vsn", "sum", "max", "MBQN", "quantiles.robust"
   ))
 
   x_raw  <- SummarizedExperiment::assay(se, "raw")
@@ -616,9 +649,14 @@ normalize_proteomics <- function(
                             method     = cyclic_loess_method,
                             iterations = cyclic_loess_iterations,
                             span       = cyclic_loess_span),
-      "medianNorm"      = .norm_mediannorm(x_input),
-      "meanNorm"        = .norm_meannorm(x_input),
-      "center_quantile" = .norm_center_quantile(x_input, q = center_quantile_q)
+      "medianNorm"        = .norm_mediannorm(x_input),
+      "meanNorm"          = .norm_meannorm(x_input),
+      "center_quantile"   = .norm_center_quantile(x_input, q = center_quantile_q),
+      "vsn"               = .norm_vsn(x_input),
+      "sum"               = .norm_ginorm(x_input),
+      "max"               = .norm_max(x_input),
+      "MBQN"              = .norm_mbqn(x_input),
+      "quantiles.robust"  = .norm_quantile_robust(x_input)
     )
 
     rownames(x_norm) <- rownames(x_log2)
