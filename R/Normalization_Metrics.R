@@ -1053,3 +1053,95 @@ normalization_metrics <- function(se,
 
   result
 }
+
+# =============================================================================
+# EXAMPLE WORKFLOW
+# =============================================================================
+#
+# Assumes:
+#   - ./results/ contains files like:
+#       matrix_log2_cycloess.tsv
+#       matrix_log2_Quantile.tsv
+#       matrix_log2_vsn.tsv
+#   - ./data/metadata.tsv has at least two columns: Column, Condition
+#
+# Run with:
+#   source("R/Normalization_Metrics.R")
+# -----------------------------------------------------------------------------
+
+if (FALSE) {
+
+  # ---- 1. Load all normalized matrices into a SummarizedExperiment ----------
+
+  se_nm <- import_norm_matrices(
+    tsv_dir       = "./results",
+    metadata_path = "./data/metadata.tsv",   # columns: Column, Condition
+    pattern       = "matrix_log2_.*\\.tsv$"
+  )
+
+  # Check loaded assays and dimensions
+  SummarizedExperiment::assayNames(se_nm)  # e.g. "cycloess", "Quantile", "vsn"
+  dim(se_nm)                               # proteins x samples
+
+
+  # ---- 2. Generate all 13 quality plots at once ------------------------------
+
+  plots <- normalization_metrics(se_nm)
+
+  # Names of available plots
+  names(plots)
+
+
+  # ---- 3. Inspect individual plots -------------------------------------------
+
+  plots$boxplot      # intensity distribution per sample
+  plots$density      # KDE curves per sample
+  plots$rle          # RLE — boxes should be centered at y = 0
+  plots$pca          # PC1 vs PC2, colored by condition
+  plots$correlation  # intra-group Pearson correlation violin
+  plots$mds          # MDS 2D scatter
+  plots$dendrogram   # hierarchical clustering
+  plots$ma           # MA plot (M = sample − group mean)
+  plots$meansd       # SD vs mean — flat trend = ideal
+  plots$cv_intensity # CV(%) vs mean intensity
+  plots$pcv          # mean CV per condition and method
+  plots$pmad         # mean MAD per condition and method
+  plots$pev          # mean variance per condition and method
+
+
+  # ---- 4. Single assay, single plot ------------------------------------------
+
+  nm_plot_density(se_nm, assay_names = "cycloess")
+
+  nm_plot_rle(se_nm, assay_names = c("cycloess", "Quantile"))
+
+
+  # ---- 5. Selective execution via orchestrator --------------------------------
+
+  # Only RLE, PCA and correlation for two methods
+  subset_plots <- normalization_metrics(
+    se_nm,
+    assay_names = c("cycloess", "Quantile"),
+    plots       = c("rle", "pca", "correlation")
+  )
+  subset_plots$rle
+
+
+  # ---- 6. Export plots to PNG -------------------------------------------------
+
+  output_dir <- "./results/normalization_metrics"
+  dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+
+  for (plot_name in names(plots)) {
+    p <- plots[[plot_name]]
+    if (is.null(p)) next
+    ggplot2::ggsave(
+      filename = file.path(output_dir, paste0("nm_", plot_name, ".png")),
+      plot     = p,
+      width    = 12,
+      height   = 8,
+      dpi      = 150
+    )
+  }
+
+}
