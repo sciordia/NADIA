@@ -27,6 +27,7 @@ source("R/Processing.R")
 
 result <- process_proteomics(
   preprocessing = preprocessing,
+  norm_method = "quantileNorm",
   export_dir = "./results",
   min_reps_filter = 3,
   cyclic_loess_method = "fast",
@@ -44,8 +45,14 @@ result$DEPs_results   # Differential expression results
 
 # ===== 2b. STANDALONE MODULE USAGE (alternative) =====
 # Each module can be sourced and used independently:
-#
+
 # source("R/Normalization.R")
+# 
+# # Extraer los dos objetos que necesita normalize_proteomics
+# metadata     <- .prepare_metadata(preprocessing)
+# protein_data <- .prepare_protein_data(preprocessing)
+# 
+# #Run Normalization
 # norm_result <- normalize_proteomics(
 #   data = protein_data,
 #   metadata = metadata,
