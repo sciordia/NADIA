@@ -67,79 +67,72 @@ if (!exists("%||%", mode = "function")) {
   do.call(rbind, rows)
 }
 
-#' Percentage coefficient of variation (PCV) per group
+#' Per-protein CV averaged across groups (PRONE-style PCV)
 #'
-#' For each protein, computes CV = 100 * SD / mean within each group.
-#' Returns mean CV across proteins per group.
+#' For each protein, computes CV = 100 * SD / |mean| within each group,
+#' then averages across groups. Returns one value per protein.
 #'
 #' @param mat Numeric matrix (proteins x samples), log2 scale
 #' @param groups Factor or character vector of group labels (length = ncol(mat))
-#' @return data.frame with columns: Group, PCV
+#' @return Named numeric vector, one value per protein
 #' @keywords internal
 .nm_pcv <- function(mat, groups) {
   groups <- as.factor(groups)
-  result <- lapply(levels(groups), function(g) {
-    sub_mat <- mat[, groups == g, drop = FALSE]
-    # CV per protein: 100 * SD / |mean|
-    cv_vals <- apply(sub_mat, 1, function(x) {
+  cv_mat <- sapply(levels(groups), function(g) {
+    sub <- mat[, groups == g, drop = FALSE]
+    apply(sub, 1, function(x) {
       x <- x[!is.na(x)]
       if (length(x) < 2) return(NA_real_)
       m <- mean(x)
       if (abs(m) < 1e-10) return(NA_real_)
       100 * sd(x) / abs(m)
     })
-    data.frame(Group = g, PCV = mean(cv_vals, na.rm = TRUE),
-               stringsAsFactors = FALSE)
   })
-  do.call(rbind, result)
+  if (is.null(dim(cv_mat))) cv_mat else rowMeans(cv_mat, na.rm = TRUE)
 }
 
-#' Percentage median absolute deviation (PMAD) per group
+#' Per-protein MAD averaged across groups (PRONE-style PMAD)
 #'
-#' For each protein, computes MAD = median(|x - median(x)|) within each group.
-#' Returns mean MAD across proteins per group.
+#' For each protein, computes MAD = median(|x - median(x)|) within each group,
+#' then averages across groups. Returns one value per protein.
 #'
 #' @param mat Numeric matrix (proteins x samples)
 #' @param groups Factor or character vector of group labels
-#' @return data.frame with columns: Group, PMAD
+#' @return Named numeric vector, one value per protein
 #' @keywords internal
 .nm_pmad <- function(mat, groups) {
   groups <- as.factor(groups)
-  result <- lapply(levels(groups), function(g) {
-    sub_mat <- mat[, groups == g, drop = FALSE]
-    mad_vals <- apply(sub_mat, 1, function(x) {
+  mad_mat <- sapply(levels(groups), function(g) {
+    sub <- mat[, groups == g, drop = FALSE]
+    apply(sub, 1, function(x) {
       x <- x[!is.na(x)]
       if (length(x) < 2) return(NA_real_)
       median(abs(x - median(x)))
     })
-    data.frame(Group = g, PMAD = mean(mad_vals, na.rm = TRUE),
-               stringsAsFactors = FALSE)
   })
-  do.call(rbind, result)
+  if (is.null(dim(mad_mat))) mad_mat else rowMeans(mad_mat, na.rm = TRUE)
 }
 
-#' Percentage explained variance (PEV) per group
+#' Per-protein variance averaged across groups (PRONE-style PEV)
 #'
-#' For each protein, computes variance within each group.
-#' Returns mean variance across proteins per group.
+#' For each protein, computes variance within each group,
+#' then averages across groups. Returns one value per protein.
 #'
 #' @param mat Numeric matrix (proteins x samples)
 #' @param groups Factor or character vector of group labels
-#' @return data.frame with columns: Group, PEV
+#' @return Named numeric vector, one value per protein
 #' @keywords internal
 .nm_pev <- function(mat, groups) {
   groups <- as.factor(groups)
-  result <- lapply(levels(groups), function(g) {
-    sub_mat <- mat[, groups == g, drop = FALSE]
-    var_vals <- apply(sub_mat, 1, function(x) {
+  var_mat <- sapply(levels(groups), function(g) {
+    sub <- mat[, groups == g, drop = FALSE]
+    apply(sub, 1, function(x) {
       x <- x[!is.na(x)]
       if (length(x) < 2) return(NA_real_)
       var(x)
     })
-    data.frame(Group = g, PEV = mean(var_vals, na.rm = TRUE),
-               stringsAsFactors = FALSE)
   })
-  do.call(rbind, result)
+  if (is.null(dim(var_mat))) var_mat else rowMeans(var_mat, na.rm = TRUE)
 }
 
 #' Relative log expression (RLE) matrix
@@ -318,6 +311,22 @@ import_norm_matrices <- function(tsv_dir,
 # SECTION 3: INDIVIDUAL PLOT FUNCTIONS
 # =============================================================================
 
+# Helper: PRONE-style qualitative color palette (RColorBrewer, reversed)
+.nm_prone_colors <- function(n) {
+  if (requireNamespace("RColorBrewer", quietly = TRUE)) {
+    pal_info   <- RColorBrewer::brewer.pal.info
+    qual_pals  <- pal_info[pal_info$category == "qual", ]
+    col_vector <- rev(unlist(mapply(RColorBrewer::brewer.pal,
+                                    qual_pals$maxcolors,
+                                    rownames(qual_pals))))
+    rep_len(col_vector, n)
+  } else {
+    # fallback: evenly spaced hues
+    grDevices::hcl(seq(15, 375, length.out = n + 1)[seq_len(n)],
+                   l = 65, c = 100)
+  }
+}
+
 # Helper: resolve assay_names (NULL → all)
 .nm_assay_names <- function(se, assay_names) {
   assay_names %||% SummarizedExperiment::assayNames(se)
@@ -448,114 +457,210 @@ nm_plot_rle <- function(se, assay_names = NULL,
 # 4. PCV — percentage coefficient of variation
 # --------------------------------------------------------------------------
 
-#' PCV point-range plot per method
+#' PCV boxplot per method (PRONE-style)
 #'
-#' Mean coefficient of variation (%) per condition across all methods.
-#' Lower values indicate better within-group consistency.
+#' One boxplot per normalization method showing the per-protein CV distribution
+#' (CV averaged across groups for each protein). Lower and less spread values
+#' indicate better within-group consistency.
+#' With `diff = TRUE`, shows % reduction vs `baseline` as a bar chart.
 #'
 #' @inheritParams nm_plot_boxplot
+#' @param diff Logical. If TRUE, show % reduction vs `baseline`. Default FALSE.
+#' @param baseline Character. Assay name used as reference for diff mode.
+#'   Default `"log2"`.
 #' @return ggplot object.
 #' @export
 nm_plot_pcv <- function(se, assay_names = NULL,
-                        condition_col = "Condition", ...) {
+                        condition_col = "Condition",
+                        diff = FALSE, baseline = "log2", ...) {
   assay_names <- .nm_assay_names(se, assay_names)
   condition   <- .nm_condition(se, condition_col)
+  col_vector  <- .nm_prone_colors(length(assay_names))
 
-  rows <- vector("list", length(assay_names))
-  for (i in seq_along(assay_names)) {
-    mat      <- SummarizedExperiment::assay(se, assay_names[i])
-    pcv_df   <- .nm_pcv(mat, condition)
-    pcv_df$Method <- assay_names[i]
-    rows[[i]] <- pcv_df
-  }
+  rows <- lapply(assay_names, function(nm) {
+    mat <- SummarizedExperiment::assay(se, nm)
+    data.frame(Normalization = nm,
+               PCV = .nm_pcv(mat, condition),
+               stringsAsFactors = FALSE)
+  })
   df <- do.call(rbind, rows)
-  df <- .nm_method_factor(df, assay_names)
+  df$Normalization <- factor(df$Normalization,
+                             levels = sort(unique(df$Normalization)))
 
-  ggplot2::ggplot(df,
-    ggplot2::aes(x = Method, y = PCV, color = Group, group = Group)) +
-    ggplot2::geom_line(linewidth = 0.8) +
-    ggplot2::geom_point(size = 3) +
-    ggplot2::labs(title = "Percentage Coefficient of Variation (PCV)",
-                  x = "Normalization method", y = "Mean PCV (%)",
-                  color = "Condition") +
-    ggplot2::theme_bw() +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+  if (diff) {
+    if (!baseline %in% assay_names)
+      stop("baseline '", baseline, "' not found in assay_names.")
+    base_mean  <- mean(df$PCV[df$Normalization == baseline], na.rm = TRUE)
+    avg_by_nm  <- tapply(df$PCV, df$Normalization, mean, na.rm = TRUE)
+    pct_diff   <- (base_mean - avg_by_nm) / abs(base_mean) * 100
+    diff_df    <- data.frame(Normalization = names(pct_diff),
+                             PCV = as.numeric(pct_diff),
+                             stringsAsFactors = FALSE)
+    diff_df$Normalization <- factor(diff_df$Normalization,
+                                    levels = sort(unique(diff_df$Normalization)))
+    ggplot2::ggplot(diff_df,
+      ggplot2::aes(x = Normalization, y = PCV, fill = Normalization)) +
+      ggplot2::geom_col() +
+      ggplot2::geom_label(ggplot2::aes(label = round(PCV, 0)),
+                          fill = "white", show.legend = FALSE, color = "black") +
+      ggplot2::scale_fill_manual(name = "Normalization Method",
+                                 values = col_vector) +
+      ggplot2::labs(title = "PCV — % reduction vs baseline",
+                    x = "Normalization Method", y = "") +
+      ggplot2::theme_bw() +
+      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90,
+                                                          vjust = 0.5))
+  } else {
+    ggplot2::ggplot(df,
+      ggplot2::aes(x = Normalization, y = PCV, fill = Normalization)) +
+      ggplot2::geom_boxplot(na.rm = TRUE) +
+      ggplot2::stat_boxplot(geom = "errorbar", width = 0.4, na.rm = TRUE) +
+      ggplot2::scale_fill_manual(name = "Normalization Method",
+                                 values = col_vector) +
+      ggplot2::labs(title = "Percentage Coefficient of Variation (PCV)",
+                    x = "Normalization Method", y = "PCV") +
+      ggplot2::theme_bw() +
+      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90,
+                                                          vjust = 0.5))
+  }
 }
 
 # --------------------------------------------------------------------------
 # 5. PMAD — percentage median absolute deviation
 # --------------------------------------------------------------------------
 
-#' PMAD point-range plot per method
+#' PMAD boxplot per method (PRONE-style)
 #'
-#' Mean median absolute deviation (log2) per condition across methods.
-#' Lower values indicate better within-group consistency.
+#' One boxplot per normalization method showing the per-protein MAD distribution
+#' (MAD averaged across groups for each protein). Lower values indicate better
+#' within-group consistency.
+#' With `diff = TRUE`, shows % reduction vs `baseline` as a bar chart.
 #'
-#' @inheritParams nm_plot_boxplot
+#' @inheritParams nm_plot_pcv
 #' @return ggplot object.
 #' @export
 nm_plot_pmad <- function(se, assay_names = NULL,
-                         condition_col = "Condition", ...) {
+                         condition_col = "Condition",
+                         diff = FALSE, baseline = "log2", ...) {
   assay_names <- .nm_assay_names(se, assay_names)
   condition   <- .nm_condition(se, condition_col)
+  col_vector  <- .nm_prone_colors(length(assay_names))
 
-  rows <- vector("list", length(assay_names))
-  for (i in seq_along(assay_names)) {
-    mat     <- SummarizedExperiment::assay(se, assay_names[i])
-    pmad_df <- .nm_pmad(mat, condition)
-    pmad_df$Method <- assay_names[i]
-    rows[[i]] <- pmad_df
-  }
+  rows <- lapply(assay_names, function(nm) {
+    mat <- SummarizedExperiment::assay(se, nm)
+    data.frame(Normalization = nm,
+               PMAD = .nm_pmad(mat, condition),
+               stringsAsFactors = FALSE)
+  })
   df <- do.call(rbind, rows)
-  df <- .nm_method_factor(df, assay_names)
+  df$Normalization <- factor(df$Normalization,
+                             levels = sort(unique(df$Normalization)))
 
-  ggplot2::ggplot(df,
-    ggplot2::aes(x = Method, y = PMAD, color = Group, group = Group)) +
-    ggplot2::geom_line(linewidth = 0.8) +
-    ggplot2::geom_point(size = 3) +
-    ggplot2::labs(title = "Percentage Median Absolute Deviation (PMAD)",
-                  x = "Normalization method", y = "Mean PMAD",
-                  color = "Condition") +
-    ggplot2::theme_bw() +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+  if (diff) {
+    if (!baseline %in% assay_names)
+      stop("baseline '", baseline, "' not found in assay_names.")
+    base_mean <- mean(df$PMAD[df$Normalization == baseline], na.rm = TRUE)
+    avg_by_nm <- tapply(df$PMAD, df$Normalization, mean, na.rm = TRUE)
+    pct_diff  <- (base_mean - avg_by_nm) / abs(base_mean) * 100
+    diff_df   <- data.frame(Normalization = names(pct_diff),
+                             PMAD = as.numeric(pct_diff),
+                             stringsAsFactors = FALSE)
+    diff_df$Normalization <- factor(diff_df$Normalization,
+                                    levels = sort(unique(diff_df$Normalization)))
+    ggplot2::ggplot(diff_df,
+      ggplot2::aes(x = Normalization, y = PMAD, fill = Normalization)) +
+      ggplot2::geom_col() +
+      ggplot2::geom_label(ggplot2::aes(label = round(PMAD, 0)),
+                          fill = "white", show.legend = FALSE, color = "black") +
+      ggplot2::scale_fill_manual(name = "Normalization Method",
+                                 values = col_vector) +
+      ggplot2::labs(title = "PMAD — % reduction vs baseline",
+                    x = "Normalization Method", y = "") +
+      ggplot2::theme_bw() +
+      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90,
+                                                          vjust = 0.5))
+  } else {
+    ggplot2::ggplot(df,
+      ggplot2::aes(x = Normalization, y = PMAD, fill = Normalization)) +
+      ggplot2::geom_boxplot(na.rm = TRUE) +
+      ggplot2::stat_boxplot(geom = "errorbar", width = 0.4, na.rm = TRUE) +
+      ggplot2::scale_fill_manual(name = "Normalization Method",
+                                 values = col_vector) +
+      ggplot2::labs(title = "Percentage Median Absolute Deviation (PMAD)",
+                    x = "Normalization Method", y = "PMAD") +
+      ggplot2::theme_bw() +
+      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90,
+                                                          vjust = 0.5))
+  }
 }
 
 # --------------------------------------------------------------------------
 # 6. PEV — percentage explained variance
 # --------------------------------------------------------------------------
 
-#' PEV point-range plot per method
+#' PEV boxplot per method (PRONE-style)
 #'
-#' Mean within-group variance per condition across methods.
+#' One boxplot per normalization method showing the per-protein variance
+#' distribution (variance averaged across groups for each protein).
 #' Lower values indicate better within-group consistency.
+#' With `diff = TRUE`, shows % reduction vs `baseline` as a bar chart.
 #'
-#' @inheritParams nm_plot_boxplot
+#' @inheritParams nm_plot_pcv
 #' @return ggplot object.
 #' @export
 nm_plot_pev <- function(se, assay_names = NULL,
-                        condition_col = "Condition", ...) {
+                        condition_col = "Condition",
+                        diff = FALSE, baseline = "log2", ...) {
   assay_names <- .nm_assay_names(se, assay_names)
   condition   <- .nm_condition(se, condition_col)
+  col_vector  <- .nm_prone_colors(length(assay_names))
 
-  rows <- vector("list", length(assay_names))
-  for (i in seq_along(assay_names)) {
-    mat    <- SummarizedExperiment::assay(se, assay_names[i])
-    pev_df <- .nm_pev(mat, condition)
-    pev_df$Method <- assay_names[i]
-    rows[[i]] <- pev_df
-  }
+  rows <- lapply(assay_names, function(nm) {
+    mat <- SummarizedExperiment::assay(se, nm)
+    data.frame(Normalization = nm,
+               PEV = .nm_pev(mat, condition),
+               stringsAsFactors = FALSE)
+  })
   df <- do.call(rbind, rows)
-  df <- .nm_method_factor(df, assay_names)
+  df$Normalization <- factor(df$Normalization,
+                             levels = sort(unique(df$Normalization)))
 
-  ggplot2::ggplot(df,
-    ggplot2::aes(x = Method, y = PEV, color = Group, group = Group)) +
-    ggplot2::geom_line(linewidth = 0.8) +
-    ggplot2::geom_point(size = 3) +
-    ggplot2::labs(title = "Percentage Explained Variance (PEV)",
-                  x = "Normalization method", y = "Mean variance",
-                  color = "Condition") +
-    ggplot2::theme_bw() +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+  if (diff) {
+    if (!baseline %in% assay_names)
+      stop("baseline '", baseline, "' not found in assay_names.")
+    base_mean <- mean(df$PEV[df$Normalization == baseline], na.rm = TRUE)
+    avg_by_nm <- tapply(df$PEV, df$Normalization, mean, na.rm = TRUE)
+    pct_diff  <- (base_mean - avg_by_nm) / abs(base_mean) * 100
+    diff_df   <- data.frame(Normalization = names(pct_diff),
+                             PEV = as.numeric(pct_diff),
+                             stringsAsFactors = FALSE)
+    diff_df$Normalization <- factor(diff_df$Normalization,
+                                    levels = sort(unique(diff_df$Normalization)))
+    ggplot2::ggplot(diff_df,
+      ggplot2::aes(x = Normalization, y = PEV, fill = Normalization)) +
+      ggplot2::geom_col() +
+      ggplot2::geom_label(ggplot2::aes(label = round(PEV, 0)),
+                          fill = "white", show.legend = FALSE, color = "black") +
+      ggplot2::scale_fill_manual(name = "Normalization Method",
+                                 values = col_vector) +
+      ggplot2::labs(title = "PEV — % reduction vs baseline",
+                    x = "Normalization Method", y = "") +
+      ggplot2::theme_bw() +
+      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90,
+                                                          vjust = 0.5))
+  } else {
+    ggplot2::ggplot(df,
+      ggplot2::aes(x = Normalization, y = PEV, fill = Normalization)) +
+      ggplot2::geom_boxplot(na.rm = TRUE) +
+      ggplot2::stat_boxplot(geom = "errorbar", width = 0.4, na.rm = TRUE) +
+      ggplot2::scale_fill_manual(name = "Normalization Method",
+                                 values = col_vector) +
+      ggplot2::labs(title = "Percentage Explained Variance (PEV)",
+                    x = "Normalization Method", y = "PEV") +
+      ggplot2::theme_bw() +
+      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90,
+                                                          vjust = 0.5))
+  }
 }
 
 # --------------------------------------------------------------------------
@@ -626,43 +731,47 @@ nm_plot_pca <- function(se, assay_names = NULL,
 # 8. Correlation — intra-group correlation distribution
 # --------------------------------------------------------------------------
 
-#' Intra-group correlation violin per method
+#' Intra-group correlation boxplot per method (PRONE-style)
 #'
-#' Distribution of pairwise within-group Pearson correlations for each method.
-#' Higher and less variable values indicate better normalization.
+#' Pairwise within-group correlations for each method shown as boxplots
+#' with error bars. Higher and less variable values indicate better normalization.
 #'
 #' @inheritParams nm_plot_boxplot
-#' @param cor_method Correlation method passed to `cor()`. Default "pearson".
+#' @param cor_method Correlation method passed to `cor()`:
+#'   `"pearson"`, `"spearman"`, or `"kendall"`. Default `"pearson"`.
 #' @return ggplot object.
 #' @export
 nm_plot_correlation <- function(se, assay_names = NULL,
                                 condition_col = "Condition",
                                 cor_method = "pearson", ...) {
+  stopifnot(cor_method %in% c("pearson", "spearman", "kendall"))
   assay_names <- .nm_assay_names(se, assay_names)
   condition   <- .nm_condition(se, condition_col)
+  col_vector  <- .nm_prone_colors(length(assay_names))
 
-  rows <- vector("list", length(assay_names))
-  for (i in seq_along(assay_names)) {
-    mat    <- SummarizedExperiment::assay(se, assay_names[i])
-    cors   <- .nm_intragroup_cor(mat, condition, method = cor_method)
-    if (length(cors) == 0) next
-    rows[[i]] <- data.frame(Method = assay_names[i], Correlation = cors,
-                            stringsAsFactors = FALSE)
-  }
-  cor_df <- do.call(rbind, rows)
-  cor_df <- .nm_method_factor(cor_df, assay_names)
+  rows <- lapply(assay_names, function(nm) {
+    mat  <- SummarizedExperiment::assay(se, nm)
+    cors <- .nm_intragroup_cor(mat, condition, method = cor_method)
+    if (length(cors) == 0) return(NULL)
+    data.frame(Normalization = nm, Correlation = cors,
+               stringsAsFactors = FALSE)
+  })
+  cor_df <- do.call(rbind, Filter(Negate(is.null), rows))
+  cor_df$Normalization <- factor(cor_df$Normalization,
+                                 levels = sort(unique(cor_df$Normalization)))
 
   ggplot2::ggplot(cor_df,
-    ggplot2::aes(x = Method, y = Correlation, fill = Method)) +
-    ggplot2::geom_violin(trim = FALSE, na.rm = TRUE, alpha = 0.7) +
-    ggplot2::geom_boxplot(width = 0.08, outlier.size = 0.6,
-                          fill = "white", na.rm = TRUE) +
-    ggplot2::labs(title = paste0("Intra-group ", cor_method,
-                                 " correlation distribution"),
-                  x = "Normalization method", y = "Pearson r") +
+    ggplot2::aes(x = Normalization, y = Correlation, fill = Normalization)) +
+    ggplot2::geom_boxplot(na.rm = TRUE) +
+    ggplot2::stat_boxplot(geom = "errorbar", width = 0.4, na.rm = TRUE) +
+    ggplot2::scale_fill_manual(name = "Normalization Method",
+                               values = col_vector) +
+    ggplot2::labs(title = paste0("Intra-group ", cor_method, " correlation"),
+                  x = "Normalization Method",
+                  y = paste0(tools::toTitleCase(cor_method), " correlation")) +
     ggplot2::theme_bw() +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
-                   legend.position = "none")
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90,
+                                                        vjust = 0.5))
 }
 
 # --------------------------------------------------------------------------
