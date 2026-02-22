@@ -12,9 +12,8 @@
 #   - SummarizedExperiment, S4Vectors
 #
 # Dependencies (optional, per method):
-#   - limma          : cycloess
-#   - preprocessCore : Quantile, quantileNorm, GQuantileAlign
-#   - MASS           : Rlr, rlrNorm
+#   - limma : cycloess
+#   - MASS  : Rlr, rlrNorm
 #
 # Author: Sergio Ciordia
 # License: MIT
@@ -348,14 +347,34 @@ if (!exists("%||%", mode = "function")) {
 # --- Grupo B: x_log2 → log2 ---
 
 .norm_quantile <- function(x_log2) {
-  if (!requireNamespace("preprocessCore", quietly = TRUE)) {
-    stop("Se requiere 'preprocessCore' para el metodo Quantile. ",
-         "Instalalo con BiocManager::install('preprocessCore')")
+  # Quantile normalization — base R, sin dependencias externas.
+  # Equivalente a preprocessCore::normalize.quantiles() en datos completos;
+  # usa interpolacion lineal para columnas con valores perdidos.
+  n_row <- nrow(x_log2)
+  n_col <- ncol(x_log2)
+  x_norm <- x_log2
+
+  # Distribucion de referencia: media de los valores ordenados en cada rango
+  sorted <- apply(x_log2, 2, sort, na.last = TRUE)
+  ref    <- rowMeans(sorted, na.rm = TRUE)
+
+  for (j in seq_len(n_col)) {
+    col   <- x_log2[, j]
+    valid <- !is.na(col)
+    n_j   <- sum(valid)
+    if (n_j == 0L) next
+    r <- rank(col[valid], ties.method = "average")
+    if (n_j == n_row) {
+      # Sin NAs: mapeado directo rango → ref
+      x_norm[valid, j] <- ref[round(r)]
+    } else {
+      # Con NAs: interpolar rango en la distribucion de referencia completa
+      ref_pos <- (r - 1) / max(n_j - 1L, 1L) * (n_row - 1L) + 1L
+      x_norm[valid, j] <- approx(seq_len(n_row), ref,
+                                  xout = ref_pos, rule = 2L)$y
+    }
   }
-  x <- preprocessCore::normalize.quantiles(x_log2)
-  rownames(x) <- rownames(x_log2)
-  colnames(x) <- colnames(x_log2)
-  x
+  x_norm
 }
 
 .norm_rlr <- function(x_log2) {
