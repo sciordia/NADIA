@@ -6,7 +6,7 @@
 #   - Zero-to-NA conversion
 #   - Protein filtering by group presence
 #   - SummarizedExperiment creation
-#   - 21 normalization methods (cycloess default)
+#   - 16 normalization methods (cycloess default)
 #
 # Dependencies (required):
 #   - SummarizedExperiment, S4Vectors
@@ -294,27 +294,6 @@ if (!exists("%||%", mode = "function")) {
   x
 }
 
-.norm_median_raw <- function(x_raw) {
-  col_medians <- apply(x_raw, 2, median, na.rm = TRUE)
-  x <- log2(sweep(x_raw, 2, col_medians / mean(col_medians), "/"))
-  x[is.infinite(x)] <- NA
-  x
-}
-
-.norm_mean_raw <- function(x_raw) {
-  col_means <- colMeans(x_raw, na.rm = TRUE)
-  x <- log2(sweep(x_raw, 2, col_means / mean(col_means), "/"))
-  x[is.infinite(x)] <- NA
-  x
-}
-
-.norm_div_mean <- function(x_raw) {
-  col_means <- colMeans(x_raw, na.rm = TRUE)
-  x <- log2(sweep(x_raw, 2, col_means, "/"))
-  x[is.infinite(x)] <- NA
-  x
-}
-
 # These two receive x_raw but apply log2 internally before centering.
 
 .norm_eqmedians <- function(x_raw) {
@@ -473,12 +452,9 @@ if (!exists("%||%", mode = "function")) {
 #' @param norm_method Normalization method (default: "cycloess"). One of:
 #'   \itemize{
 #'     \item Grupo A (input: raw intensities): "log2Norm", "GlobalMedian",
-#'       "GlobalMean", "Median", "Mean", "div_mean",
-#'       "eqmedians", "center_median",
-#'       "vsn", "sum", "max"
+#'       "GlobalMean", "eqmedians", "center_median", "vsn", "max"
 #'     \item Grupo B (input: log2 assay): "log2" (no extra normalization),
-#'       "quantile", "GQuantileAlign",
-#'       "Rlr", "MAD", "cycloess",
+#'       "quantile", "Rlr", "MAD", "cycloess",
 #'       "medianNorm", "meanNorm", "center_quantile",
 #'       "quantile.robust"
 #'   }
@@ -605,18 +581,17 @@ normalize_proteomics <- function(
   #  receive x_raw to stay consistent with the other Grupo A methods.)
   .raw_methods <- c(
     "log2Norm", "GlobalMedian", "GlobalMean",
-    "Median", "Mean", "div_mean",
     "eqmedians", "center_median",
-    "vsn", "sum", "max"
+    "vsn", "max"
   )
 
   norm_method <- match.arg(norm_method, c(
     "log2Norm", "eqmedians", "GlobalMedian", "GlobalMean",
-    "Median", "Mean", "center_median", "div_mean",
+    "center_median",
     "log2", "quantile", "Rlr", "MAD", "cycloess",
-    "medianNorm", "meanNorm", "GQuantileAlign",
+    "medianNorm", "meanNorm",
     "center_quantile",
-    "vsn", "sum", "max", "quantile.robust"
+    "vsn", "max", "quantile.robust"
   ))
 
   x_raw  <- SummarizedExperiment::assay(se, "raw")
@@ -633,13 +608,9 @@ normalize_proteomics <- function(
       "log2Norm"        = .norm_log2norm(x_input),
       "GlobalMedian"    = .norm_ginorm(x_input),
       "GlobalMean"      = .norm_globalmean(x_input),
-      "Median"          = .norm_median_raw(x_input),
-      "Mean"            = .norm_mean_raw(x_input),
-      "div_mean"        = .norm_div_mean(x_input),
       "eqmedians"       = .norm_eqmedians(x_input),
       "center_median"   = .norm_center_median(x_input),
-      "quantile"        = ,
-      "GQuantileAlign"  = .norm_quantile(x_input),
+      "quantile"        = .norm_quantile(x_input),
       "Rlr"             = .norm_rlr(x_input),
       "MAD"             = .norm_mad(x_input),
       "cycloess"        = limma::normalizeCyclicLoess(
@@ -651,7 +622,6 @@ normalize_proteomics <- function(
       "meanNorm"          = .norm_meannorm(x_input),
       "center_quantile"   = .norm_center_quantile(x_input, q = center_quantile_q),
       "vsn"               = .norm_vsn(x_input),
-      "sum"               = .norm_ginorm(x_input),
       "max"               = .norm_max(x_input),
       "quantile.robust"   = .norm_quantile_robust(x_input)
     )
