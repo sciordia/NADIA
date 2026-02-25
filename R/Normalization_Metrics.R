@@ -6,11 +6,10 @@
 #   - import_norm_matrices() : Load normalized TSV files into SummarizedExperiment
 #   - normalization_metrics(): Orchestrator returning a list of ggplot2 plots
 #
-# Individual plot functions (13):
-#   nm_plot_boxplot, nm_plot_density, nm_plot_rle, nm_plot_pcv,
+# Individual plot functions (10):
+#   nm_plot_boxplot, nm_plot_density, nm_plot_pcv,
 #   nm_plot_pmad, nm_plot_pev, nm_plot_pca, nm_plot_correlation,
-#   nm_plot_mds, nm_plot_dendrogram, nm_plot_ma, nm_plot_meansd,
-#   nm_plot_cv_intensity
+#   nm_plot_mds, nm_plot_scatter, nm_plot_qq
 #
 # References: proteoDA, PRONE, NormalizerDE
 #
@@ -133,18 +132,6 @@ if (!exists("%||%", mode = "function")) {
     })
   })
   if (is.null(dim(var_mat))) var_mat else rowMeans(var_mat, na.rm = TRUE)
-}
-
-#' Relative log expression (RLE) matrix
-#'
-#' Computes row-wise deviation from each protein's median.
-#'
-#' @param mat Numeric matrix (proteins x samples)
-#' @return Numeric matrix of same dimensions: value - row median
-#' @keywords internal
-.nm_rle <- function(mat) {
-  row_med <- apply(mat, 1, median, na.rm = TRUE)
-  mat - row_med
 }
 
 #' Intra-group Pearson correlations
@@ -406,55 +393,7 @@ nm_plot_density <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 3. RLE — relative log expression
-# --------------------------------------------------------------------------
-
-#' RLE boxplot per method
-#'
-#' Relative log expression (value - row median) per sample,
-#' faceted by method. Boxes should be centered at y = 0 for ideal normalization.
-#'
-#' @inheritParams nm_plot_boxplot
-#' @return ggplot object.
-#' @export
-nm_plot_rle <- function(se, assay_names = NULL,
-                        condition_col = "Condition", ...) {
-  assay_names <- .nm_assay_names(se, assay_names)
-  condition   <- .nm_condition(se, condition_col)
-  samples     <- colnames(se)
-
-  rows <- vector("list", length(assay_names))
-  for (i in seq_along(assay_names)) {
-    mat  <- SummarizedExperiment::assay(se, assay_names[i])
-    rle  <- .nm_rle(mat)
-    df   <- as.data.frame(rle, stringsAsFactors = FALSE)
-    df$Protein <- rownames(rle)
-    df_long <- tidyr::pivot_longer(df, cols = -Protein,
-                                   names_to = "Sample", values_to = "RLE")
-    df_long$Method    <- assay_names[i]
-    df_long$Condition <- condition[match(df_long$Sample, samples)]
-    rows[[i]] <- df_long
-  }
-  rle_df <- do.call(rbind, rows)
-  rle_df <- .nm_method_factor(rle_df, assay_names)
-
-  ggplot2::ggplot(rle_df,
-    ggplot2::aes(x = Sample, y = RLE, fill = Condition)) +
-    ggplot2::geom_boxplot(outlier.size = 0.4, outlier.alpha = 0.3,
-                          na.rm = TRUE) +
-    ggplot2::geom_hline(yintercept = 0, linetype = "dashed",
-                        color = "firebrick", linewidth = 0.6) +
-    ggplot2::facet_wrap(~ Method, ncol = 2, scales = "free_x") +
-    ggplot2::labs(title = "Relative Log Expression (RLE)",
-                  x = NULL, y = "RLE (value - row median)") +
-    ggplot2::theme_bw() +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1,
-                                                        size = 7),
-                   strip.text  = ggplot2::element_text(face = "bold"))
-}
-
-# --------------------------------------------------------------------------
-# 4. PCV — percentage coefficient of variation
+# 3. PCV — percentage coefficient of variation
 # --------------------------------------------------------------------------
 
 #' PCV boxplot per method (PRONE-style)
@@ -526,7 +465,7 @@ nm_plot_pcv <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 5. PMAD — percentage median absolute deviation
+# 4. PMAD — percentage median absolute deviation
 # --------------------------------------------------------------------------
 
 #' PMAD boxplot per method (PRONE-style)
@@ -595,7 +534,7 @@ nm_plot_pmad <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 6. PEV — percentage explained variance
+# 5. PEV — percentage explained variance
 # --------------------------------------------------------------------------
 
 #' PEV boxplot per method (PRONE-style)
@@ -664,7 +603,7 @@ nm_plot_pev <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 7. PCA — principal component analysis
+# 6. PCA — principal component analysis
 # --------------------------------------------------------------------------
 
 #' PCA scatter plot per method
@@ -728,7 +667,7 @@ nm_plot_pca <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 8. Correlation — intra-group correlation distribution
+# 7. Correlation — intra-group correlation distribution
 # --------------------------------------------------------------------------
 
 #' Intra-group correlation boxplot per method (PRONE-style)
@@ -775,7 +714,7 @@ nm_plot_correlation <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 9. MDS — multidimensional scaling
+# 8. MDS — multidimensional scaling
 # --------------------------------------------------------------------------
 
 #' MDS 2D scatter per method
@@ -823,231 +762,136 @@ nm_plot_mds <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 10. Dendrogram — hierarchical clustering
+# 9. Scatter — sample-vs-sample (NormalyzerDE style)
 # --------------------------------------------------------------------------
 
-#' Hierarchical clustering dendrogram per method
+#' Sample-vs-sample scatter plot per method (NormalyzerDE style)
 #'
-#' Uses `hclust(dist(t(scale(mat))), method = "average")`.
-#' If `ggdendro` is available, returns a ggplot; otherwise uses base R graphics.
+#' Plots log2-intensity of one sample against another, one point per protein,
+#' for each normalization method. A linear fit and the adjusted R² are overlaid.
+#' Default comparison uses the first two columns of the SE (as NormalyzerDE does).
 #'
 #' @inheritParams nm_plot_boxplot
-#' @return ggplot (if ggdendro available) or NULL (base R plot rendered).
+#' @param sample1 Character. Name of the first sample (x-axis).
+#'   Default = first column of `se`.
+#' @param sample2 Character. Name of the second sample (y-axis).
+#'   Default = second column of `se`.
+#' @return ggplot object.
 #' @export
-nm_plot_dendrogram <- function(se, assay_names = NULL,
-                               condition_col = "Condition", ...) {
+nm_plot_scatter <- function(se, assay_names = NULL,
+                            condition_col = "Condition",
+                            sample1 = NULL, sample2 = NULL, ...) {
   assay_names <- .nm_assay_names(se, assay_names)
-  condition   <- .nm_condition(se, condition_col)
   samples     <- colnames(se)
-  has_ggdendro <- requireNamespace("ggdendro", quietly = TRUE)
 
-  if (!has_ggdendro) {
-    # Base R fallback: render all in one panel, warn user
-    message("nm_plot_dendrogram: 'ggdendro' not available — ",
-            "rendering base R dendrograms (not ggplot2).")
-    n_methods <- length(assay_names)
-    old_par   <- graphics::par(mfrow = c(ceiling(n_methods / 2), 2))
-    on.exit(graphics::par(old_par))
-    for (nm in assay_names) {
-      mat    <- SummarizedExperiment::assay(se, nm)
-      mat_ok <- mat[complete.cases(mat), ]
-      if (nrow(mat_ok) < 2) next
-      hc  <- stats::hclust(dist(t(scale(mat_ok))), method = "average")
-      cond_cols <- condition[match(hc$labels, samples)]
-      dend <- stats::as.dendrogram(hc)
-      col_map <- setNames(grDevices::rainbow(length(unique(condition))),
-                          unique(condition))
-      label_cols <- col_map[cond_cols]
-      graphics::plot(dend, main = nm, xlab = "", ylab = "Height",
-                     nodePar = list(lab.col = label_cols, pch = NA))
-    }
-    return(invisible(NULL))
-  }
+  # Default: first two columns
+  sample1 <- sample1 %||% samples[1]
+  sample2 <- sample2 %||% samples[2]
 
-  # ggdendro path: build one ggplot with facets
+  if (!sample1 %in% samples)
+    stop("sample1 '", sample1, "' not found in colnames(se).")
+  if (!sample2 %in% samples)
+    stop("sample2 '", sample2, "' not found in colnames(se).")
+
   rows <- vector("list", length(assay_names))
   for (i in seq_along(assay_names)) {
-    mat    <- SummarizedExperiment::assay(se, assay_names[i])
-    mat_ok <- mat[complete.cases(mat), ]
-    if (nrow(mat_ok) < 2) next
-    hc      <- stats::hclust(dist(t(scale(mat_ok))), method = "average")
-    dend_df <- ggdendro::dendro_data(hc)
-    seg_df  <- ggdendro::segment(dend_df)
-    lab_df  <- ggdendro::label(dend_df)
-    lab_df$Condition <- condition[match(lab_df$label, samples)]
-    seg_df$Method   <- assay_names[i]
-    lab_df$Method   <- assay_names[i]
-    rows[[i]] <- list(seg = seg_df, lab = lab_df)
+    mat <- SummarizedExperiment::assay(se, assay_names[i])
+    x   <- mat[, sample1]
+    y   <- mat[, sample2]
+    ok  <- is.finite(x) & is.finite(y)
+    r2  <- if (sum(ok) >= 2) {
+      summary(lm(y[ok] ~ x[ok]))$adj.r.squared
+    } else {
+      NA_real_
+    }
+    df <- data.frame(
+      x      = x,
+      y      = y,
+      Method = assay_names[i],
+      R2     = r2,
+      stringsAsFactors = FALSE
+    )
+    rows[[i]] <- df
   }
-  rows   <- Filter(Negate(is.null), rows)
-  seg_all <- do.call(rbind, lapply(rows, `[[`, "seg"))
-  lab_all <- do.call(rbind, lapply(rows, `[[`, "lab"))
-  seg_all$Method <- factor(seg_all$Method, levels = assay_names)
-  lab_all$Method <- factor(lab_all$Method, levels = assay_names)
+  scat_df <- do.call(rbind, rows)
+  scat_df <- .nm_method_factor(scat_df, assay_names)
 
-  ggplot2::ggplot() +
-    ggplot2::geom_segment(data = seg_all,
-      ggplot2::aes(x = x, y = y, xend = xend, yend = yend)) +
-    ggplot2::geom_text(data = lab_all,
-      ggplot2::aes(x = x, y = -0.01, label = label, color = Condition),
-      angle = 90, hjust = 1, size = 2.5) +
-    ggplot2::facet_wrap(~ Method, ncol = 2, scales = "free_x") +
-    ggplot2::labs(title = "Hierarchical clustering dendrogram",
-                  x = NULL, y = "Height") +
+  # R² annotation per facet
+  r2_df <- unique(scat_df[, c("Method", "R2")])
+  r2_df$label <- ifelse(is.na(r2_df$R2), "",
+                        paste0("R\u00b2 = ", round(r2_df$R2, 3)))
+  r2_df$Method <- factor(r2_df$Method, levels = assay_names)
+
+  # Global axis range for equal scales across facets
+  val_range <- range(c(scat_df$x, scat_df$y), na.rm = TRUE)
+  x_pos     <- val_range[1] + 0.02 * diff(val_range)
+  y_pos     <- val_range[2] - 0.04 * diff(val_range)
+
+  ggplot2::ggplot(scat_df, ggplot2::aes(x = x, y = y)) +
+    ggplot2::geom_point(size = 0.4, alpha = 0.4, color = "steelblue",
+                        na.rm = TRUE) +
+    ggplot2::geom_smooth(method = "lm", se = FALSE, color = "firebrick",
+                         linewidth = 0.7, na.rm = TRUE, formula = y ~ x) +
+    ggplot2::geom_text(data = r2_df,
+                       ggplot2::aes(x = x_pos, y = y_pos, label = label),
+                       hjust = 0, vjust = 1, size = 3, color = "black",
+                       inherit.aes = FALSE) +
+    ggplot2::facet_wrap(~ Method, ncol = 2) +
+    ggplot2::labs(title = paste0("Sample scatter: ", sample1, " vs ", sample2),
+                  x = paste0("log2 Intensity (", sample1, ")"),
+                  y = paste0("log2 Intensity (", sample2, ")")) +
     ggplot2::theme_bw() +
-    ggplot2::theme(axis.text.x  = ggplot2::element_blank(),
-                   axis.ticks.x = ggplot2::element_blank(),
-                   strip.text   = ggplot2::element_text(face = "bold"))
+    ggplot2::theme(strip.text = ggplot2::element_text(face = "bold"))
 }
 
 # --------------------------------------------------------------------------
-# 11. MA — M-A plot
+# 10. Q-Q — quantile-quantile normality check (NormalyzerDE style)
 # --------------------------------------------------------------------------
 
-#' MA plot per method
+#' Q-Q plot per method (NormalyzerDE style)
 #'
-#' For each protein in each sample, plots M = (sample - group mean) vs
-#' A = group mean intensity. A LOESS smooth and reference y = 0 are added.
-#' Faceted by method.
+#' Quantile-quantile plot against a normal distribution for a single sample,
+#' one facet per normalization method. Default uses the first column (as
+#' NormalyzerDE does).
 #'
 #' @inheritParams nm_plot_boxplot
-#' @param max_proteins Integer. Maximum proteins to plot (random sample for speed).
-#'   Default 2000.
+#' @param which_sample Character. Name of the sample to inspect.
+#'   Default = first column of `se`.
 #' @return ggplot object.
 #' @export
-nm_plot_ma <- function(se, assay_names = NULL,
+nm_plot_qq <- function(se, assay_names = NULL,
                        condition_col = "Condition",
-                       max_proteins = 2000L, ...) {
-  assay_names <- .nm_assay_names(se, assay_names)
-  condition   <- .nm_condition(se, condition_col)
-  samples     <- colnames(se)
-  groups      <- as.factor(condition)
+                       which_sample = NULL, ...) {
+  assay_names  <- .nm_assay_names(se, assay_names)
+  samples      <- colnames(se)
+  which_sample <- which_sample %||% samples[1]
+
+  if (!which_sample %in% samples)
+    stop("which_sample '", which_sample, "' not found in colnames(se).")
 
   rows <- vector("list", length(assay_names))
   for (i in seq_along(assay_names)) {
-    mat    <- SummarizedExperiment::assay(se, assay_names[i])
-    # Group means per protein
-    group_mean <- sapply(levels(groups), function(g) {
-      idx <- which(groups == g)
-      rowMeans(mat[, idx, drop = FALSE], na.rm = TRUE)
-    })
-    # Long format: one row per (protein, sample)
-    ma_rows <- vector("list", ncol(mat))
-    for (s in seq_len(ncol(mat))) {
-      g     <- as.character(groups[s])
-      A_val <- group_mean[, g]
-      M_val <- mat[, s] - A_val
-      ma_rows[[s]] <- data.frame(A = A_val, M = M_val,
-                                 Protein = rownames(mat),
-                                 Sample = samples[s],
-                                 Method = assay_names[i],
-                                 stringsAsFactors = FALSE)
-    }
-    df <- do.call(rbind, ma_rows)
-    df <- df[is.finite(df$A) & is.finite(df$M), ]
-    # Subsample for speed
-    if (nrow(df) > max_proteins * ncol(mat)) {
-      set.seed(42)
-      df <- df[sample(nrow(df), min(nrow(df), max_proteins * ncol(mat))), ]
-    }
+    mat <- SummarizedExperiment::assay(se, assay_names[i])
+    vals <- mat[, which_sample]
+    df <- data.frame(
+      Value  = vals,
+      Method = assay_names[i],
+      stringsAsFactors = FALSE
+    )
     rows[[i]] <- df
   }
-  ma_df <- do.call(rbind, rows)
-  ma_df <- .nm_method_factor(ma_df, assay_names)
+  qq_df <- do.call(rbind, rows)
+  qq_df <- .nm_method_factor(qq_df, assay_names)
 
-  ggplot2::ggplot(ma_df, ggplot2::aes(x = A, y = M)) +
-    ggplot2::geom_point(size = 0.3, alpha = 0.2, color = "steelblue",
-                        na.rm = TRUE) +
-    ggplot2::geom_smooth(method = "loess", se = FALSE, color = "firebrick",
-                         linewidth = 0.8, na.rm = TRUE, formula = y ~ x) +
-    ggplot2::geom_hline(yintercept = 0, linetype = "dashed",
-                        color = "black", linewidth = 0.5) +
+  ggplot2::ggplot(qq_df, ggplot2::aes(sample = Value)) +
+    ggplot2::stat_qq(na.rm = TRUE, size = 0.5, alpha = 0.5,
+                     color = "steelblue") +
+    ggplot2::stat_qq_line(na.rm = TRUE, color = "firebrick",
+                          linewidth = 0.7) +
     ggplot2::facet_wrap(~ Method, ncol = 2) +
-    ggplot2::labs(title = "MA plot (M = sample − group mean)",
-                  x = "A (group mean intensity)", y = "M (deviation)") +
-    ggplot2::theme_bw() +
-    ggplot2::theme(strip.text = ggplot2::element_text(face = "bold"))
-}
-
-# --------------------------------------------------------------------------
-# 12. Mean-SD — SD vs mean
-# --------------------------------------------------------------------------
-
-#' Mean-SD plot per method
-#'
-#' Standard deviation vs mean intensity per protein, with LOESS trend.
-#' A flat trend indicates stabilized variance (ideal after normalization).
-#'
-#' @inheritParams nm_plot_boxplot
-#' @return ggplot object.
-#' @export
-nm_plot_meansd <- function(se, assay_names = NULL,
-                           condition_col = "Condition", ...) {
-  assay_names <- .nm_assay_names(se, assay_names)
-
-  rows <- vector("list", length(assay_names))
-  for (i in seq_along(assay_names)) {
-    mat  <- SummarizedExperiment::assay(se, assay_names[i])
-    Mean <- rowMeans(mat, na.rm = TRUE)
-    SD   <- apply(mat, 1, sd, na.rm = TRUE)
-    df   <- data.frame(Mean = Mean, SD = SD, Method = assay_names[i],
-                       stringsAsFactors = FALSE)
-    df   <- df[is.finite(df$Mean) & is.finite(df$SD), ]
-    rows[[i]] <- df
-  }
-  ms_df <- do.call(rbind, rows)
-  ms_df <- .nm_method_factor(ms_df, assay_names)
-
-  ggplot2::ggplot(ms_df, ggplot2::aes(x = Mean, y = SD)) +
-    ggplot2::geom_point(size = 0.5, alpha = 0.3, color = "steelblue",
-                        na.rm = TRUE) +
-    ggplot2::geom_smooth(method = "loess", se = FALSE, color = "firebrick",
-                         linewidth = 0.8, na.rm = TRUE, formula = y ~ x) +
-    ggplot2::facet_wrap(~ Method, ncol = 2) +
-    ggplot2::labs(title = "Mean-SD relationship per protein",
-                  x = "Mean (log2 Intensity)", y = "SD") +
-    ggplot2::theme_bw() +
-    ggplot2::theme(strip.text = ggplot2::element_text(face = "bold"))
-}
-
-# --------------------------------------------------------------------------
-# 13. CV vs intensity — bonus
-# --------------------------------------------------------------------------
-
-#' CV vs mean intensity scatter per method
-#'
-#' Coefficient of variation (%) vs mean intensity per protein, with LOESS trend.
-#' Ideal normalization reduces CV heteroscedasticity.
-#'
-#' @inheritParams nm_plot_boxplot
-#' @return ggplot object.
-#' @export
-nm_plot_cv_intensity <- function(se, assay_names = NULL,
-                                 condition_col = "Condition", ...) {
-  assay_names <- .nm_assay_names(se, assay_names)
-
-  rows <- vector("list", length(assay_names))
-  for (i in seq_along(assay_names)) {
-    mat  <- SummarizedExperiment::assay(se, assay_names[i])
-    Mean <- rowMeans(mat, na.rm = TRUE)
-    SD   <- apply(mat, 1, sd, na.rm = TRUE)
-    CV   <- 100 * SD / abs(Mean)
-    df   <- data.frame(Mean = Mean, CV = CV, Method = assay_names[i],
-                       stringsAsFactors = FALSE)
-    df   <- df[is.finite(df$Mean) & is.finite(df$CV), ]
-    rows[[i]] <- df
-  }
-  cv_df <- do.call(rbind, rows)
-  cv_df <- .nm_method_factor(cv_df, assay_names)
-
-  ggplot2::ggplot(cv_df, ggplot2::aes(x = Mean, y = CV)) +
-    ggplot2::geom_point(size = 0.5, alpha = 0.3, color = "steelblue",
-                        na.rm = TRUE) +
-    ggplot2::geom_smooth(method = "loess", se = FALSE, color = "firebrick",
-                         linewidth = 0.8, na.rm = TRUE, formula = y ~ x) +
-    ggplot2::facet_wrap(~ Method, ncol = 2) +
-    ggplot2::labs(title = "CV vs mean intensity per protein",
-                  x = "Mean (log2 Intensity)", y = "CV (%)") +
+    ggplot2::labs(title = paste0("Q-Q plot: sample '", which_sample, "'"),
+                  x = "Theoretical quantiles",
+                  y = "Sample quantiles") +
     ggplot2::theme_bw() +
     ggplot2::theme(strip.text = ggplot2::element_text(face = "bold"))
 }
@@ -1068,9 +912,8 @@ nm_plot_cv_intensity <- function(se, assay_names = NULL,
 #' @param condition_col Column name in `colData(se)` with condition labels.
 #'   Default `"Condition"`.
 #' @param plots Character vector of plot names to generate, or `"all"` (default).
-#'   Valid names: `"boxplot"`, `"density"`, `"rle"`, `"pcv"`, `"pmad"`,
-#'   `"pev"`, `"pca"`, `"correlation"`, `"mds"`, `"dendrogram"`, `"ma"`,
-#'   `"meansd"`, `"cv_intensity"`.
+#'   Valid names: `"boxplot"`, `"density"`, `"pcv"`, `"pmad"`, `"pev"`,
+#'   `"pca"`, `"correlation"`, `"mds"`, `"scatter"`, `"qq"`.
 #' @param cor_method Correlation method for `nm_plot_correlation()`.
 #'   Default `"pearson"`.
 #' @param verbose Logical. Print progress messages. Default `TRUE`.
@@ -1080,7 +923,8 @@ nm_plot_cv_intensity <- function(se, assay_names = NULL,
 #' \dontrun{
 #' se_nm  <- import_norm_matrices("./results", "./data/metadata.tsv")
 #' plots  <- normalization_metrics(se_nm)
-#' plots$rle
+#' plots$scatter
+#' plots$qq
 #' plots$pca
 #' plots$boxplot
 #' }
@@ -1105,25 +949,21 @@ normalization_metrics <- function(se,
     stop("Assay(s) not found in SE: ", paste(missing_a, collapse = ", "))
 
   # --- Plot registry ---
-  all_plot_names <- c("boxplot", "density", "rle", "pcv", "pmad", "pev",
-                      "pca", "correlation", "mds", "dendrogram", "ma",
-                      "meansd", "cv_intensity")
+  all_plot_names <- c("boxplot", "density", "pcv", "pmad", "pev",
+                      "pca", "correlation", "mds", "scatter", "qq")
 
   plot_fns <- list(
-    boxplot      = function() nm_plot_boxplot(se, assay_names, condition_col),
-    density      = function() nm_plot_density(se, assay_names, condition_col),
-    rle          = function() nm_plot_rle(se, assay_names, condition_col),
-    pcv          = function() nm_plot_pcv(se, assay_names, condition_col),
-    pmad         = function() nm_plot_pmad(se, assay_names, condition_col),
-    pev          = function() nm_plot_pev(se, assay_names, condition_col),
-    pca          = function() nm_plot_pca(se, assay_names, condition_col),
-    correlation  = function() nm_plot_correlation(se, assay_names, condition_col,
-                                                  cor_method = cor_method),
-    mds          = function() nm_plot_mds(se, assay_names, condition_col),
-    dendrogram   = function() nm_plot_dendrogram(se, assay_names, condition_col),
-    ma           = function() nm_plot_ma(se, assay_names, condition_col),
-    meansd       = function() nm_plot_meansd(se, assay_names, condition_col),
-    cv_intensity = function() nm_plot_cv_intensity(se, assay_names, condition_col)
+    boxplot     = function() nm_plot_boxplot(se, assay_names, condition_col),
+    density     = function() nm_plot_density(se, assay_names, condition_col),
+    pcv         = function() nm_plot_pcv(se, assay_names, condition_col),
+    pmad        = function() nm_plot_pmad(se, assay_names, condition_col),
+    pev         = function() nm_plot_pev(se, assay_names, condition_col),
+    pca         = function() nm_plot_pca(se, assay_names, condition_col),
+    correlation = function() nm_plot_correlation(se, assay_names, condition_col,
+                                                 cor_method = cor_method),
+    mds         = function() nm_plot_mds(se, assay_names, condition_col),
+    scatter     = function() nm_plot_scatter(se, assay_names, condition_col),
+    qq          = function() nm_plot_qq(se, assay_names, condition_col)
   )
 
   # --- Determine which plots to run ---
@@ -1193,47 +1033,48 @@ if (FALSE) {
   dim(se_nm)                               # proteins x samples
 
 
-  # ---- 2. Generate all 13 quality plots at once ------------------------------
+  # ---- 2. Generate all 10 quality plots at once ------------------------------
 
   plots <- normalization_metrics(se_nm)
 
   # Names of available plots
-  names(plots)
+  names(plots)  # boxplot density pcv pmad pev pca correlation mds scatter qq
 
 
   # ---- 3. Inspect individual plots -------------------------------------------
 
-  plots$boxplot      # intensity distribution per sample
-  plots$density      # KDE curves per sample
-  plots$rle          # RLE — boxes should be centered at y = 0
-  plots$pca          # PC1 vs PC2, colored by condition
-  plots$correlation  # intra-group Pearson correlation violin
-  plots$mds          # MDS 2D scatter
-  plots$dendrogram   # hierarchical clustering
-  plots$ma           # MA plot (M = sample − group mean)
-  plots$meansd       # SD vs mean — flat trend = ideal
-  plots$cv_intensity # CV(%) vs mean intensity
-  plots$pcv          # mean CV per condition and method
-  plots$pmad         # mean MAD per condition and method
-  plots$pev          # mean variance per condition and method
+  plots$boxplot     # intensity distribution per sample
+  plots$density     # KDE curves per sample
+  plots$pcv         # mean CV per condition and method
+  plots$pmad        # mean MAD per condition and method
+  plots$pev         # mean variance per condition and method
+  plots$pca         # PC1 vs PC2, colored by condition
+  plots$correlation # intra-group Pearson correlation violin
+  plots$mds         # MDS 2D scatter
+  plots$scatter     # sample-vs-sample scatter with R²
+  plots$qq          # Q-Q normality plot for first sample
 
 
   # ---- 4. Single assay, single plot ------------------------------------------
 
   nm_plot_density(se_nm, assay_names = "cycloess")
 
-  nm_plot_rle(se_nm, assay_names = c("cycloess", "Quantile"))
+  # Scatter between specific samples
+  nm_plot_scatter(se_nm, sample1 = "A_1", sample2 = "A_2")
+
+  # Q-Q for a specific sample
+  nm_plot_qq(se_nm, which_sample = "B_1")
 
 
   # ---- 5. Selective execution via orchestrator --------------------------------
 
-  # Only RLE, PCA and correlation for two methods
+  # Only scatter, Q-Q and PCA for two methods
   subset_plots <- normalization_metrics(
     se_nm,
     assay_names = c("cycloess", "Quantile"),
-    plots       = c("rle", "pca", "correlation")
+    plots       = c("scatter", "qq", "pca")
   )
-  subset_plots$rle
+  subset_plots$scatter
 
 
   # ---- 6. Export plots to PNG -------------------------------------------------
