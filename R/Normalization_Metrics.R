@@ -452,7 +452,7 @@ nm_plot_pcv <- function(se, assay_names = NULL,
   } else {
     ggplot2::ggplot(df,
       ggplot2::aes(x = Normalization, y = PCV, fill = Normalization)) +
-      ggplot2::geom_boxplot(na.rm = TRUE) +
+      ggplot2::geom_boxplot(outlier.shape = NA, na.rm = TRUE) +
       ggplot2::stat_boxplot(geom = "errorbar", width = 0.4, na.rm = TRUE) +
       ggplot2::scale_fill_manual(name = "Normalization Method",
                                  values = col_vector) +
@@ -521,7 +521,7 @@ nm_plot_pmad <- function(se, assay_names = NULL,
   } else {
     ggplot2::ggplot(df,
       ggplot2::aes(x = Normalization, y = PMAD, fill = Normalization)) +
-      ggplot2::geom_boxplot(na.rm = TRUE) +
+      ggplot2::geom_boxplot(outlier.shape = NA, na.rm = TRUE) +
       ggplot2::stat_boxplot(geom = "errorbar", width = 0.4, na.rm = TRUE) +
       ggplot2::scale_fill_manual(name = "Normalization Method",
                                  values = col_vector) +
@@ -590,7 +590,7 @@ nm_plot_pev <- function(se, assay_names = NULL,
   } else {
     ggplot2::ggplot(df,
       ggplot2::aes(x = Normalization, y = PEV, fill = Normalization)) +
-      ggplot2::geom_boxplot(na.rm = TRUE) +
+      ggplot2::geom_boxplot(outlier.shape = NA, na.rm = TRUE) +
       ggplot2::stat_boxplot(geom = "errorbar", width = 0.4, na.rm = TRUE) +
       ggplot2::scale_fill_manual(name = "Normalization Method",
                                  values = col_vector) +
@@ -701,7 +701,7 @@ nm_plot_correlation <- function(se, assay_names = NULL,
 
   ggplot2::ggplot(cor_df,
     ggplot2::aes(x = Normalization, y = Correlation, fill = Normalization)) +
-    ggplot2::geom_boxplot(na.rm = TRUE) +
+    ggplot2::geom_boxplot(outlier.shape = NA, na.rm = TRUE) +
     ggplot2::stat_boxplot(geom = "errorbar", width = 0.4, na.rm = TRUE) +
     ggplot2::scale_fill_manual(name = "Normalization Method",
                                values = col_vector) +
