@@ -87,7 +87,7 @@ if (!exists("%||%", mode = "function")) {
       100 * sd(x) / abs(m)
     })
   })
-  if (is.null(dim(cv_mat))) cv_mat else rowMeans(cv_mat, na.rm = TRUE)
+  if (is.null(dim(cv_mat))) cv_mat else colMeans(cv_mat, na.rm = TRUE)
 }
 
 #' Per-protein MAD averaged across groups (PRONE-style PMAD)
@@ -109,7 +109,7 @@ if (!exists("%||%", mode = "function")) {
       median(abs(x - median(x)))
     })
   })
-  if (is.null(dim(mad_mat))) mad_mat else rowMeans(mad_mat, na.rm = TRUE)
+  if (is.null(dim(mad_mat))) mad_mat else colMeans(mad_mat, na.rm = TRUE)
 }
 
 #' Per-protein variance averaged across groups (PRONE-style PEV)
@@ -131,7 +131,7 @@ if (!exists("%||%", mode = "function")) {
       var(x)
     })
   })
-  if (is.null(dim(var_mat))) var_mat else rowMeans(var_mat, na.rm = TRUE)
+  if (is.null(dim(var_mat))) var_mat else colMeans(var_mat, na.rm = TRUE)
 }
 
 #' Intra-group Pearson correlations
