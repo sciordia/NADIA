@@ -27,7 +27,7 @@ source("R/Processing.R")
 
 result <- process_proteomics(
   preprocessing = preprocessing,
-  norm_method = "quantileNorm",
+  norm_method = "quantile",
   export_dir = "./results",
   min_reps_filter = 3,
   cyclic_loess_method = "fast",

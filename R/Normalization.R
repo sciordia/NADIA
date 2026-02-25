@@ -6,16 +6,15 @@
 #   - Zero-to-NA conversion
 #   - Protein filtering by group presence
 #   - SummarizedExperiment creation
-#   - 27 normalization methods (cycloess default)
+#   - 21 normalization methods (cycloess default)
 #
 # Dependencies (required):
 #   - SummarizedExperiment, S4Vectors
 #
 # Dependencies (optional, per method):
 #   - limma : cycloess
-#   - MASS  : Rlr, rlrNorm
+#   - MASS  : Rlr
 #   - vsn   : vsn
-#   - MBQN  : MBQN
 #
 # Author: Sergio Ciordia
 # License: MIT
@@ -267,10 +266,10 @@ if (!exists("%||%", mode = "function")) {
 # All functions return a numeric matrix in log2 scale with the same
 # rownames/colnames as the input.
 #
-# Grupo A (.norm_log2norm .. .norm_center_mean): receive x_raw (linear).
+# Grupo A (.norm_log2norm .. .norm_max): receive x_raw (linear).
 # Grupo B (.norm_quantile .. .norm_center_quantile): receive x_log2.
 #
-# Note: eqmedians, center_median, center_mean belong to Grupo A (receive x_raw)
+# Note: eqmedians and center_median belong to Grupo A (receive x_raw)
 # but apply log2() internally before the centering step.
 
 # --- Grupo A: x_raw → log2 ---
@@ -316,14 +315,7 @@ if (!exists("%||%", mode = "function")) {
   x
 }
 
-.norm_div_median <- function(x_raw) {
-  col_medians <- apply(x_raw, 2, median, na.rm = TRUE)
-  x <- log2(sweep(x_raw, 2, col_medians, "/"))
-  x[is.infinite(x)] <- NA
-  x
-}
-
-# These three receive x_raw but apply log2 internally before centering.
+# These two receive x_raw but apply log2 internally before centering.
 
 .norm_eqmedians <- function(x_raw) {
   x <- log2(x_raw)
@@ -337,13 +329,6 @@ if (!exists("%||%", mode = "function")) {
   x[is.infinite(x)] <- NA
   col_medians <- apply(x, 2, median, na.rm = TRUE)
   sweep(x, 2, col_medians, "-")
-}
-
-.norm_center_mean <- function(x_raw) {
-  x <- log2(x_raw)
-  x[is.infinite(x)] <- NA
-  col_means <- colMeans(x, na.rm = TRUE)
-  sweep(x, 2, col_means, "-")
 }
 
 .norm_vsn <- function(x_raw) {
@@ -441,14 +426,6 @@ if (!exists("%||%", mode = "function")) {
   sweep(x_log2, 2, ref_quantiles - ref_center, "-")
 }
 
-.norm_mbqn <- function(x_log2) {
-  if (!requireNamespace("MBQN", quietly = TRUE)) {
-    stop("Se requiere 'MBQN' para el metodo MBQN. ",
-         "Instalalo con BiocManager::install('MBQN')")
-  }
-  MBQN::mbqn(x_log2, FUN = mean, verbose = FALSE)
-}
-
 .norm_quantile_robust <- function(x_log2) {
   # Quantile normalization robusta — base R, sin dependencias externas.
   # Identica a .norm_quantile() pero usa la mediana (en lugar de la media)
@@ -495,15 +472,15 @@ if (!exists("%||%", mode = "function")) {
 #' @param min_groups Minimum groups meeting min_reps (default: 1)
 #' @param norm_method Normalization method (default: "cycloess"). One of:
 #'   \itemize{
-#'     \item Grupo A (input: raw intensities): "log2Norm", "giNorm", "GlobalMedian",
-#'       "GlobalMean", "Median", "Mean", "div_mean", "div_median",
-#'       "eqmedians", "center_median", "center_mean",
+#'     \item Grupo A (input: raw intensities): "log2Norm", "GlobalMedian",
+#'       "GlobalMean", "Median", "Mean", "div_mean",
+#'       "eqmedians", "center_median",
 #'       "vsn", "sum", "max"
 #'     \item Grupo B (input: log2 assay): "log2" (no extra normalization),
-#'       "Quantile", "quantileNorm", "GQuantileAlign",
-#'       "Rlr", "rlrNorm", "MAD", "cycloess",
+#'       "quantile", "GQuantileAlign",
+#'       "Rlr", "MAD", "cycloess",
 #'       "medianNorm", "meanNorm", "center_quantile",
-#'       "MBQN", "quantiles.robust"
+#'       "quantile.robust"
 #'   }
 #' @param cyclic_loess_method Cyclic Loess method: "fast" or "pairs" (default: "fast")
 #' @param cyclic_loess_iterations Number of iterations for Cyclic Loess (default: 3)
@@ -530,7 +507,7 @@ if (!exists("%||%", mode = "function")) {
 #' norm_result2 <- normalize_proteomics(
 #'   data = protein_data,
 #'   metadata = metadata,
-#'   norm_method = "giNorm"
+#'   norm_method = "GlobalMedian"
 #' )
 #' }
 #'
@@ -624,22 +601,22 @@ normalize_proteomics <- function(
   # =========================================================================
 
   # Methods that accept x_raw as input.
-  # (eqmedians, center_median, center_mean apply log2 internally but still
+  # (eqmedians and center_median apply log2 internally but still
   #  receive x_raw to stay consistent with the other Grupo A methods.)
   .raw_methods <- c(
-    "log2Norm", "giNorm", "GlobalMedian", "GlobalMean",
-    "Median", "Mean", "div_mean", "div_median",
-    "eqmedians", "center_median", "center_mean",
+    "log2Norm", "GlobalMedian", "GlobalMean",
+    "Median", "Mean", "div_mean",
+    "eqmedians", "center_median",
     "vsn", "sum", "max"
   )
 
   norm_method <- match.arg(norm_method, c(
-    "log2Norm", "giNorm", "eqmedians", "GlobalMedian", "GlobalMean",
-    "Median", "Mean", "center_median", "center_mean", "div_mean", "div_median",
-    "log2", "Quantile", "Rlr", "MAD", "cycloess",
-    "medianNorm", "meanNorm", "quantileNorm", "rlrNorm", "GQuantileAlign",
+    "log2Norm", "eqmedians", "GlobalMedian", "GlobalMean",
+    "Median", "Mean", "center_median", "div_mean",
+    "log2", "quantile", "Rlr", "MAD", "cycloess",
+    "medianNorm", "meanNorm", "GQuantileAlign",
     "center_quantile",
-    "vsn", "sum", "max", "MBQN", "quantiles.robust"
+    "vsn", "sum", "max", "quantile.robust"
   ))
 
   x_raw  <- SummarizedExperiment::assay(se, "raw")
@@ -654,21 +631,16 @@ normalize_proteomics <- function(
 
     x_norm <- switch(norm_method,
       "log2Norm"        = .norm_log2norm(x_input),
-      "giNorm"          = ,
       "GlobalMedian"    = .norm_ginorm(x_input),
       "GlobalMean"      = .norm_globalmean(x_input),
       "Median"          = .norm_median_raw(x_input),
       "Mean"            = .norm_mean_raw(x_input),
       "div_mean"        = .norm_div_mean(x_input),
-      "div_median"      = .norm_div_median(x_input),
       "eqmedians"       = .norm_eqmedians(x_input),
       "center_median"   = .norm_center_median(x_input),
-      "center_mean"     = .norm_center_mean(x_input),
-      "Quantile"        = ,
-      "quantileNorm"    = ,
+      "quantile"        = ,
       "GQuantileAlign"  = .norm_quantile(x_input),
-      "Rlr"             = ,
-      "rlrNorm"         = .norm_rlr(x_input),
+      "Rlr"             = .norm_rlr(x_input),
       "MAD"             = .norm_mad(x_input),
       "cycloess"        = limma::normalizeCyclicLoess(
                             x_input,
@@ -681,8 +653,7 @@ normalize_proteomics <- function(
       "vsn"               = .norm_vsn(x_input),
       "sum"               = .norm_ginorm(x_input),
       "max"               = .norm_max(x_input),
-      "MBQN"              = .norm_mbqn(x_input),
-      "quantiles.robust"  = .norm_quantile_robust(x_input)
+      "quantile.robust"   = .norm_quantile_robust(x_input)
     )
 
     rownames(x_norm) <- rownames(x_log2)
