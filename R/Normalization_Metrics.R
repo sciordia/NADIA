@@ -392,6 +392,24 @@ nm_plot_density <- function(se, assay_names = NULL,
     ggplot2::theme(strip.text = ggplot2::element_text(face = "bold"))
 }
 
+# Calcula los límites Tukey de los bigotes por grupo y devuelve un rango
+# con padding para usar en coord_cartesian(ylim = ...).
+.nm_axis_limits <- function(x, groups, mult = 1.5, padding = 0.05) {
+  bounds <- tapply(x, groups, function(vals) {
+    vals <- vals[!is.na(vals)]
+    if (length(vals) == 0L) return(c(NA_real_, NA_real_))
+    q1  <- stats::quantile(vals, 0.25)
+    q3  <- stats::quantile(vals, 0.75)
+    iqr <- q3 - q1
+    c(max(min(vals), q1 - mult * iqr),
+      min(max(vals), q3 + mult * iqr))
+  })
+  lo  <- min(vapply(bounds, `[`, numeric(1), 1), na.rm = TRUE)
+  hi  <- max(vapply(bounds, `[`, numeric(1), 2), na.rm = TRUE)
+  pad <- (hi - lo) * padding
+  c(lo - pad, hi + pad)
+}
+
 # --------------------------------------------------------------------------
 # 3. PCV — percentage coefficient of variation
 # --------------------------------------------------------------------------
@@ -454,6 +472,7 @@ nm_plot_pcv <- function(se, assay_names = NULL,
       ggplot2::aes(x = Normalization, y = PCV, fill = Normalization)) +
       ggplot2::geom_boxplot(outlier.shape = NA, na.rm = TRUE) +
       ggplot2::stat_boxplot(geom = "errorbar", width = 0.4, na.rm = TRUE) +
+      ggplot2::coord_cartesian(ylim = .nm_axis_limits(df$PCV, df$Normalization)) +
       ggplot2::scale_fill_manual(name = "Normalization Method",
                                  values = col_vector) +
       ggplot2::labs(title = "Percentage Coefficient of Variation (PCV)",
@@ -523,6 +542,7 @@ nm_plot_pmad <- function(se, assay_names = NULL,
       ggplot2::aes(x = Normalization, y = PMAD, fill = Normalization)) +
       ggplot2::geom_boxplot(outlier.shape = NA, na.rm = TRUE) +
       ggplot2::stat_boxplot(geom = "errorbar", width = 0.4, na.rm = TRUE) +
+      ggplot2::coord_cartesian(ylim = .nm_axis_limits(df$PMAD, df$Normalization)) +
       ggplot2::scale_fill_manual(name = "Normalization Method",
                                  values = col_vector) +
       ggplot2::labs(title = "Percentage Median Absolute Deviation (PMAD)",
@@ -592,6 +612,7 @@ nm_plot_pev <- function(se, assay_names = NULL,
       ggplot2::aes(x = Normalization, y = PEV, fill = Normalization)) +
       ggplot2::geom_boxplot(outlier.shape = NA, na.rm = TRUE) +
       ggplot2::stat_boxplot(geom = "errorbar", width = 0.4, na.rm = TRUE) +
+      ggplot2::coord_cartesian(ylim = .nm_axis_limits(df$PEV, df$Normalization)) +
       ggplot2::scale_fill_manual(name = "Normalization Method",
                                  values = col_vector) +
       ggplot2::labs(title = "Percentage Explained Variance (PEV)",
@@ -703,6 +724,7 @@ nm_plot_correlation <- function(se, assay_names = NULL,
     ggplot2::aes(x = Normalization, y = Correlation, fill = Normalization)) +
     ggplot2::geom_boxplot(outlier.shape = NA, na.rm = TRUE) +
     ggplot2::stat_boxplot(geom = "errorbar", width = 0.4, na.rm = TRUE) +
+    ggplot2::coord_cartesian(ylim = .nm_axis_limits(cor_df$Correlation, cor_df$Normalization)) +
     ggplot2::scale_fill_manual(name = "Normalization Method",
                                values = col_vector) +
     ggplot2::labs(title = paste0("Intra-group ", cor_method, " correlation"),
