@@ -269,8 +269,7 @@ if (!exists("%||%", mode = "function")) {
 # Grupo A (.norm_log2norm .. .norm_max): receive x_raw (linear).
 # Grupo B (.norm_quantile .. .norm_center_quantile): receive x_log2.
 #
-# Note: eqmedians and center_median belong to Grupo A (receive x_raw)
-# but apply log2() internally before the centering step.
+# Note: eqmedians belongs to Grupo A (receives x_raw) but applies log2() internally.
 
 # --- Grupo A: x_raw → log2 ---
 
@@ -303,12 +302,6 @@ if (!exists("%||%", mode = "function")) {
   sweep(x, 2, col_medians - mean(col_medians), "-")
 }
 
-.norm_center_median <- function(x_raw) {
-  x <- log2(x_raw)
-  x[is.infinite(x)] <- NA
-  col_medians <- apply(x, 2, median, na.rm = TRUE)
-  sweep(x, 2, col_medians, "-")
-}
 
 .norm_vsn <- function(x_raw) {
   if (!requireNamespace("vsn", quietly = TRUE)) {
@@ -452,7 +445,7 @@ if (!exists("%||%", mode = "function")) {
 #' @param norm_method Normalization method (default: "cycloess"). One of:
 #'   \itemize{
 #'     \item Grupo A (input: raw intensities): "log2Norm", "GlobalMedian",
-#'       "GlobalMean", "eqmedians", "center_median", "vsn", "max"
+#'       "GlobalMean", "eqmedians", "vsn", "max"
 #'     \item Grupo B (input: log2 assay): "log2" (no extra normalization),
 #'       "quantile", "Rlr", "MAD", "cycloess",
 #'       "medianNorm", "meanNorm", "center_quantile",
@@ -577,17 +570,16 @@ normalize_proteomics <- function(
   # =========================================================================
 
   # Methods that accept x_raw as input.
-  # (eqmedians and center_median apply log2 internally but still
-  #  receive x_raw to stay consistent with the other Grupo A methods.)
+  # (eqmedians applies log2 internally but still receives x_raw to stay
+  #  consistent with the other Grupo A methods.)
   .raw_methods <- c(
     "log2Norm", "GlobalMedian", "GlobalMean",
-    "eqmedians", "center_median",
+    "eqmedians",
     "vsn", "max"
   )
 
   norm_method <- match.arg(norm_method, c(
     "log2Norm", "eqmedians", "GlobalMedian", "GlobalMean",
-    "center_median",
     "log2", "quantile", "Rlr", "MAD", "cycloess",
     "medianNorm", "meanNorm",
     "center_quantile",
@@ -609,7 +601,6 @@ normalize_proteomics <- function(
       "GlobalMedian"    = .norm_ginorm(x_input),
       "GlobalMean"      = .norm_globalmean(x_input),
       "eqmedians"       = .norm_eqmedians(x_input),
-      "center_median"   = .norm_center_median(x_input),
       "quantile"        = .norm_quantile(x_input),
       "Rlr"             = .norm_rlr(x_input),
       "MAD"             = .norm_mad(x_input),

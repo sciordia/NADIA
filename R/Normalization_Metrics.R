@@ -475,7 +475,7 @@ nm_plot_pcv <- function(se, assay_names = NULL,
       ggplot2::coord_cartesian(ylim = .nm_axis_limits(df$PCV, df$Normalization)) +
       ggplot2::scale_fill_manual(name = "Normalization Method",
                                  values = col_vector) +
-      ggplot2::labs(title = "Percentage Coefficient of Variation (PCV)",
+      ggplot2::labs(title = "Intragroup Pooled Coefficient of Variation (PCV)",
                     x = "Normalization Method", y = "PCV") +
       ggplot2::theme_bw() +
       ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90,
@@ -545,7 +545,7 @@ nm_plot_pmad <- function(se, assay_names = NULL,
       ggplot2::coord_cartesian(ylim = .nm_axis_limits(df$PMAD, df$Normalization)) +
       ggplot2::scale_fill_manual(name = "Normalization Method",
                                  values = col_vector) +
-      ggplot2::labs(title = "Percentage Median Absolute Deviation (PMAD)",
+      ggplot2::labs(title = "Intragroup Pooled Median Absolute Deviation (PMAD)",
                     x = "Normalization Method", y = "PMAD") +
       ggplot2::theme_bw() +
       ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90,
@@ -615,7 +615,7 @@ nm_plot_pev <- function(se, assay_names = NULL,
       ggplot2::coord_cartesian(ylim = .nm_axis_limits(df$PEV, df$Normalization)) +
       ggplot2::scale_fill_manual(name = "Normalization Method",
                                  values = col_vector) +
-      ggplot2::labs(title = "Percentage Explained Variance (PEV)",
+      ggplot2::labs(title = "Intragroup Pooled Estimate of Variance (PEV)",
                     x = "Normalization Method", y = "PEV") +
       ggplot2::theme_bw() +
       ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90,
@@ -727,7 +727,7 @@ nm_plot_correlation <- function(se, assay_names = NULL,
     ggplot2::coord_cartesian(ylim = .nm_axis_limits(cor_df$Correlation, cor_df$Normalization)) +
     ggplot2::scale_fill_manual(name = "Normalization Method",
                                values = col_vector) +
-    ggplot2::labs(title = paste0("Intra-group ", cor_method, " correlation"),
+    ggplot2::labs(title = "Intragroup Pearson Correlation",
                   x = "Normalization Method",
                   y = paste0(tools::toTitleCase(cor_method), " correlation")) +
     ggplot2::theme_bw() +
