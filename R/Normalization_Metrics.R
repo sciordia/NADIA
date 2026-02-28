@@ -1255,7 +1255,7 @@ nm_plot_metrics <- function(se, assay_names = NULL,
     ggplot2::geom_label(
       ggplot2::aes(label = ifelse(is.na(Value), "NA",
                                   sprintf("%.2f", Value))),
-      size = 2.5, fill = "white", label.size = 0.2, na.rm = TRUE) +
+      size = 2.5, fill = "white", linewidth = 0.2, na.rm = TRUE) +
     ggplot2::facet_wrap(~ Metric, ncol = 2, scales = "free_y") +
     ggplot2::scale_fill_manual(values = col_vector) +
     ggplot2::labs(
