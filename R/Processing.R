@@ -4,7 +4,7 @@
 #
 # Funcion principal que coordina el pipeline completo:
 #   1. Normalization.R - Filtrado, multiples metodos de normalizacion
-#   2. Imputation.R   - Imputacion mixta MAR + MNAR
+#   2. Imputation.R   - 17 metodos de imputacion (combo MAR+MNAR + individuales)
 #   3. DEAnalysis.R   - Analisis diferencial con limma
 #
 # Dependencias: ver modulos individuales
@@ -263,11 +263,16 @@ if (!exists("%||%", mode = "function")) {
 #' @param cyclic_loess_iterations Number of iterations for Cyclic Loess (default: 3)
 #' @param cyclic_loess_span Span parameter for Cyclic Loess (default: 0.7)
 #' @param center_quantile_q Quantile for "center_quantile" method (default: 0.15)
+#' @param imp_method Imputation method (default: "combo"). See impute_proteomics() for all options.
+#' @param mar_method MAR method for combo mode (default: "Impseqrob")
+#' @param mnar_method MNAR method for combo mode (default: "min")
 #' @param prop_na_mnar NA proportion for MNAR classification (default: 0.51)
 #' @param prop_present_mar Present proportion for MAR (default: 0.5)
 #' @param min_present_mar Minimum present values for MAR (default: 1)
 #' @param require_n_conditions Required conditions with presence (default: 1)
-#' @param mar_method MAR imputation method (default: "impSeqRob")
+#' @param max_na_prop Maximum NA proportion for single-method pre-filtering (default: 0.8)
+#' @param method_args Named list of per-method argument lists
+#' @param with_value Constant value for imp_method="with"
 #' @param comparisons Comparisons for DE. If NULL, generates all pairwise
 #' @param control Control condition. If NULL, compares all
 #' @param logFC_threshold LogFC threshold for significance (default: 0)
@@ -323,11 +328,16 @@ process_proteomics <- function(
     cyclic_loess_iterations = 3,
     cyclic_loess_span = 0.7,
     center_quantile_q = 0.15,
+    imp_method = "combo",
+    mar_method = "Impseqrob",
+    mnar_method = "min",
     prop_na_mnar = 0.51,
     prop_present_mar = 0.5,
     min_present_mar = 1,
     require_n_conditions = 1,
-    mar_method = "impSeqRob",
+    max_na_prop = 0.8,
+    method_args = list(),
+    with_value = NA_real_,
     comparisons = NULL,
     control = NULL,
     logFC_threshold = 0,
@@ -409,19 +419,34 @@ process_proteomics <- function(
   # 3. IMPUTATION (Imputation.R)
   # =========================================================================
 
-  assay_label <- "ImpSeqRob_Min"
-
   imp_result <- impute_proteomics(
     se = se,
     normalized_assay_name = norm_method,
-    imputed_assay_name = assay_label,
+    imputed_assay_name = NULL,
+    imp_method = imp_method,
+    mar_method = mar_method,
+    mnar_method = mnar_method,
     prop_na_mnar = prop_na_mnar,
     prop_present_mar = prop_present_mar,
     min_present_mar = min_present_mar,
     require_n_conditions = require_n_conditions,
-    mar_method = mar_method,
+    max_na_prop = max_na_prop,
+    method_args = method_args,
+    with_value = with_value,
     verbose = verbose
   )
+
+  # Derive assay_label from the imputed SE
+  assay_label <- setdiff(
+    SummarizedExperiment::assayNames(imp_result$se),
+    SummarizedExperiment::assayNames(se)
+  )
+  if (length(assay_label) == 0) {
+    # imp_method="none" adds no new assay; fall back to normalized
+    assay_label <- norm_method
+  } else {
+    assay_label <- assay_label[1]
+  }
 
   se_proc <- imp_result$se
 
@@ -513,9 +538,12 @@ process_proteomics <- function(
       cyclic_loess_iterations = cyclic_loess_iterations,
       cyclic_loess_span = cyclic_loess_span,
       center_quantile_q = center_quantile_q,
+      imp_method = imp_method,
+      mar_method = mar_method,
+      mnar_method = mnar_method,
       prop_na_mnar = prop_na_mnar,
       prop_present_mar = prop_present_mar,
-      mar_method = mar_method,
+      max_na_prop = max_na_prop,
       logFC_threshold = logFC_threshold,
       alpha = alpha,
       eBayes_trend = eBayes_trend,
@@ -577,6 +605,11 @@ print.proteomics_result <- function(x, ...) {
     cat("    - Cyclic Loess method:", x$parameters$cyclic_loess_method, "\n")
     cat("    - Cyclic Loess iterations:", x$parameters$cyclic_loess_iterations, "\n")
     cat("    - Cyclic Loess span:", x$parameters$cyclic_loess_span, "\n")
+  }
+  cat("  - Imputacion:", x$parameters$imp_method, "\n")
+  if (identical(x$parameters$imp_method, "combo")) {
+    cat("    - MAR method:", x$parameters$mar_method, "\n")
+    cat("    - MNAR method:", x$parameters$mnar_method, "\n")
   }
   cat("  - Alpha:", x$parameters$alpha, "\n")
   cat("  - logFC threshold:", x$parameters$logFC_threshold, "\n")
