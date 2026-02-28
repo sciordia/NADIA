@@ -5,11 +5,12 @@
 # Functions for evaluating and comparing proteomics normalization methods:
 #   - import_norm_matrices() : Load normalized TSV files into SummarizedExperiment
 #   - normalization_metrics(): Orchestrator returning a list of ggplot2 plots
+#   - nm_compute_metrics()   : Quantitative group-separation metrics (data.frame)
 #
-# Individual plot functions (10):
+# Individual plot functions (11):
 #   nm_plot_boxplot, nm_plot_density, nm_plot_pcv,
 #   nm_plot_pmad, nm_plot_pev, nm_plot_pca, nm_plot_correlation,
-#   nm_plot_mds, nm_plot_scatter, nm_plot_qq
+#   nm_plot_mds, nm_plot_scatter, nm_plot_qq, nm_plot_metrics
 #
 # References: proteoDA, PRONE, NormalizerDE
 #
@@ -21,6 +22,8 @@
 #   - readr    : fast TSV reading (fallback: read.delim)
 #   - ggdendro : dendrogram via ggplot2 (fallback: base R dendrogram)
 #   - RColorBrewer / viridis : palettes (fallback: ggplot2 defaults)
+#   - vegan    : PERMANOVA R² (fallback: NA)
+#   - cluster  : silhouette width (fallback: NA)
 #
 # Author: Sergio Ciordia
 # License: MIT
@@ -157,6 +160,118 @@ if (!exists("%||%", mode = "function")) {
     cor_all <- c(cor_all, upper)
   }
   cor_all
+}
+
+#' PC1 variance percentage
+#'
+#' Percentage of total variance explained by the first principal component.
+#'
+#' @param mat Numeric matrix (proteins x samples), no NAs.
+#' @return Numeric scalar (0-100).
+#' @keywords internal
+.nm_pc1_var_pct <- function(mat) {
+  if (ncol(mat) < 2 || nrow(mat) < 2) return(NA_real_)
+  pca <- prcomp(t(mat), scale. = FALSE, center = TRUE)
+  100 * pca$sdev[1]^2 / sum(pca$sdev^2)
+}
+
+#' PC1 F-ratio (between-group / within-group variance on PC1 scores)
+#'
+#' One-way ANOVA F-statistic on PC1 scores grouped by condition.
+#' Higher values indicate better group separation along PC1.
+#'
+#' @param mat Numeric matrix (proteins x samples), no NAs.
+#' @param groups Factor or character vector of group labels.
+#' @return Numeric scalar (0-Inf).
+#' @keywords internal
+.nm_pc1_f_ratio <- function(mat, groups) {
+  if (ncol(mat) < 2 || nrow(mat) < 2) return(NA_real_)
+  groups <- as.factor(groups)
+  if (nlevels(groups) < 2) return(NA_real_)
+  pca    <- prcomp(t(mat), scale. = FALSE, center = TRUE)
+  scores <- pca$x[, 1]
+  grand  <- mean(scores)
+  k      <- nlevels(groups)
+  n      <- length(scores)
+  ss_b   <- sum(tapply(scores, groups, function(x) length(x) * (mean(x) - grand)^2))
+  ss_w   <- sum(tapply(scores, groups, function(x) sum((x - mean(x))^2)))
+  df_b   <- k - 1
+  df_w   <- n - k
+  if (df_w < 1 || ss_w == 0) return(NA_real_)
+  (ss_b / df_b) / (ss_w / df_w)
+}
+
+#' PERMANOVA R² via vegan::adonis2
+#'
+#' Proportion of variance in Euclidean distances explained by the grouping.
+#' Requires the vegan package (optional).
+#'
+#' @param mat Numeric matrix (proteins x samples), no NAs.
+#' @param groups Factor or character vector of group labels.
+#' @return Named list with `R2` and `p_value`, or NA if vegan unavailable.
+#' @keywords internal
+.nm_permanova_r2 <- function(mat, groups) {
+  na_result <- list(R2 = NA_real_, p_value = NA_real_)
+  if (!requireNamespace("vegan", quietly = TRUE)) return(na_result)
+  if (ncol(mat) < 2 || nrow(mat) < 2) return(na_result)
+  groups <- as.factor(groups)
+  if (nlevels(groups) < 2) return(na_result)
+  d  <- dist(t(mat))
+  df <- data.frame(Condition = groups)
+  res <- vegan::adonis2(d ~ Condition, data = df, permutations = 999)
+  list(R2 = res[["R2"]][1], p_value = res[["Pr(>F)"]][1])
+}
+
+#' Average silhouette width
+#'
+#' Mean silhouette width when samples are clustered by condition labels.
+#' Requires the cluster package (optional).
+#'
+#' @param mat Numeric matrix (proteins x samples), no NAs.
+#' @param groups Factor or character vector of group labels.
+#' @return Numeric scalar (-1 to 1), or NA if cluster unavailable.
+#' @keywords internal
+.nm_silhouette_avg <- function(mat, groups) {
+  if (!requireNamespace("cluster", quietly = TRUE)) return(NA_real_)
+  if (ncol(mat) < 2 || nrow(mat) < 2) return(NA_real_)
+  groups <- as.factor(groups)
+  if (nlevels(groups) < 2) return(NA_real_)
+  d   <- dist(t(mat))
+  sil <- cluster::silhouette(as.integer(groups), d)
+  mean(sil[, "sil_width"])
+}
+
+#' MDS goodness-of-fit
+#'
+#' GOF[1] from `cmdscale()` with `eig = TRUE`: proportion of variance
+#' retained in the 2D MDS projection. Uses scaled data (consistent with
+#' `nm_plot_mds`).
+#'
+#' @param mat Numeric matrix (proteins x samples), no NAs.
+#' @return Numeric scalar (0-1).
+#' @keywords internal
+.nm_mds_gof <- function(mat) {
+  if (ncol(mat) < 3 || nrow(mat) < 2) return(NA_real_)
+  d   <- dist(scale(t(mat)))
+  mds <- cmdscale(d, k = 2, eig = TRUE)
+  mds$GOF[1]
+}
+
+#' MDS cophenetic correlation
+#'
+#' Pearson correlation between the original Euclidean distances and the
+#' distances in the 2D MDS projection. Uses scaled data (consistent with
+#' `nm_plot_mds`).
+#'
+#' @param mat Numeric matrix (proteins x samples), no NAs.
+#' @return Numeric scalar (-1 to 1).
+#' @keywords internal
+.nm_cophenetic_cor <- function(mat) {
+  if (ncol(mat) < 3 || nrow(mat) < 2) return(NA_real_)
+  d_orig <- dist(scale(t(mat)))
+  mds    <- cmdscale(d_orig, k = 2)
+  d_mds  <- dist(mds)
+  cor(as.numeric(d_orig), as.numeric(d_mds))
 }
 
 # =============================================================================
@@ -918,6 +1033,123 @@ nm_plot_qq <- function(se, assay_names = NULL,
     ggplot2::theme(strip.text = ggplot2::element_text(face = "bold"))
 }
 
+# --------------------------------------------------------------------------
+# 11. Metrics — quantitative group-separation metrics
+# --------------------------------------------------------------------------
+
+#' Compute quantitative group-separation metrics per normalization method
+#'
+#' Iterates over assays in a SummarizedExperiment and computes six metrics
+#' that quantify how well the normalization separates sample groups.
+#'
+#' @inheritParams nm_plot_boxplot
+#' @return A `data.frame` with one row per method and columns:
+#'   `Method`, `PC1_VarPct`, `PC1_F_ratio`, `PERMANOVA_R2`, `PERMANOVA_pval`,
+#'   `Silhouette_mean`, `MDS_GOF`, `MDS_CophCor`.
+#'
+#' @details
+#' - **PC1_VarPct**: % variance explained by PC1 (higher = more structure).
+#' - **PC1_F_ratio**: ANOVA F-ratio on PC1 scores (higher = better separation).
+#' - **PERMANOVA_R2**: Proportion of variance explained by grouping (requires
+#'   vegan; NA if not installed).
+#' - **Silhouette_mean**: Mean silhouette width (requires cluster; NA if not
+#'   installed).
+#' - **MDS_GOF**: Goodness-of-fit of 2D MDS projection.
+#' - **MDS_CophCor**: Cophenetic correlation between original and MDS distances.
+#'
+#' @examples
+#' \dontrun{
+#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' metrics_df <- nm_compute_metrics(se_nm)
+#' print(metrics_df)
+#' }
+#' @export
+nm_compute_metrics <- function(se, assay_names = NULL,
+                               condition_col = "Condition", ...) {
+  assay_names <- .nm_assay_names(se, assay_names)
+  condition   <- .nm_condition(se, condition_col)
+
+  # Inform about optional packages
+  if (!requireNamespace("vegan", quietly = TRUE))
+    message("nm_compute_metrics: 'vegan' not installed — PERMANOVA columns will be NA.")
+  if (!requireNamespace("cluster", quietly = TRUE))
+    message("nm_compute_metrics: 'cluster' not installed — Silhouette column will be NA.")
+
+  rows <- vector("list", length(assay_names))
+  for (i in seq_along(assay_names)) {
+    mat    <- SummarizedExperiment::assay(se, assay_names[i])
+    mat_ok <- mat[complete.cases(mat), ]
+    groups <- condition
+
+    perm <- .nm_permanova_r2(mat_ok, groups)
+
+    rows[[i]] <- data.frame(
+      Method          = assay_names[i],
+      PC1_VarPct      = .nm_pc1_var_pct(mat_ok),
+      PC1_F_ratio     = .nm_pc1_f_ratio(mat_ok, groups),
+      PERMANOVA_R2    = perm$R2,
+      PERMANOVA_pval  = perm$p_value,
+      Silhouette_mean = .nm_silhouette_avg(mat_ok, groups),
+      MDS_GOF         = .nm_mds_gof(mat_ok),
+      MDS_CophCor     = .nm_cophenetic_cor(mat_ok),
+      stringsAsFactors = FALSE
+    )
+  }
+  do.call(rbind, rows)
+}
+
+#' Bar chart of group-separation metrics per normalization method
+#'
+#' Calls `nm_compute_metrics()` internally and produces a faceted bar chart
+#' (one facet per metric, free y-scales) with labeled values.
+#'
+#' @inheritParams nm_plot_boxplot
+#' @return ggplot object.
+#'
+#' @examples
+#' \dontrun{
+#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' nm_plot_metrics(se_nm)
+#' }
+#' @export
+nm_plot_metrics <- function(se, assay_names = NULL,
+                            condition_col = "Condition", ...) {
+  assay_names <- .nm_assay_names(se, assay_names)
+  metrics_df  <- nm_compute_metrics(se, assay_names, condition_col)
+  col_vector  <- .nm_prone_colors(length(assay_names))
+
+  # Pivot to long format (exclude PERMANOVA_pval from plot)
+  value_cols <- c("PC1_VarPct", "PC1_F_ratio", "PERMANOVA_R2",
+                  "Silhouette_mean", "MDS_GOF", "MDS_CophCor")
+  long_df <- tidyr::pivot_longer(
+    metrics_df[, c("Method", value_cols)],
+    cols      = tidyr::all_of(value_cols),
+    names_to  = "Metric",
+    values_to = "Value"
+  )
+  long_df$Method <- factor(long_df$Method, levels = assay_names)
+  long_df$Metric <- factor(long_df$Metric, levels = value_cols)
+
+  ggplot2::ggplot(long_df,
+    ggplot2::aes(x = Method, y = Value, fill = Method)) +
+    ggplot2::geom_col(show.legend = FALSE, na.rm = TRUE) +
+    ggplot2::geom_label(
+      ggplot2::aes(label = ifelse(is.na(Value), "NA",
+                                  sprintf("%.2f", Value))),
+      size = 2.5, fill = "white", label.size = 0.2, na.rm = TRUE) +
+    ggplot2::facet_wrap(~ Metric, ncol = 2, scales = "free_y") +
+    ggplot2::scale_fill_manual(values = col_vector) +
+    ggplot2::labs(
+      title = "Group-Separation Metrics per Normalization Method",
+      x = NULL, y = NULL
+    ) +
+    ggplot2::theme_bw() +
+    ggplot2::theme(
+      axis.text.x  = ggplot2::element_text(angle = 90, vjust = 0.5, hjust = 1),
+      strip.text    = ggplot2::element_text(face = "bold")
+    )
+}
+
 # =============================================================================
 # SECTION 4: MAIN ORCHESTRATOR
 # =============================================================================
@@ -935,11 +1167,13 @@ nm_plot_qq <- function(se, assay_names = NULL,
 #'   Default `"Condition"`.
 #' @param plots Character vector of plot names to generate, or `"all"` (default).
 #'   Valid names: `"boxplot"`, `"density"`, `"pcv"`, `"pmad"`, `"pev"`,
-#'   `"pca"`, `"correlation"`, `"mds"`, `"scatter"`, `"qq"`.
+#'   `"pca"`, `"correlation"`, `"mds"`, `"scatter"`, `"qq"`, `"metrics"`.
 #' @param cor_method Correlation method for `nm_plot_correlation()`.
 #'   Default `"pearson"`.
 #' @param verbose Logical. Print progress messages. Default `TRUE`.
-#' @return Named list of ggplot objects (or NULL for failed plots).
+#' @return Named list of ggplot objects (or NULL for failed plots), plus
+#'   `metrics_table`: a `data.frame` from `nm_compute_metrics()` (always
+#'   computed regardless of `plots` selection).
 #'
 #' @examples
 #' \dontrun{
@@ -972,7 +1206,8 @@ normalization_metrics <- function(se,
 
   # --- Plot registry ---
   all_plot_names <- c("boxplot", "density", "pcv", "pmad", "pev",
-                      "pca", "correlation", "mds", "scatter", "qq")
+                      "pca", "correlation", "mds", "scatter", "qq",
+                      "metrics")
 
   plot_fns <- list(
     boxplot     = function() nm_plot_boxplot(se, assay_names, condition_col),
@@ -985,7 +1220,8 @@ normalization_metrics <- function(se,
                                                  cor_method = cor_method),
     mds         = function() nm_plot_mds(se, assay_names, condition_col),
     scatter     = function() nm_plot_scatter(se, assay_names, condition_col),
-    qq          = function() nm_plot_qq(se, assay_names, condition_col)
+    qq          = function() nm_plot_qq(se, assay_names, condition_col),
+    metrics     = function() nm_plot_metrics(se, assay_names, condition_col)
   )
 
   # --- Determine which plots to run ---
@@ -1015,7 +1251,16 @@ normalization_metrics <- function(se,
     )
   }
 
-  n_ok   <- sum(!sapply(result, is.null))
+  # --- Always compute metrics_table ---
+  result[["metrics_table"]] <- tryCatch(
+    nm_compute_metrics(se, assay_names, condition_col),
+    error = function(e) {
+      warning("nm_compute_metrics() failed: ", conditionMessage(e))
+      NULL
+    }
+  )
+
+  n_ok   <- sum(!sapply(result[setdiff(names(result), "metrics_table")], is.null))
   n_fail <- length(selected) - n_ok
   if (verbose) {
     message("normalization_metrics: ", n_ok, " plot(s) generated",
@@ -1055,12 +1300,12 @@ if (FALSE) {
   dim(se_nm)                               # proteins x samples
 
 
-  # ---- 2. Generate all 10 quality plots at once ------------------------------
+  # ---- 2. Generate all 11 quality plots at once ------------------------------
 
   plots <- normalization_metrics(se_nm)
 
-  # Names of available plots
-  names(plots)  # boxplot density pcv pmad pev pca correlation mds scatter qq
+  # Names of available plots + metrics_table
+  names(plots)  # boxplot density pcv pmad pev pca correlation mds scatter qq metrics metrics_table
 
 
   # ---- 3. Inspect individual plots -------------------------------------------
@@ -1075,6 +1320,10 @@ if (FALSE) {
   plots$mds         # MDS 2D scatter
   plots$scatter     # sample-vs-sample scatter with R²
   plots$qq          # Q-Q normality plot for first sample
+  plots$metrics     # group-separation metrics bar chart
+
+  # Metrics table (data.frame, always present)
+  plots$metrics_table
 
 
   # ---- 4. Single assay, single plot ------------------------------------------
@@ -1099,14 +1348,24 @@ if (FALSE) {
   subset_plots$scatter
 
 
-  # ---- 6. Export plots to PNG -------------------------------------------------
+  # ---- 6. Standalone group-separation metrics ---------------------------------
+
+  # Compute metrics table directly (without generating plots)
+  metrics_df <- nm_compute_metrics(se_nm)
+  print(metrics_df)
+
+  # Plot metrics as a faceted bar chart
+  nm_plot_metrics(se_nm)
+
+
+  # ---- 7. Export plots to PNG -------------------------------------------------
 
   output_dir <- "./results/normalization_metrics"
   dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
   for (plot_name in names(plots)) {
     p <- plots[[plot_name]]
-    if (is.null(p)) next
+    if (is.null(p) || !inherits(p, "gg")) next
     ggplot2::ggsave(
       filename = file.path(output_dir, paste0("nm_", plot_name, ".png")),
       plot     = p,
