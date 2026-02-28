@@ -3,7 +3,7 @@
 # Código de ejemplo: Normalization Metrics + Plots
 # =========================================================
 
-# Cargar las funciones para el Heatmap-Plot
+# Cargar las funciones para las métricas de normalización
 source("./R/Normalization_Metrics.R")
 
 # =============================================================================                                      
@@ -24,19 +24,93 @@ plots_nm <- normalization_metrics(se_nm)
 # Visualizar los plots
 plots_nm$boxplot
 plots_nm$density
-plots_nm$rle
+plots_nm$scatter
 plots_nm$pca
 plots_nm$pcv
 plots_nm$pmad
 plots_nm$pev
 plots_nm$correlation
 plots_nm$mds
-plots_nm$dendrogram
-plots_nm$ma
-plots_nm$meansd
-plots_nm$cv_intensity
+plots_nm$qq
+plots_nm$metrics
 
 
-nm_plot_density(se_nm, assay_names = "cycloess")
+nm_plot_pev(se_nm, diff = TRUE, baseline = "log2Norm")
+nm_plot_pmad(se_nm, diff = TRUE, baseline = "log2Norm")
+nm_plot_pcv(se_nm, diff = TRUE, baseline = "log2Norm")
 
-nm_plot_rle(se_nm, assay_names = c("cycloess", "Quantile"))
+nm_plot_scatter(se_nm, assay_names = c("log2Norm",
+                                   "eqmedians",
+                                   "quantile.robust",
+                                   "cycloess",
+                                   "quantile",
+                                   "max",
+                                   "vsn"))
+
+nm_plot_pca(se_nm, assay_names = c("log2Norm",
+                                   "Rlr",
+                                   "GlobalMean",
+                                   "cycloess",
+                                   "GlobalMedian",
+                                   "max",
+                                   "vsn"))
+
+nm_plot_boxplot(se_nm, assay_names = c("log2Norm",
+                                   "eqmedians",
+                                   "quantile.robust",
+                                   "cycloess",
+                                   "quantile",
+                                   "max",
+                                   "vsn"))
+
+nm_plot_density(se_nm, assay_names = c("log2Norm",
+                                       "eqmedians",
+                                       "quantile.robust",
+                                       "cycloess",
+                                       "quantile",
+                                       "max",
+                                       "vsn"))
+
+nm_plot_pmad(se_nm, assay_names = c("log2Norm",
+                                       "eqmedians",
+                                       "quantile.robust",
+                                       "cycloess",
+                                       "quantile",
+                                       "max",
+                                       "vsn"))
+
+nm_plot_pev(se_nm, assay_names = c("log2Norm",
+                                    "eqmedians",
+                                    "quantile.robust",
+                                    "cycloess",
+                                    "quantile",
+                                    "max",
+                                    "vsn"))
+nm_plot_correlation(se_nm, assay_names = c("log2Norm",
+                                   "eqmedians",
+                                   "quantile.robust",
+                                   "cycloess",
+                                   "quantile",
+                                   "max",
+                                   "vsn"))
+nm_plot_qq(se_nm, assay_names = c("log2Norm",
+                                   "eqmedians",
+                                   "quantile.robust",
+                                   "cycloess",
+                                   "quantile",
+                                   "max",
+                                   "vsn"))
+nm_plot_pcv(se_nm, assay_names = c("log2Norm",
+                                            "eqmedians",
+                                            "quantile.robust",
+                                            "cycloess",
+                                            "quantile",
+                                            "max",
+                                            "vsn"))
+nm_plot_mds(se_nm, assay_names = c("log2Norm",
+                                            "eqmedians",
+                                            "quantile.robust",
+                                            "cycloess",
+                                            "quantile",
+                                            "max",
+                                            "vsn"))
