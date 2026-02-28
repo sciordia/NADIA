@@ -274,6 +274,107 @@ if (!exists("%||%", mode = "function")) {
   cor(as.numeric(d_orig), as.numeric(d_mds))
 }
 
+#' Spectral entropy of PCA eigenvalues
+#'
+#' Normalized Shannon entropy of the eigenvalue distribution from PCA.
+#' Values near 0 indicate variance concentrated in few components; values
+#' near 1 indicate uniform spread across all components.
+#'
+#' @param mat Numeric matrix (proteins x samples), no NAs.
+#' @return Numeric scalar (0-1).
+#' @keywords internal
+.nm_spectral_entropy <- function(mat) {
+  if (ncol(mat) < 2 || nrow(mat) < 2) return(NA_real_)
+  pca <- tryCatch(prcomp(t(mat), center = TRUE, scale. = FALSE),
+                  error = function(e) NULL)
+  if (is.null(pca)) return(NA_real_)
+  eigvals <- pca$sdev^2
+  eigvals <- eigvals[eigvals > 0]
+  if (length(eigvals) < 2) return(NA_real_)
+  p <- eigvals / sum(eigvals)
+  -sum(p * log(p)) / log(length(p))
+}
+
+#' Cumulative variance explained by PC1 and PC2
+#'
+#' Percentage of total variance captured by the first two principal components.
+#'
+#' @param mat Numeric matrix (proteins x samples), no NAs.
+#' @return Numeric scalar (0-100).
+#' @keywords internal
+.nm_cumvar_pc2 <- function(mat) {
+  if (ncol(mat) < 2 || nrow(mat) < 2) return(NA_real_)
+  pca <- tryCatch(prcomp(t(mat), center = TRUE, scale. = FALSE),
+                  error = function(e) NULL)
+  if (is.null(pca)) return(NA_real_)
+  vars <- pca$sdev^2
+  k <- min(2, length(vars))
+  100 * sum(vars[seq_len(k)]) / sum(vars)
+}
+
+#' Hopkins statistic for clustering tendency
+#'
+#' Manual implementation of the Hopkins statistic. Values > 0.5 suggest
+#' non-random clustering structure; values near 0.5 indicate uniform
+#' distribution.
+#'
+#' @param mat Numeric matrix (proteins x samples), no NAs.
+#' @param n_sample Integer. Number of points to sample (default 10, capped at
+#'   ncol - 1).
+#' @return Numeric scalar (0-1).
+#' @keywords internal
+.nm_hopkins <- function(mat, n_sample = 10L) {
+  x <- t(mat)                          # samples as rows
+  n <- nrow(x)
+  if (n < 3 || ncol(x) < 1) return(NA_real_)
+  m <- min(n_sample, n - 1L)
+
+  # Random reference points within data bounding box
+  mins <- apply(x, 2, min)
+  maxs <- apply(x, 2, max)
+  rand_pts <- mapply(function(lo, hi) stats::runif(m, lo, hi),
+                     mins, maxs, SIMPLIFY = TRUE)
+  if (is.null(dim(rand_pts))) rand_pts <- matrix(rand_pts, nrow = m)
+
+  # Sample m real data points (without replacement)
+  set.seed(42L)
+  idx <- sample.int(n, m)
+  real_pts <- x[idx, , drop = FALSE]
+
+  # Nearest-neighbour distance for random points to real data
+  u <- vapply(seq_len(m), function(j) {
+    min(sqrt(rowSums((sweep(x, 2, rand_pts[j, ]))^2)))
+  }, numeric(1))
+
+  # Nearest-neighbour distance for sampled real points to remaining data
+  w <- vapply(seq_len(m), function(j) {
+    others <- x[-idx[j], , drop = FALSE]
+    min(sqrt(rowSums((sweep(others, 2, real_pts[j, ]))^2)))
+  }, numeric(1))
+
+  sum(u) / (sum(u) + sum(w))
+}
+
+#' Condition number of the covariance matrix (via PCA eigenvalues)
+#'
+#' Ratio of the largest to smallest non-zero eigenvalue from PCA of the
+#' sample covariance matrix. High values indicate numerical instability or
+#' multicollinearity.
+#'
+#' @param mat Numeric matrix (proteins x samples), no NAs.
+#' @return Numeric scalar >= 1 (Inf if smallest eigenvalue is zero).
+#' @keywords internal
+.nm_condition_number <- function(mat) {
+  if (ncol(mat) < 2 || nrow(mat) < 2) return(NA_real_)
+  pca <- tryCatch(prcomp(t(mat), center = TRUE, scale. = FALSE),
+                  error = function(e) NULL)
+  if (is.null(pca)) return(NA_real_)
+  eigvals <- pca$sdev^2
+  eigvals <- eigvals[eigvals > 0]
+  if (length(eigvals) < 2) return(NA_real_)
+  max(eigvals) / min(eigvals)
+}
+
 # =============================================================================
 # SECTION 2: IMPORT FUNCTION
 # =============================================================================
@@ -1039,13 +1140,14 @@ nm_plot_qq <- function(se, assay_names = NULL,
 
 #' Compute quantitative group-separation metrics per normalization method
 #'
-#' Iterates over assays in a SummarizedExperiment and computes six metrics
+#' Iterates over assays in a SummarizedExperiment and computes ten metrics
 #' that quantify how well the normalization separates sample groups.
 #'
 #' @inheritParams nm_plot_boxplot
 #' @return A `data.frame` with one row per method and columns:
 #'   `Method`, `PC1_VarPct`, `PC1_F_ratio`, `PERMANOVA_R2`, `PERMANOVA_pval`,
-#'   `Silhouette_mean`, `MDS_GOF`, `MDS_CophCor`.
+#'   `Silhouette_mean`, `MDS_GOF`, `MDS_CophCor`, `Spectral_Entropy`,
+#'   `CumVar_PC2`, `Hopkins`, `Condition_Number`.
 #'
 #' @details
 #' - **PC1_VarPct**: % variance explained by PC1 (higher = more structure).
@@ -1054,8 +1156,19 @@ nm_plot_qq <- function(se, assay_names = NULL,
 #'   vegan; NA if not installed).
 #' - **Silhouette_mean**: Mean silhouette width (requires cluster; NA if not
 #'   installed).
-#' - **MDS_GOF**: Goodness-of-fit of 2D MDS projection.
+#' - **MDS_GOF**: Goodness-of-fit of 2D MDS projection. Note: in benchmarking
+#'   context, *lower* values tend to indicate better normalization (a good method
+#'   preserves multi-dimensional biological variability that 2D cannot capture).
 #' - **MDS_CophCor**: Cophenetic correlation between original and MDS distances.
+#'   Same caveat as MDS_GOF: *lower* values tend to correlate with better
+#'   benchmarking performance.
+#' - **Spectral_Entropy**: Normalized Shannon entropy of PCA eigenvalues (0-1).
+#'   Values near 0 = variance concentrated in few PCs; near 1 = uniform spread.
+#' - **CumVar_PC2**: Cumulative % variance explained by PC1 + PC2 (0-100).
+#' - **Hopkins**: Hopkins statistic for clustering tendency (0-1). Values > 0.5
+#'   suggest non-random cluster structure.
+#' - **Condition_Number**: Ratio of largest to smallest PCA eigenvalue (>= 1).
+#'   High values indicate multicollinearity or numerical instability.
 #'
 #' @examples
 #' \dontrun{
@@ -1091,7 +1204,11 @@ nm_compute_metrics <- function(se, assay_names = NULL,
       PERMANOVA_pval  = perm$p_value,
       Silhouette_mean = .nm_silhouette_avg(mat_ok, groups),
       MDS_GOF         = .nm_mds_gof(mat_ok),
-      MDS_CophCor     = .nm_cophenetic_cor(mat_ok),
+      MDS_CophCor        = .nm_cophenetic_cor(mat_ok),
+      Spectral_Entropy   = .nm_spectral_entropy(mat_ok),
+      CumVar_PC2         = .nm_cumvar_pc2(mat_ok),
+      Hopkins            = .nm_hopkins(mat_ok),
+      Condition_Number   = .nm_condition_number(mat_ok),
       stringsAsFactors = FALSE
     )
   }
@@ -1120,7 +1237,9 @@ nm_plot_metrics <- function(se, assay_names = NULL,
 
   # Pivot to long format (exclude PERMANOVA_pval from plot)
   value_cols <- c("PC1_VarPct", "PC1_F_ratio", "PERMANOVA_R2",
-                  "Silhouette_mean", "MDS_GOF", "MDS_CophCor")
+                  "Silhouette_mean", "MDS_GOF", "MDS_CophCor",
+                  "Spectral_Entropy", "CumVar_PC2", "Hopkins",
+                  "Condition_Number")
   long_df <- tidyr::pivot_longer(
     metrics_df[, c("Method", value_cols)],
     cols      = tidyr::all_of(value_cols),
