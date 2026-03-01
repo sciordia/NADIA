@@ -300,9 +300,9 @@ if (!exists("%||%", mode = "function")) {
   mr_sorted <- missing_rate[ord]
   mi_sorted <- mean_intensity[ord]
 
-  # LOESS fit
+  # LOESS fit (suppress near-singularity warnings from discrete missing rates)
   fit <- tryCatch(
-    stats::loess(mi_sorted ~ mr_sorted, span = 0.75),
+    suppressWarnings(stats::loess(mi_sorted ~ mr_sorted, span = 0.75)),
     error = function(e) NULL
   )
 
