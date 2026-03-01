@@ -453,7 +453,7 @@ process_proteomics <- function(
   # Export imputed matrix (use raw matrix, matching pre-split behavior)
   if (export_imputed) {
     x_imputed_export <- imp_result$x_imputed
-    imp_file <- file.path(export_dir, paste0("matrix_log2_", norm_method, "_imputed.tsv"))
+    imp_file <- file.path(export_dir, paste0("matrix_log2_", norm_method, "_", assay_label, ".tsv"))
     if (requireNamespace("readr", quietly = TRUE)) {
       readr::write_tsv(
         data.frame(ProteinGroups = rownames(x_imputed_export),

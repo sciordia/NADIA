@@ -18,7 +18,7 @@
 #   - impute (knn) [Bioconductor]
 #   - mice (mice)
 #   - missForest (missForest)
-#   - SeqKnn (SeqKNN)
+
 #   - imputeLCMD (QRILC, MinProb)
 #   - norm (MLE)
 #
@@ -37,13 +37,13 @@ if (!exists("%||%", mode = "function")) {
 
 .IMP_METHODS_ALL <- c(
   "combo", "bpca", "knn", "mice", "missForest", "Impseq",
-  "Impseqrob", "SeqKNN", "QRILC", "MLE",
+  "Impseqrob", "QRILC", "MLE",
   "MinDet", "MinProb", "min", "zero", "nbavg", "with", "none"
 )
 
 .IMP_METHODS_MAR <- c(
   "bpca", "knn", "mice", "missForest", "Impseq", "Impseqrob",
-  "SeqKNN", "MLE", "none"
+  "MLE", "none"
 )
 
 .IMP_METHODS_MNAR <- c(
@@ -212,20 +212,6 @@ if (!exists("%||%", mode = "function")) {
   if (is.list(res) && !is.null(res$x)) res$x else as.matrix(res)
 }
 
-#' SeqKNN: Sequential KNN imputation
-#' @param args list with optional `k` (default 10)
-#' @keywords internal
-.imp_SeqKNN <- function(x, args = list()) {
-  if (!requireNamespace("SeqKnn", quietly = TRUE)) {
-    stop("Para imp_method='SeqKNN' necesitas 'SeqKnn'.\n",
-         "  install.packages('SeqKnn')")
-  }
-  k <- args$k %||% 10
-  k <- min(k, nrow(x) - 1)
-  res <- SeqKnn::SeqKNN(x, k = k)
-  as.matrix(res)
-}
-
 #' QRILC: Quantile Regression Imputation of Left-Censored data (imputeLCMD)
 #' @param args list with optional `tune.sigma` (default 1)
 #' @keywords internal
@@ -300,8 +286,7 @@ if (!exists("%||%", mode = "function")) {
     "missForest" = .imp_missForest(x, args),
     "Impseq"     = .imp_Impseq(x, args),
     "Impseqrob"  = .imp_Impseqrob(x, args),
-    "SeqKNN"     = .imp_SeqKNN(x, args),
-    "QRILC"      = .imp_QRILC(x, args),
+"QRILC"      = .imp_QRILC(x, args),
     "MLE"        = .imp_MLE(x, args),
     "MinProb"    = .imp_MinProb(x, args),
     stop("Metodo de imputacion desconocido: '", method, "'. ",
@@ -593,7 +578,7 @@ if (!exists("%||%", mode = "function")) {
 #'   combo -> "{mar_method}_{mnar_method}", single -> "{imp_method}"
 #' @param imp_method Imputation method (default: "combo"). One of:
 #'   "combo", "bpca", "knn", "mice", "missForest", "Impseq", "Impseqrob",
-#'   "SeqKNN", "QRILC", "MLE", "MinDet", "MinProb", "min", "zero",
+#'   "QRILC", "MLE", "MinDet", "MinProb", "min", "zero",
 #'   "nbavg", "with", "none"
 #' @param mar_method MAR method for combo mode (default: "Impseqrob")
 #' @param mnar_method MNAR method for combo mode (default: "min")
