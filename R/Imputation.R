@@ -3,10 +3,11 @@
 # =============================================================================
 #
 # Functions for proteomics data imputation:
-#   - 17 imputation methods (combo + 16 individual)
+#   - 18 imputation methods (combo + softHybrid + 16 individual)
 #   - MNAR mask by condition (for combo mode)
-#   - Pre-filtering by MNAR rules (combo) or NA proportion (single methods)
+#   - Pre-filtering by MNAR rules (combo) or NA proportion (single/softHybrid)
 #   - Mixed combo imputation (configurable MAR + MNAR methods)
+#   - softHybrid: sigmoid-weighted MAR+MNAR blend (Shi et al., 2026)
 #   - Rowname renaming from rowData
 #
 # Dependencies:
@@ -36,7 +37,7 @@ if (!exists("%||%", mode = "function")) {
 # =============================================================================
 
 .IMP_METHODS_ALL <- c(
-  "combo", "bpca", "knn", "mice", "missForest", "Impseq",
+  "combo", "softHybrid", "bpca", "knn", "mice", "missForest", "Impseq",
   "Impseqrob", "QRILC", "MLE",
   "MinDet", "MinProb", "min", "zero", "nbavg", "with", "none"
 )
@@ -258,6 +259,87 @@ if (!exists("%||%", mode = "function")) {
 }
 
 # =============================================================================
+# SOFTHYBRID HELPERS
+# =============================================================================
+
+#' Sigmoid function
+#' @param x Numeric vector
+#' @param k Steepness parameter
+#' @param x0 Midpoint (inflection point)
+#' @return Numeric vector in (0, 1)
+#' @keywords internal
+.sigmoid <- function(x, k, x0) {
+  1 / (1 + exp(-k * (x - x0)))
+}
+
+#' Detect elbow point via maximum perpendicular distance to LOESS fit
+#'
+#' Given missing_rate (x) and mean_intensity (y), fits a LOESS curve and
+#' finds the point of maximum perpendicular distance to the line connecting
+#' the first and last fitted points.
+#'
+#' @param missing_rate Numeric vector of per-protein missing rates
+#' @param mean_intensity Numeric vector of per-protein mean intensities (non-NA)
+#' @return List with r0 (elbow missing rate) and x0 (elbow intensity)
+#' @keywords internal
+.detect_elbow <- function(missing_rate, mean_intensity) {
+  n <- length(missing_rate)
+  stopifnot(n == length(mean_intensity), n >= 4)
+
+  # Special case: >75% proteins are complete → use 1/ncol as r0
+  if (quantile(missing_rate, 0.75) == 0) {
+    r0 <- median(missing_rate[missing_rate > 0])
+    if (is.na(r0)) r0 <- 0.1
+    x0 <- median(mean_intensity, na.rm = TRUE)
+    return(list(r0 = r0, x0 = x0))
+  }
+
+  # Sort by missing rate for LOESS
+
+  ord <- order(missing_rate)
+  mr_sorted <- missing_rate[ord]
+  mi_sorted <- mean_intensity[ord]
+
+  # LOESS fit
+  fit <- tryCatch(
+    stats::loess(mi_sorted ~ mr_sorted, span = 0.75),
+    error = function(e) NULL
+  )
+
+  if (is.null(fit)) {
+    # Fallback: medians
+    return(list(
+      r0 = median(missing_rate),
+      x0 = median(mean_intensity, na.rm = TRUE)
+    ))
+  }
+
+  fitted_y <- stats::predict(fit)
+
+  # Line from first to last point
+  x1 <- mr_sorted[1]; y1 <- fitted_y[1]
+  x2 <- mr_sorted[n]; y2 <- fitted_y[n]
+  dx <- x2 - x1; dy <- y2 - y1
+  line_len <- sqrt(dx^2 + dy^2)
+
+  if (line_len < .Machine$double.eps) {
+    return(list(
+      r0 = median(missing_rate),
+      x0 = median(mean_intensity, na.rm = TRUE)
+    ))
+  }
+
+  # Perpendicular distance from each point to the line
+  perp_dist <- abs(dy * mr_sorted - dx * fitted_y + x2 * y1 - y2 * x1) / line_len
+
+  idx_max <- which.max(perp_dist)
+  list(
+    r0 = mr_sorted[idx_max],
+    x0 = fitted_y[idx_max]
+  )
+}
+
+# =============================================================================
 # DISPATCHER
 # =============================================================================
 
@@ -445,6 +527,108 @@ if (!exists("%||%", mode = "function")) {
   )
 }
 
+#' softHybrid imputation: continuous sigmoid-weighted blend of MAR and MNAR
+#'
+#' Instead of binary MAR/MNAR classification (as in combo), uses a continuous
+#' sigmoid function to assign per-protein weights between MAR and MNAR methods.
+#' Based on Shi et al. (bioRxiv 2026) softHybridImpute approach.
+#'
+#' @param x Numeric matrix (proteins x samples, log2) with NAs
+#' @param mar_method MAR imputation method (default: "missForest")
+#' @param mnar_method MNAR imputation method (default: "MinProb")
+#' @param method_args Named list of per-method argument lists
+#' @param with_value Constant value for method "with"
+#' @param a Steepness of sigmoid for missing rate (default: 10)
+#' @param b Steepness of sigmoid for mean intensity (default: 5)
+#' @param lambda Balance between missing rate and intensity signals (default: 0.5)
+#' @param r0 Elbow point for missing rate sigmoid (NULL = auto-detect)
+#' @param x0 Elbow point for intensity sigmoid (NULL = auto-detect)
+#' @return List with x_imputed, weights (w_mar per protein), elbow (r0, x0), summary
+#' @keywords internal
+.impute_softHybrid <- function(
+    x,
+    mar_method  = "missForest",
+    mnar_method = "MinProb",
+    method_args = list(),
+    with_value  = NA_real_,
+    a           = 10,
+    b           = 5,
+    lambda      = 0.5,
+    r0          = NULL,
+    x0          = NULL
+) {
+  x <- as.matrix(x)
+  na_mask <- is.na(x)
+
+  # Validate methods
+  all_methods <- c(.IMP_METHODS_MAR, .IMP_METHODS_MNAR)
+  if (!mar_method %in% all_methods) {
+    stop("mar_method '", mar_method, "' no reconocido para softHybrid. Opciones: ",
+         paste(all_methods, collapse = ", "))
+  }
+  if (!mnar_method %in% all_methods) {
+    stop("mnar_method '", mnar_method, "' no reconocido para softHybrid. Opciones: ",
+         paste(all_methods, collapse = ", "))
+  }
+
+  # Per-protein statistics
+  missing_rate  <- rowMeans(na_mask)
+  mean_intensity <- rowMeans(x, na.rm = TRUE)
+  # Proteins that are all-NA: assign max missing rate and min intensity
+  all_na <- is.nan(mean_intensity)
+  if (any(all_na)) {
+    mean_intensity[all_na] <- min(mean_intensity[!all_na], na.rm = TRUE)
+  }
+
+  # Full-matrix imputations
+  x_mar  <- .dispatch_imputation(x, mar_method, method_args, with_value)
+  x_mnar <- .dispatch_imputation(x, mnar_method, method_args, with_value)
+
+  # Auto-detect elbow points if needed
+  if (is.null(r0) || is.null(x0)) {
+    if (sum(!all_na & missing_rate > 0) >= 4) {
+      elbow <- .detect_elbow(missing_rate[!all_na], mean_intensity[!all_na])
+      if (is.null(r0)) r0 <- elbow$r0
+      if (is.null(x0)) x0 <- elbow$x0
+    } else {
+      # Fallback: midpoints
+      if (is.null(r0)) r0 <- median(missing_rate)
+      if (is.null(x0)) x0 <- median(mean_intensity, na.rm = TRUE)
+    }
+  }
+
+  # Compute per-protein MNAR weight via sigmoid
+  sigmoid_r <- .sigmoid(missing_rate, k = a, x0 = r0)
+  sigmoid_x <- .sigmoid(mean_intensity, k = b, x0 = x0)
+  p_mnar <- sigmoid_r * (1 - lambda * sigmoid_x)
+  w_mar  <- 1 - p_mnar
+
+  # Combine: only replace original NA cells
+  x_final <- x
+  for (i in seq_len(nrow(x))) {
+    na_cols <- which(na_mask[i, ])
+    if (length(na_cols) == 0) next
+    x_final[i, na_cols] <- w_mar[i] * x_mar[i, na_cols] + p_mnar[i] * x_mnar[i, na_cols]
+  }
+
+  # Summary
+  na0 <- mean(na_mask)
+  naF <- mean(is.na(x_final))
+
+  list(
+    x_imputed = x_final,
+    weights   = setNames(w_mar, rownames(x)),
+    elbow     = list(r0 = r0, x0 = x0),
+    summary   = list(
+      na_rate_initial = na0,
+      na_rate_final   = naF,
+      mean_w_mar      = mean(w_mar),
+      sd_w_mar        = stats::sd(w_mar),
+      range_w_mar     = range(w_mar)
+    )
+  )
+}
+
 #' Pre-filter proteins by MNAR rules (for combo mode)
 #'
 #' Keeps a protein if:
@@ -566,22 +750,25 @@ if (!exists("%||%", mode = "function")) {
 
 #' Impute proteomics data
 #'
-#' Complete imputation pipeline with 17 methods. Three pathways:
+#' Complete imputation pipeline with 18 methods. Four pathways:
 #'
 #' - `imp_method = "none"`: no imputation
-#' - `imp_method = "combo"`: two-stage MAR+MNAR (configurable mar_method/mnar_method)
+#' - `imp_method = "combo"`: two-stage MAR+MNAR with binary classification
+#' - `imp_method = "softHybrid"`: sigmoid-weighted MAR+MNAR blend (continuous)
 #' - Any other method: apply to all NAs (no MAR/MNAR distinction)
 #'
 #' @param se SummarizedExperiment with normalized assay
 #' @param normalized_assay_name Name of the normalized assay to use (default: "cycloess")
 #' @param imputed_assay_name Name for the imputed assay. If NULL, auto-generated:
-#'   combo -> "{mar_method}_{mnar_method}", single -> "{imp_method}"
+#'   combo -> "{mar_method}_{mnar_method}",
+#'   softHybrid -> "softHybrid_{mar_method}_{mnar_method}",
+#'   single -> "{imp_method}"
 #' @param imp_method Imputation method (default: "combo"). One of:
-#'   "combo", "bpca", "knn", "mice", "missForest", "Impseq", "Impseqrob",
-#'   "QRILC", "MLE", "MinDet", "MinProb", "min", "zero",
+#'   "combo", "softHybrid", "bpca", "knn", "mice", "missForest", "Impseq",
+#'   "Impseqrob", "QRILC", "MLE", "MinDet", "MinProb", "min", "zero",
 #'   "nbavg", "with", "none"
-#' @param mar_method MAR method for combo mode (default: "Impseqrob")
-#' @param mnar_method MNAR method for combo mode (default: "min")
+#' @param mar_method MAR method for combo/softHybrid mode (default: "Impseqrob")
+#' @param mnar_method MNAR method for combo/softHybrid mode (default: "min")
 #' @param prop_na_mnar NA proportion threshold for MNAR classification (default: 0.51)
 #' @param prop_present_mar Present proportion for MAR (default: 0.5)
 #' @param min_present_mar Minimum present values for MAR (default: 1)
@@ -624,6 +811,26 @@ if (!exists("%||%", mode = "function")) {
 #'   mar_method = "knn",
 #'   mnar_method = "MinProb"
 #' )
+#'
+#' # softHybrid with defaults (sigmoid-weighted blend)
+#' imp_result <- impute_proteomics(
+#'   se = norm_result$se,
+#'   imp_method = "softHybrid",
+#'   mar_method = "missForest",
+#'   mnar_method = "MinProb"
+#' )
+#'
+#' # softHybrid with custom sigmoid parameters
+#' imp_result <- impute_proteomics(
+#'   se = norm_result$se,
+#'   imp_method = "softHybrid",
+#'   mar_method = "knn",
+#'   mnar_method = "QRILC",
+#'   method_args = list(
+#'     knn = list(k = 15),
+#'     softHybrid = list(a = 12, lambda = 0.3)
+#'   )
+#' )
 #' }
 #'
 #' @export
@@ -661,6 +868,8 @@ impute_proteomics <- function(
   if (is.null(imputed_assay_name)) {
     imputed_assay_name <- if (imp_method == "combo") {
       paste0(mar_method, "_", mnar_method)
+    } else if (imp_method == "softHybrid") {
+      paste0("softHybrid_", mar_method, "_", mnar_method)
     } else {
       imp_method
     }
@@ -738,6 +947,53 @@ impute_proteomics <- function(
       cat("- NA inicial:", round(imp_summary$na_rate_initial * 100, 2), "%\n")
       cat("- NA despues MAR:", round(imp_summary$na_rate_after_mar * 100, 2), "%\n")
       cat("- NA final:", round(imp_summary$na_rate_final * 100, 2), "%\n")
+    }
+
+  # =========================================================================
+  # PATH 4: SOFTHYBRID (sigmoid-weighted MAR + MNAR blend)
+  # =========================================================================
+
+  } else if (imp_method == "softHybrid") {
+    if (verbose) cat("\n=== PREFILTRADO POR PROPORCION NA (max:", max_na_prop, ") ===\n")
+
+    pf <- .prefilter_by_na_prop(x_norm, max_na_prop = max_na_prop)
+
+    if (verbose) {
+      cat("- Proteinas conservadas:", pf$summary$n_keep, "\n")
+      cat("- Proteinas eliminadas:", pf$summary$n_drop, "\n")
+    }
+
+    x_norm_prefilt <- x_norm[pf$keep, , drop = FALSE]
+
+    if (verbose) cat("\n=== IMPUTACION softHybrid (MAR:", mar_method, "+ MNAR:", mnar_method, ") ===\n")
+
+    sh_args <- method_args$softHybrid %||% list()
+    res <- .impute_softHybrid(
+      x           = x_norm_prefilt,
+      mar_method  = mar_method,
+      mnar_method = mnar_method,
+      method_args = method_args,
+      with_value  = with_value,
+      a           = sh_args$a      %||% 10,
+      b           = sh_args$b      %||% 5,
+      lambda      = sh_args$lambda %||% 0.5,
+      r0          = sh_args$r0,
+      x0          = sh_args$x0
+    )
+
+    x_imputed   <- res$x_imputed
+    pf_summary  <- pf$summary
+    imp_summary <- res$summary
+    mnar_mask   <- NULL
+    mar_mask    <- NULL
+
+    if (verbose) {
+      cat("- NA inicial:", round(imp_summary$na_rate_initial * 100, 2), "%\n")
+      cat("- NA final:", round(imp_summary$na_rate_final * 100, 2), "%\n")
+      cat("- Elbow r0:", round(res$elbow$r0, 4),
+          " x0:", round(res$elbow$x0, 4), "\n")
+      cat("- w_mar medio:", round(imp_summary$mean_w_mar, 4),
+          " (SD:", round(imp_summary$sd_w_mar, 4), ")\n")
     }
 
   # =========================================================================
