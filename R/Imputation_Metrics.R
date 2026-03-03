@@ -228,27 +228,27 @@ if (!exists(".dispatch_imputation", mode = "function")) {
                     dimnames = dimnames(mat))
 
   if (pattern == "from_data" && !is.null(ref_mat)) {
-    # Mimic per-feature NA rates from reference matrix
-    # Only use rows present in both mat and ref_mat
-    common_rows <- intersect(rownames(mat), rownames(ref_mat))
-    if (length(common_rows) == 0) {
-      warning(".im_introduce_na: no common rows between mat and ref_mat; ",
+    # Mimic per-feature NA rate DISTRIBUTION from reference matrix.
+    # Key: mat contains only complete-case rows (ground truth), so matching
+    # by protein name would give rate=0 for all. Instead, we sample from the
+    # NA rate distribution of ALL rows in ref_mat that DO have NAs, and
+    # assign those rates to the complete-case rows in mat.
+    all_na_rates <- rowMeans(is.na(ref_mat))
+    nonzero_rates <- all_na_rates[all_na_rates > 0]
+
+    if (length(nonzero_rates) == 0) {
+      warning(".im_introduce_na: ref_mat has no NAs; ",
               "falling back to 'random' pattern.")
       pattern <- "random"
     } else {
-      ref_sub <- ref_mat[common_rows, , drop = FALSE]
-      ref_na_rate <- rowMeans(is.na(ref_sub))
-      # Scale rates so total NA proportion approximates na_prop
-      total_target <- na_prop * nr * nc
-      total_ref    <- sum(ref_na_rate) * nc
-      scale_factor <- if (total_ref > 0) total_target / total_ref else 1
+      # Scale sampled rates so total NA proportion approximates na_prop
+      mean_ref_rate <- mean(nonzero_rates)
+      scale_factor  <- if (mean_ref_rate > 0) na_prop / mean_ref_rate else 1
+
       for (i in seq_len(nr)) {
-        rname <- rownames(mat)[i]
-        rate  <- if (rname %in% names(ref_na_rate)) {
-          min(ref_na_rate[rname] * scale_factor, 0.9)
-        } else {
-          na_prop
-        }
+        # Sample a rate from the reference distribution
+        rate <- sample(nonzero_rates, 1) * scale_factor
+        rate <- min(rate, 0.9)  # cap to avoid removing all values
         n_na <- max(0, rbinom(1, nc, rate))
         if (n_na > 0 && n_na < nc) {
           cols <- sample.int(nc, n_na)
@@ -287,26 +287,36 @@ if (!exists(".dispatch_imputation", mode = "function")) {
 #' Re-impute a matrix with multiple methods
 #'
 #' Iterates over a vector of imputation method names, calling
-#' `.dispatch_imputation()` from Imputation.R for each. Methods that fail
-#' are omitted with a warning.
+#' `.dispatch_imputation()` from Imputation.R for each. Also supports
+#' combo and softHybrid methods via `combo_methods` parameter.
+#' Methods that fail are omitted with a warning.
 #'
 #' @param mat_with_na Numeric matrix with artificial NAs
-#' @param methods Character vector of method names
+#' @param methods Character vector of individual method names
+#' @param combo_methods Named list of combo/softHybrid configurations. Each
+#'   element is a list with: `mode` ("combo" or "softHybrid", default "combo"),
+#'   `mar_method`, `mnar_method`, and optionally other parameters. The list
+#'   name is used as the method label.
+#' @param condition Factor or character vector of conditions (required for
+#'   combo methods, ignored for individual methods).
 #' @param method_args Named list of per-method argument lists
 #' @param with_value Constant for method "with"
 #' @param verbose Logical. Print progress. Default TRUE.
 #' @return Named list of imputed matrices (one per successful method)
 #' @keywords internal
-.im_reimpute <- function(mat_with_na, methods, method_args = list(),
+.im_reimpute <- function(mat_with_na, methods = character(0),
+                         combo_methods = list(),
+                         condition = NULL,
+                         method_args = list(),
                          with_value = NA_real_, verbose = TRUE) {
   if (!exists(".dispatch_imputation", mode = "function")) {
     stop(".dispatch_imputation() not available. ",
          "Ensure Imputation.R is sourced before using this function.")
   }
 
-  results <- vector("list", length(methods))
-  names(results) <- methods
+  results <- list()
 
+  # --- Individual methods ---
   for (m in methods) {
     if (verbose) message("  Re-imputing with method: ", m, " ...")
     results[[m]] <- tryCatch(
@@ -317,6 +327,50 @@ if (!exists(".dispatch_imputation", mode = "function")) {
         NULL
       }
     )
+  }
+
+  # --- Combo / softHybrid methods ---
+  for (label in names(combo_methods)) {
+    cfg  <- combo_methods[[label]]
+    mode <- cfg$mode %||% "combo"
+    mar  <- cfg$mar_method %||% "Impseqrob"
+    mnar <- cfg$mnar_method %||% "min"
+
+    if (verbose) message("  Re-imputing with ", mode, " (", mar, "+", mnar, ") as '", label, "' ...")
+
+    results[[label]] <- tryCatch({
+      if (mode == "combo") {
+        if (is.null(condition))
+          stop("condition is required for combo methods.")
+        if (!exists(".impute_combo", mode = "function"))
+          stop(".impute_combo() not available. Ensure Imputation.R is sourced.")
+        res <- .impute_combo(
+          x           = mat_with_na,
+          condition   = condition,
+          mar_method  = mar,
+          mnar_method = mnar,
+          method_args = method_args,
+          with_value  = with_value
+        )
+        res$x_imputed
+      } else if (mode == "softHybrid") {
+        if (!exists(".impute_softHybrid", mode = "function"))
+          stop(".impute_softHybrid() not available. Ensure Imputation.R is sourced.")
+        sh_args <- cfg[setdiff(names(cfg), c("mode", "mar_method", "mnar_method"))]
+        res <- do.call(.impute_softHybrid, c(
+          list(x = mat_with_na, mar_method = mar, mnar_method = mnar,
+               method_args = method_args, with_value = with_value),
+          sh_args
+        ))
+        res$x_imputed
+      } else {
+        stop("Unknown mode '", mode, "'. Use 'combo' or 'softHybrid'.")
+      }
+    }, error = function(e) {
+      warning("Combo method '", label, "' failed: ", conditionMessage(e),
+              call. = FALSE)
+      NULL
+    })
   }
 
   # Remove failed methods
@@ -489,8 +543,15 @@ import_imp_matrices <- function(tsv_dir,
 #' @param se SummarizedExperiment (from `import_imp_matrices()` or pipeline)
 #' @param assay_name Character. Name of the assay to use as starting point
 #'   (typically the normalized assay, pre-imputation, with real NAs).
-#' @param methods Character vector of imputation methods to benchmark.
-#'   Default: `.IM_BENCH_METHODS` (14 methods).
+#' @param methods Character vector of individual imputation methods to benchmark.
+#'   Default: `.IM_BENCH_METHODS` (14 methods). Use `character(0)` or `NULL`
+#'   to skip individual methods.
+#' @param combo_methods Named list of combo/softHybrid configurations. Each
+#'   element is a list with: `mode` ("combo" or "softHybrid", default "combo"),
+#'   `mar_method`, `mnar_method`. The list name is used as the method label
+#'   in results. Default: empty list (no combo methods).
+#' @param condition_col Character. Column in colData with condition labels,
+#'   required for combo methods. Default `"Condition"`.
 #' @param na_prop Numeric (0-1). Proportion of artificial NAs. Default 0.20.
 #' @param seed Integer. Random seed. Default 42.
 #' @param pattern Character. NA introduction pattern: `"random"` or
@@ -504,20 +565,29 @@ import_imp_matrices <- function(tsv_dir,
 #'
 #' @examples
 #' \dontrun{
-#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
-#' metrics <- im_compute_metrics(se_nm, assay_name = "cycloess",
+#' # Individual methods only
+#' metrics <- im_compute_metrics(se, assay_name = "cycloess",
 #'                                methods = c("knn", "min", "zero"))
+#'
+#' # Combo + individual
+#' metrics <- im_compute_metrics(se, assay_name = "cycloess",
+#'   methods = c("knn", "min"),
+#'   combo_methods = list(
+#'     "Impseq+min" = list(mar_method = "Impseq", mnar_method = "min")
+#'   ))
 #' }
 #' @export
 im_compute_metrics <- function(se,
-                               assay_name  = NULL,
-                               methods     = .IM_BENCH_METHODS,
-                               na_prop     = 0.20,
-                               seed        = 42L,
-                               pattern     = "random",
-                               method_args = list(),
-                               with_value  = NA_real_,
-                               verbose     = TRUE) {
+                               assay_name    = NULL,
+                               methods       = .IM_BENCH_METHODS,
+                               combo_methods = list(),
+                               condition_col = "Condition",
+                               na_prop       = 0.20,
+                               seed          = 42L,
+                               pattern       = "random",
+                               method_args   = list(),
+                               with_value    = NA_real_,
+                               verbose       = TRUE) {
   # --- Validate ---
   stopifnot(inherits(se, "SummarizedExperiment"))
   all_assays <- SummarizedExperiment::assayNames(se)
@@ -559,11 +629,25 @@ im_compute_metrics <- function(se,
             " (", round(na_result$summary$na_rate * 100, 1), "%)")
   }
 
+  # --- Resolve condition vector (needed for combo methods) ---
+  condition <- NULL
+  if (length(combo_methods) > 0) {
+    cd <- as.data.frame(SummarizedExperiment::colData(se))
+    if (!condition_col %in% colnames(cd))
+      stop("Column '", condition_col, "' not found in colData. ",
+           "Required for combo methods.")
+    condition <- as.factor(cd[[condition_col]])
+  }
+
   # --- Re-impute with each method ---
-  imp_results <- .im_reimpute(na_result$mat_with_na, methods,
-                              method_args = method_args,
-                              with_value = with_value,
-                              verbose = verbose)
+  methods <- methods %||% character(0)
+  imp_results <- .im_reimpute(na_result$mat_with_na,
+                              methods       = methods,
+                              combo_methods = combo_methods,
+                              condition     = condition,
+                              method_args   = method_args,
+                              with_value    = with_value,
+                              verbose       = verbose)
 
   if (length(imp_results) == 0)
     stop("All imputation methods failed. Cannot compute metrics.")
@@ -901,8 +985,14 @@ im_plot_metrics <- function(metrics_df, ...) {
 #' @param se SummarizedExperiment (from `import_imp_matrices()` or pipeline).
 #' @param assay_name Character. Assay name to use as starting point.
 #'   NULL (default) = first assay.
-#' @param methods Character vector of methods to benchmark.
-#'   Default: `.IM_BENCH_METHODS` (14 methods).
+#' @param methods Character vector of individual methods to benchmark.
+#'   Default: `.IM_BENCH_METHODS` (14 methods). Use `NULL` or `character(0)`
+#'   to skip individual methods when only using combo_methods.
+#' @param combo_methods Named list of combo/softHybrid configurations.
+#'   Each element: `list(mar_method, mnar_method, mode)`.
+#'   See `im_compute_metrics()` for details.
+#' @param condition_col Character. Column in colData for combo methods.
+#'   Default `"Condition"`.
 #' @param na_prop Numeric (0-1). Proportion of artificial NAs. Default 0.20.
 #' @param seed Integer. Random seed. Default 42.
 #' @param pattern Character. `"random"` or `"from_data"`. Default `"random"`.
@@ -916,22 +1006,28 @@ im_plot_metrics <- function(metrics_df, ...) {
 #'
 #' @examples
 #' \dontrun{
-#' se_nm  <- import_norm_matrices("./results", "./data/metadata.tsv")
-#' res    <- imputation_metrics(se_nm, assay_name = "cycloess")
+#' # Individual + combo methods
+#' res <- imputation_metrics(se, assay_name = "cycloess",
+#'   methods = c("knn", "min"),
+#'   combo_methods = list(
+#'     "Impseq+min" = list(mar_method = "Impseq", mnar_method = "min")
+#'   ))
 #' res$metrics_table
 #' res$ranking
 #' }
 #' @export
 imputation_metrics <- function(se,
-                               assay_name  = NULL,
-                               methods     = .IM_BENCH_METHODS,
-                               na_prop     = 0.20,
-                               seed        = 42L,
-                               pattern     = "random",
-                               method_args = list(),
-                               with_value  = NA_real_,
-                               plots       = "all",
-                               verbose     = TRUE) {
+                               assay_name    = NULL,
+                               methods       = .IM_BENCH_METHODS,
+                               combo_methods = list(),
+                               condition_col = "Condition",
+                               na_prop       = 0.20,
+                               seed          = 42L,
+                               pattern       = "random",
+                               method_args   = list(),
+                               with_value    = NA_real_,
+                               plots         = "all",
+                               verbose       = TRUE) {
   # --- Required packages check ---
   for (pkg in c("ggplot2", "dplyr", "tidyr", "SummarizedExperiment", "S4Vectors")) {
     if (!requireNamespace(pkg, quietly = TRUE))
@@ -941,15 +1037,17 @@ imputation_metrics <- function(se,
   # --- Compute metrics ---
   if (verbose) message("=== COMPUTING IMPUTATION METRICS ===")
   metrics_df <- im_compute_metrics(
-    se          = se,
-    assay_name  = assay_name,
-    methods     = methods,
-    na_prop     = na_prop,
-    seed        = seed,
-    pattern     = pattern,
-    method_args = method_args,
-    with_value  = with_value,
-    verbose     = verbose
+    se            = se,
+    assay_name    = assay_name,
+    methods       = methods,
+    combo_methods = combo_methods,
+    condition_col = condition_col,
+    na_prop       = na_prop,
+    seed          = seed,
+    pattern       = pattern,
+    method_args   = method_args,
+    with_value    = with_value,
+    verbose       = verbose
   )
 
   # --- Plot registry ---
@@ -1079,7 +1177,37 @@ if (FALSE) {
   im_plot_ranking(metrics_df)
 
 
-  # ---- 7. From_data NA pattern (mimics real NA distribution) -----------------
+  # ---- 7. Combo and softHybrid methods ---------------------------------------
+
+  # Compare individual methods alongside combo (MAR+MNAR) strategies
+  res_combo <- imputation_metrics(
+    se_nm,
+    assay_name = "cycloess",
+    methods    = c("knn", "min", "MinDet"),
+    combo_methods = list(
+      "Impseq+min"      = list(mar_method = "Impseq", mnar_method = "min"),
+      "Impseqrob+min"   = list(mar_method = "Impseqrob", mnar_method = "min"),
+      "bpca+MinProb"    = list(mar_method = "bpca", mnar_method = "MinProb"),
+      "sH_knn+QRILC"    = list(mode = "softHybrid",
+                                mar_method = "knn", mnar_method = "QRILC")
+    )
+  )
+  res_combo$metrics_table
+  res_combo$ranking
+
+  # Only combo methods (no individual)
+  res_combo_only <- imputation_metrics(
+    se_nm,
+    assay_name = "cycloess",
+    methods    = NULL,
+    combo_methods = list(
+      "Impseq+min"    = list(mar_method = "Impseq", mnar_method = "min"),
+      "Impseqrob+min" = list(mar_method = "Impseqrob", mnar_method = "min")
+    )
+  )
+
+
+  # ---- 8. From_data NA pattern (mimics real NA distribution) -----------------
 
   res_fd <- imputation_metrics(
     se_nm,
@@ -1089,7 +1217,7 @@ if (FALSE) {
   )
 
 
-  # ---- 8. Export plots to PNG ------------------------------------------------
+  # ---- 9. Export plots to PNG ------------------------------------------------
 
   output_dir <- "./results/imputation_metrics"
   dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
