@@ -413,11 +413,14 @@ import_imp_matrices <- function(tsv_dir,
     }
   }
 
-  # --- Read first file to get structure ---
-  first_df    <- .read_tsv_file(files[1])
-  protein_col <- colnames(first_df)[1]
-  proteins    <- first_df[[protein_col]]
-  sample_cols <- setdiff(colnames(first_df), protein_col)
+  # --- Read all files to get proteins and sample columns ---
+  all_dfs <- vector("list", length(files))
+  for (i in seq_along(files)) {
+    all_dfs[[i]] <- .read_tsv_file(files[i])
+  }
+
+  protein_col <- colnames(all_dfs[[1]])[1]
+  sample_cols <- setdiff(colnames(all_dfs[[1]]), protein_col)
 
   # --- Validate samples against metadata ---
   missing_meta <- setdiff(sample_cols, meta[[sample_col]])
@@ -428,13 +431,29 @@ import_imp_matrices <- function(tsv_dir,
   meta_aligned <- meta[sample_cols, , drop = FALSE]
   rownames(meta_aligned) <- sample_cols
 
-  # --- Build assay list ---
+  # --- Find common proteins across all files ---
+  protein_sets <- lapply(all_dfs, function(df) df[[protein_col]])
+  proteins <- Reduce(intersect, protein_sets)
+
+  if (length(proteins) == 0)
+    stop("No common proteins found across all TSV files.")
+
+  n_orig <- vapply(protein_sets, length, integer(1))
+  if (any(n_orig != length(proteins))) {
+    message("import_imp_matrices: files have different row counts (",
+            paste(unique(n_orig), collapse = ", "),
+            "). Using intersection: ", length(proteins), " common proteins.")
+  }
+
+  # --- Build assay list (aligned to common proteins) ---
   assay_list <- vector("list", length(files))
   names(assay_list) <- method_names
 
   for (i in seq_along(files)) {
-    df  <- .read_tsv_file(files[i])
-    mat <- as.matrix(df[, sample_cols, drop = FALSE])
+    df  <- all_dfs[[i]]
+    rownames(df) <- df[[protein_col]]
+    df_sub <- df[proteins, sample_cols, drop = FALSE]
+    mat <- as.matrix(df_sub)
     mode(mat) <- "numeric"
     rownames(mat) <- proteins
     assay_list[[i]] <- mat
