@@ -362,14 +362,20 @@ if (!exists("%||%", mode = "function")) {
   x * grand_mad + grand_median
 }
 
-.norm_mediannorm <- function(x_log2) {
-  col_medians <- apply(x_log2, 2, median, na.rm = TRUE)
-  sweep(x_log2, 2, col_medians / mean(col_medians), "/")
+.norm_mediannorm <- function(x_raw) {
+  # NormalyzerDE/PRONE: (x_raw / colMedian) * mean(colMedians) → log2
+  col_medians <- apply(x_raw, 2, median, na.rm = TRUE)
+  x <- log2(sweep(x_raw, 2, col_medians / mean(col_medians), "/"))
+  x[is.infinite(x)] <- NA
+  x
 }
 
-.norm_meannorm <- function(x_log2) {
-  col_means <- colMeans(x_log2, na.rm = TRUE)
-  sweep(x_log2, 2, col_means / mean(col_means), "/")
+.norm_meannorm <- function(x_raw) {
+  # NormalyzerDE/PRONE: (x_raw / colMean) * mean(colMeans) → log2
+  col_means <- colMeans(x_raw, na.rm = TRUE)
+  x <- log2(sweep(x_raw, 2, col_means / mean(col_means), "/"))
+  x[is.infinite(x)] <- NA
+  x
 }
 
 .norm_center_quantile <- function(x_log2, q = 0.15) {
@@ -535,7 +541,8 @@ normalize_proteomics <- function(
   .raw_methods <- c(
     "log2Norm", "GlobalMedian", "GlobalMean",
     "eqmedians",
-    "vsn", "max"
+    "vsn", "max",
+    "medianNorm", "meanNorm"
   )
 
   norm_method <- match.arg(norm_method, c(
