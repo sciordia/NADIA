@@ -68,6 +68,9 @@ if (!exists(".dispatch_imputation", mode = "function")) {
 .im_nrmse <- function(true_mat, imp_mat, na_mask) {
   true_vals <- true_mat[na_mask]
   imp_vals  <- imp_mat[na_mask]
+  valid <- !is.na(true_vals) & !is.na(imp_vals)
+  true_vals <- true_vals[valid]
+  imp_vals  <- imp_vals[valid]
   if (length(true_vals) < 2) return(NA_real_)
   v <- var(true_vals)
   if (is.na(v) || v == 0) return(NA_real_)
@@ -94,7 +97,10 @@ if (!exists(".dispatch_imputation", mode = "function")) {
   rmse_vec <- vapply(rows_idx, function(i) {
     cols <- which(na_mask[i, ])
     if (length(cols) == 0) return(NA_real_)
-    sqrt(mean((imp_mat[i, cols] - true_mat[i, cols])^2))
+    diffs <- imp_mat[i, cols] - true_mat[i, cols]
+    valid <- !is.na(diffs)
+    if (sum(valid) == 0) return(NA_real_)
+    sqrt(mean(diffs[valid]^2))
   }, numeric(1))
 
   names(rmse_vec) <- rownames(true_mat)[rows_idx]
@@ -161,8 +167,11 @@ if (!exists(".dispatch_imputation", mode = "function")) {
   cors <- vapply(row_has_na, function(i) {
     true_row <- true_mat[i, ]
     imp_row  <- imp_mat[i, ]
-    if (sd(true_row) == 0 || sd(imp_row) == 0) return(NA_real_)
-    cor(true_row, imp_row, method = "pearson")
+    sd_true <- sd(true_row, na.rm = TRUE)
+    sd_imp  <- sd(imp_row, na.rm = TRUE)
+    if (is.na(sd_true) || is.na(sd_imp) || sd_true == 0 || sd_imp == 0)
+      return(NA_real_)
+    cor(true_row, imp_row, method = "pearson", use = "pairwise.complete.obs")
   }, numeric(1))
 
   mean(cors, na.rm = TRUE)
