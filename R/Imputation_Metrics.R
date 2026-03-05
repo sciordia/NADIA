@@ -675,10 +675,15 @@ im_compute_metrics <- function(se,
   }
 
   # Step 3: Rank per feature, then sum ranks → SOR
-  rank_per_feature <- t(apply(rmse_matrix, 1, function(row) {
-    rank(row, na.last = "keep", ties.method = "average")
-  }))
-  sor_vec <- colSums(rank_per_feature, na.rm = TRUE)
+  if (length(successful_methods) == 1L) {
+    # Single method: all ranks = 1, SOR = number of features
+    sor_vec <- setNames(nrow(rmse_matrix), successful_methods)
+  } else {
+    rank_per_feature <- t(apply(rmse_matrix, 1, function(row) {
+      rank(row, na.last = "keep", ties.method = "average")
+    }))
+    sor_vec <- colSums(rank_per_feature, na.rm = TRUE)
+  }
 
   # Step 4: All four metrics
   metrics_rows <- vector("list", length(successful_methods))
@@ -688,10 +693,11 @@ im_compute_metrics <- function(se,
     metrics_rows[[i]] <- data.frame(
       Method = m,
       NRMSE  = .im_nrmse(true_mat, imp_mat, na_mask),
-      SOR    = sor_vec[m],
+      SOR    = unname(sor_vec[m]),
       PSS    = .im_pss(true_mat, imp_mat),
       ACC_OI = .im_acc_oi(true_mat, imp_mat, na_mask),
-      stringsAsFactors = FALSE
+      stringsAsFactors = FALSE,
+      row.names = NULL
     )
   }
   metrics_df <- do.call(rbind, metrics_rows)
