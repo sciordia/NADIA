@@ -238,8 +238,7 @@ if (!exists("%||%", mode = "function")) {
          "  install.packages('rrcovNA')")
   }
   alpha <- args$alpha %||% 0.9
-  res <- rrcovNA::impSeqRob(x, alpha = alpha, norm_impute = FALSE,
-                             check_data = FALSE, verbose = FALSE)
+  res <- rrcovNA::impSeqRob(x, alpha = alpha, verbose = FALSE)
   if (is.list(res) && !is.null(res$x)) res$x else as.matrix(res)
 }
 
