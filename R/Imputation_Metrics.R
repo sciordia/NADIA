@@ -214,60 +214,86 @@ if (!exists(".dispatch_imputation", mode = "function")) {
 #' Takes a matrix with no NAs (ground truth) and introduces NAs at random
 #' or mimicking the NA pattern from a reference matrix.
 #'
+#' When `pattern = "from_data"`, replicates the NAguideR strategy
+#' (Wang et al., DOI:10.1093/nar/gkz903): the proportion of affected rows
+#' and the per-column NA distribution are derived entirely from `ref_mat`,
+#' so `na_prop` is ignored.
+#'
 #' @param mat Numeric matrix (proteins x samples), no NAs (ground truth)
 #' @param na_prop Numeric (0-1). Proportion of values to set as NA.
-#'   Default 0.20.
+#'   Default 0.20. Only used when `pattern = "random"`;
+#'   ignored when `pattern = "from_data"`.
 #' @param seed Integer. Random seed. Default 42.
 #' @param pattern Character: `"random"` for uniform random NAs, or
-#'   `"from_data"` to mimic per-feature NA distribution from `ref_mat`.
+#'   `"from_data"` to replicate NAguideR's simulation strategy using
+#'   the actual NA structure from `ref_mat`.
 #' @param ref_mat Numeric matrix. Reference matrix with real NAs, used when
 #'   `pattern = "from_data"`. Ignored otherwise.
 #' @return Named list:
 #'   \item{mat_with_na}{Matrix with artificial NAs introduced}
 #'   \item{na_mask}{Logical matrix (TRUE = artificially set to NA)}
 #'   \item{true_mat}{Original complete matrix (unchanged)}
-#'   \item{summary}{List with n_total, n_na, na_rate}
+#'   \item{summary}{List with n_total, n_na, na_rate, rows_affected,
+#'     row_ratio (from_data only)}
 #' @keywords internal
 .im_introduce_na <- function(mat, na_prop = 0.20, seed = 42L,
                              pattern = "random", ref_mat = NULL) {
-  set.seed(seed)
   nr <- nrow(mat)
   nc <- ncol(mat)
   na_mask <- matrix(FALSE, nrow = nr, ncol = nc,
                     dimnames = dimnames(mat))
 
   if (pattern == "from_data" && !is.null(ref_mat)) {
-    # Mimic per-feature NA rate DISTRIBUTION from reference matrix.
-    # Key: mat contains only complete-case rows (ground truth), so matching
-    # by protein name would give rate=0 for all. Instead, we sample from the
-    # NA rate distribution of ALL rows in ref_mat that DO have NAs, and
-    # assign those rates to the complete-case rows in mat.
-    all_na_rates <- rowMeans(is.na(ref_mat))
-    nonzero_rates <- all_na_rates[all_na_rates > 0]
+    # --- NAguideR strategy (faithful replication) ---
+    # 1. naratiox: proportion of ROWS with at least one NA in ref_mat
+    incomplete   <- !complete.cases(ref_mat)
+    n_incomplete <- sum(incomplete)
 
-    if (length(nonzero_rates) == 0) {
+    if (n_incomplete == 0) {
       warning(".im_introduce_na: ref_mat has no NAs; ",
               "falling back to 'random' pattern.")
       pattern <- "random"
     } else {
-      # Scale sampled rates so total NA proportion approximates na_prop
-      mean_ref_rate <- mean(nonzero_rates)
-      scale_factor  <- if (mean_ref_rate > 0) na_prop / mean_ref_rate else 1
+      naratiox <- n_incomplete / nrow(ref_mat)
 
-      for (i in seq_len(nr)) {
-        # Sample a rate from the reference distribution
-        rate <- sample(nonzero_rates, 1) * scale_factor
-        rate <- min(rate, 0.9)  # cap to avoid removing all values
-        n_na <- max(0, rbinom(1, nc, rate))
-        if (n_na > 0 && n_na < nc) {
-          cols <- sample.int(nc, n_na)
-          na_mask[i, cols] <- TRUE
+      # 2. nacolratio: per-column NA rate among incomplete rows
+      ref_incomplete <- ref_mat[incomplete, , drop = FALSE]
+      nacolratio <- colSums(is.na(ref_incomplete)) / n_incomplete
+
+      # 3. Select which rows in ground-truth will receive NAs
+      nanum <- round(naratiox * nr)
+      nanum <- max(1L, min(nanum, nr - 1L))  # at least 1, keep at least 1 clean
+      set.seed(seed)
+      samplenaindex <- sample.int(nr, nanum)
+
+      # 4. Per column: sample a subset of those rows and set to NA
+      for (j in seq_len(nc)) {
+        n_na_col <- round(nacolratio[j] * nanum)
+        if (n_na_col > 0 && n_na_col <= length(samplenaindex)) {
+          set.seed(seed + j)  # per-column reproducibility (NAguideR: set.seed(i))
+          rows_j <- sample(samplenaindex, n_na_col)
+          na_mask[rows_j, j] <- TRUE
+        }
+      }
+
+      # 5. Fallback: rows selected but received no NAs across all columns
+      #    (can happen if nacolratio is very low). NAguideR assigns NAs
+      #    row-wise in that case using naratiox * ncol as per-row count.
+      rows_no_na <- samplenaindex[rowSums(na_mask[samplenaindex, , drop = FALSE]) == 0]
+      if (length(rows_no_na) > 0) {
+        eachrownaratio <- max(1L, round(naratiox * nc))
+        for (idx in seq_along(rows_no_na)) {
+          set.seed(seed + nc + idx)
+          cols_k <- sample.int(nc, min(eachrownaratio, nc))
+          na_mask[rows_no_na[idx], cols_k] <- TRUE
         }
       }
     }
   }
 
   if (pattern == "random") {
+    na_prop <- na_prop %||% 0.20
+    set.seed(seed)
     n_total <- nr * nc
     n_na    <- round(n_total * na_prop)
     idx     <- sample.int(n_total, n_na)
@@ -277,15 +303,21 @@ if (!exists(".dispatch_imputation", mode = "function")) {
   mat_with_na <- mat
   mat_with_na[na_mask] <- NA_real_
 
+  summary_list <- list(
+    n_total = nr * nc,
+    n_na    = sum(na_mask),
+    na_rate = mean(na_mask)
+  )
+  if (pattern == "from_data" && exists("naratiox", inherits = FALSE)) {
+    summary_list$rows_affected <- nanum
+    summary_list$row_ratio     <- naratiox
+  }
+
   list(
     mat_with_na = mat_with_na,
     na_mask     = na_mask,
     true_mat    = mat,
-    summary     = list(
-      n_total = nr * nc,
-      n_na    = sum(na_mask),
-      na_rate = mean(na_mask)
-    )
+    summary     = summary_list
   )
 }
 
@@ -562,9 +594,12 @@ import_imp_matrices <- function(tsv_dir,
 #' @param condition_col Character. Column in colData with condition labels,
 #'   required for combo methods. Default `"Condition"`.
 #' @param na_prop Numeric (0-1). Proportion of artificial NAs. Default 0.20.
+#'   Only used when `pattern = "random"`. Ignored when `pattern = "from_data"`
+#'   (NA proportion is derived from the data, replicating NAguideR).
 #' @param seed Integer. Random seed. Default 42.
-#' @param pattern Character. NA introduction pattern: `"random"` or
-#'   `"from_data"`. Default `"random"`.
+#' @param pattern Character. NA introduction pattern: `"random"` for uniform
+#'   random NAs, or `"from_data"` to replicate NAguideR's simulation strategy
+#'   (row ratio + per-column distribution from the actual data).
 #' @param method_args Named list of per-method argument lists.
 #' @param with_value Constant value for method `"with"`.
 #' @param verbose Logical. Print progress. Default TRUE.
@@ -636,6 +671,12 @@ im_compute_metrics <- function(se,
   if (verbose) {
     message("  Artificial NAs introduced: ", na_result$summary$n_na,
             " (", round(na_result$summary$na_rate * 100, 1), "%)")
+    if (pattern == "from_data" && !is.null(na_result$summary$row_ratio)) {
+      message("  NAguideR strategy: ", na_result$summary$rows_affected,
+              " rows affected (",
+              round(na_result$summary$row_ratio * 100, 1),
+              "% row ratio from data)")
+    }
   }
 
   # --- Resolve condition vector (needed for combo methods) ---
@@ -1015,6 +1056,8 @@ im_plot_metrics <- function(metrics_df, ...) {
 #' @param condition_col Character. Column in colData for combo methods.
 #'   Default `"Condition"`.
 #' @param na_prop Numeric (0-1). Proportion of artificial NAs. Default 0.20.
+#'   Only used when `pattern = "random"`. Ignored when `pattern = "from_data"`
+#'   (NA proportion is derived from the data, replicating NAguideR).
 #' @param seed Integer. Random seed. Default 42.
 #' @param pattern Character. `"random"` or `"from_data"`. Default `"random"`.
 #' @param method_args Named list of per-method argument lists.
