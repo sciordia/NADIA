@@ -711,6 +711,19 @@ im_compute_metrics <- function(se,
   }
   metrics_df <- do.call(rbind, metrics_rows)
 
+  # --- Detect methods with residual NAs (e.g. "none") ---
+  # Methods that left NAs at artificially-introduced positions didn't truly
+
+  # impute.  Penalize them with worst rank on every metric.
+  residual_na <- vapply(successful_methods, function(m) {
+    anyNA(imp_results[[m]][na_mask])
+  }, logical(1))
+  penalized <- names(which(residual_na))
+
+  if (length(penalized) > 0 && verbose)
+    message("  Methods with residual NAs (penalized to worst rank): ",
+            paste(penalized, collapse = ", "))
+
   # --- Compute ranks ---
   n <- nrow(metrics_df)
 
@@ -728,6 +741,13 @@ im_compute_metrics <- function(se,
   } else {
     metrics_df$ACC_OI_Rank <- rank(-metrics_df$ACC_OI, na.last = "keep",
                                    ties.method = "average")
+  }
+
+  # --- Penalize methods with residual NAs: assign worst rank (n) ---
+  if (length(penalized) > 0) {
+    pen_idx <- metrics_df$Method %in% penalized
+    rank_cols_tmp <- c("NRMSE_Rank", "SOR_Rank", "PSS_Rank", "ACC_OI_Rank")
+    metrics_df[pen_idx, rank_cols_tmp] <- n
   }
 
   # --- Rank_Mean ---
