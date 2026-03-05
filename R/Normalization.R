@@ -299,7 +299,8 @@ if (!exists("%||%", mode = "function")) {
   x <- log2(x_raw)
   x[is.infinite(x)] <- NA
   col_medians <- apply(x, 2, median, na.rm = TRUE)
-  sweep(x, 2, col_medians - mean(col_medians), "-")
+  # MSstats equalizeMedians: x - colMedian + median(colMedians)
+  sweep(x, 2, col_medians - median(col_medians), "-")
 }
 
 
