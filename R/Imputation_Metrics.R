@@ -121,27 +121,32 @@ if (!exists(".dispatch_imputation", mode = "function")) {
   if (!requireNamespace("vegan", quietly = TRUE)) return(NA_real_)
   if (ncol(true_mat) < 3 || nrow(true_mat) < 3) return(NA_real_)
 
-  .pca_reduce <- function(mat) {
-    pca <- prcomp(t(mat), center = TRUE, scale. = TRUE)
-    cum_var <- cumsum(pca$sdev^2) / sum(pca$sdev^2)
-    k <- which(cum_var >= 0.95)[1]
-    if (is.na(k)) k <- length(cum_var)
-    k <- max(k, 2)
-    pca$x[, seq_len(k), drop = FALSE]
-  }
+  # NAguideR strategy: determine k from ground truth, apply same k to both
+  pca_true <- tryCatch(
+    prcomp(t(true_mat), center = TRUE, scale. = TRUE),
+    error = function(e) NULL
+  )
+  if (is.null(pca_true)) return(NA_real_)
 
-  pca_true <- tryCatch(.pca_reduce(true_mat), error = function(e) NULL)
-  pca_imp  <- tryCatch(.pca_reduce(imp_mat),  error = function(e) NULL)
+  cum_var <- cumsum(pca_true$sdev^2) / sum(pca_true$sdev^2)
+  k <- which(cum_var >= 0.95)[1]
+  if (is.na(k)) k <- length(cum_var)
+  k <- max(k, 2)
+  pca_true_scores <- pca_true$x[, seq_len(k), drop = FALSE]
 
-  if (is.null(pca_true) || is.null(pca_imp)) return(NA_real_)
+  pca_imp <- tryCatch(
+    prcomp(t(imp_mat), center = TRUE, scale. = TRUE),
+    error = function(e) NULL
+  )
+  if (is.null(pca_imp)) return(NA_real_)
 
-  # Align dimensions (use minimum number of PCs)
-  k <- min(ncol(pca_true), ncol(pca_imp))
-  pca_true <- pca_true[, seq_len(k), drop = FALSE]
-  pca_imp  <- pca_imp[, seq_len(k), drop = FALSE]
+  # Use same k from ground truth (NAguideR: $x[, 1:pcazhanbi95] for both)
+  k_imp <- min(k, ncol(pca_imp$x))
+  if (k_imp < k) return(NA_real_)
+  pca_imp_scores <- pca_imp$x[, seq_len(k), drop = FALSE]
 
   res <- tryCatch(
-    vegan::procrustes(pca_true, pca_imp, symmetric = TRUE),
+    vegan::procrustes(pca_true_scores, pca_imp_scores, symmetric = TRUE),
     error = function(e) NULL
   )
 
