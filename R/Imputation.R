@@ -171,7 +171,9 @@ if (!exists("%||%", mode = "function")) {
 }
 
 #' mice: Multiple Imputation by Chained Equations
-#' @param args list with optional `m` (default 5), `maxit` (default 5), `method` (default "pmm")
+#' @param args list with optional `m` (default 5), `maxit` (default 5),
+#'   `method` (default "norm"), `seed` (default 1234).
+#'   NAguideR strategy: no transpose, method="norm", average of m imputations.
 #' @keywords internal
 .imp_mice <- function(x, args = list()) {
   if (!requireNamespace("mice", quietly = TRUE)) {
@@ -179,18 +181,23 @@ if (!exists("%||%", mode = "function")) {
          "  install.packages('mice')")
   }
   m      <- args$m      %||% 5
-  maxit  <- args$maxit   %||% 5
-  method <- args$method  %||% "pmm"
-  # mice works on data.frames with rows=samples, cols=features (transpose)
-  x_t <- as.data.frame(t(x))
-  imp <- mice::mice(x_t, m = m, maxit = maxit, method = method, printFlag = FALSE)
-  res <- t(as.matrix(mice::complete(imp, 1)))
+  maxit  <- args$maxit  %||% 5
+  method <- args$method %||% "norm"
+  seed   <- args$seed   %||% 1234
+  # NAguideR: no transpose (features x samples), method="norm", average m imputations
+  df1 <- as.data.frame(x)
+  imp <- mice::mice(df1, m = m, maxit = maxit, method = method,
+                    seed = seed, printFlag = FALSE)
+  res <- Reduce("+", lapply(seq_len(m), function(i) {
+    as.matrix(mice::complete(imp, i))
+  })) / m
   dimnames(res) <- dimnames(x)
   res
 }
 
 #' missForest: Random Forest imputation
-#' @param args list with optional `maxiter` (default 10), `ntree` (default 100)
+#' @param args list with optional `maxiter` (default 10), `ntree` (default 100),
+#'   `mtry` (default floor(nrow(x)^(1/3)), NAguideR cube root strategy)
 #' @keywords internal
 .imp_missForest <- function(x, args = list()) {
   if (!requireNamespace("missForest", quietly = TRUE)) {
@@ -199,9 +206,11 @@ if (!exists("%||%", mode = "function")) {
   }
   maxiter <- args$maxiter %||% 10
   ntree   <- args$ntree   %||% 100
-  # missForest expects rows=observations (samples), cols=variables (proteins)
+  mtry    <- args$mtry    %||% floor(nrow(x)^(1/3))
+  # NAguideR: transpose, mtry = cube root of n_features
   x_t <- t(x)
-  res <- missForest::missForest(x_t, maxiter = maxiter, ntree = ntree, verbose = FALSE)
+  res <- missForest::missForest(x_t, maxiter = maxiter, ntree = ntree,
+                                mtry = mtry, verbose = FALSE)
   out <- t(res$ximp)
   dimnames(out) <- dimnames(x)
   out
@@ -246,22 +255,23 @@ if (!exists("%||%", mode = "function")) {
 }
 
 #' MLE: Maximum Likelihood Estimation (norm)
+#' @param args list with optional `seed` (default 123).
+#'   NAguideR strategy: no transpose (features x samples).
 #' @keywords internal
 .imp_MLE <- function(x, args = list()) {
   if (!requireNamespace("norm", quietly = TRUE)) {
     stop("Para imp_method='MLE' necesitas 'norm'.\n",
          "  install.packages('norm')")
   }
-  # norm works on observations(rows) x variables(cols) → transpose
-  x_t <- t(x)
-  s <- norm::prelim.norm(x_t)
+  # NAguideR: no transpose (features x samples)
+  xxm <- as.matrix(x)
+  s <- norm::prelim.norm(xxm)
   thetahat <- norm::em.norm(s, showits = FALSE)
-  seed <- args$seed %||% 1
+  seed <- args$seed %||% 123
   norm::rngseed(seed)
-  res <- norm::imp.norm(s, thetahat, x_t)
-  out <- t(res)
-  dimnames(out) <- dimnames(x)
-  out
+  res <- norm::imp.norm(s, thetahat, xxm)
+  dimnames(res) <- dimnames(x)
+  res
 }
 
 #' MinProb: Minimum Probability imputation (imputeLCMD)
