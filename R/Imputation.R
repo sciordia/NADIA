@@ -143,16 +143,18 @@ if (!exists("%||%", mode = "function")) {
 # --- With optional dependencies (10) ---
 
 #' bpca: Bayesian PCA imputation (pcaMethods)
-#' @param args list with optional `nPcs` (default 2)
+#' @param args list with optional `nPcs` (default ncol-1), `maxSteps` (default 100)
 #' @keywords internal
 .imp_bpca <- function(x, args = list()) {
   if (!requireNamespace("pcaMethods", quietly = TRUE)) {
     stop("Para imp_method='bpca' necesitas 'pcaMethods'.\n",
          "  BiocManager::install('pcaMethods')")
   }
-  nPcs <- args$nPcs %||% 2
+  # NAguideR/MsCoreUtils: nPcs = ncol(x) - 1 (max PCs possible)
+  nPcs     <- args$nPcs     %||% (ncol(x) - 1)
+  maxSteps <- args$maxSteps %||% 100
   nPcs <- min(nPcs, min(dim(x)) - 1)
-  res <- pcaMethods::pca(x, method = "bpca", nPcs = nPcs)
+  res <- pcaMethods::pca(x, method = "bpca", nPcs = nPcs, maxSteps = maxSteps)
   pcaMethods::completeObs(res)
 }
 
