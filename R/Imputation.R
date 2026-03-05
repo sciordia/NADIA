@@ -39,7 +39,7 @@ if (!exists("%||%", mode = "function")) {
 .IMP_METHODS_ALL <- c(
   "combo", "softHybrid", "bpca", "knn", "mice", "missForest", "Impseq",
   "Impseqrob", "QRILC", "MLE",
-  "MinDet", "MinProb", "min", "zero", "nbavg", "with", "none"
+  "MinDet", "MinProb", "PI", "min", "zero", "nbavg", "with", "none"
 )
 
 .IMP_METHODS_MAR <- c(
@@ -48,7 +48,7 @@ if (!exists("%||%", mode = "function")) {
 )
 
 .IMP_METHODS_MNAR <- c(
-  "QRILC", "MinDet", "MinProb", "min", "zero", "with", "none"
+  "QRILC", "MinDet", "MinProb", "PI", "min", "zero", "with", "none"
 )
 
 # =============================================================================
@@ -118,6 +118,25 @@ if (!exists("%||%", mode = "function")) {
     stop("imp_method='with' requiere un valor en 'with_value'.")
   }
   x[is.na(x)] <- val
+  x
+}
+
+#' PI: Perseus-style imputation (down-shifted normal distribution)
+#' @param args list with optional `width` (default 0.3) and `downshift` (default 1.8)
+#' @keywords internal
+.imp_PI <- function(x, args = list()) {
+  width     <- args$width     %||% 0.3
+  downshift <- args$downshift %||% 1.8
+  for (j in seq_len(ncol(x))) {
+    na_idx <- which(is.na(x[, j]))
+    if (length(na_idx) == 0L) next
+    obs    <- x[!is.na(x[, j]), j]
+    obs_sd <- sd(obs)
+    obs_mu <- mean(obs)
+    x[na_idx, j] <- rnorm(length(na_idx),
+                           mean = obs_mu - downshift * obs_sd,
+                           sd   = width * obs_sd)
+  }
   x
 }
 
@@ -362,6 +381,7 @@ if (!exists("%||%", mode = "function")) {
     "MinDet"     = .imp_MinDet(x, args),
     "nbavg"      = .imp_nbavg(x, args),
     "with"       = .imp_with(x, args),
+    "PI"         = .imp_PI(x, args),
     "bpca"       = .imp_bpca(x, args),
     "knn"        = .imp_knn(x, args),
     "mice"       = .imp_mice(x, args),

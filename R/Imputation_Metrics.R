@@ -48,7 +48,7 @@ if (!exists(".dispatch_imputation", mode = "function")) {
 # --- Benchmark methods (14 individual methods, excludes combo/softHybrid/none) ---
 .IM_BENCH_METHODS <- c(
   "bpca", "knn", "mice", "missForest", "Impseq", "Impseqrob",
-  "QRILC", "MLE", "MinDet", "MinProb", "min", "zero", "nbavg", "with"
+  "QRILC", "MLE", "MinDet", "MinProb", "PI", "min", "zero", "nbavg", "with"
 )
 
 # =============================================================================
