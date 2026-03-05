@@ -279,6 +279,7 @@ if (!exists("%||%", mode = "function")) {
 #' @param alpha Adjusted p-value threshold (default: 0.05)
 #' @param eBayes_trend Use trend estimation in eBayes (default: TRUE)
 #' @param eBayes_robust Use robust estimation in eBayes (default: TRUE)
+#' @param de_method DE method: "limma" (default) or "limpa" (probabilistic, requires imp_method="limpa")
 #' @param export_normalized Export normalized matrix (default: TRUE)
 #' @param export_imputed Export imputed matrix (default: TRUE)
 #' @param export_format Export format: "tsv", "parquet", or "both" (default: "tsv")
@@ -344,6 +345,7 @@ process_proteomics <- function(
     alpha = 0.05,
     eBayes_trend = TRUE,
     eBayes_robust = TRUE,
+    de_method = "limma",
     export_normalized = TRUE,
     export_imputed = TRUE,
     export_format = "tsv",
@@ -484,6 +486,7 @@ process_proteomics <- function(
     p_adj = TRUE,
     eBayes_trend = eBayes_trend,
     eBayes_robust = eBayes_robust,
+    de_method = de_method,
     condition_column = "Condition",
     verbose = verbose
   )
@@ -548,6 +551,7 @@ process_proteomics <- function(
       alpha = alpha,
       eBayes_trend = eBayes_trend,
       eBayes_robust = eBayes_robust,
+      de_method = de_method,
       export_dir = export_dir,
       export_format = export_format,
       export_volcano = export_volcano,

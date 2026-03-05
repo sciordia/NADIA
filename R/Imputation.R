@@ -39,7 +39,7 @@ if (!exists("%||%", mode = "function")) {
 .IMP_METHODS_ALL <- c(
   "combo", "softHybrid", "bpca", "knn", "mice", "missForest", "Impseq",
   "Impseqrob", "QRILC", "MLE",
-  "MinDet", "MinProb", "PI", "min", "zero", "nbavg", "with", "none"
+  "MinDet", "MinProb", "PI", "min", "zero", "nbavg", "with", "limpa", "none"
 )
 
 .IMP_METHODS_MAR <- c(
@@ -138,6 +138,50 @@ if (!exists("%||%", mode = "function")) {
                            sd   = width * obs_sd)
   }
   x
+}
+
+#' limpa: probabilistic imputation with detection probability curve (limpa)
+#'
+#' Uses dpc/dpcCN to estimate a detection probability curve, then
+#' dpcQuantByRow to impute protein-level abundances with standard errors.
+#' The returned EList is attached as an attribute for downstream dpcDE.
+#'
+#' @param args list with optional `use_dpcCN` (default FALSE), `dpc.slope` (default 0.8),
+#'   `maxit` (default 100), `eps` (default 1e-04), `b1.upper` (default 1),
+#'   `chunk` (default 1000), `verbose` (default FALSE)
+#' @keywords internal
+.imp_limpa <- function(x, args = list()) {
+  if (!requireNamespace("limpa", quietly = TRUE)) {
+    stop("Para imp_method='limpa' necesitas 'limpa'.\n",
+         "  BiocManager::install('limpa')")
+  }
+
+  use_dpcCN <- args$use_dpcCN %||% FALSE
+  dpc.slope  <- args$dpc.slope  %||% 0.8
+  maxit      <- args$maxit      %||% 100
+  eps        <- args$eps        %||% 1e-04
+  b1.upper   <- args$b1.upper   %||% 1
+  chunk      <- args$chunk      %||% 1000
+  verbose    <- args$verbose    %||% FALSE
+
+  # 1. Estimar curva de probabilidad de deteccion
+  if (use_dpcCN) {
+    dpc_est <- limpa::dpcCN(x, dpc.slope.start = dpc.slope, verbose = verbose)
+  } else {
+    dpc_est <- limpa::dpc(x, maxit = maxit, eps = eps, b1.upper = b1.upper)
+  }
+
+  # 2. Cuantificacion row-wise (imputa + calcula SEs)
+  elist <- limpa::dpcQuantByRow(x, dpc = dpc_est, verbose = verbose, chunk = chunk)
+
+  # Matriz imputada
+  result <- elist$E
+  dimnames(result) <- dimnames(x)
+
+  # Adjuntar EList para downstream dpcDE
+  attr(result, "limpa_elist") <- elist
+
+  result
 }
 
 # --- With optional dependencies (10) ---
@@ -402,6 +446,7 @@ if (!exists("%||%", mode = "function")) {
 "QRILC"      = .imp_QRILC(x, args),
     "MLE"        = .imp_MLE(x, args),
     "MinProb"    = .imp_MinProb(x, args),
+    "limpa"      = .imp_limpa(x, args),
     stop("Metodo de imputacion desconocido: '", method, "'. ",
          "Metodos disponibles: ", paste(.IMP_METHODS_ALL, collapse = ", "))
   )
@@ -1106,6 +1151,16 @@ impute_proteomics <- function(
 
   # Add imputed assay with the provided name
   SummarizedExperiment::assay(se_subset, imputed_assay_name) <- mat
+
+  # Guardar EList de limpa en metadata para downstream dpcDE
+  limpa_elist <- attr(x_imputed, "limpa_elist")
+  if (!is.null(limpa_elist)) {
+    common_rows <- intersect(rownames(mat), rownames(limpa_elist$E))
+    if (length(common_rows) > 0) {
+      limpa_elist_aligned <- limpa_elist[common_rows, ]
+      S4Vectors::metadata(se_subset)$limpa_elist <- limpa_elist_aligned
+    }
+  }
 
   if (verbose) {
     cat("- Assays disponibles:",

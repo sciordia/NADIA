@@ -115,6 +115,57 @@ if (!exists("%||%", mode = "function")) {
   fit
 }
 
+#' Run limpa dpcDE analysis
+#'
+#' Uses limpa::dpcDE with precision weights from the EList (standard errors)
+#' produced by dpcQuantByRow. The EList is stored in SE metadata by
+#' impute_proteomics() when imp_method="limpa".
+#'
+#' @param elist EList from limpa (with $E and $weights)
+#' @param condition_vector Condition vector aligned with columns
+#' @param comparisons Comparison vector
+#' @param covariate Optional covariate for the model
+#' @param eBayes_trend Use trend estimation in eBayes (default: FALSE, vooma already models the trend)
+#' @param eBayes_robust Use robust estimation in eBayes (default: FALSE, voomaLmFitWithImputation
+#'   already handles imputed proteins)
+#' @return limma MArrayLM fit object
+#' @keywords internal
+.perform_limpa_de <- function(elist, condition_vector, comparisons, covariate = NULL,
+                               eBayes_trend = FALSE, eBayes_robust = FALSE) {
+  if (!requireNamespace("limpa", quietly = TRUE)) {
+    stop("Para de_method='limpa' necesitas 'limpa'.\n",
+         "  BiocManager::install('limpa')")
+  }
+
+  condition <- factor(condition_vector)
+
+  # Design matrix (mismo patron que limma)
+  if (is.null(covariate)) {
+    design <- model.matrix(~ 0 + condition)
+    colnames(design) <- levels(condition)
+  } else {
+    design <- model.matrix(~ 0 + condition + covariate)
+    colnames(design)[seq_along(levels(condition))] <- levels(condition)
+  }
+
+  # Contrast matrix
+  contrast_strings <- as.character(comparisons)
+  contrast_matrix <- limma::makeContrasts(
+    contrasts = contrast_strings,
+    levels = design
+  )
+
+  # dpcDE: ajuste con precision weights de SEs
+  # voomaLmFitWithImputation ya modela la tendencia de varianza via vooma,
+  # por lo que eBayes defaults son FALSE/FALSE (vignette Li, Cobbold, Smyth 2025).
+  # Se exponen como configurables para usuarios avanzados (como hace msdap).
+  fit <- limpa::dpcDE(elist, design, plot = FALSE)
+  fit <- limma::contrasts.fit(fit, contrast_matrix)
+  fit <- limma::eBayes(fit, trend = eBayes_trend, robust = eBayes_robust)
+
+  fit
+}
+
 #' Extract results from limma fit
 #'
 #' @param fit limma fit object
@@ -175,6 +226,7 @@ if (!exists("%||%", mode = "function")) {
 #' @param alpha Significance threshold (default: 0.05)
 #' @param eBayes_trend Use trend estimation in eBayes (default: TRUE)
 #' @param eBayes_robust Use robust estimation in eBayes (default: TRUE)
+#' @param de_method DE method: "limma" or "limpa" (default: "limma")
 #' @return Data frame with DE results
 #' @keywords internal
 .run_DE <- function(
@@ -188,7 +240,8 @@ if (!exists("%||%", mode = "function")) {
     p_adj = TRUE,
     alpha = 0.05,
     eBayes_trend = TRUE,
-    eBayes_robust = TRUE
+    eBayes_robust = TRUE,
+    de_method = "limma"
 ) {
   stopifnot(inherits(se, "SummarizedExperiment"))
 
@@ -214,9 +267,19 @@ if (!exists("%||%", mode = "function")) {
 
   condition_vec <- cd[[condition_column]]
 
-  # Run limma
-  fit <- .perform_limma(x, condition_vec, comparisons, covariate = NULL,
-                        eBayes_trend = eBayes_trend, eBayes_robust = eBayes_robust)
+  # Run DE analysis
+  if (de_method == "limpa") {
+    elist <- S4Vectors::metadata(se)$limpa_elist
+    if (is.null(elist)) {
+      stop("de_method='limpa' requiere imp_method='limpa'. ",
+           "No se encontro limpa_elist en metadata del SE.")
+    }
+    fit <- .perform_limpa_de(elist, condition_vec, comparisons, covariate = NULL,
+                              eBayes_trend = eBayes_trend, eBayes_robust = eBayes_robust)
+  } else {
+    fit <- .perform_limma(x, condition_vec, comparisons, covariate = NULL,
+                          eBayes_trend = eBayes_trend, eBayes_robust = eBayes_robust)
+  }
 
   # Extract results
   if (!logFC) {
@@ -269,6 +332,7 @@ if (!exists("%||%", mode = "function")) {
 #' @param p_adj Use adjusted p-value (default: TRUE)
 #' @param eBayes_trend Use trend estimation in eBayes (default: TRUE, recommended for proteomics)
 #' @param eBayes_robust Use robust estimation in eBayes (default: TRUE, recommended for proteomics)
+#' @param de_method DE method: "limma" (default) or "limpa" (probabilistic, requires imp_method="limpa")
 #' @param condition_column Condition column name (default: "Condition")
 #' @param verbose Print progress messages (default: TRUE)
 #'
@@ -300,11 +364,21 @@ de_analysis_proteomics <- function(
     p_adj = TRUE,
     eBayes_trend = TRUE,
     eBayes_robust = TRUE,
+    de_method = "limma",
     condition_column = "Condition",
     verbose = TRUE
 ) {
   # Validate SE
   stopifnot(inherits(se, "SummarizedExperiment"))
+
+  # Validate de_method
+  de_method <- match.arg(de_method, c("limma", "limpa"))
+
+  # Para limpa, defaults de eBayes son FALSE (vooma ya modela la tendencia)
+  if (de_method == "limpa") {
+    if (missing(eBayes_trend))  eBayes_trend  <- FALSE
+    if (missing(eBayes_robust)) eBayes_robust <- FALSE
+  }
 
   # Validate required packages
   if (!requireNamespace("limma", quietly = TRUE)) {
@@ -318,7 +392,7 @@ de_analysis_proteomics <- function(
     assay_name <- available_assays[length(available_assays)]
   }
 
-  if (verbose) cat("\n=== ANALISIS DIFERENCIAL (limma) ===\n")
+  if (verbose) cat("\n=== ANALISIS DIFERENCIAL (", de_method, ") ===\n")
 
   # Generate comparisons if not specified
   if (is.null(comparisons)) {
@@ -340,7 +414,8 @@ de_analysis_proteomics <- function(
     p_adj = p_adj,
     alpha = alpha,
     eBayes_trend = eBayes_trend,
-    eBayes_robust = eBayes_robust
+    eBayes_robust = eBayes_robust,
+    de_method = de_method
   )
 
   if (verbose) {
