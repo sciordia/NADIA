@@ -394,6 +394,14 @@ if (!exists("%||%", mode = "function")) {
       keep_samples <- condition_vec %in% c(cond_treatment, cond_control)
       se_2group <- se[, keep_samples]
 
+      # Filter rows with any NA in the assay (avoid NA coefficients in bootstrap)
+      assay_mat <- SummarizedExperiment::assay(se_2group, assay_name)
+      complete_rows <- rowSums(is.na(assay_mat)) == 0
+      if (sum(!complete_rows) > 0 && verbose) {
+        cat("    (filtrando", sum(!complete_rows), "proteinas con NAs)\n")
+      }
+      se_2group <- se_2group[complete_rows, ]
+
       # Set factor levels: treatment FIRST (LimROTS: group1 - group2)
       cd_2group <- as.data.frame(SummarizedExperiment::colData(se_2group))
       cd_2group[[condition_column]] <- factor(
@@ -541,6 +549,14 @@ de_analysis_proteomics <- function(
   if (de_method == "limpa") {
     if (missing(eBayes_trend))  eBayes_trend  <- FALSE
     if (missing(eBayes_robust)) eBayes_robust <- FALSE
+  }
+
+  # Para LimROTS, trend=FALSE por defecto: el bootstrap interno puede generar
+  # fits parciales con NA coefficients, y trend=TRUE usa Amean como covariable
+  # que hereda esos NAs, crasheando fitFDistUnequalDF1.
+  if (de_method == "LimROTS") {
+    if (missing(eBayes_trend))  eBayes_trend  <- FALSE
+    if (missing(eBayes_robust)) eBayes_robust <- TRUE
   }
 
   # Validate required packages
