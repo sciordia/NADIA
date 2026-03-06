@@ -2,14 +2,15 @@
 # Differential Expression Analysis Module
 # =============================================================================
 #
-# Functions for differential expression analysis with limma:
+# Functions for differential expression analysis with limma/limpa/LimROTS:
 #   - Comparison specification (pairwise or vs control)
-#   - limma model fitting
+#   - limma/limpa model fitting, LimROTS bootstrapped reproducibility
 #   - Result extraction with fold-change classification
 #
 # Dependencies:
 #   - SummarizedExperiment, S4Vectors
 #   - limma
+#   - Optional: limpa, LimROTS, BiocParallel
 #
 # Author: Sergio Ciordia
 # License: MIT
@@ -166,6 +167,90 @@ if (!exists("%||%", mode = "function")) {
   fit
 }
 
+#' Run LimROTS analysis on a 2-group subset
+#'
+#' LimROTS does not support pairwise contrasts; it requires a 2-group SE.
+#' This function runs one comparison at a time on a subsetted SE.
+#'
+#' @param se_subset SummarizedExperiment with exactly 2 conditions
+#' @param condition_column Condition column name in colData
+#' @param comparison_label Label for the comparison (e.g. "B-A")
+#' @param niter Bootstrap iterations (default: 1000)
+#' @param K Top features for reproducibility ranking (default: NULL = nrow/4)
+#' @param eBayes_trend Use trend estimation in eBayes (default: TRUE)
+#' @param eBayes_robust Use robust estimation in eBayes (default: TRUE)
+#' @param BPPARAM BiocParallel param (default: NULL = SerialParam)
+#' @param verbose Print progress (default: TRUE)
+#' @return SummarizedExperiment with LimROTS results in rowData
+#' @keywords internal
+.perform_LimROTS_de <- function(se_subset, condition_column, comparison_label,
+                                 niter = 1000, K = NULL,
+                                 eBayes_trend = TRUE, eBayes_robust = TRUE,
+                                 BPPARAM = NULL, verbose = TRUE) {
+  if (!requireNamespace("LimROTS", quietly = TRUE)) {
+    stop("Para de_method='LimROTS' necesitas 'LimROTS'.\n",
+         "  BiocManager::install('LimROTS')")
+  }
+
+  if (is.null(BPPARAM)) {
+    BPPARAM <- BiocParallel::SerialParam()
+  }
+
+  if (is.null(K)) K <- floor(nrow(se_subset) / 4)
+
+  se_result <- LimROTS::LimROTS(
+    x               = se_subset,
+    niter           = niter,
+    K               = K,
+    meta.info       = c(condition_column),
+    group.name      = condition_column,
+    formula.str     = paste0("~ 0 + ", condition_column),
+    trend           = eBayes_trend,
+    robust          = eBayes_robust,
+    BPPARAM         = BPPARAM,
+    verbose         = verbose,
+    log             = TRUE
+  )
+
+  se_result
+}
+
+#' Extract results from LimROTS SE output
+#'
+#' Formats LimROTS rowData into the same structure as .extract_limma_results().
+#'
+#' @param se_result SummarizedExperiment returned by LimROTS
+#' @param comparison_label Label for the comparison
+#' @param logFC_up Upper logFC threshold for "Up"
+#' @param logFC_down Lower logFC threshold for "Down"
+#' @param alpha Significance threshold
+#' @param p_adj Use FDR (TRUE) or raw p-value (FALSE)
+#' @return Data frame with Protein.IDs, logFC, P.Value, adj.P.Val, Change, Comparison
+#' @keywords internal
+.extract_LimROTS_results <- function(se_result, comparison_label,
+                                      logFC_up = 1, logFC_down = -1,
+                                      alpha = 0.05, p_adj = TRUE) {
+  rd <- as.data.frame(SummarizedExperiment::rowData(se_result))
+
+  df <- data.frame(
+    Protein.IDs = rownames(rd),
+    logFC       = rd$corrected.logfc,
+    P.Value     = rd$pvalue,
+    adj.P.Val   = rd$FDR,
+    stringsAsFactors = FALSE
+  )
+
+  # Classify changes (same logic as .extract_limma_results)
+  p_col <- if (p_adj) "adj.P.Val" else "P.Value"
+  df$Change <- "No Change"
+  df$Change[df$logFC >= logFC_up & df[[p_col]] < alpha] <- "Up"
+  df$Change[df$logFC <= logFC_down & df[[p_col]] < alpha] <- "Down"
+  df$Change <- factor(df$Change, levels = c("Up", "Down", "No Change"))
+
+  df$Comparison <- comparison_label
+  df
+}
+
 #' Extract results from limma fit
 #'
 #' @param fit limma fit object
@@ -226,7 +311,11 @@ if (!exists("%||%", mode = "function")) {
 #' @param alpha Significance threshold (default: 0.05)
 #' @param eBayes_trend Use trend estimation in eBayes (default: TRUE)
 #' @param eBayes_robust Use robust estimation in eBayes (default: TRUE)
-#' @param de_method DE method: "limma" or "limpa" (default: "limma")
+#' @param de_method DE method: "limma", "limpa", or "LimROTS" (default: "limma")
+#' @param niter Bootstrap iterations for LimROTS (default: 1000)
+#' @param K Top features for LimROTS reproducibility ranking (default: NULL = nrow/4)
+#' @param BPPARAM BiocParallel param for LimROTS (default: NULL = serial)
+#' @param verbose Print progress messages (default: TRUE)
 #' @return Data frame with DE results
 #' @keywords internal
 .run_DE <- function(
@@ -241,7 +330,11 @@ if (!exists("%||%", mode = "function")) {
     alpha = 0.05,
     eBayes_trend = TRUE,
     eBayes_robust = TRUE,
-    de_method = "limma"
+    de_method = "limma",
+    niter = 1000,
+    K = NULL,
+    BPPARAM = NULL,
+    verbose = TRUE
 ) {
   stopifnot(inherits(se, "SummarizedExperiment"))
 
@@ -267,33 +360,94 @@ if (!exists("%||%", mode = "function")) {
 
   condition_vec <- cd[[condition_column]]
 
-  # Run DE analysis
-  if (de_method == "limpa") {
-    elist <- S4Vectors::metadata(se)$limpa_elist
-    if (is.null(elist)) {
-      stop("de_method='limpa' requiere imp_method='limpa'. ",
-           "No se encontro limpa_elist en metadata del SE.")
-    }
-    fit <- .perform_limpa_de(elist, condition_vec, comparisons, covariate = NULL,
-                              eBayes_trend = eBayes_trend, eBayes_robust = eBayes_robust)
-  } else {
-    fit <- .perform_limma(x, condition_vec, comparisons, covariate = NULL,
-                          eBayes_trend = eBayes_trend, eBayes_robust = eBayes_robust)
-  }
-
-  # Extract results
+  # Apply logFC thresholds
   if (!logFC) {
     logFC_up <- 0
     logFC_down <- 0
   }
 
-  results <- .extract_limma_results(
-    fit, comparisons,
-    logFC_up = logFC_up,
-    logFC_down = logFC_down,
-    alpha = alpha,
-    p_adj = p_adj
-  )
+  # Run DE analysis
+  if (de_method == "LimROTS") {
+    # LimROTS: run separately for each 2-group comparison
+    all_conditions <- unique(as.character(condition_vec))
+
+    if (verbose) {
+      cat("  LimROTS:", length(comparisons), "comparaciones x", niter, "bootstraps\n")
+    }
+
+    results_list <- lapply(seq_along(comparisons), function(i) {
+      comp <- as.character(comparisons[i])
+
+      # Parse comparison "B-A" -> treatment="B", control="A"
+      cond_treatment <- NULL
+      cond_control <- NULL
+      for (cond in all_conditions) {
+        if (startsWith(comp, paste0(cond, "-"))) {
+          cond_treatment <- cond
+          cond_control <- sub(paste0("^", cond, "-"), "", comp)
+          break
+        }
+      }
+      if (is.null(cond_treatment)) stop("No se pudo parsear la comparacion: ", comp)
+
+      # Subset SE to the 2 conditions
+      keep_samples <- condition_vec %in% c(cond_treatment, cond_control)
+      se_2group <- se[, keep_samples]
+
+      # Set factor levels: treatment FIRST (LimROTS: group1 - group2)
+      cd_2group <- as.data.frame(SummarizedExperiment::colData(se_2group))
+      cd_2group[[condition_column]] <- factor(
+        cd_2group[[condition_column]],
+        levels = c(cond_treatment, cond_control)
+      )
+      SummarizedExperiment::colData(se_2group)[[condition_column]] <- cd_2group[[condition_column]]
+
+      if (verbose) cat("  - Ejecutando LimROTS para", comp, "\n")
+
+      # Run LimROTS
+      se_result <- .perform_LimROTS_de(
+        se_subset        = se_2group,
+        condition_column = condition_column,
+        comparison_label = comp,
+        niter            = niter,
+        K                = K,
+        eBayes_trend     = eBayes_trend,
+        eBayes_robust    = eBayes_robust,
+        BPPARAM          = BPPARAM,
+        verbose          = verbose
+      )
+
+      # Extract results in standard format
+      .extract_LimROTS_results(se_result, comp,
+        logFC_up = logFC_up, logFC_down = logFC_down,
+        alpha = alpha, p_adj = p_adj)
+    })
+
+    results <- do.call(rbind, results_list)
+
+  } else {
+    # limma or limpa
+    if (de_method == "limpa") {
+      elist <- S4Vectors::metadata(se)$limpa_elist
+      if (is.null(elist)) {
+        stop("de_method='limpa' requiere imp_method='limpa'. ",
+             "No se encontro limpa_elist en metadata del SE.")
+      }
+      fit <- .perform_limpa_de(elist, condition_vec, comparisons, covariate = NULL,
+                                eBayes_trend = eBayes_trend, eBayes_robust = eBayes_robust)
+    } else {
+      fit <- .perform_limma(x, condition_vec, comparisons, covariate = NULL,
+                            eBayes_trend = eBayes_trend, eBayes_robust = eBayes_robust)
+    }
+
+    results <- .extract_limma_results(
+      fit, comparisons,
+      logFC_up = logFC_up,
+      logFC_down = logFC_down,
+      alpha = alpha,
+      p_adj = p_adj
+    )
+  }
 
   # Add gene information
   if ("Gene.Names" %in% names(rd)) {
@@ -332,7 +486,13 @@ if (!exists("%||%", mode = "function")) {
 #' @param p_adj Use adjusted p-value (default: TRUE)
 #' @param eBayes_trend Use trend estimation in eBayes (default: TRUE, recommended for proteomics)
 #' @param eBayes_robust Use robust estimation in eBayes (default: TRUE, recommended for proteomics)
-#' @param de_method DE method: "limma" (default) or "limpa" (probabilistic, requires imp_method="limpa")
+#' @param de_method DE method: "limma" (default), "limpa" (probabilistic, requires
+#'   imp_method="limpa"), or "LimROTS" (bootstrapped reproducibility-optimized test statistic)
+#' @param LimROTS_niter Bootstrap iterations for LimROTS (default: 1000). Higher = more
+#'   precise but slower.
+#' @param LimROTS_K Top features for reproducibility ranking (default: NULL = nrow/4)
+#' @param LimROTS_BPPARAM BiocParallel param for LimROTS (default: NULL = serial).
+#'   Use BiocParallel::MulticoreParam(4) for parallel.
 #' @param condition_column Condition column name (default: "Condition")
 #' @param verbose Print progress messages (default: TRUE)
 #'
@@ -365,6 +525,9 @@ de_analysis_proteomics <- function(
     eBayes_trend = TRUE,
     eBayes_robust = TRUE,
     de_method = "limma",
+    LimROTS_niter   = 1000,
+    LimROTS_K       = NULL,
+    LimROTS_BPPARAM = NULL,
     condition_column = "Condition",
     verbose = TRUE
 ) {
@@ -372,7 +535,7 @@ de_analysis_proteomics <- function(
   stopifnot(inherits(se, "SummarizedExperiment"))
 
   # Validate de_method
-  de_method <- match.arg(de_method, c("limma", "limpa"))
+  de_method <- match.arg(de_method, c("limma", "limpa", "LimROTS"))
 
   # Para limpa, defaults de eBayes son FALSE (vooma ya modela la tendencia)
   if (de_method == "limpa") {
@@ -415,7 +578,11 @@ de_analysis_proteomics <- function(
     alpha = alpha,
     eBayes_trend = eBayes_trend,
     eBayes_robust = eBayes_robust,
-    de_method = de_method
+    de_method = de_method,
+    niter   = LimROTS_niter,
+    K       = LimROTS_K,
+    BPPARAM = LimROTS_BPPARAM,
+    verbose = verbose
   )
 
   if (verbose) {
