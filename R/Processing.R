@@ -279,11 +279,7 @@ if (!exists("%||%", mode = "function")) {
 #' @param alpha Adjusted p-value threshold (default: 0.05)
 #' @param eBayes_trend Use trend estimation in eBayes (default: TRUE)
 #' @param eBayes_robust Use robust estimation in eBayes (default: TRUE)
-#' @param de_method DE method: "limma" (default), "limpa" (probabilistic, requires
-#'   imp_method="limpa"), or "LimROTS" (bootstrapped reproducibility-optimized)
-#' @param LimROTS_niter Bootstrap iterations for LimROTS (default: 1000)
-#' @param LimROTS_K Top features for LimROTS reproducibility ranking (default: NULL = nrow/4)
-#' @param LimROTS_BPPARAM BiocParallel param for LimROTS (default: NULL = serial)
+#' @param de_method DE method: "limma" (default) or "limpa" (probabilistic, requires imp_method="limpa")
 #' @param export_normalized Export normalized matrix (default: TRUE)
 #' @param export_imputed Export imputed matrix (default: TRUE)
 #' @param export_format Export format: "tsv", "parquet", or "both" (default: "tsv")
@@ -350,9 +346,6 @@ process_proteomics <- function(
     eBayes_trend = TRUE,
     eBayes_robust = TRUE,
     de_method = "limma",
-    LimROTS_niter   = 1000,
-    LimROTS_K       = NULL,
-    LimROTS_BPPARAM = NULL,
     export_normalized = TRUE,
     export_imputed = TRUE,
     export_format = "tsv",
@@ -494,9 +487,6 @@ process_proteomics <- function(
     eBayes_trend = eBayes_trend,
     eBayes_robust = eBayes_robust,
     de_method = de_method,
-    LimROTS_niter   = LimROTS_niter,
-    LimROTS_K       = LimROTS_K,
-    LimROTS_BPPARAM = LimROTS_BPPARAM,
     condition_column = "Condition",
     verbose = verbose
   )
@@ -562,8 +552,6 @@ process_proteomics <- function(
       eBayes_trend = eBayes_trend,
       eBayes_robust = eBayes_robust,
       de_method = de_method,
-      LimROTS_niter = LimROTS_niter,
-      LimROTS_K = LimROTS_K,
       export_dir = export_dir,
       export_format = export_format,
       export_volcano = export_volcano,
@@ -621,11 +609,6 @@ print.proteomics_result <- function(x, ...) {
     cat("    - Cyclic Loess method:", x$parameters$cyclic_loess_method, "\n")
     cat("    - Cyclic Loess iterations:", x$parameters$cyclic_loess_iterations, "\n")
     cat("    - Cyclic Loess span:", x$parameters$cyclic_loess_span, "\n")
-  }
-  cat("  - DE method:", x$parameters$de_method, "\n")
-  if (identical(x$parameters$de_method, "LimROTS")) {
-    cat("    - niter:", x$parameters$LimROTS_niter, "\n")
-    cat("    - K:", x$parameters$LimROTS_K %||% "auto", "\n")
   }
   cat("  - Imputacion:", x$parameters$imp_method, "\n")
   if (identical(x$parameters$imp_method, "combo")) {
