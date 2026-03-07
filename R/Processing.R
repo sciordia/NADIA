@@ -524,9 +524,16 @@ process_proteomics <- function(
   if (export_volcano || export_boxplot || export_pca) {
     if (verbose) cat("\n=== EXPORTANDO ARCHIVOS PARA VISUALIZACION ===\n")
 
+    # Sufijo con norm_method y assay_label (evitar redundancia si son iguales)
+    viz_suffix <- if (identical(assay_label, norm_method)) {
+      paste0("_", norm_method)
+    } else {
+      paste0("_", norm_method, "_", assay_label)
+    }
+
     # 5.1 VolcanoPlot_Input (DEPs_results)
     if (export_volcano) {
-      volcano_file <- file.path(export_dir, "VolcanoPlot_Input")
+      volcano_file <- file.path(export_dir, paste0("VolcanoPlot_Input", viz_suffix))
       .export_data(DEPs_results, volcano_file, export_format)
       if (verbose) cat("- VolcanoPlot_Input exportado\n")
     }
@@ -534,7 +541,7 @@ process_proteomics <- function(
     # 5.2 BoxPlot_Input (SE -> long format)
     if (export_boxplot) {
       boxplot_data <- .se_to_long(se_proc, assay_names = c("log2", assay_label))
-      boxplot_file <- file.path(export_dir, "BoxPlot_Input")
+      boxplot_file <- file.path(export_dir, paste0("BoxPlot_Input", viz_suffix))
       .export_data(boxplot_data, boxplot_file, export_format)
       if (verbose) cat("- BoxPlot_Input exportado\n")
     }
@@ -542,7 +549,7 @@ process_proteomics <- function(
     # 5.3 PCA_Input (SE + DE in long format)
     if (export_pca) {
       pca_data <- .prepare_pca_input(se_proc, DEPs_results, assay_label, alpha)
-      pca_file <- file.path(export_dir, "PCA_Input")
+      pca_file <- file.path(export_dir, paste0("PCA_Input", viz_suffix))
       .export_data(pca_data, pca_file, export_format)
       if (verbose) cat("- PCA_Input exportado\n")
     }

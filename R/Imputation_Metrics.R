@@ -889,7 +889,7 @@ im_plot_pss <- function(metrics_df, ...) {
     ggplot2::scale_fill_manual(values = col_vector) +
     ggplot2::labs(
       title = "PSS per Imputation Method (lower is better)",
-      subtitle = "Procrustes Statistical Shape (requires vegan)",
+      subtitle = "Procrustes Statistical Shape",
       x = NULL, y = "PSS"
     ) +
     ggplot2::theme_bw() +
