@@ -298,7 +298,8 @@ if (!exists("%||%", mode = "function")) {
 #' @param eBayes_robust Use robust estimation in eBayes (default: TRUE)
 #' @param de_method DE method: "limma" (default) or "limpa" (probabilistic, requires imp_method="limpa")
 #' @param covariate_df Data frame with Column + covariate column(s) for paired/blocked design (default: NULL)
-#' @param covariate_column Name of the covariate column for the DE model (e.g., "Subject"). Default: NULL
+#' @param covariate_column Name(s) of the covariate column(s) for the DE model.
+#'   Single string (e.g., "Subject") or character vector (e.g., c("Subject", "Batch")). Default: NULL
 #' @param export_normalized Export normalized matrix (default: TRUE)
 #' @param export_imputed Export imputed matrix (default: TRUE)
 #' @param export_format Export format: "tsv", "parquet", or "both" (default: "tsv")

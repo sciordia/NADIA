@@ -96,7 +96,13 @@ if (!exists("%||%", mode = "function")) {
     design <- model.matrix(~ 0 + condition)
     colnames(design) <- levels(condition)
   } else {
-    design <- model.matrix(~ 0 + condition + covariate)
+    # covariate can be a single factor or a data.frame of factors
+    if (is.data.frame(covariate)) {
+      df <- data.frame(condition = condition, covariate)
+    } else {
+      df <- data.frame(condition = condition, covariate = covariate)
+    }
+    design <- model.matrix(~ 0 + ., data = df)
     colnames(design)[seq_along(levels(condition))] <- levels(condition)
   }
 
@@ -144,7 +150,12 @@ if (!exists("%||%", mode = "function")) {
     design <- model.matrix(~ 0 + condition)
     colnames(design) <- levels(condition)
   } else {
-    design <- model.matrix(~ 0 + condition + covariate)
+    if (is.data.frame(covariate)) {
+      df <- data.frame(condition = condition, covariate)
+    } else {
+      df <- data.frame(condition = condition, covariate = covariate)
+    }
+    design <- model.matrix(~ 0 + ., data = df)
     colnames(design)[seq_along(levels(condition))] <- levels(condition)
   }
 
@@ -227,7 +238,8 @@ if (!exists("%||%", mode = "function")) {
 #' @param eBayes_trend Use trend estimation in eBayes (default: TRUE)
 #' @param eBayes_robust Use robust estimation in eBayes (default: TRUE)
 #' @param de_method DE method: "limma" or "limpa" (default: "limma")
-#' @param covariate_column Column name in colData for paired/blocked design (default: NULL)
+#' @param covariate_column Column name(s) in colData for paired/blocked design.
+#'   Single string or character vector for multiple covariates (default: NULL)
 #' @return Data frame with DE results
 #' @keywords internal
 .run_DE <- function(
@@ -269,14 +281,19 @@ if (!exists("%||%", mode = "function")) {
 
   condition_vec <- cd[[condition_column]]
 
-  # Covariate extraction
+  # Covariate extraction (supports single or multiple columns)
   covariate <- NULL
   if (!is.null(covariate_column)) {
-    if (!covariate_column %in% names(cd)) {
-      stop("Columna de covariable '", covariate_column,
-           "' no encontrada en colData del SE")
+    missing_cols <- setdiff(covariate_column, names(cd))
+    if (length(missing_cols) > 0) {
+      stop("Columna(s) de covariable no encontrada(s) en colData del SE: ",
+           paste(missing_cols, collapse = ", "))
     }
-    covariate <- factor(cd[[covariate_column]])
+    if (length(covariate_column) == 1) {
+      covariate <- factor(cd[[covariate_column]])
+    } else {
+      covariate <- as.data.frame(lapply(cd[covariate_column], factor))
+    }
   }
 
   # Run DE analysis
@@ -345,7 +362,8 @@ if (!exists("%||%", mode = "function")) {
 #' @param eBayes_trend Use trend estimation in eBayes (default: TRUE, recommended for proteomics)
 #' @param eBayes_robust Use robust estimation in eBayes (default: TRUE, recommended for proteomics)
 #' @param de_method DE method: "limma" (default) or "limpa" (probabilistic, requires imp_method="limpa")
-#' @param covariate_column Column name in colData for paired/blocked design (e.g., "Subject"). Default: NULL
+#' @param covariate_column Column name(s) in colData for paired/blocked design.
+#'   Single string (e.g., "Subject") or character vector (e.g., c("Subject", "Batch")). Default: NULL
 #' @param condition_column Condition column name (default: "Condition")
 #' @param verbose Print progress messages (default: TRUE)
 #'
