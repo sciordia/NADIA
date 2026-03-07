@@ -227,6 +227,7 @@ if (!exists("%||%", mode = "function")) {
 #' @param eBayes_trend Use trend estimation in eBayes (default: TRUE)
 #' @param eBayes_robust Use robust estimation in eBayes (default: TRUE)
 #' @param de_method DE method: "limma" or "limpa" (default: "limma")
+#' @param covariate_column Column name in colData for paired/blocked design (default: NULL)
 #' @return Data frame with DE results
 #' @keywords internal
 .run_DE <- function(
@@ -241,7 +242,8 @@ if (!exists("%||%", mode = "function")) {
     alpha = 0.05,
     eBayes_trend = TRUE,
     eBayes_robust = TRUE,
-    de_method = "limma"
+    de_method = "limma",
+    covariate_column = NULL
 ) {
   stopifnot(inherits(se, "SummarizedExperiment"))
 
@@ -267,6 +269,16 @@ if (!exists("%||%", mode = "function")) {
 
   condition_vec <- cd[[condition_column]]
 
+  # Covariate extraction
+  covariate <- NULL
+  if (!is.null(covariate_column)) {
+    if (!covariate_column %in% names(cd)) {
+      stop("Columna de covariable '", covariate_column,
+           "' no encontrada en colData del SE")
+    }
+    covariate <- factor(cd[[covariate_column]])
+  }
+
   # Run DE analysis
   if (de_method == "limpa") {
     elist <- S4Vectors::metadata(se)$limpa_elist
@@ -274,10 +286,10 @@ if (!exists("%||%", mode = "function")) {
       stop("de_method='limpa' requiere imp_method='limpa'. ",
            "No se encontro limpa_elist en metadata del SE.")
     }
-    fit <- .perform_limpa_de(elist, condition_vec, comparisons, covariate = NULL,
+    fit <- .perform_limpa_de(elist, condition_vec, comparisons, covariate = covariate,
                               eBayes_trend = eBayes_trend, eBayes_robust = eBayes_robust)
   } else {
-    fit <- .perform_limma(x, condition_vec, comparisons, covariate = NULL,
+    fit <- .perform_limma(x, condition_vec, comparisons, covariate = covariate,
                           eBayes_trend = eBayes_trend, eBayes_robust = eBayes_robust)
   }
 
@@ -333,6 +345,7 @@ if (!exists("%||%", mode = "function")) {
 #' @param eBayes_trend Use trend estimation in eBayes (default: TRUE, recommended for proteomics)
 #' @param eBayes_robust Use robust estimation in eBayes (default: TRUE, recommended for proteomics)
 #' @param de_method DE method: "limma" (default) or "limpa" (probabilistic, requires imp_method="limpa")
+#' @param covariate_column Column name in colData for paired/blocked design (e.g., "Subject"). Default: NULL
 #' @param condition_column Condition column name (default: "Condition")
 #' @param verbose Print progress messages (default: TRUE)
 #'
@@ -365,6 +378,7 @@ de_analysis_proteomics <- function(
     eBayes_trend = TRUE,
     eBayes_robust = TRUE,
     de_method = "limma",
+    covariate_column = NULL,
     condition_column = "Condition",
     verbose = TRUE
 ) {
@@ -415,7 +429,8 @@ de_analysis_proteomics <- function(
     alpha = alpha,
     eBayes_trend = eBayes_trend,
     eBayes_robust = eBayes_robust,
-    de_method = de_method
+    de_method = de_method,
+    covariate_column = covariate_column
   )
 
   if (verbose) {

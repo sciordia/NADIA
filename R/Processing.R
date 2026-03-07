@@ -34,7 +34,7 @@ if (!exists("%||%", mode = "function")) {
 #' @param preprocessing spectronaut_data list
 #' @return Data frame with columns: Column, Condition, Replicate
 #' @keywords internal
-.prepare_metadata <- function(preprocessing) {
+.prepare_metadata <- function(preprocessing, covariate_df = NULL) {
   stopifnot(inherits(preprocessing, "spectronaut_data"))
 
   md <- preprocessing$metadata
@@ -45,6 +45,23 @@ if (!exists("%||%", mode = "function")) {
     Replicate = md$R.Replicate,
     stringsAsFactors = FALSE
   )
+
+  # Merge covariate information if provided
+
+  if (!is.null(covariate_df)) {
+    if (!"Column" %in% names(covariate_df)) {
+      stop("covariate_df debe contener una columna 'Column'")
+    }
+    result <- merge(result, covariate_df, by = "Column", all.x = TRUE)
+    # Check for unmatched samples
+    new_cols <- setdiff(names(covariate_df), "Column")
+    na_check <- sapply(new_cols, function(col) any(is.na(result[[col]])))
+    if (any(na_check)) {
+      missing_cols <- names(na_check)[na_check]
+      stop("covariate_df no cubre todas las muestras. NAs en: ",
+           paste(missing_cols, collapse = ", "))
+    }
+  }
 
   rownames(result) <- result$Column
   result
@@ -280,6 +297,8 @@ if (!exists("%||%", mode = "function")) {
 #' @param eBayes_trend Use trend estimation in eBayes (default: TRUE)
 #' @param eBayes_robust Use robust estimation in eBayes (default: TRUE)
 #' @param de_method DE method: "limma" (default) or "limpa" (probabilistic, requires imp_method="limpa")
+#' @param covariate_df Data frame with Column + covariate column(s) for paired/blocked design (default: NULL)
+#' @param covariate_column Name of the covariate column for the DE model (e.g., "Subject"). Default: NULL
 #' @param export_normalized Export normalized matrix (default: TRUE)
 #' @param export_imputed Export imputed matrix (default: TRUE)
 #' @param export_format Export format: "tsv", "parquet", or "both" (default: "tsv")
@@ -346,6 +365,8 @@ process_proteomics <- function(
     eBayes_trend = TRUE,
     eBayes_robust = TRUE,
     de_method = "limma",
+    covariate_df = NULL,
+    covariate_column = NULL,
     export_normalized = TRUE,
     export_imputed = TRUE,
     export_format = "tsv",
@@ -372,7 +393,7 @@ process_proteomics <- function(
 
   if (verbose) cat("=== PREPARANDO DATOS ===\n")
 
-  metadata <- .prepare_metadata(preprocessing)
+  metadata <- .prepare_metadata(preprocessing, covariate_df = covariate_df)
   protein_data <- .prepare_protein_data(preprocessing)
 
   if (verbose) {
@@ -487,6 +508,7 @@ process_proteomics <- function(
     eBayes_trend = eBayes_trend,
     eBayes_robust = eBayes_robust,
     de_method = de_method,
+    covariate_column = covariate_column,
     condition_column = "Condition",
     verbose = verbose
   )
@@ -552,6 +574,7 @@ process_proteomics <- function(
       eBayes_trend = eBayes_trend,
       eBayes_robust = eBayes_robust,
       de_method = de_method,
+      covariate_column = covariate_column,
       export_dir = export_dir,
       export_format = export_format,
       export_volcano = export_volcano,
