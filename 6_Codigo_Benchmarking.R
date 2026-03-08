@@ -3,7 +3,7 @@
 # Ejemplo: Benchmarking con datos spike-in 3 especies
 # =============================================================================                                      
 
-source("R/Benchmarking.R")
+source("R/Benchmarking_Single.R")
 
 library(dplyr)
 

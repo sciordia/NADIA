@@ -9,7 +9,8 @@
 #
 # Input:
 #   - de_res: Data frame with columns Protein.IDs, Gene.Names, logFC,
-#             P.Value, adj.P.Val, Change, Comparison, Assay, Species
+#             P.Value, adj.P.Val, Change, Comparison, Assay
+#   - species_df: (optional) Data frame with Protein.IDs, Species mapping
 #   - expected_values: Data frame with columns Comparison, Species,
 #                      expected_logFC
 #
@@ -36,7 +37,7 @@ if (!exists("%||%", mode = "function")) {
 #' @return Invisible TRUE if valid, stops with error otherwise
 #' @keywords internal
 .validate_de_res <- function(de_res) {
-  required <- c("Protein.IDs", "logFC", "Comparison", "Species")
+  required <- c("Protein.IDs", "logFC", "Comparison")
   missing <- setdiff(required, names(de_res))
   if (length(missing) > 0) {
     stop("Columnas requeridas faltantes en de_res: ",
@@ -57,6 +58,20 @@ if (!exists("%||%", mode = "function")) {
     stop("Columnas requeridas faltantes en expected_values: ",
          paste(missing, collapse = ", "))
   }
+  invisible(TRUE)
+}
+
+#' Validate required columns in species mapping
+#'
+#' @param species_df Data frame with Protein.IDs and Species columns
+#' @return Invisible TRUE if valid, stops with error otherwise
+#' @keywords internal
+.validate_species_df <- function(species_df) {
+  required <- c("Protein.IDs", "Species")
+  missing <- setdiff(required, names(species_df))
+  if (length(missing) > 0)
+    stop("Columnas requeridas faltantes en species_df: ",
+         paste(missing, collapse = ", "))
   invisible(TRUE)
 }
 
@@ -186,12 +201,31 @@ if (!exists("%||%", mode = "function")) {
 #' @param p_col P-value column name
 #' @param comparisons Comparisons to include (NULL = all)
 #' @param assay Assay to filter (NULL = all)
+#' @param species_df Data frame with Protein.IDs and Species columns (optional).
+#'   If provided, Species is merged into de_res. If NULL, de_res must already
+#'   contain a Species column.
 #' @return List with filtered de_res, expected_values, and resolved p_col
 #' @keywords internal
 .prepare_benchmark_data <- function(de_res, expected_values,
                                     alpha = 0.05, lfc_thr = 0,
                                     p_col = "adj.P.Val",
-                                    comparisons = NULL, assay = NULL) {
+                                    comparisons = NULL, assay = NULL,
+                                    species_df = NULL) {
+  # Merge species if provided
+
+  if (!is.null(species_df)) {
+    .validate_species_df(species_df)
+    # Remove existing Species to avoid duplicates
+    de_res$Species <- NULL
+    de_res <- merge(de_res, species_df[, c("Protein.IDs", "Species")],
+                    by = "Protein.IDs", all.x = TRUE, sort = FALSE)
+  }
+
+  # Verify Species exists (from merge or preexisting)
+  if (!"Species" %in% names(de_res))
+    stop("de_res no contiene columna 'Species'. ",
+         "Proporcione species_df o incluya Species en de_res.")
+
   # Validate
   .validate_de_res(de_res)
   .validate_expected_values(expected_values)
@@ -414,13 +448,15 @@ if (!exists("%||%", mode = "function")) {
 
 #' Compute benchmark metrics for all comparisons
 #'
-#' @param de_res Data frame with DE results (must include Species)
+#' @param de_res Data frame with DE results
 #' @param ev Data frame with expected values
 #' @param alpha Significance threshold (default: 0.05)
 #' @param lfc_thr Log fold-change threshold (default: 0)
 #' @param p_col P-value column name (default: "adj.P.Val")
 #' @param comparisons Comparisons to include (NULL = all)
 #' @param assay Assay to filter (NULL = all)
+#' @param species_df Data frame with Protein.IDs and Species columns (optional).
+#'   If NULL, de_res must already contain a Species column.
 #'
 #' @return Data frame with metrics per comparison
 #' @export
@@ -429,10 +465,11 @@ compute_benchmark_metrics <- function(de_res, ev,
                                       lfc_thr = 0,
                                       p_col = "adj.P.Val",
                                       comparisons = NULL,
-                                      assay = NULL) {
+                                      assay = NULL,
+                                      species_df = NULL) {
   # Prepare data
   prep <- .prepare_benchmark_data(de_res, ev, alpha, lfc_thr, p_col,
-                                  comparisons, assay)
+                                  comparisons, assay, species_df)
   de_res <- prep$de_res
   ev <- prep$expected_values
   p_col <- prep$p_col
@@ -566,7 +603,7 @@ compute_benchmark_metrics <- function(de_res, ev,
 #' Calculates MED, SD, CV, MAD, RCV, IQR, trimmed SD/CV for significant
 #' proteins with correct direction.
 #'
-#' @param de_res Data frame with DE results (must include Species)
+#' @param de_res Data frame with DE results
 #' @param ev Data frame with expected values
 #' @param alpha Significance threshold (default: 0.05)
 #' @param lfc_thr Log fold-change threshold (default: 0)
@@ -574,6 +611,8 @@ compute_benchmark_metrics <- function(de_res, ev,
 #' @param comparisons Comparisons to include (NULL = all)
 #' @param assay Assay to filter (NULL = all)
 #' @param trim Trimming proportion for trimmed SD/CV (default: 0.1)
+#' @param species_df Data frame with Protein.IDs and Species columns (optional).
+#'   If NULL, de_res must already contain a Species column.
 #'
 #' @return Data frame with dispersion metrics
 #' @export
@@ -583,10 +622,11 @@ compute_dispersion_metrics <- function(de_res, ev,
                                        p_col = "adj.P.Val",
                                        comparisons = NULL,
                                        assay = NULL,
-                                       trim = 0.1) {
+                                       trim = 0.1,
+                                       species_df = NULL) {
   # Prepare data
   prep <- .prepare_benchmark_data(de_res, ev, alpha, lfc_thr, p_col,
-                                  comparisons, assay)
+                                  comparisons, assay, species_df)
   de_res <- prep$de_res
   ev <- prep$expected_values
   p_col <- prep$p_col
@@ -1667,6 +1707,8 @@ benchmark_volcano_hc <- function(
 #' @param species_colors Named vector of colors per species (optional)
 #' @param point_size Marker radius (default: 3)
 #' @param height Chart height in pixels (optional)
+#' @param species_df Data frame with Protein.IDs and Species columns (optional).
+#'   If NULL, de_res must already contain a Species column.
 #'
 #' @return Named list of highchart objects
 #' @export
@@ -1681,11 +1723,12 @@ benchmark_volcano_hc_list <- function(
     assay = NULL,
     species_colors = NULL,
     point_size = 3,
-    height = NULL
+    height = NULL,
+    species_df = NULL
 ) {
   # Prepare data
   prep <- .prepare_benchmark_data(de_res, ev, alpha, lfc_thr, p_col,
-                                  comparisons, assay)
+                                  comparisons, assay, species_df)
   de_res <- prep$de_res
   ev <- prep$expected_values
   p_col <- prep$p_col
@@ -1856,8 +1899,8 @@ benchmark_volcano_hc_list <- function(
 #' visualizations.
 #'
 #' @param de_res Data frame with DE results. Required columns:
-#'   Protein.IDs, logFC, P.Value, adj.P.Val, Change, Comparison, Species.
-#'   Optional: Gene.Names, Assay.
+#'   Protein.IDs, logFC, P.Value, adj.P.Val, Change, Comparison.
+#'   Optional: Gene.Names, Assay, Species (if not using species_df).
 #' @param expected_values Data frame with expected values. Required columns:
 #'   Comparison, Species, expected_logFC.
 #' @param alpha Significance threshold (default: 0.05)
@@ -1868,6 +1911,8 @@ benchmark_volcano_hc_list <- function(
 #' @param output_dir Directory for exported files (NULL = no export)
 #' @param verbose Print progress messages (default: TRUE)
 #' @param species_colors Named vector of colors per species (optional)
+#' @param species_df Data frame with Protein.IDs and Species columns (optional).
+#'   If NULL, de_res must already contain a Species column.
 #'
 #' @return List with:
 #'   \itemize{
@@ -1916,13 +1961,14 @@ benchmarking_proteomics <- function(
     assay = NULL,
     output_dir = NULL,
     verbose = TRUE,
-    species_colors = NULL
+    species_colors = NULL,
+    species_df = NULL
 ) {
   # === STEP 1: Prepare data ===
   if (verbose) cat("\n=== BENCHMARKING PROTEOMICS ===\n")
 
   prep <- .prepare_benchmark_data(de_res, expected_values, alpha, lfc_thr,
-                                  p_col, comparisons, assay)
+                                  p_col, comparisons, assay, species_df)
   de_res <- prep$de_res
   ev <- prep$expected_values
   p_col <- prep$p_col
@@ -2235,7 +2281,7 @@ benchmarking_proteomics <- function(
 # EXAMPLES
 # =============================================================================
 
-# source("R/Benchmarking.R")
+# source("R/Benchmarking_Single.R")
 #
 # # --- Define expected values (spike-in design) ---
 # expected <- data.frame(
