@@ -226,6 +226,14 @@ if (!exists("%||%", mode = "function")) {
     stop("de_res no contiene columna 'Species'. ",
          "Proporcione species_df o incluya Species en de_res.")
 
+  # Remove rows with NA Species (proteins without species mapping)
+  na_species <- is.na(de_res$Species)
+  if (any(na_species)) {
+    warning(sprintf("Se eliminaron %d filas con Species = NA (sin mapeo en species_df).",
+                    sum(na_species)))
+    de_res <- de_res[!na_species, , drop = FALSE]
+  }
+
   # Validate
   .validate_de_res(de_res)
   .validate_expected_values(expected_values)
