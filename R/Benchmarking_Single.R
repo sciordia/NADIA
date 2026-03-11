@@ -4,7 +4,7 @@
 #
 # Benchmark differential expression results against known ground truth
 # (multi-species spike-in experiments). Computes classification metrics
-# (Sensitivity, Specificity, AUC, etc.), dispersion statistics, and
+# (Sensitivity, Specificity, AUC, pAUC, nMCC, G-mean, etc.), dispersion statistics, and
 # generates interactive (Highcharter) and static (ggplot2) visualizations.
 #
 # Input:
@@ -454,6 +454,36 @@ if (!exists("%||%", mode = "function")) {
   })
 }
 
+#' Compute partial AUC with McClish correction
+#'
+#' Uses pROC::roc() with partial.auc and partial.auc.correct = TRUE
+#' (native McClish correction). Normalized range: 0.5-1.
+#'
+#' @param classified_df Classified data frame for one comparison
+#' @param p_col P-value column name
+#' @param max_fpr Maximum false positive rate threshold (default: 0.1)
+#' @return Corrected partial AUC value or NA if pROC not available
+#' @keywords internal
+.compute_pauc <- function(classified_df, p_col, max_fpr = 0.1) {
+  if (!requireNamespace("pROC", quietly = TRUE)) return(NA_real_)
+
+  truth <- classified_df$truth
+  predictor <- suppressWarnings(as.numeric(classified_df[[p_col]]))
+
+  valid <- !is.na(truth) & !is.na(predictor)
+  truth <- truth[valid]
+  predictor <- predictor[valid]
+
+  if (length(unique(truth)) < 2 || length(truth) < 3) return(NA_real_)
+
+  tryCatch({
+    roc_obj <- pROC::roc(truth, predictor, direction = ">", quiet = TRUE)
+    as.numeric(pROC::auc(roc_obj,
+                         partial.auc = c(1, 1 - max_fpr),
+                         partial.auc.correct = TRUE))
+  }, error = function(e) NA_real_)
+}
+
 #' Compute benchmark metrics for all comparisons
 #'
 #' @param de_res Data frame with DE results
@@ -518,6 +548,89 @@ compute_benchmark_metrics <- function(de_res, ev,
   })
 
   do.call(rbind, metrics_list)
+}
+
+#' Compute OpDEA metrics for all comparisons
+#'
+#' Calculates additional benchmark metrics based on Peng et al. 2024
+#' (Nature Comms, OpDEA framework):
+#' - pAUC(0.01), pAUC(0.05), pAUC(0.1): Partial AUC with McClish correction
+#' - nMCC: Normalized MCC = (MCC + 1) / 2
+#' - G-mean: sqrt(Sensitivity * Specificity)
+#'
+#' @param de_res Data frame with DE results
+#' @param ev Data frame with expected values
+#' @param alpha Significance threshold (default: 0.05)
+#' @param lfc_thr Log fold-change threshold (default: 0)
+#' @param p_col P-value column name (default: "adj.P.Val")
+#' @param comparisons Comparisons to include (NULL = all)
+#' @param assay Assay to filter (NULL = all)
+#' @param species_df Data frame with Protein.IDs and Species columns (optional).
+#'   If NULL, de_res must already contain a Species column.
+#'
+#' @return Data frame with columns: Comparison, nMCC, G_mean,
+#'   pAUC_001, pAUC_005, pAUC_010
+#' @export
+compute_opdea_metrics <- function(de_res, ev,
+                                  alpha = 0.05,
+                                  lfc_thr = 0,
+                                  p_col = "adj.P.Val",
+                                  comparisons = NULL,
+                                  assay = NULL,
+                                  species_df = NULL) {
+  # Prepare data
+  prep <- .prepare_benchmark_data(de_res, ev, alpha, lfc_thr, p_col,
+                                  comparisons, assay, species_df)
+  de_res <- prep$de_res
+  ev <- prep$expected_values
+  p_col <- prep$p_col
+
+  # Classify
+  classified <- .classify_all_comparisons(de_res, ev, alpha, lfc_thr, p_col)
+
+  comps <- unique(classified$Comparison)
+
+  opdea_list <- lapply(comps, function(comp) {
+    df_comp <- classified[classified$Comparison == comp, , drop = FALSE]
+
+    tp <- sum(df_comp$classification == "TP")
+    fp <- sum(df_comp$classification == "FP")
+    tn <- sum(df_comp$classification == "TN")
+    fn <- sum(df_comp$classification == "FN")
+
+    m <- .compute_metrics(tp, fp, tn, fn)
+
+    # nMCC = (MCC + 1) / 2
+    mcc_val <- m["MCC"]
+    nMCC <- if (!is.na(mcc_val)) round((mcc_val + 1) / 2, 4) else NA_real_
+
+    # G-mean = sqrt(Sensitivity * Specificity)
+    sens <- m["Sensitivity"]
+    spec <- m["Specificity"]
+    G_mean <- if (!is.na(sens) && !is.na(spec)) {
+      round(sqrt(sens * spec), 4)
+    } else {
+      NA_real_
+    }
+
+    # Partial AUC at different FPR thresholds
+    pAUC_001 <- .compute_pauc(df_comp, p_col, 0.01)
+    pAUC_005 <- .compute_pauc(df_comp, p_col, 0.05)
+    pAUC_010 <- .compute_pauc(df_comp, p_col, 0.10)
+
+    data.frame(
+      Comparison = comp,
+      nMCC       = nMCC,
+      G_mean     = G_mean,
+      pAUC_001   = round(pAUC_001, 4),
+      pAUC_005   = round(pAUC_005, 4),
+      pAUC_010   = round(pAUC_010, 4),
+      stringsAsFactors = FALSE,
+      row.names = NULL
+    )
+  })
+
+  do.call(rbind, opdea_list)
 }
 
 #' Compute confusion matrix by species
@@ -2031,6 +2144,30 @@ benchmarking_proteomics <- function(
     }
   }
 
+  # === STEP 3b: OpDEA metrics (pAUC, nMCC, G-mean) ===
+  if (verbose) cat("\n--- Metricas OpDEA (pAUC, nMCC, G-mean) ---\n")
+  opdea_metrics <- compute_opdea_metrics(de_res, ev, alpha, lfc_thr, p_col,
+                                         comparisons = comps, assay = assay)
+
+  if (!requireNamespace("pROC", quietly = TRUE) && verbose) {
+    cat("  [NOTA] Paquete 'pROC' no instalado. pAUC = NA.\n")
+  }
+
+  if (verbose) {
+    for (i in seq_len(nrow(opdea_metrics))) {
+      cat(sprintf("  %s: nMCC=%.3f G_mean=%.3f pAUC(0.01)=%s pAUC(0.05)=%s pAUC(0.1)=%s\n",
+                  opdea_metrics$Comparison[i],
+                  opdea_metrics$nMCC[i],
+                  opdea_metrics$G_mean[i],
+                  ifelse(is.na(opdea_metrics$pAUC_001[i]), "NA",
+                         sprintf("%.3f", opdea_metrics$pAUC_001[i])),
+                  ifelse(is.na(opdea_metrics$pAUC_005[i]), "NA",
+                         sprintf("%.3f", opdea_metrics$pAUC_005[i])),
+                  ifelse(is.na(opdea_metrics$pAUC_010[i]), "NA",
+                         sprintf("%.3f", opdea_metrics$pAUC_010[i]))))
+    }
+  }
+
   # === STEP 4: Confusion matrices ===
   confusion_by_species_df <- .confusion_by_species(classified_df)
   confusion_overall_df    <- .confusion_overall(confusion_by_species_df)
@@ -2202,10 +2339,20 @@ benchmarking_proteomics <- function(
     )
     if (verbose) cat("  - benchmark_significant_summary.tsv\n")
 
-    # Summary with Performance column
-    summary_df <- metrics_table[, c("Comparison", "Sensitivity", "Specificity",
-                                    "Precision", "F1", "AUC", "Accuracy",
-                                    "MCC", "Performance"), drop = FALSE]
+    .export_benchmark_data(
+      opdea_metrics,
+      file.path(output_dir, "benchmark_opdea_metrics.tsv"), "tsv"
+    )
+    if (verbose) cat("  - benchmark_opdea_metrics.tsv\n")
+
+    # Summary with Performance column + OpDEA metrics
+    summary_df <- merge(
+      metrics_table[, c("Comparison", "Sensitivity", "Specificity",
+                        "Precision", "F1", "AUC", "Accuracy",
+                        "MCC", "Performance"), drop = FALSE],
+      opdea_metrics[, c("Comparison", "nMCC", "G_mean"), drop = FALSE],
+      by = "Comparison", all.x = TRUE
+    )
     .export_benchmark_data(
       summary_df,
       file.path(output_dir, "benchmark_summary.tsv"), "tsv"
@@ -2259,6 +2406,7 @@ benchmarking_proteomics <- function(
   # === RETURN ===
   list(
     metrics_table        = metrics_table,
+    opdea_metrics        = opdea_metrics,
     confusion_by_species = confusion_by_species_df,
     confusion_overall    = confusion_overall_df,
     signif_summary       = signif_summary_df,
