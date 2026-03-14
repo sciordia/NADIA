@@ -34,6 +34,33 @@ if (!exists("%||%", mode = "function")) {
   `%||%` <- function(a, b) if (is.null(a)) b else a
 }
 
+# --- Self-dir sourcing for Normalization.R ---
+.self_dir <- if (sys.nframe() > 0) dirname(sys.frame(1)$ofile) else "R"
+
+if (!exists(".norm_log2norm", mode = "function")) {
+  .norm_source_path <- file.path(.self_dir, "Normalization.R")
+  if (file.exists(.norm_source_path)) {
+    source(.norm_source_path, local = FALSE)
+  } else {
+    warning("Normalization.R not found at '", .norm_source_path,
+            "'. Auto-normalization will not be available.")
+  }
+}
+
+# --- Benchmark methods (14, excludes "log2" which is the baseline) ---
+.NM_BENCH_METHODS <- c(
+  "log2Norm", "GlobalMedian", "GlobalMean", "eqmedians",
+  "vsn", "max", "medianNorm", "meanNorm",
+  "quantile", "Rlr", "MAD", "cycloess",
+  "center_quantile", "quantile.robust"
+)
+
+# Methods that require x_raw (Grupo A) — rest use x_log2 (Grupo B)
+.NM_RAW_METHODS <- c(
+  "log2Norm", "GlobalMedian", "GlobalMean", "eqmedians",
+  "vsn", "max", "medianNorm", "meanNorm"
+)
+
 # =============================================================================
 # SECTION 1: INTERNAL METRIC HELPERS
 # =============================================================================
@@ -373,6 +400,154 @@ if (!exists("%||%", mode = "function")) {
   eigvals <- eigvals[eigvals > 0]
   if (length(eigvals) < 2) return(NA_real_)
   max(eigvals) / min(eigvals)
+}
+
+# =============================================================================
+# SECTION 1b: AUTO-NORMALIZATION DISPATCH
+# =============================================================================
+
+#' Dispatch a single normalization method on a log2 matrix
+#'
+#' Internal helper that calls the appropriate `.norm_*()` function.
+#' For Grupo A methods, converts log2 back to raw (2^x) before calling.
+#'
+#' @param x_log2 Numeric matrix in log2 scale (proteins x samples)
+#' @param method Character scalar: normalization method name
+#' @param method_args Named list of per-method arguments
+#' @return Numeric matrix in log2 scale
+#' @keywords internal
+.nm_dispatch_normalization <- function(x_log2, method, method_args = list()) {
+  # Grupo A methods need raw (linear) scale input
+  if (method %in% .NM_RAW_METHODS) {
+    x_input <- 2^x_log2
+  } else {
+    x_input <- x_log2
+  }
+
+  x_norm <- switch(method,
+    "log2Norm"        = .norm_log2norm(x_input),
+    "GlobalMedian"    = .norm_ginorm(x_input),
+    "GlobalMean"      = .norm_globalmean(x_input),
+    "eqmedians"       = .norm_eqmedians(x_input),
+    "vsn"             = .norm_vsn(x_input),
+    "max"             = .norm_max(x_input),
+    "medianNorm"      = .norm_mediannorm(x_input),
+    "meanNorm"        = .norm_meannorm(x_input),
+    "quantile"        = .norm_quantile(x_input),
+    "Rlr"             = .norm_rlr(x_input),
+    "MAD"             = .norm_mad(x_input),
+    "cycloess"        = {
+      args <- method_args[["cycloess"]] %||% list()
+      limma::normalizeCyclicLoess(
+        x_input,
+        method     = args[["method"]]     %||% "fast",
+        iterations = args[["iterations"]] %||% 3,
+        span       = args[["span"]]       %||% 0.7
+      )
+    },
+    "center_quantile" = {
+      q <- (method_args[["center_quantile"]] %||% list())[["q"]] %||% 0.15
+      .norm_center_quantile(x_input, q = q)
+    },
+    "quantile.robust" = .norm_quantile_robust(x_input),
+    stop("Unknown normalization method: '", method, "'")
+  )
+
+  rownames(x_norm) <- rownames(x_log2)
+  colnames(x_norm) <- colnames(x_log2)
+  x_norm
+}
+
+#' Run multiple normalization methods from a baseline assay
+#'
+#' Takes a SummarizedExperiment with a log2-scale assay and applies each
+#' requested normalization method, returning a new SE with one assay per method.
+#'
+#' @param se SummarizedExperiment with at least one log2-scale assay.
+#' @param assay_name Name of the baseline assay to normalize from.
+#'   Default `"log2"`.
+#' @param methods Character vector of method names, or `"all"` for all 14
+#'   benchmark methods. Default `"all"`.
+#' @param method_args Named list of per-method arguments. E.g.
+#'   `list(cycloess = list(method = "fast", span = 0.8))`.
+#' @param include_baseline Logical. Include the baseline assay in the output SE.
+#'   Default `TRUE`.
+#' @param verbose Logical. Print progress messages. Default `TRUE`.
+#' @return SummarizedExperiment with one assay per successfully normalized method
+#'   (plus baseline if `include_baseline = TRUE`).
+#'
+#' @examples
+#' \dontrun{
+#' se_bench <- nm_run_normalizations(se, assay_name = "log2", methods = "all")
+#' SummarizedExperiment::assayNames(se_bench)
+#' }
+#' @export
+nm_run_normalizations <- function(se,
+                                  assay_name       = "log2",
+                                  methods          = "all",
+                                  method_args      = list(),
+                                  include_baseline = TRUE,
+                                  verbose          = TRUE) {
+
+  if (!requireNamespace("SummarizedExperiment", quietly = TRUE))
+    stop("Package 'SummarizedExperiment' is required.")
+
+  # Validate baseline assay exists
+  all_assays <- SummarizedExperiment::assayNames(se)
+  if (!assay_name %in% all_assays)
+    stop("Assay '", assay_name, "' not found in SE. Available: ",
+         paste(all_assays, collapse = ", "))
+
+  # Resolve methods
+  if (identical(methods, "all")) {
+    methods <- .NM_BENCH_METHODS
+  } else {
+    unknown <- setdiff(methods, .NM_BENCH_METHODS)
+    if (length(unknown) > 0)
+      warning("Unknown method(s) ignored: ", paste(unknown, collapse = ", "))
+    methods <- intersect(methods, .NM_BENCH_METHODS)
+    if (length(methods) == 0)
+      stop("No valid normalization methods provided.")
+  }
+
+  x_log2 <- SummarizedExperiment::assay(se, assay_name)
+
+  # Build assay list
+  assay_list <- list()
+  if (include_baseline) assay_list[[assay_name]] <- x_log2
+
+  n_ok   <- 0L
+  n_fail <- 0L
+
+  for (m in methods) {
+    if (verbose) message("  Normalizing: ", m, " ...")
+    result <- tryCatch(
+      .nm_dispatch_normalization(x_log2, m, method_args),
+      error = function(e) {
+        warning("Method '", m, "' failed: ", conditionMessage(e))
+        NULL
+      }
+    )
+    if (!is.null(result)) {
+      assay_list[[m]] <- result
+      n_ok <- n_ok + 1L
+    } else {
+      n_fail <- n_fail + 1L
+    }
+  }
+
+  if (verbose)
+    message("nm_run_normalizations: ", n_ok, " method(s) OK",
+            if (n_fail > 0) paste0(", ", n_fail, " failed") else ".")
+
+  # Build new SE
+  se_out <- SummarizedExperiment::SummarizedExperiment(
+    assays  = assay_list,
+    colData = SummarizedExperiment::colData(se),
+    rowData = if (nrow(SummarizedExperiment::rowData(se)) > 0)
+                SummarizedExperiment::rowData(se) else NULL
+  )
+  se_out
 }
 
 # =============================================================================
@@ -1279,6 +1454,11 @@ nm_plot_metrics <- function(se, assay_names = NULL,
 #' produced by `import_norm_matrices()`. Each plot is wrapped in `tryCatch()`
 #' so that a failure in one plot does not abort the entire run.
 #'
+#' When `methods` is provided, the function first runs
+#' `nm_run_normalizations()` to automatically apply the requested normalization
+#' methods from the `base_assay`, then computes metrics and generates plots on
+#' the resulting multi-assay SE.
+#'
 #' @param se SummarizedExperiment from `import_norm_matrices()`.
 #' @param assay_names Character vector of assay names to include.
 #'   NULL (default) = all assays.
@@ -1289,6 +1469,14 @@ nm_plot_metrics <- function(se, assay_names = NULL,
 #'   `"pca"`, `"correlation"`, `"mds"`, `"scatter"`, `"qq"`, `"metrics"`.
 #' @param cor_method Correlation method for `nm_plot_correlation()`.
 #'   Default `"pearson"`.
+#' @param methods Character vector of normalization method names to
+#'   auto-benchmark, `"all"` for all 14 methods, or NULL (default) to skip
+#'   auto-normalization and use existing assays.
+#' @param method_args Named list of per-method arguments forwarded to
+#'   `nm_run_normalizations()`. E.g.
+#'   `list(cycloess = list(method = "fast", span = 0.8))`.
+#' @param base_assay Name of the baseline assay to normalize from when using
+#'   auto-normalization. Default `"log2"`.
 #' @param verbose Logical. Print progress messages. Default `TRUE`.
 #' @return Named list of ggplot objects (or NULL for failed plots), plus
 #'   `metrics_table`: a `data.frame` from `nm_compute_metrics()` (always
@@ -1296,12 +1484,21 @@ nm_plot_metrics <- function(se, assay_names = NULL,
 #'
 #' @examples
 #' \dontrun{
+#' # --- Classic workflow (from pre-computed TSVs) ---
 #' se_nm  <- import_norm_matrices("./results", "./data/metadata.tsv")
 #' plots  <- normalization_metrics(se_nm)
 #' plots$scatter
-#' plots$qq
 #' plots$pca
-#' plots$boxplot
+#'
+#' # --- Auto-benchmark: all methods from a single SE ---
+#' plots <- normalization_metrics(se, methods = "all", base_assay = "log2")
+#'
+#' # --- Auto-benchmark: specific methods ---
+#' plots <- normalization_metrics(se, methods = c("cycloess", "MAD", "vsn"))
+#'
+#' # --- With custom parameters ---
+#' plots <- normalization_metrics(se, methods = "all",
+#'   method_args = list(cycloess = list(method = "fast", span = 0.8)))
 #' }
 #' @export
 normalization_metrics <- function(se,
@@ -1309,11 +1506,24 @@ normalization_metrics <- function(se,
                                   condition_col = "Condition",
                                   plots         = "all",
                                   cor_method    = "pearson",
+                                  methods       = NULL,
+                                  method_args   = list(),
+                                  base_assay    = "log2",
                                   verbose       = TRUE) {
   # --- Required packages check ---
   for (pkg in c("ggplot2", "dplyr", "tidyr", "SummarizedExperiment", "S4Vectors")) {
     if (!requireNamespace(pkg, quietly = TRUE))
       stop("Package '", pkg, "' is required for normalization_metrics().")
+  }
+
+  # --- Auto-normalization (if methods requested) ---
+  if (!is.null(methods)) {
+    if (verbose) message("Auto-normalizing from assay '", base_assay, "' ...")
+    se <- nm_run_normalizations(se, assay_name = base_assay,
+                                methods = methods, method_args = method_args,
+                                include_baseline = TRUE, verbose = verbose)
+    if (is.null(assay_names))
+      assay_names <- SummarizedExperiment::assayNames(se)
   }
 
   # --- Resolve assay names ---
@@ -1493,5 +1703,30 @@ if (FALSE) {
       dpi      = 150
     )
   }
+
+
+  # ---- 8. Auto-benchmark: normalize + evaluate from a single SE ---------------
+
+  # Start from an SE with only the log2 assay (e.g., norm_method="log2")
+  # and auto-run all 14 normalization methods + compute metrics + plots.
+  plots_auto <- normalization_metrics(se_nm,
+                                       methods    = "all",
+                                       base_assay = "log2")
+
+  # Or only specific methods
+  plots_sub <- normalization_metrics(se_nm,
+                                      methods = c("cycloess", "vsn", "MAD",
+                                                  "quantile.robust"))
+
+  # With custom cycloess parameters
+  plots_custom <- normalization_metrics(se_nm,
+                                         methods     = "all",
+                                         method_args = list(
+                                           cycloess = list(method = "fast",
+                                                           span   = 0.8)))
+
+  # Standalone: get only the multi-assay SE (no plots)
+  se_bench <- nm_run_normalizations(se_nm, methods = "all")
+  SummarizedExperiment::assayNames(se_bench)
 
 }
