@@ -7,10 +7,11 @@
 #   - normalization_metrics(): Orchestrator returning a list of ggplot2 plots
 #   - nm_compute_metrics()   : Quantitative group-separation metrics (data.frame)
 #
-# Individual plot functions (11):
+# Individual plot functions (12):
 #   nm_plot_boxplot, nm_plot_density, nm_plot_pcv,
 #   nm_plot_pmad, nm_plot_pev, nm_plot_pca, nm_plot_correlation,
-#   nm_plot_mds, nm_plot_scatter, nm_plot_qq, nm_plot_metrics
+#   nm_plot_mds, nm_plot_scatter, nm_plot_qq, nm_plot_metrics,
+#   nm_plot_pc1_ranking
 #
 # References: proteoDA, PRONE, NormalizerDE
 #
@@ -1514,6 +1515,95 @@ nm_plot_metrics <- function(se, assay_names = NULL,
     )
 }
 
+# --------------------------------------------------------------------------
+# 12. PC1 Variance Ranking
+# --------------------------------------------------------------------------
+
+#' Rank normalization methods by PC1 variance explained
+#'
+#' Computes the percentage of total variance captured by PC1 for each assay
+#' in a SummarizedExperiment and returns a data.frame sorted in descending
+#' order. Higher PC1 variance generally indicates stronger group separation.
+#'
+#' @inheritParams nm_plot_boxplot
+#' @return A `data.frame` with columns `Method`, `PC1_VarPct`, `Rank`,
+#'   ordered by `PC1_VarPct` descending.
+#'
+#' @examples
+#' \dontrun{
+#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' nm_rank_pc1(se_nm)
+#' }
+#' @export
+nm_rank_pc1 <- function(se, assay_names = NULL, condition_col = "Condition") {
+  assay_names <- .nm_assay_names(se, assay_names)
+
+  pct <- vapply(assay_names, function(nm) {
+    mat    <- SummarizedExperiment::assay(se, nm)
+    mat_ok <- mat[complete.cases(mat), ]
+    .nm_pc1_var_pct(mat_ok)
+  }, numeric(1))
+
+  df <- data.frame(
+    Method     = assay_names,
+    PC1_VarPct = pct,
+    stringsAsFactors = FALSE
+  )
+  df <- df[order(-df$PC1_VarPct), ]
+  df$Rank <- seq_len(nrow(df))
+  rownames(df) <- NULL
+
+  # Print ranking for quick visibility
+  message("PC1 Variance Ranking (descending):")
+  for (i in seq_len(nrow(df))) {
+    message(sprintf("  %2d. %-20s  %.2f%%", df$Rank[i], df$Method[i],
+                    df$PC1_VarPct[i]))
+  }
+
+  df
+}
+
+#' Horizontal bar chart of PC1 variance ranking
+#'
+#' Produces a horizontal bar chart with normalization methods ordered by
+#' descending PC1 variance percentage. Uses the same PRONE-style palette
+#' as other `nm_plot_*()` functions.
+#'
+#' @inheritParams nm_plot_boxplot
+#' @return ggplot object.
+#'
+#' @examples
+#' \dontrun{
+#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' nm_plot_pc1_ranking(se_nm)
+#' }
+#' @export
+nm_plot_pc1_ranking <- function(se, assay_names = NULL,
+                                condition_col = "Condition", ...) {
+  rank_df    <- nm_rank_pc1(se, assay_names, condition_col)
+  col_vector <- .nm_prone_colors(nrow(rank_df))
+
+  # Order factor by PC1_VarPct descending (bottom-to-top in coord_flip)
+  rank_df$Method <- factor(rank_df$Method,
+                           levels = rev(rank_df$Method))
+
+  ggplot2::ggplot(rank_df,
+    ggplot2::aes(x = Method, y = PC1_VarPct, fill = Method)) +
+    ggplot2::geom_col(show.legend = FALSE) +
+    ggplot2::geom_text(
+      ggplot2::aes(label = sprintf("%.1f%%", PC1_VarPct)),
+      hjust = -0.1, size = 3.2) +
+    ggplot2::coord_flip() +
+    ggplot2::scale_fill_manual(values = rep_len(col_vector, nrow(rank_df))) +
+    ggplot2::labs(
+      title = "PC1 Variance Explained per Normalization Method",
+      x     = NULL,
+      y     = "PC1 Variance (%)"
+    ) +
+    ggplot2::theme_bw() +
+    ggplot2::expand_limits(y = max(rank_df$PC1_VarPct, na.rm = TRUE) * 1.08)
+}
+
 # =============================================================================
 # SECTION 4: MAIN ORCHESTRATOR
 # =============================================================================
@@ -1536,7 +1626,8 @@ nm_plot_metrics <- function(se, assay_names = NULL,
 #'   Default `"Condition"`.
 #' @param plots Character vector of plot names to generate, or `"all"` (default).
 #'   Valid names: `"boxplot"`, `"density"`, `"pcv"`, `"pmad"`, `"pev"`,
-#'   `"pca"`, `"correlation"`, `"mds"`, `"scatter"`, `"qq"`, `"metrics"`.
+#'   `"pca"`, `"correlation"`, `"mds"`, `"scatter"`, `"qq"`, `"metrics"`,
+#'   `"pc1_ranking"`.
 #' @param cor_method Correlation method for `nm_plot_correlation()`.
 #'   Default `"pearson"`.
 #' @param methods Character vector of normalization method names to
@@ -1549,8 +1640,9 @@ nm_plot_metrics <- function(se, assay_names = NULL,
 #'   auto-normalization. Default `"log2"`.
 #' @param verbose Logical. Print progress messages. Default `TRUE`.
 #' @return Named list of ggplot objects (or NULL for failed plots), plus
-#'   `metrics_table`: a `data.frame` from `nm_compute_metrics()` (always
-#'   computed regardless of `plots` selection).
+#'   `metrics_table`: a `data.frame` from `nm_compute_metrics()` and
+#'   `pc1_rank`: a `data.frame` from `nm_rank_pc1()` (both always computed
+#'   regardless of `plots` selection).
 #'
 #' @examples
 #' \dontrun{
@@ -1606,7 +1698,7 @@ normalization_metrics <- function(se,
   # --- Plot registry ---
   all_plot_names <- c("boxplot", "density", "pcv", "pmad", "pev",
                       "pca", "correlation", "mds", "scatter", "qq",
-                      "metrics")
+                      "metrics", "pc1_ranking")
 
   plot_fns <- list(
     boxplot     = function() nm_plot_boxplot(se, assay_names, condition_col),
@@ -1620,7 +1712,8 @@ normalization_metrics <- function(se,
     mds         = function() nm_plot_mds(se, assay_names, condition_col),
     scatter     = function() nm_plot_scatter(se, assay_names, condition_col),
     qq          = function() nm_plot_qq(se, assay_names, condition_col),
-    metrics     = function() nm_plot_metrics(se, assay_names, condition_col)
+    metrics     = function() nm_plot_metrics(se, assay_names, condition_col),
+    pc1_ranking = function() nm_plot_pc1_ranking(se, assay_names, condition_col)
   )
 
   # --- Determine which plots to run ---
@@ -1659,7 +1752,17 @@ normalization_metrics <- function(se,
     }
   )
 
-  n_ok   <- sum(!sapply(result[setdiff(names(result), "metrics_table")], is.null))
+  # --- Always compute pc1_rank ---
+  result[["pc1_rank"]] <- tryCatch(
+    nm_rank_pc1(se, assay_names, condition_col),
+    error = function(e) {
+      warning("nm_rank_pc1() failed: ", conditionMessage(e))
+      NULL
+    }
+  )
+
+  non_plot <- c("metrics_table", "pc1_rank")
+  n_ok   <- sum(!sapply(result[setdiff(names(result), non_plot)], is.null))
   n_fail <- length(selected) - n_ok
   if (verbose) {
     message("normalization_metrics: ", n_ok, " plot(s) generated",
@@ -1703,8 +1806,8 @@ if (FALSE) {
 
   plots <- normalization_metrics(se_nm)
 
-  # Names of available plots + metrics_table
-  names(plots)  # boxplot density pcv pmad pev pca correlation mds scatter qq metrics metrics_table
+  # Names of available plots + metrics_table + pc1_rank
+  names(plots)  # boxplot density pcv pmad pev pca correlation mds scatter qq metrics pc1_ranking metrics_table pc1_rank
 
 
   # ---- 3. Inspect individual plots -------------------------------------------
@@ -1723,6 +1826,10 @@ if (FALSE) {
 
   # Metrics table (data.frame, always present)
   plots$metrics_table
+
+  # PC1 ranking (data.frame, always present)
+  plots$pc1_rank                # Method, PC1_VarPct, Rank — sorted desc
+  plots$pc1_ranking             # horizontal bar chart of PC1 variance
 
 
   # ---- 4. Single assay, single plot ------------------------------------------
@@ -1755,6 +1862,10 @@ if (FALSE) {
 
   # Plot metrics as a faceted bar chart
   nm_plot_metrics(se_nm)
+
+  # PC1 variance ranking
+  nm_rank_pc1(se_nm)              # data.frame with Method, PC1_VarPct, Rank
+  nm_plot_pc1_ranking(se_nm)      # horizontal bar chart
 
 
   # ---- 7. Export plots to PNG -------------------------------------------------
