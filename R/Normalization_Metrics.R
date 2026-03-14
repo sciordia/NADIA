@@ -1554,14 +1554,6 @@ nm_rank_pc1 <- function(se, assay_names = NULL, condition_col = "Condition",
   df$Rank <- seq_len(nrow(df))
   rownames(df) <- NULL
 
-  if (verbose) {
-    message("PC1 Variance Ranking (descending):")
-    for (i in seq_len(nrow(df))) {
-      message(sprintf("  %2d. %-20s  %.2f%%", df$Rank[i], df$Method[i],
-                      df$PC1_VarPct[i]))
-    }
-  }
-
   df
 }
 
