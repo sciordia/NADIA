@@ -4,6 +4,7 @@
 #
 # Functions for evaluating and comparing proteomics imputation methods using
 # ground-truth simulation (NAguideR framework):
+#   - im_prepare_se()       : Build SE from preprocessing + best normalization
 #   - import_imp_matrices() : Load imputed TSV files into SummarizedExperiment
 #   - im_compute_metrics()  : Compute NRMSE, SOR, PSS, ACC_OI + ranking
 #   - imputation_metrics()  : Orchestrator returning plots + metrics_table
@@ -577,6 +578,133 @@ import_imp_matrices <- function(tsv_dir,
 }
 
 # =============================================================================
+# SECTION 4b: PREPARE SE FROM PREPROCESSING + BEST NORMALIZATION
+# =============================================================================
+
+#' Build a SummarizedExperiment for imputation benchmarking
+#'
+#' Convenience function that creates a SE from a `spectronaut_data` object and
+#' applies the winning normalization method (from normalization benchmarking).
+#' The result is ready for `imputation_metrics()`.
+#'
+#' Internally calls `nm_prepare_se()` to build the baseline SE with assay
+#' `"log2"`, then applies the chosen normalization via
+#' `.nm_dispatch_normalization()`.
+#'
+#' @param preprocessing `spectronaut_data` list from `preprocess_spectronaut()`.
+#' @param norm_method Character scalar. Normalization method name (e.g.
+#'   `"cycloess"`). If provided, used directly. Default `NULL`.
+#' @param pc1_rank data.frame from `nm_rank_pc1()` or
+#'   `normalization_metrics()$pc1_rank`. The first row's `Method` column is
+#'   used as winner. Ignored if `norm_method` is provided. Default `NULL`.
+#' @param min_reps Minimum replicates with non-NA values per group for protein
+#'   filtering. If NULL, auto-computed as half the smallest group. Default `NULL`.
+#' @param min_groups Minimum groups meeting `min_reps` (default: 1).
+#' @param covariate_df Optional covariate data.frame for paired designs
+#'   (must contain a `Column` column). Default `NULL`.
+#' @param norm_method_args Named list of per-method arguments for normalization.
+#'   Default `list()`.
+#' @param include_log2 Logical. Include the baseline `"log2"` assay in the
+#'   returned SE. Default `TRUE`.
+#' @param verbose Logical. Print progress messages. Default `TRUE`.
+#' @return SummarizedExperiment with assays `"log2"` (optional) + winner method.
+#'
+#' @examples
+#' \dontrun{
+#' source("R/Imputation_Metrics.R")
+#'
+#' # ---- Option A: known method ----
+#' se_imp <- im_prepare_se(preprocessing, norm_method = "cycloess")
+#'
+#' # ---- Option B: auto-pick from pc1_rank ----
+#' # (after running normalization_metrics() in Normalization_Metrics.R)
+#' se_imp <- im_prepare_se(preprocessing, pc1_rank = nm_res$pc1_rank)
+#'
+#' SummarizedExperiment::assayNames(se_imp)  # "log2", "cycloess"
+#' res <- imputation_metrics(se_imp, assay_name = "cycloess")
+#' }
+#' @export
+im_prepare_se <- function(preprocessing,
+                          norm_method      = NULL,
+                          pc1_rank         = NULL,
+                          min_reps         = NULL,
+                          min_groups       = 1,
+                          covariate_df     = NULL,
+                          norm_method_args = list(),
+                          include_log2     = TRUE,
+                          verbose          = TRUE) {
+
+  # --- Validate preprocessing ---
+  if (!inherits(preprocessing, "spectronaut_data"))
+    stop("'preprocessing' must be a spectronaut_data object ",
+         "(output of preprocess_spectronaut()).")
+
+  # --- Resolve winner method ---
+  if (is.null(norm_method) && is.null(pc1_rank))
+    stop("At least one of 'norm_method' or 'pc1_rank' must be provided.")
+
+  if (is.null(norm_method)) {
+    if (!is.data.frame(pc1_rank) || !"Method" %in% colnames(pc1_rank) ||
+        nrow(pc1_rank) == 0)
+      stop("'pc1_rank' must be a data.frame with a non-empty 'Method' column ",
+           "(output of nm_rank_pc1() or normalization_metrics()$pc1_rank).")
+    norm_method <- as.character(pc1_rank$Method[1])
+    if (verbose)
+      message("im_prepare_se: winner from pc1_rank -> '", norm_method, "'")
+  }
+
+  # --- Lazy-source Normalization_Metrics.R ---
+  if (!exists("nm_prepare_se", mode = "function") ||
+      !exists(".nm_dispatch_normalization", mode = "function")) {
+    nm_source_path <- file.path(.self_dir, "Normalization_Metrics.R")
+    if (file.exists(nm_source_path)) {
+      source(nm_source_path, local = FALSE)
+    } else {
+      stop("Normalization_Metrics.R not found at '", nm_source_path,
+           "'. Required for im_prepare_se().")
+    }
+  }
+
+  # --- Build baseline SE with assay "log2" ---
+  if (verbose) message("im_prepare_se: building baseline SE ...")
+  se <- nm_prepare_se(preprocessing,
+                      min_reps     = min_reps,
+                      min_groups   = min_groups,
+                      covariate_df = covariate_df,
+                      verbose      = verbose)
+
+  # --- Apply winner normalization ---
+  if (verbose) message("im_prepare_se: applying normalization '", norm_method, "' ...")
+  x_log2 <- SummarizedExperiment::assay(se, "log2")
+  x_norm <- .nm_dispatch_normalization(x_log2, norm_method, norm_method_args)
+
+  # --- Build final SE ---
+  if (include_log2) {
+    assay_list <- list(x_log2, x_norm)
+    names(assay_list) <- c("log2", norm_method)
+  } else {
+    assay_list <- list(x_norm)
+    names(assay_list) <- norm_method
+  }
+
+  se_out <- SummarizedExperiment::SummarizedExperiment(
+    assays   = assay_list,
+    colData  = SummarizedExperiment::colData(se),
+    rowData  = SummarizedExperiment::rowData(se),
+    metadata = S4Vectors::metadata(se)
+  )
+
+  if (verbose) {
+    message("im_prepare_se: done. Assays: ",
+            paste(SummarizedExperiment::assayNames(se_out), collapse = ", "))
+    message("  Suggestion: imputation_metrics(se, assay_name = \"",
+            norm_method, "\")")
+  }
+
+  se_out
+}
+
+# =============================================================================
 # SECTION 5: COMPUTE METRICS
 # =============================================================================
 
@@ -1075,7 +1203,7 @@ im_plot_metrics <- function(metrics_df, ...) {
 #'
 #' @examples
 #' \dontrun{
-#' # Individual + combo methods
+#' # ---- 1. From pipeline SE ----
 #' res <- imputation_metrics(se, assay_name = "cycloess",
 #'   methods = c("knn", "min"),
 #'   combo_methods = list(
@@ -1083,6 +1211,18 @@ im_plot_metrics <- function(metrics_df, ...) {
 #'   ))
 #' res$metrics_table
 #' res$ranking
+#'
+#' # ---- 1b. From preprocessing + best normalization (via im_prepare_se) ----
+#'
+#' # Option A: known method
+#' se_imp <- im_prepare_se(preprocessing, norm_method = "cycloess")
+#'
+#' # Option B: auto-pick from pc1_rank
+#' # (after running normalization_metrics() in Normalization_Metrics.R)
+#' se_imp <- im_prepare_se(preprocessing, pc1_rank = nm_res$pc1_rank)
+#'
+#' SummarizedExperiment::assayNames(se_imp)  # "log2", "cycloess"
+#' res <- imputation_metrics(se_imp, assay_name = "cycloess")
 #' }
 #' @export
 imputation_metrics <- function(se,
