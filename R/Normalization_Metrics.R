@@ -458,6 +458,69 @@ if (!exists(".norm_log2norm", mode = "function")) {
   x_norm
 }
 
+#' Prepare a SummarizedExperiment from a spectronaut_data object
+#'
+#' Convenience wrapper that extracts metadata and protein data from a
+#' `spectronaut_data` object (output of `preprocess_spectronaut()`), performs
+#' zero-to-NA conversion, protein filtering, and returns a SE with assays
+#' `"raw"` and `"log2"` — ready for `nm_run_normalizations()` or
+#' `normalization_metrics(..., methods = "all")`.
+#'
+#' Internally calls `normalize_proteomics()` with `norm_method = "log2"`
+#' (no additional normalization).
+#'
+#' @param preprocessing `spectronaut_data` list from `preprocess_spectronaut()`.
+#' @param min_reps Minimum replicates with non-NA values per group for protein
+#'   filtering. If NULL, auto-computed as half the smallest group. Default `NULL`.
+#' @param min_groups Minimum groups meeting `min_reps` (default: 1).
+#' @param covariate_df Optional covariate data.frame for paired designs
+#'   (must contain a `Column` column). Default `NULL`.
+#' @param verbose Logical. Print progress messages. Default `TRUE`.
+#' @return SummarizedExperiment with assays `"raw"` and `"log2"`.
+#'
+#' @examples
+#' \dontrun{
+#' source("R/Normalization_Metrics.R")
+#' se <- nm_prepare_se(preprocessing, min_reps = 3)
+#' plots <- normalization_metrics(se, methods = "all")
+#' }
+#' @export
+nm_prepare_se <- function(preprocessing,
+                          min_reps     = NULL,
+                          min_groups   = 1,
+                          covariate_df = NULL,
+                          verbose      = TRUE) {
+
+  if (!inherits(preprocessing, "spectronaut_data"))
+    stop("'preprocessing' must be a spectronaut_data object ",
+         "(output of preprocess_spectronaut()).")
+
+  # Source Processing.R for .prepare_metadata / .prepare_protein_data
+  if (!exists(".prepare_metadata", mode = "function")) {
+    proc_path <- file.path(.self_dir, "Processing.R")
+    if (file.exists(proc_path)) {
+      source(proc_path, local = FALSE)
+    } else {
+      stop("Processing.R not found at '", proc_path,
+           "'. Required for nm_prepare_se().")
+    }
+  }
+
+  metadata     <- .prepare_metadata(preprocessing, covariate_df = covariate_df)
+  protein_data <- .prepare_protein_data(preprocessing)
+
+  norm_result <- normalize_proteomics(
+    data       = protein_data,
+    metadata   = metadata,
+    min_reps   = min_reps,
+    min_groups = min_groups,
+    norm_method = "log2",
+    verbose     = verbose
+  )
+
+  norm_result$se
+}
+
 #' Run multiple normalization methods from a baseline assay
 #'
 #' Takes a SummarizedExperiment with a log2-scale assay and applies each
@@ -1712,28 +1775,29 @@ if (FALSE) {
   }
 
 
-  # ---- 8. Auto-benchmark: normalize + evaluate from a single SE ---------------
+  # ---- 8. Auto-benchmark from preprocessing (no process_proteomics needed) ----
 
-  # Start from an SE with only the log2 assay (e.g., norm_method="log2")
-  # and auto-run all 14 normalization methods + compute metrics + plots.
-  plots_auto <- normalization_metrics(se_nm,
-                                       methods    = "all",
-                                       base_assay = "log2")
+  # Prepare SE with raw + log2 assays directly from preprocessing
+  se <- nm_prepare_se(preprocessing, min_reps = 3)
+  SummarizedExperiment::assayNames(se)  # "raw", "log2"
+
+  # Auto-run all 13 normalization methods + compute metrics + plots
+  plots_auto <- normalization_metrics(se, methods = "all", base_assay = "log2")
 
   # Or only specific methods
-  plots_sub <- normalization_metrics(se_nm,
+  plots_sub <- normalization_metrics(se,
                                       methods = c("cycloess", "vsn", "MAD",
                                                   "quantile.robust"))
 
   # With custom cycloess parameters
-  plots_custom <- normalization_metrics(se_nm,
+  plots_custom <- normalization_metrics(se,
                                          methods     = "all",
                                          method_args = list(
                                            cycloess = list(method = "fast",
                                                            span   = 0.8)))
 
   # Standalone: get only the multi-assay SE (no plots)
-  se_bench <- nm_run_normalizations(se_nm, methods = "all")
+  se_bench <- nm_run_normalizations(se, methods = "all")
   SummarizedExperiment::assayNames(se_bench)
 
 }
