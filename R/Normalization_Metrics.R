@@ -1535,7 +1535,8 @@ nm_plot_metrics <- function(se, assay_names = NULL,
 #' nm_rank_pc1(se_nm)
 #' }
 #' @export
-nm_rank_pc1 <- function(se, assay_names = NULL, condition_col = "Condition") {
+nm_rank_pc1 <- function(se, assay_names = NULL, condition_col = "Condition",
+                        verbose = TRUE) {
   assay_names <- .nm_assay_names(se, assay_names)
 
   pct <- vapply(assay_names, function(nm) {
@@ -1553,11 +1554,12 @@ nm_rank_pc1 <- function(se, assay_names = NULL, condition_col = "Condition") {
   df$Rank <- seq_len(nrow(df))
   rownames(df) <- NULL
 
-  # Print ranking for quick visibility
-  message("PC1 Variance Ranking (descending):")
-  for (i in seq_len(nrow(df))) {
-    message(sprintf("  %2d. %-20s  %.2f%%", df$Rank[i], df$Method[i],
-                    df$PC1_VarPct[i]))
+  if (verbose) {
+    message("PC1 Variance Ranking (descending):")
+    for (i in seq_len(nrow(df))) {
+      message(sprintf("  %2d. %-20s  %.2f%%", df$Rank[i], df$Method[i],
+                      df$PC1_VarPct[i]))
+    }
   }
 
   df
@@ -1580,7 +1582,7 @@ nm_rank_pc1 <- function(se, assay_names = NULL, condition_col = "Condition") {
 #' @export
 nm_plot_pc1_ranking <- function(se, assay_names = NULL,
                                 condition_col = "Condition", ...) {
-  rank_df    <- nm_rank_pc1(se, assay_names, condition_col)
+  rank_df    <- nm_rank_pc1(se, assay_names, condition_col, verbose = FALSE)
   col_vector <- .nm_prone_colors(nrow(rank_df))
 
   # Order factor by PC1_VarPct descending (bottom-to-top in coord_flip)
@@ -1754,7 +1756,7 @@ normalization_metrics <- function(se,
 
   # --- Always compute pc1_rank ---
   result[["pc1_rank"]] <- tryCatch(
-    nm_rank_pc1(se, assay_names, condition_col),
+    nm_rank_pc1(se, assay_names, condition_col, verbose = verbose),
     error = function(e) {
       warning("nm_rank_pc1() failed: ", conditionMessage(e))
       NULL
