@@ -67,8 +67,11 @@ benchmarking <- benchmarking_proteomics(
 )
 
 # --- 5. Ver resultados ---
-# Tabla de métricas
+# Tabla de métricas clásicas
 benchmarking$metrics_table
+
+# Métricas OpDEA (pAUC, nMCC, G-mean)
+benchmarking$opdea_metrics
 
 # Dispersión por especie
 benchmarking$dispersion_metrics
@@ -91,7 +94,7 @@ benchmarking$hc_volcano_list[["C-A"]]
 benchmarking$hc_volcano_list[["D-A"]]
 
 # --- 8. Uso individual de funciones ---
-# Solo métricas (sin visualizaciones)
+# Solo métricas clásicas (sin visualizaciones)
 metrics <- compute_benchmark_metrics(
   de_res = de_res,
   ev     = expected,
@@ -99,6 +102,15 @@ metrics <- compute_benchmark_metrics(
   comparisons = c("B-A", "C-A")
 )
 metrics
+
+# Solo métricas OpDEA (pAUC, nMCC, G-mean)
+opdea <- compute_opdea_metrics(
+  de_res = de_res,
+  ev     = expected,
+  alpha  = 0.05,
+  comparisons = c("B-A", "C-A")
+)
+opdea
 
 # Solo dispersión
 disp <- compute_dispersion_metrics(
@@ -134,4 +146,6 @@ benchmark_roc_gg(benchmarking$classified_df, p_col = "adj.P.Val", zoom = TRUE)
 # 3. comparisons: Solo incluí las vs control (A). Si quieres benchmarkear C / B o D / C, necesitas añadir sus
 # expected_logFC correspondientes a la tabla expected.
 # 4. Exportaciones: Con output_dir = "data/benchmark" se generan 4 TSV + 5 PNG automáticamente.
-# 5. AUC: Requiere install.packages("pROC"). Si no está instalado, AUC será NA pero el resto funciona.
+# 5. AUC/pAUC: Requiere install.packages("pROC"). Si no está instalado, AUC y pAUC serán NA pero el resto funciona.
+# 6. OpDEA metrics: nMCC y G_mean se calculan siempre (no requieren dependencias extra).
+#    pAUC usa corrección McClish (partial.auc.correct = TRUE en pROC). Rango normalizado: 0.5-1.
