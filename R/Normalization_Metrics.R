@@ -512,6 +512,13 @@ nm_run_normalizations <- function(se,
 
   x_log2 <- SummarizedExperiment::assay(se, assay_name)
 
+  # log2Norm is identical to log2 baseline — drop it when baseline is included
+  if (include_baseline && "log2Norm" %in% methods) {
+    methods <- setdiff(methods, "log2Norm")
+    if (verbose) message("  Skipping 'log2Norm' (identical to baseline '",
+                         assay_name, "')")
+  }
+
   # Build assay list
   assay_list <- list()
   if (include_baseline) assay_list[[assay_name]] <- x_log2
