@@ -315,12 +315,9 @@ if (!exists("%||%", mode = "function")) {
                         by = c("Protein.IDs", "Comparison"),
                         all.x = TRUE, sort = FALSE)
 
-  col_order <- c("Protein.IDs", "Gene.Names", "logFC", "P.Value", "adj.P.Val",
-                 "Change", "MissingGlobal", "MissingPCT1", "MissingPCT2",
-                 "Comparison", "Assay")
-  col_order <- intersect(col_order, names(DEPs_results))
-  extra_cols <- setdiff(names(DEPs_results), col_order)
-  DEPs_results[, c(col_order, extra_cols)]
+  missing_cols <- c("MissingGlobal", "MissingPCT1", "MissingPCT2")
+  other_cols <- setdiff(names(DEPs_results), missing_cols)
+  DEPs_results[, c(other_cols, intersect(missing_cols, names(DEPs_results)))]
 }
 
 # =============================================================================
