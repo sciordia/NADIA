@@ -360,6 +360,9 @@ if (!exists("%||%", mode = "function")) {
 #' @param covariate_df Data frame with Column + covariate column(s) for paired/blocked design (default: NULL)
 #' @param covariate_column Name(s) of the covariate column(s) for the DE model.
 #'   Single string (e.g., "Subject") or character vector (e.g., c("Subject", "Batch")). Default: NULL
+#' @param bio_replicate_column Column name in covariate_df identifying biological replicates
+#'   (e.g., "Patient", "Subject"). Used with limma::duplicateCorrelation() to account for
+#'   technical replicates or paired designs via random effect blocking. Default: NULL
 #' @param export_normalized Export normalized matrix (default: TRUE)
 #' @param export_imputed Export imputed matrix (default: TRUE)
 #' @param export_format Export format: "tsv", "parquet", or "both" (default: "tsv")
@@ -428,6 +431,7 @@ process_proteomics <- function(
     de_method = "limma",
     covariate_df = NULL,
     covariate_column = NULL,
+    bio_replicate_column = NULL,
     export_normalized = TRUE,
     export_imputed = TRUE,
     export_format = "tsv",
@@ -570,6 +574,7 @@ process_proteomics <- function(
     eBayes_robust = eBayes_robust,
     de_method = de_method,
     covariate_column = covariate_column,
+    bio_replicate_column = bio_replicate_column,
     condition_column = "Condition",
     verbose = verbose
   )
@@ -650,6 +655,7 @@ process_proteomics <- function(
       eBayes_robust = eBayes_robust,
       de_method = de_method,
       covariate_column = covariate_column,
+      bio_replicate_column = bio_replicate_column,
       export_dir = export_dir,
       export_format = export_format,
       export_volcano = export_volcano,

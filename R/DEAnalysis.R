@@ -84,6 +84,7 @@ if (!exists("%||%", mode = "function")) {
 #' @return limma fit object
 #' @keywords internal
 .perform_limma <- function(data, condition_vector, comparisons, covariate = NULL,
+                           block = NULL,
                            eBayes_trend = TRUE, eBayes_robust = TRUE) {
   if (!requireNamespace("limma", quietly = TRUE)) {
     stop("Se requiere el paquete 'limma'")
@@ -113,8 +114,27 @@ if (!exists("%||%", mode = "function")) {
     levels = design
   )
 
+  # Blocking via duplicateCorrelation
+  consensus_cor <- NULL
+  if (!is.null(block)) {
+    corfit <- tryCatch(
+      limma::duplicateCorrelation(data, design, block = block),
+      error = function(e) {
+        warning("duplicateCorrelation failed: ", conditionMessage(e),
+                ". Proceeding without blocking.", call. = FALSE)
+        NULL
+      }
+    )
+    if (!is.null(corfit)) consensus_cor <- corfit$consensus.correlation
+  }
+
   # Fit model
-  fit <- limma::lmFit(data, design)
+  if (!is.null(consensus_cor)) {
+    fit <- limma::lmFit(data, design, block = block,
+                         correlation = consensus_cor)
+  } else {
+    fit <- limma::lmFit(data, design)
+  }
   fit <- limma::contrasts.fit(fit, contrast_matrix)
   fit <- limma::eBayes(fit, trend = eBayes_trend, robust = eBayes_robust)
 
@@ -137,10 +157,16 @@ if (!exists("%||%", mode = "function")) {
 #' @return limma MArrayLM fit object
 #' @keywords internal
 .perform_limpa_de <- function(elist, condition_vector, comparisons, covariate = NULL,
+                               block = NULL,
                                eBayes_trend = FALSE, eBayes_robust = FALSE) {
   if (!requireNamespace("limpa", quietly = TRUE)) {
     stop("Para de_method='limpa' necesitas 'limpa'.\n",
          "  BiocManager::install('limpa')")
+  }
+
+  if (!is.null(block)) {
+    warning("limpa (dpcDE) does not support blocking via duplicateCorrelation. ",
+            "bio_replicate_column will be ignored for de_method='limpa'.", call. = FALSE)
   }
 
   condition <- factor(condition_vector)
@@ -255,7 +281,8 @@ if (!exists("%||%", mode = "function")) {
     eBayes_trend = TRUE,
     eBayes_robust = TRUE,
     de_method = "limma",
-    covariate_column = NULL
+    covariate_column = NULL,
+    bio_replicate_column = NULL
 ) {
   stopifnot(inherits(se, "SummarizedExperiment"))
 
@@ -296,6 +323,22 @@ if (!exists("%||%", mode = "function")) {
     }
   }
 
+  # Block extraction for duplicateCorrelation
+  block <- NULL
+  if (!is.null(bio_replicate_column)) {
+    if (!bio_replicate_column %in% names(cd))
+      stop("bio_replicate_column '", bio_replicate_column, "' not found in colData")
+    block_vec <- cd[[bio_replicate_column]]
+    if (length(unique(block_vec)) < length(block_vec)) {
+      block <- factor(block_vec)
+      message("duplicateCorrelation: blocking by '", bio_replicate_column,
+              "' (", length(unique(block)), " unique blocks, ", length(block), " samples)")
+    } else {
+      message("bio_replicate_column '", bio_replicate_column,
+              "' \u2014 all values unique, skipping blocking")
+    }
+  }
+
   # Run DE analysis
   if (de_method == "limpa") {
     elist <- S4Vectors::metadata(se)$limpa_elist
@@ -304,9 +347,11 @@ if (!exists("%||%", mode = "function")) {
            "No se encontro limpa_elist en metadata del SE.")
     }
     fit <- .perform_limpa_de(elist, condition_vec, comparisons, covariate = covariate,
+                              block = block,
                               eBayes_trend = eBayes_trend, eBayes_robust = eBayes_robust)
   } else {
     fit <- .perform_limma(x, condition_vec, comparisons, covariate = covariate,
+                          block = block,
                           eBayes_trend = eBayes_trend, eBayes_robust = eBayes_robust)
   }
 
@@ -364,6 +409,9 @@ if (!exists("%||%", mode = "function")) {
 #' @param de_method DE method: "limma" (default) or "limpa" (probabilistic, requires imp_method="limpa")
 #' @param covariate_column Column name(s) in colData for paired/blocked design.
 #'   Single string (e.g., "Subject") or character vector (e.g., c("Subject", "Batch")). Default: NULL
+#' @param bio_replicate_column Column name in colData identifying biological replicates
+#'   (e.g., "Patient", "Subject"). Used with limma::duplicateCorrelation() to account for
+#'   technical replicates or paired designs via random effect blocking. Default: NULL
 #' @param condition_column Condition column name (default: "Condition")
 #' @param verbose Print progress messages (default: TRUE)
 #'
@@ -397,6 +445,7 @@ de_analysis_proteomics <- function(
     eBayes_robust = TRUE,
     de_method = "limma",
     covariate_column = NULL,
+    bio_replicate_column = NULL,
     condition_column = "Condition",
     verbose = TRUE
 ) {
@@ -448,7 +497,8 @@ de_analysis_proteomics <- function(
     eBayes_trend = eBayes_trend,
     eBayes_robust = eBayes_robust,
     de_method = de_method,
-    covariate_column = covariate_column
+    covariate_column = covariate_column,
+    bio_replicate_column = bio_replicate_column
   )
 
   if (verbose) {
