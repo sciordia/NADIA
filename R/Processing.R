@@ -260,6 +260,65 @@ if (!exists("%||%", mode = "function")) {
   invisible(NULL)
 }
 
+#' Compute MissingPercentage and ImputationPercentage per protein per comparison
+#'
+#' For each comparison, identifies the samples belonging to both conditions,
+#' then calculates the percentage of NAs in the normalized matrix (MissingPercentage)
+#' and the percentage of values that were NA but got imputed (ImputationPercentage).
+#'
+#' @param se SummarizedExperiment with normalized and imputed assays
+#' @param DEPs_results Data frame with DE results (must have Protein.IDs, Comparison)
+#' @param norm_assay_name Name of the normalized assay
+#' @param imp_assay_name Name of the imputed assay
+#' @return DEPs_results with MissingPercentage and ImputationPercentage columns added
+#' @keywords internal
+.compute_missing_imputation_pct <- function(se, DEPs_results, norm_assay_name, imp_assay_name) {
+  # 1. Extract normalized and imputed matrices
+  x_norm <- SummarizedExperiment::assay(se, norm_assay_name)
+  x_imp  <- SummarizedExperiment::assay(se, imp_assay_name)
+
+  # 2. Map Condition -> sample columns
+  cd <- as.data.frame(SummarizedExperiment::colData(se))
+  cond_samples <- split(cd$Column, cd$Condition)
+
+  # 3. For each comparison, compute percentages vectorized
+  comps <- unique(as.character(DEPs_results$Comparison))
+  pct_list <- lapply(comps, function(comp) {
+    conds <- unique(trimws(strsplit(comp, "[-|:]")[[1]]))
+    samples <- unlist(cond_samples[conds], use.names = FALSE)
+    samples <- intersect(samples, colnames(x_norm))
+    n <- length(samples)
+    if (n == 0) {
+      return(data.frame(Protein.IDs = rownames(x_norm), Comparison = comp,
+                        MissingPercentage = NA_real_, ImputationPercentage = NA_real_,
+                        stringsAsFactors = FALSE))
+    }
+    na_norm <- is.na(x_norm[, samples, drop = FALSE])
+    na_imp  <- is.na(x_imp[, samples, drop = FALSE])
+    data.frame(
+      Protein.IDs = rownames(x_norm),
+      Comparison = comp,
+      MissingPercentage    = round(100 * rowSums(na_norm) / n, 2),
+      ImputationPercentage = round(100 * rowSums(na_norm & !na_imp) / n, 2),
+      stringsAsFactors = FALSE
+    )
+  })
+  pct_df <- do.call(rbind, pct_list)
+
+  # 4. Merge into DEPs_results
+  DEPs_results <- merge(DEPs_results, pct_df,
+                        by = c("Protein.IDs", "Comparison"),
+                        all.x = TRUE, sort = FALSE)
+
+  # 5. Reorder columns: known columns first, then any extras
+  col_order <- c("Protein.IDs", "Gene.Names", "logFC", "P.Value", "adj.P.Val",
+                 "Change", "MissingPercentage", "ImputationPercentage",
+                 "Comparison", "Assay")
+  col_order <- intersect(col_order, names(DEPs_results))
+  extra_cols <- setdiff(names(DEPs_results), col_order)
+  DEPs_results[, c(col_order, extra_cols)]
+}
+
 # =============================================================================
 # MAIN FUNCTION
 # =============================================================================
@@ -516,6 +575,14 @@ process_proteomics <- function(
 
   DEPs_results <- de_result$DEPs_results
   comparisons <- de_result$comparisons
+
+  # 4b. Add MissingPercentage and ImputationPercentage
+  DEPs_results <- .compute_missing_imputation_pct(
+    se = se_proc,
+    DEPs_results = DEPs_results,
+    norm_assay_name = norm_method,
+    imp_assay_name = assay_label
+  )
 
   # =========================================================================
   # 5. EXPORT VISUALIZATION FILES
