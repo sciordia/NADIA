@@ -1599,8 +1599,43 @@ nm_plot_pc1_ranking <- function(se, assay_names = NULL,
 }
 
 # =============================================================================
-# SECTION 4: MAIN ORCHESTRATOR
+# SECTION 4: EXPORT HELPER + MAIN ORCHESTRATOR
 # =============================================================================
+
+# Internal: export tables and plots to output_dir
+.nm_export_results <- function(result, output_dir, export_plots, export_tables,
+                               width, height, dpi, verbose) {
+  if (is.null(output_dir)) return(invisible(NULL))
+  if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+
+  # Tablas
+  if (export_tables) {
+    if (!is.null(result$metrics_table))
+      utils::write.table(result$metrics_table,
+                         file.path(output_dir, "nm_metrics_table.tsv"),
+                         sep = "\t", row.names = FALSE, quote = FALSE)
+    if (!is.null(result$pc1_rank))
+      utils::write.table(result$pc1_rank,
+                         file.path(output_dir, "nm_pc1_rank.tsv"),
+                         sep = "\t", row.names = FALSE, quote = FALSE)
+    if (verbose) message("Exported tables to: ", output_dir)
+  }
+
+  # Plots
+  if (export_plots) {
+    n_saved <- 0L
+    for (nm in names(result)) {
+      obj <- result[[nm]]
+      if (!is.null(obj) && inherits(obj, "gg")) {
+        ggplot2::ggsave(file.path(output_dir, paste0("nm_", nm, ".png")),
+                        plot = obj, width = width, height = height, dpi = dpi)
+        n_saved <- n_saved + 1L
+      }
+    }
+    if (verbose) message("Exported ", n_saved, " plot(s) to: ", output_dir)
+  }
+  invisible(NULL)
+}
 
 #' Generate quality metric plots for normalization comparison
 #'
@@ -1633,6 +1668,16 @@ nm_plot_pc1_ranking <- function(se, assay_names = NULL,
 #' @param base_assay Name of the baseline assay to normalize from when using
 #'   auto-normalization. Default `"log2"`.
 #' @param verbose Logical. Print progress messages. Default `TRUE`.
+#' @param output_dir Character. Path to export directory. If `NULL` (default),
+#'   no files are exported. When set, tables (TSV) and/or plots (PNG) are
+#'   saved to this directory (created if needed).
+#' @param export_plots Logical. Export plots as PNG when `output_dir` is set.
+#'   Default `TRUE`.
+#' @param export_tables Logical. Export tables as TSV when `output_dir` is set.
+#'   Default `TRUE`.
+#' @param plot_width Numeric. Width in inches for exported plots. Default `12`.
+#' @param plot_height Numeric. Height in inches for exported plots. Default `8`.
+#' @param plot_dpi Numeric. Resolution for exported plots. Default `150`.
 #' @return Named list of ggplot objects (or NULL for failed plots), plus
 #'   `metrics_table`: a `data.frame` from `nm_compute_metrics()` and
 #'   `pc1_rank`: a `data.frame` from `nm_rank_pc1()` (both always computed
@@ -1655,6 +1700,10 @@ nm_plot_pc1_ranking <- function(se, assay_names = NULL,
 #' # --- With custom parameters ---
 #' plots <- normalization_metrics(se, methods = "all",
 #'   method_args = list(cycloess = list(method = "fast", span = 0.8)))
+#'
+#' # --- With auto-export ---
+#' plots <- normalization_metrics(se_nm, output_dir = "output/norm_metrics")
+#' # Creates output/norm_metrics/ with nm_*.tsv and nm_*.png
 #' }
 #' @export
 normalization_metrics <- function(se,
@@ -1665,7 +1714,13 @@ normalization_metrics <- function(se,
                                   methods       = NULL,
                                   method_args   = list(),
                                   base_assay    = "log2",
-                                  verbose       = TRUE) {
+                                  verbose       = TRUE,
+                                  output_dir    = NULL,
+                                  export_plots  = TRUE,
+                                  export_tables = TRUE,
+                                  plot_width    = 12,
+                                  plot_height   = 8,
+                                  plot_dpi      = 150) {
   # --- Required packages check ---
   for (pkg in c("ggplot2", "dplyr", "tidyr", "SummarizedExperiment", "S4Vectors")) {
     if (!requireNamespace(pkg, quietly = TRUE))
@@ -1762,6 +1817,10 @@ normalization_metrics <- function(se,
     message("normalization_metrics: ", n_ok, " plot(s) generated",
             if (n_fail > 0) paste0(", ", n_fail, " failed") else ".")
   }
+
+  # --- Export results if output_dir is set ---
+  .nm_export_results(result, output_dir, export_plots, export_tables,
+                     plot_width, plot_height, plot_dpi, verbose)
 
   result
 }
@@ -1862,22 +1921,24 @@ if (FALSE) {
   nm_plot_pc1_ranking(se_nm)      # horizontal bar chart
 
 
-  # ---- 7. Export plots to PNG -------------------------------------------------
+  # ---- 7. Auto-export plots and tables ----------------------------------------
 
-  output_dir <- "./results/normalization_metrics"
-  dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+  # Export all plots (PNG) and tables (TSV) to a directory
+  plots <- normalization_metrics(se_nm,
+                                 output_dir = "./results/normalization_metrics")
 
-  for (plot_name in names(plots)) {
-    p <- plots[[plot_name]]
-    if (is.null(p) || !inherits(p, "gg")) next
-    ggplot2::ggsave(
-      filename = file.path(output_dir, paste0("nm_", plot_name, ".png")),
-      plot     = p,
-      width    = 12,
-      height   = 8,
-      dpi      = 150
-    )
-  }
+  # Only tables (no plots)
+  plots <- normalization_metrics(se_nm,
+                                 output_dir    = "./results/normalization_metrics",
+                                 export_plots  = FALSE)
+
+  # Only plots (no tables), custom dimensions
+  plots <- normalization_metrics(se_nm,
+                                 output_dir    = "./results/normalization_metrics",
+                                 export_tables = FALSE,
+                                 plot_width    = 16,
+                                 plot_height   = 10,
+                                 plot_dpi      = 300)
 
 
   # ---- 8. Auto-benchmark from preprocessing (no process_proteomics needed) ----

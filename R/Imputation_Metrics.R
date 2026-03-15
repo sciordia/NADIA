@@ -1168,8 +1168,39 @@ im_plot_metrics <- function(metrics_df, ...) {
 }
 
 # =============================================================================
-# SECTION 7: MAIN ORCHESTRATOR
+# SECTION 7: EXPORT HELPER + MAIN ORCHESTRATOR
 # =============================================================================
+
+# Internal: export tables and plots to output_dir
+.im_export_results <- function(result, output_dir, export_plots, export_tables,
+                               width, height, dpi, verbose) {
+  if (is.null(output_dir)) return(invisible(NULL))
+  if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+
+  # Tablas
+  if (export_tables) {
+    if (!is.null(result$metrics_table))
+      utils::write.table(result$metrics_table,
+                         file.path(output_dir, "im_metrics_table.tsv"),
+                         sep = "\t", row.names = FALSE, quote = FALSE)
+    if (verbose) message("Exported tables to: ", output_dir)
+  }
+
+  # Plots
+  if (export_plots) {
+    n_saved <- 0L
+    for (nm in names(result)) {
+      obj <- result[[nm]]
+      if (!is.null(obj) && inherits(obj, "gg")) {
+        ggplot2::ggsave(file.path(output_dir, paste0("im_", nm, ".png")),
+                        plot = obj, width = width, height = height, dpi = dpi)
+        n_saved <- n_saved + 1L
+      }
+    }
+    if (verbose) message("Exported ", n_saved, " plot(s) to: ", output_dir)
+  }
+  invisible(NULL)
+}
 
 #' Generate imputation quality metric plots and ranking
 #'
@@ -1198,6 +1229,16 @@ im_plot_metrics <- function(metrics_df, ...) {
 #' @param plots Character vector of plot names or `"all"` (default).
 #'   Valid: `"nrmse"`, `"sor"`, `"pss"`, `"acc_oi"`, `"ranking"`, `"metrics"`.
 #' @param verbose Logical. Print progress. Default TRUE.
+#' @param output_dir Character. Path to export directory. If `NULL` (default),
+#'   no files are exported. When set, tables (TSV) and/or plots (PNG) are
+#'   saved to this directory (created if needed).
+#' @param export_plots Logical. Export plots as PNG when `output_dir` is set.
+#'   Default `TRUE`.
+#' @param export_tables Logical. Export tables as TSV when `output_dir` is set.
+#'   Default `TRUE`.
+#' @param plot_width Numeric. Width in inches for exported plots. Default `12`.
+#' @param plot_height Numeric. Height in inches for exported plots. Default `8`.
+#' @param plot_dpi Numeric. Resolution for exported plots. Default `150`.
 #' @return Named list of ggplot objects (or NULL for failed plots), plus
 #'   `metrics_table`: a data.frame from `im_compute_metrics()`.
 #'
@@ -1223,6 +1264,11 @@ im_plot_metrics <- function(metrics_df, ...) {
 #'
 #' SummarizedExperiment::assayNames(se_imp)  # "log2", "cycloess"
 #' res <- imputation_metrics(se_imp, assay_name = "cycloess")
+#'
+#' # ---- With auto-export ----
+#' res <- imputation_metrics(se_imp, assay_name = "cycloess",
+#'   output_dir = "output/imp_metrics")
+#' # Creates output/imp_metrics/ with im_*.tsv and im_*.png
 #' }
 #' @export
 imputation_metrics <- function(se,
@@ -1236,7 +1282,13 @@ imputation_metrics <- function(se,
                                method_args   = list(),
                                with_value    = NA_real_,
                                plots         = "all",
-                               verbose       = TRUE) {
+                               verbose       = TRUE,
+                               output_dir    = NULL,
+                               export_plots  = TRUE,
+                               export_tables = TRUE,
+                               plot_width    = 12,
+                               plot_height   = 8,
+                               plot_dpi      = 150) {
   # --- Required packages check ---
   for (pkg in c("ggplot2", "dplyr", "tidyr", "SummarizedExperiment", "S4Vectors")) {
     if (!requireNamespace(pkg, quietly = TRUE))
@@ -1307,6 +1359,10 @@ imputation_metrics <- function(se,
     message("imputation_metrics: ", n_ok, " plot(s) generated",
             if (n_fail > 0) paste0(", ", n_fail, " failed") else ".")
   }
+
+  # --- Export results if output_dir is set ---
+  .im_export_results(result, output_dir, export_plots, export_tables,
+                     plot_width, plot_height, plot_dpi, verbose)
 
   result
 }
@@ -1426,21 +1482,23 @@ if (FALSE) {
   )
 
 
-  # ---- 9. Export plots to PNG ------------------------------------------------
+  # ---- 9. Auto-export plots and tables ----------------------------------------
 
-  output_dir <- "./results/imputation_metrics"
-  dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+  # Export all plots (PNG) and tables (TSV) to a directory
+  res <- imputation_metrics(se_nm, assay_name = "cycloess",
+                            output_dir = "./results/imputation_metrics")
 
-  for (plot_name in names(res)) {
-    p <- res[[plot_name]]
-    if (is.null(p) || !inherits(p, "gg")) next
-    ggplot2::ggsave(
-      filename = file.path(output_dir, paste0("im_", plot_name, ".png")),
-      plot     = p,
-      width    = 12,
-      height   = 8,
-      dpi      = 150
-    )
-  }
+  # Only tables (no plots)
+  res <- imputation_metrics(se_nm, assay_name = "cycloess",
+                            output_dir    = "./results/imputation_metrics",
+                            export_plots  = FALSE)
+
+  # Only plots (no tables), custom dimensions
+  res <- imputation_metrics(se_nm, assay_name = "cycloess",
+                            output_dir    = "./results/imputation_metrics",
+                            export_tables = FALSE,
+                            plot_width    = 16,
+                            plot_height   = 10,
+                            plot_dpi      = 300)
 
 }
