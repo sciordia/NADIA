@@ -1095,10 +1095,14 @@ nm_plot_pev <- function(se, assay_names = NULL,
 #' Percentage of variance explained shown on each axis.
 #'
 #' @inheritParams nm_plot_boxplot
+#' @param pca_scales Facet scaling: `"free"` (default) allows independent axes
+#'   per method; `"fixed"` uses shared axes to compare separation magnitude.
 #' @return ggplot object.
 #' @export
 nm_plot_pca <- function(se, assay_names = NULL,
-                        condition_col = "Condition", ...) {
+                        condition_col = "Condition",
+                        pca_scales = c("free", "fixed"), ...) {
+  pca_scales <- match.arg(pca_scales)
   assay_names <- .nm_assay_names(se, assay_names)
   condition   <- .nm_condition(se, condition_col)
   samples     <- colnames(se)
@@ -1143,7 +1147,7 @@ nm_plot_pca <- function(se, assay_names = NULL,
   ggplot2::ggplot(pca_df,
     ggplot2::aes(x = PC1, y = PC2, color = Condition, label = Sample)) +
     ggplot2::geom_point(size = 3) +
-    ggplot2::facet_wrap(~ Facet, ncol = 2, scales = "free") +
+    ggplot2::facet_wrap(~ Facet, ncol = 2, scales = pca_scales) +
     ggplot2::labs(title = "PCA — PC1 vs PC2", x = "PC1", y = "PC2") +
     ggplot2::theme_bw() +
     ggplot2::theme(strip.text = ggplot2::element_text(face = "bold", size = 8))
@@ -1659,6 +1663,9 @@ nm_plot_pc1_ranking <- function(se, assay_names = NULL,
 #'   `"pc1_ranking"`.
 #' @param cor_method Correlation method for `nm_plot_correlation()`.
 #'   Default `"pearson"`.
+#' @param pca_scales Facet scaling for PCA plot: `"free"` (default),
+#'   `"fixed"`, or `"both"` to generate and export both variants
+#'   (`pca_free` and `pca_fixed` in the returned list).
 #' @param methods Character vector of normalization method names to
 #'   auto-benchmark, `"all"` for all 14 methods, or NULL (default) to skip
 #'   auto-normalization and use existing assays.
@@ -1711,6 +1718,7 @@ normalization_metrics <- function(se,
                                   condition_col = "Condition",
                                   plots         = "all",
                                   cor_method    = "pearson",
+                                  pca_scales    = c("free", "fixed", "both"),
                                   methods       = NULL,
                                   method_args   = list(),
                                   base_assay    = "log2",
@@ -1721,6 +1729,8 @@ normalization_metrics <- function(se,
                                   plot_width    = 12,
                                   plot_height   = 8,
                                   plot_dpi      = 150) {
+  pca_scales <- match.arg(pca_scales)
+
   # --- Required packages check ---
   for (pkg in c("ggplot2", "dplyr", "tidyr", "SummarizedExperiment", "S4Vectors")) {
     if (!requireNamespace(pkg, quietly = TRUE))
@@ -1749,13 +1759,17 @@ normalization_metrics <- function(se,
                       "pca", "correlation", "mds", "scatter", "qq",
                       "metrics", "pc1_ranking")
 
+  # When pca_scales == "both", expand "pca" into "pca_free" + "pca_fixed"
+  if (pca_scales == "both") {
+    all_plot_names <- c(setdiff(all_plot_names, "pca"), "pca_free", "pca_fixed")
+  }
+
   plot_fns <- list(
     boxplot     = function() nm_plot_boxplot(se, assay_names, condition_col),
     density     = function() nm_plot_density(se, assay_names, condition_col),
     pcv         = function() nm_plot_pcv(se, assay_names, condition_col),
     pmad        = function() nm_plot_pmad(se, assay_names, condition_col),
     pev         = function() nm_plot_pev(se, assay_names, condition_col),
-    pca         = function() nm_plot_pca(se, assay_names, condition_col),
     correlation = function() nm_plot_correlation(se, assay_names, condition_col,
                                                  cor_method = cor_method),
     mds         = function() nm_plot_mds(se, assay_names, condition_col),
@@ -1764,11 +1778,23 @@ normalization_metrics <- function(se,
     metrics     = function() nm_plot_metrics(se, assay_names, condition_col),
     pc1_ranking = function() nm_plot_pc1_ranking(se, assay_names, condition_col)
   )
+  if (pca_scales == "both") {
+    plot_fns$pca_free  <- function() nm_plot_pca(se, assay_names, condition_col,
+                                                  pca_scales = "free")
+    plot_fns$pca_fixed <- function() nm_plot_pca(se, assay_names, condition_col,
+                                                  pca_scales = "fixed")
+  } else {
+    plot_fns$pca <- function() nm_plot_pca(se, assay_names, condition_col,
+                                            pca_scales = pca_scales)
+  }
 
   # --- Determine which plots to run ---
   if (identical(plots, "all")) {
     selected <- all_plot_names
   } else {
+    # Expand "pca" → "pca_free" + "pca_fixed" when pca_scales == "both"
+    if (pca_scales == "both" && "pca" %in% plots)
+      plots <- c(setdiff(plots, "pca"), "pca_free", "pca_fixed")
     unknown <- setdiff(plots, all_plot_names)
     if (length(unknown) > 0)
       warning("Unknown plot name(s) ignored: ", paste(unknown, collapse = ", "))
