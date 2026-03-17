@@ -1211,10 +1211,14 @@ nm_plot_correlation <- function(se, assay_names = NULL,
 #' Faceted by method, colored by condition.
 #'
 #' @inheritParams nm_plot_boxplot
+#' @param mds_scales Facet scaling: `"free"` (default) allows independent axes
+#'   per panel; `"fixed"` forces shared axes for easier cross-method comparison.
 #' @return ggplot object.
 #' @export
 nm_plot_mds <- function(se, assay_names = NULL,
-                        condition_col = "Condition", ...) {
+                        condition_col = "Condition",
+                        mds_scales = c("free", "fixed"), ...) {
+  mds_scales <- match.arg(mds_scales)
   assay_names <- .nm_assay_names(se, assay_names)
   condition   <- .nm_condition(se, condition_col)
   samples     <- colnames(se)
@@ -1242,7 +1246,7 @@ nm_plot_mds <- function(se, assay_names = NULL,
   ggplot2::ggplot(mds_df,
     ggplot2::aes(x = MDS1, y = MDS2, color = Condition, label = Sample)) +
     ggplot2::geom_point(size = 3) +
-    ggplot2::facet_wrap(~ Method, ncol = 2, scales = "free") +
+    ggplot2::facet_wrap(~ Method, ncol = 2, scales = mds_scales) +
     ggplot2::labs(title = "Multidimensional Scaling (MDS)",
                   x = "MDS1", y = "MDS2") +
     ggplot2::theme_bw() +
@@ -1660,12 +1664,17 @@ nm_plot_pc1_ranking <- function(se, assay_names = NULL,
 #' @param plots Character vector of plot names to generate, or `"all"` (default).
 #'   Valid names: `"boxplot"`, `"density"`, `"pcv"`, `"pmad"`, `"pev"`,
 #'   `"pca"`, `"correlation"`, `"mds"`, `"scatter"`, `"qq"`, `"metrics"`,
-#'   `"pc1_ranking"`.
+#'   `"pc1_ranking"`. When `pca_scales = "both"`, `"pca"` expands to
+#'   `"pca_free"` + `"pca_fixed"`. When `mds_scales = "both"`, `"mds"` expands
+#'   to `"mds_free"` + `"mds_fixed"`.
 #' @param cor_method Correlation method for `nm_plot_correlation()`.
 #'   Default `"pearson"`.
 #' @param pca_scales Facet scaling for PCA plot: `"free"` (default),
 #'   `"fixed"`, or `"both"` to generate and export both variants
 #'   (`pca_free` and `pca_fixed` in the returned list).
+#' @param mds_scales Facet scaling for MDS plot: `"free"` (default),
+#'   `"fixed"`, or `"both"` to generate and export both variants
+#'   (`mds_free` and `mds_fixed` in the returned list).
 #' @param methods Character vector of normalization method names to
 #'   auto-benchmark, `"all"` for all 14 methods, or NULL (default) to skip
 #'   auto-normalization and use existing assays.
@@ -1719,6 +1728,7 @@ normalization_metrics <- function(se,
                                   plots         = "all",
                                   cor_method    = "pearson",
                                   pca_scales    = c("free", "fixed", "both"),
+                                  mds_scales    = c("free", "fixed", "both"),
                                   methods       = NULL,
                                   method_args   = list(),
                                   base_assay    = "log2",
@@ -1730,6 +1740,7 @@ normalization_metrics <- function(se,
                                   plot_height   = 8,
                                   plot_dpi      = 150) {
   pca_scales <- match.arg(pca_scales)
+  mds_scales <- match.arg(mds_scales)
 
   # --- Required packages check ---
   for (pkg in c("ggplot2", "dplyr", "tidyr", "SummarizedExperiment", "S4Vectors")) {
@@ -1763,6 +1774,10 @@ normalization_metrics <- function(se,
   if (pca_scales == "both") {
     all_plot_names <- c(setdiff(all_plot_names, "pca"), "pca_free", "pca_fixed")
   }
+  # When mds_scales == "both", expand "mds" into "mds_free" + "mds_fixed"
+  if (mds_scales == "both") {
+    all_plot_names <- c(setdiff(all_plot_names, "mds"), "mds_free", "mds_fixed")
+  }
 
   plot_fns <- list(
     boxplot     = function() nm_plot_boxplot(se, assay_names, condition_col),
@@ -1772,7 +1787,7 @@ normalization_metrics <- function(se,
     pev         = function() nm_plot_pev(se, assay_names, condition_col),
     correlation = function() nm_plot_correlation(se, assay_names, condition_col,
                                                  cor_method = cor_method),
-    mds         = function() nm_plot_mds(se, assay_names, condition_col),
+    #mds — set conditionally below
     scatter     = function() nm_plot_scatter(se, assay_names, condition_col),
     qq          = function() nm_plot_qq(se, assay_names, condition_col),
     metrics     = function() nm_plot_metrics(se, assay_names, condition_col),
@@ -1787,6 +1802,15 @@ normalization_metrics <- function(se,
     plot_fns$pca <- function() nm_plot_pca(se, assay_names, condition_col,
                                             pca_scales = pca_scales)
   }
+  if (mds_scales == "both") {
+    plot_fns$mds_free  <- function() nm_plot_mds(se, assay_names, condition_col,
+                                                  mds_scales = "free")
+    plot_fns$mds_fixed <- function() nm_plot_mds(se, assay_names, condition_col,
+                                                  mds_scales = "fixed")
+  } else {
+    plot_fns$mds <- function() nm_plot_mds(se, assay_names, condition_col,
+                                            mds_scales = mds_scales)
+  }
 
   # --- Determine which plots to run ---
   if (identical(plots, "all")) {
@@ -1795,6 +1819,9 @@ normalization_metrics <- function(se,
     # Expand "pca" → "pca_free" + "pca_fixed" when pca_scales == "both"
     if (pca_scales == "both" && "pca" %in% plots)
       plots <- c(setdiff(plots, "pca"), "pca_free", "pca_fixed")
+    # Expand "mds" → "mds_free" + "mds_fixed" when mds_scales == "both"
+    if (mds_scales == "both" && "mds" %in% plots)
+      plots <- c(setdiff(plots, "mds"), "mds_free", "mds_fixed")
     unknown <- setdiff(plots, all_plot_names)
     if (length(unknown) > 0)
       warning("Unknown plot name(s) ignored: ", paste(unknown, collapse = ", "))
