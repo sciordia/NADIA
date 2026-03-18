@@ -7,12 +7,11 @@
 #   - normalization_metrics(): Orchestrator returning a list of ggplot2 plots
 #   - nm_compute_metrics()   : Quantitative group-separation metrics (data.frame)
 #
-# Individual plot functions (15):
+# Individual plot functions (12):
 #   nm_plot_boxplot, nm_plot_density, nm_plot_pcv,
 #   nm_plot_pmad, nm_plot_pev, nm_plot_pca, nm_plot_correlation,
 #   nm_plot_mds, nm_plot_scatter, nm_plot_qq, nm_plot_metrics,
-#   nm_plot_pc1_ranking, nm_plot_mds1_ranking,
-#   nm_plot_composite_ranking, nm_plot_composite_heatmap
+#   nm_plot_pc1_ranking, nm_plot_mds1_ranking
 #
 # References: proteoDA, PRONE, NormalizerDE
 #
@@ -63,6 +62,7 @@ if (!exists(".norm_log2norm", mode = "function")) {
   "vsn", "max", "medianNorm", "meanNorm"
 )
 
+<<<<<<< HEAD
 # --- Metric direction registry (higher/lower = better) ---
 # Curated set of 7 non-redundant metrics:
 #   Removed: Condition_Number (no discrimination), Hopkins (misleading on log2),
@@ -91,6 +91,8 @@ if (!exists(".norm_log2norm", mode = "function")) {
   PMAD_median      = 1
 )
 
+=======
+>>>>>>> parent of 6c86c1a (Added composite_rank multiple)
 # =============================================================================
 # SECTION 1: INTERNAL METRIC HELPERS
 # =============================================================================
@@ -1733,6 +1735,7 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
     ggplot2::expand_limits(y = max(rank_df$MDS1_VarPct, na.rm = TRUE) * 1.08)
 }
 
+<<<<<<< HEAD
 # --------------------------------------------------------------------------
 # 14. Composite Ranking (rank-aggregation across all metrics)
 # --------------------------------------------------------------------------
@@ -2000,6 +2003,8 @@ nm_plot_composite_heatmap <- function(se, assay_names = NULL,
     )
 }
 
+=======
+>>>>>>> parent of 6c86c1a (Added composite_rank multiple)
 # =============================================================================
 # SECTION 4: EXPORT HELPER + MAIN ORCHESTRATOR
 # =============================================================================
@@ -2023,10 +2028,6 @@ nm_plot_composite_heatmap <- function(se, assay_names = NULL,
     if (!is.null(result$mds1_rank))
       utils::write.table(result$mds1_rank,
                          file.path(output_dir, "nm_mds1_rank.tsv"),
-                         sep = "\t", row.names = FALSE, quote = FALSE)
-    if (!is.null(result$composite_rank))
-      utils::write.table(result$composite_rank,
-                         file.path(output_dir, "nm_composite_rank.tsv"),
                          sep = "\t", row.names = FALSE, quote = FALSE)
     if (verbose) message("Exported tables to: ", output_dir)
   }
@@ -2170,8 +2171,7 @@ normalization_metrics <- function(se,
   # --- Plot registry ---
   all_plot_names <- c("boxplot", "density", "pcv", "pmad", "pev",
                       "pca", "correlation", "mds", "scatter", "qq",
-                      "metrics", "pc1_ranking", "mds1_ranking",
-                      "composite_ranking", "composite_heatmap")
+                      "metrics", "pc1_ranking", "mds1_ranking")
 
   # When pca_scales == "both", expand "pca" into "pca_free" + "pca_fixed"
   if (pca_scales == "both") {
@@ -2195,11 +2195,7 @@ normalization_metrics <- function(se,
     qq          = function() nm_plot_qq(se, assay_names, condition_col),
     metrics     = function() nm_plot_metrics(se, assay_names, condition_col),
     pc1_ranking  = function() nm_plot_pc1_ranking(se, assay_names, condition_col),
-    mds1_ranking = function() nm_plot_mds1_ranking(se, assay_names, condition_col),
-    composite_ranking = function() nm_plot_composite_ranking(se, assay_names,
-                                                             condition_col),
-    composite_heatmap = function() nm_plot_composite_heatmap(se, assay_names,
-                                                             condition_col)
+    mds1_ranking = function() nm_plot_mds1_ranking(se, assay_names, condition_col)
   )
   if (pca_scales == "both") {
     plot_fns$pca_free  <- function() nm_plot_pca(se, assay_names, condition_col,
@@ -2280,16 +2276,7 @@ normalization_metrics <- function(se,
     }
   )
 
-  # --- Always compute composite_rank ---
-  result[["composite_rank"]] <- tryCatch(
-    nm_rank_composite(se, assay_names, condition_col, verbose = verbose),
-    error = function(e) {
-      warning("nm_rank_composite() failed: ", conditionMessage(e))
-      NULL
-    }
-  )
-
-  non_plot <- c("metrics_table", "pc1_rank", "mds1_rank", "composite_rank")
+  non_plot <- c("metrics_table", "pc1_rank", "mds1_rank")
   n_ok   <- sum(!sapply(result[setdiff(names(result), non_plot)], is.null))
   n_fail <- length(selected) - n_ok
   if (verbose) {
