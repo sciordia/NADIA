@@ -1752,15 +1752,15 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
 #' Combines 7 non-redundant metrics (5 from `nm_compute_metrics()` plus
 #' MDS1_VarPct and PMAD_median) into a single rank-aggregation table. For each
 #' metric, methods are ranked according to `.NM_METRIC_DIRECTIONS`
-#' (higher-is-better or lower-is-better). Each metric is min-max normalized
-#' to [0, 1] (1 = best) and `Score_Mean` is the weighted mean of scores.
-#' Per-metric ranks and `Rank_Mean` are also included for reference.
+#' (higher-is-better or lower-is-better). The final `Rank_Mean` is the
+#' (optionally weighted) mean of per-metric ranks.
 #'
 #' @inheritParams nm_plot_boxplot
 #' @param weights Named numeric vector of metric weights. Names must match
 #'   metric column names. NULL (default) = equal weights.
 #' @param verbose Logical. Print progress messages. Default `TRUE`.
 #' @return A `data.frame` with columns: `Method`, 7 value columns,
+<<<<<<< HEAD
 #'   7 `*_Rank` columns, `Rank_Mean`, 7 `*_Score` columns (min-max
 #'   normalized 0-1 where 1 = best), `Score_Mean` (weighted), `Composite_Rank`
 #'   (ordered by `Score_Mean` descending).
@@ -1780,6 +1780,9 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
 #' @return A `data.frame` with columns: `Method`, 14 value columns,
 #'   14 `*_Rank` columns, `Rank_Mean`, `Composite_Rank`.
 >>>>>>> parent of fe36aaf (Fixed composite_rank)
+=======
+#'   7 `*_Rank` columns, `Rank_Mean`, `Composite_Rank`.
+>>>>>>> parent of b476568 (Fixed composite_Rank with score_based)
 #'
 #' @examples
 #' \dontrun{
@@ -1858,17 +1861,15 @@ nm_rank_composite <- function(se, assay_names = NULL,
 
   if (length(metric_cols) == 0) stop("No metrics available for ranking.")
 
-  # --- Step 5: Compute ranks and scores per metric ---
+  # --- Step 5: Compute ranks per metric ---
   directions <- .NM_METRIC_DIRECTIONS
-  rank_df  <- full_df[, "Method", drop = FALSE]
-  score_df <- full_df[, "Method", drop = FALSE]
+  rank_df <- full_df[, "Method", drop = FALSE]
 
   for (m in metric_cols) {
     x   <- full_df[[m]]
     dir <- directions[m]
     if (is.na(dir) || is.null(dir)) dir <- "higher"
 
-    # Ranks (kept for reference)
     if (dir == "higher") {
       rank_df[[paste0(m, "_Rank")]] <- rank(-x, ties.method = "average",
                                              na.last = "keep")
@@ -1876,59 +1877,34 @@ nm_rank_composite <- function(se, assay_names = NULL,
       rank_df[[paste0(m, "_Rank")]] <- rank(x, ties.method = "average",
                                              na.last = "keep")
     }
-
-    # Min-max score [0, 1] where 1 = best
-    rng <- range(x, na.rm = TRUE)
-    if (rng[2] - rng[1] < .Machine$double.eps) {
-      score_df[[paste0(m, "_Score")]] <- ifelse(is.na(x), NA_real_, 0.5)
-    } else if (dir == "higher") {
-      score_df[[paste0(m, "_Score")]] <- (x - rng[1]) / (rng[2] - rng[1])
-    } else {
-      score_df[[paste0(m, "_Score")]] <- (rng[2] - x) / (rng[2] - rng[1])
-    }
   }
 
-  # --- Step 6: Weighted Score_Mean ---
-  score_cols <- paste0(metric_cols, "_Score")
-  score_mat  <- as.matrix(score_df[, score_cols, drop = FALSE])
+  # --- Step 6: Rank_Mean ---
+  rank_cols <- paste0(metric_cols, "_Rank")
+  rank_mat  <- as.matrix(rank_df[, rank_cols, drop = FALSE])
 
   if (!is.null(weights)) {
     w <- weights[metric_cols]
     w[is.na(w)] <- 1
+    rank_df$Rank_Mean <- apply(rank_mat, 1, function(r) {
+      ok <- !is.na(r)
+      if (!any(ok)) return(NA_real_)
+      stats::weighted.mean(r[ok], w[ok])
+    })
   } else {
-    w <- rep(1, length(metric_cols))
-    names(w) <- metric_cols
+    rank_df$Rank_Mean <- rowMeans(rank_mat, na.rm = TRUE)
   }
 
-  score_df$Score_Mean <- apply(score_mat, 1, function(s) {
-    ok <- !is.na(s)
-    if (!any(ok)) return(NA_real_)
-    stats::weighted.mean(s[ok], w[ok])
-  })
-
-  # Also compute Rank_Mean for reference
-  rank_cols <- paste0(metric_cols, "_Rank")
-  rank_mat  <- as.matrix(rank_df[, rank_cols, drop = FALSE])
-  rank_df$Rank_Mean <- apply(rank_mat, 1, function(r) {
-    ok <- !is.na(r)
-    if (!any(ok)) return(NA_real_)
-    stats::weighted.mean(r[ok], w[ok])
-  })
-
-  # --- Step 7: Combine values + ranks + scores, sort by Score_Mean ---
+  # --- Step 7: Combine values + ranks, sort, add Composite_Rank ---
   out <- merge(full_df[, c("Method", metric_cols)], rank_df, by = "Method",
                sort = FALSE)
-  out <- merge(out, score_df[, c("Method", score_cols, "Score_Mean")],
-               by = "Method", sort = FALSE)
-  out$Rank_Mean <- rank_df$Rank_Mean[match(out$Method, rank_df$Method)]
-  out <- out[order(-out$Score_Mean), ]
+  out <- out[order(out$Rank_Mean), ]
   out$Composite_Rank <- seq_len(nrow(out))
   rownames(out) <- NULL
 
   if (verbose) {
     message("nm_rank_composite: Rank 1 = ", out$Method[1],
-            " (Score_Mean = ", sprintf("%.4f", out$Score_Mean[1]),
-            ", Rank_Mean = ", sprintf("%.2f", out$Rank_Mean[1]), ")")
+            " (Rank_Mean = ", sprintf("%.2f", out$Rank_Mean[1]), ")")
   }
 
   out
@@ -1937,7 +1913,7 @@ nm_rank_composite <- function(se, assay_names = NULL,
 #' Horizontal bar chart of composite normalization ranking
 #'
 #' Produces a horizontal bar chart with normalization methods ordered by
-#' descending `Score_Mean` (higher = better). Analogous to
+#' ascending `Rank_Mean` (lower = better). Analogous to
 #' `nm_plot_pc1_ranking()` and `nm_plot_mds1_ranking()`.
 #'
 #' @inheritParams nm_rank_composite
@@ -1968,34 +1944,34 @@ nm_plot_composite_ranking <- function(se, assay_names = NULL,
                                   verbose = FALSE)
   col_vector <- .nm_prone_colors(nrow(comp_df))
 
-  # Order factor: best (highest Score_Mean) at top in coord_flip
+  # Order factor: best (lowest Rank_Mean) at top in coord_flip
   comp_df$Method <- factor(comp_df$Method,
                            levels = rev(comp_df$Method))
 
   ggplot2::ggplot(comp_df,
-    ggplot2::aes(x = Method, y = Score_Mean, fill = Method)) +
+    ggplot2::aes(x = Method, y = Rank_Mean, fill = Method)) +
     ggplot2::geom_col(show.legend = FALSE) +
     ggplot2::geom_text(
-      ggplot2::aes(label = sprintf("%.3f", Score_Mean)),
+      ggplot2::aes(label = sprintf("%.2f", Rank_Mean)),
       hjust = -0.1, size = 3.2) +
     ggplot2::coord_flip() +
     ggplot2::scale_fill_manual(values = rep_len(col_vector, nrow(comp_df))) +
     ggplot2::labs(
       title    = "Composite Normalization Ranking",
-      subtitle = "Higher weighted score = better overall performance",
+      subtitle = "Lower mean rank = better overall performance",
       x = NULL,
-      y = "Weighted Score Mean"
+      y = "Mean Rank"
     ) +
     ggplot2::theme_bw() +
-    ggplot2::expand_limits(y = max(comp_df$Score_Mean, na.rm = TRUE) * 1.08)
+    ggplot2::expand_limits(y = max(comp_df$Rank_Mean, na.rm = TRUE) * 1.08)
 }
 
-#' Heatmap of per-metric scores for normalization methods
+#' Heatmap of per-metric ranks for normalization methods
 #'
-#' Tile heatmap showing the normalized score (0-1, 1 = best) each
-#' normalization method achieved in each quality metric. Rows = methods
-#' (ordered by `Score_Mean`, best at top), columns = metrics. Follows the
-#' same pattern as `im_plot_ranking()` in `Imputation_Metrics.R`.
+#' Tile heatmap showing the rank each normalization method achieved in each
+#' quality metric. Rows = methods (ordered by `Rank_Mean`, best at top),
+#' columns = metrics. Follows the same pattern as `im_plot_ranking()` in
+#' `Imputation_Metrics.R`.
 #'
 #' @inheritParams nm_rank_composite
 #' @param ... Additional arguments (currently unused).
@@ -2025,34 +2001,34 @@ nm_plot_composite_heatmap <- function(se, assay_names = NULL,
                                verbose = FALSE)
   method_order <- comp_df$Method
 
-  # Collect score columns + Score_Mean
-  score_cols <- grep("_Score$|^Score_Mean$", colnames(comp_df), value = TRUE)
-  score_df   <- comp_df[, c("Method", score_cols)]
+  # Collect rank columns + Rank_Mean
+  rank_cols <- grep("_Rank$|^Rank_Mean$", colnames(comp_df), value = TRUE)
+  rank_df   <- comp_df[, c("Method", rank_cols)]
 
   long_df <- tidyr::pivot_longer(
-    score_df,
-    cols      = tidyr::all_of(score_cols),
+    rank_df,
+    cols      = tidyr::all_of(rank_cols),
     names_to  = "Metric",
-    values_to = "Score"
+    values_to = "Rank"
   )
 
   long_df$Method <- factor(long_df$Method, levels = rev(method_order))
-  long_df$Metric <- factor(long_df$Metric, levels = score_cols)
+  long_df$Metric <- factor(long_df$Metric, levels = rank_cols)
 
   ggplot2::ggplot(long_df,
-    ggplot2::aes(x = Metric, y = Method, fill = Score)) +
+    ggplot2::aes(x = Metric, y = Method, fill = Rank)) +
     ggplot2::geom_tile(color = "white", linewidth = 0.8) +
     ggplot2::geom_text(
-      ggplot2::aes(label = ifelse(is.na(Score), "NA", sprintf("%.2f", Score))),
+      ggplot2::aes(label = ifelse(is.na(Rank), "NA", sprintf("%.1f", Rank))),
       size = 3, color = "black") +
     ggplot2::scale_fill_gradient2(
-      low = "#B2182B", mid = "#F7F7F7", high = "#2166AC",
-      midpoint = 0.5,
+      low = "#2166AC", mid = "#F7F7F7", high = "#B2182B",
+      midpoint = median(long_df$Rank, na.rm = TRUE),
       na.value = "grey80",
-      name = "Score") +
+      name = "Rank") +
     ggplot2::labs(
-      title    = "Composite Normalization Ranking — Per-Metric Scores",
-      subtitle = "Higher score (blue) = better performance (0-1 normalized)",
+      title    = "Composite Normalization Ranking — Per-Metric Ranks",
+      subtitle = "Lower rank (blue) = better performance",
       x = NULL, y = NULL
     ) +
     ggplot2::theme_bw() +
