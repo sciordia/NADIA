@@ -1629,7 +1629,7 @@ nm_plot_pc1_ranking <- function(se, assay_names = NULL,
 #'
 #' For each assay in `se`, computes the percentage of variance captured by the
 #' first MDS dimension (using only positive eigenvalues from classical MDS) and
-#' returns a ranking ordered by descending MDS1 variance.
+#' returns a ranking ordered by ascending MDS1 variance (lower = better).
 #'
 #' @inheritParams nm_plot_boxplot
 #' @return A `data.frame` with columns `Method`, `MDS1_VarPct`, `Rank`,
@@ -1656,7 +1656,7 @@ nm_rank_mds1 <- function(se, assay_names = NULL, condition_col = "Condition",
     MDS1_VarPct = pct,
     stringsAsFactors = FALSE
   )
-  df <- df[order(-df$MDS1_VarPct), ]
+  df <- df[order(df$MDS1_VarPct), ]
   df$Rank <- seq_len(nrow(df))
   rownames(df) <- NULL
 
@@ -1666,8 +1666,8 @@ nm_rank_mds1 <- function(se, assay_names = NULL, condition_col = "Condition",
 #' Horizontal bar chart of MDS1 variance ranking
 #'
 #' Produces a horizontal bar chart with normalization methods ordered by
-#' descending MDS1 variance percentage. Uses the same PRONE-style palette
-#' as other `nm_plot_*()` functions.
+#' ascending MDS1 variance percentage (lower = better normalization).
+#' Uses the same PRONE-style palette as other `nm_plot_*()` functions.
 #'
 #' @inheritParams nm_plot_boxplot
 #' @return ggplot object.
@@ -1683,7 +1683,7 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
   rank_df    <- nm_rank_mds1(se, assay_names, condition_col, verbose = FALSE)
   col_vector <- .nm_prone_colors(nrow(rank_df))
 
-  # Order factor by MDS1_VarPct descending (bottom-to-top in coord_flip)
+  # Order factor by MDS1_VarPct ascending (best at top in coord_flip)
   rank_df$Method <- factor(rank_df$Method,
                            levels = rev(rank_df$Method))
 
