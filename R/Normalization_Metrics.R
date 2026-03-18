@@ -7,11 +7,12 @@
 #   - normalization_metrics(): Orchestrator returning a list of ggplot2 plots
 #   - nm_compute_metrics()   : Quantitative group-separation metrics (data.frame)
 #
-# Individual plot functions (12):
+# Individual plot functions (15):
 #   nm_plot_boxplot, nm_plot_density, nm_plot_pcv,
 #   nm_plot_pmad, nm_plot_pev, nm_plot_pca, nm_plot_correlation,
 #   nm_plot_mds, nm_plot_scatter, nm_plot_qq, nm_plot_metrics,
-#   nm_plot_pc1_ranking, nm_plot_mds1_ranking
+#   nm_plot_pc1_ranking, nm_plot_mds1_ranking,
+#   nm_plot_composite_ranking, nm_plot_composite_heatmap
 #
 # References: proteoDA, PRONE, NormalizerDE
 #
@@ -60,6 +61,24 @@ if (!exists(".norm_log2norm", mode = "function")) {
 .NM_RAW_METHODS <- c(
   "log2Norm", "GlobalMedian", "GlobalMean", "eqmedians",
   "vsn", "max", "medianNorm", "meanNorm"
+)
+
+# --- Metric direction registry (higher/lower = better) ---
+.NM_METRIC_DIRECTIONS <- c(
+  PC1_VarPct       = "higher",
+  PC1_F_ratio      = "higher",
+  PERMANOVA_R2     = "higher",
+  Silhouette_mean  = "higher",
+  MDS_GOF          = "higher",
+  MDS_CophCor      = "higher",
+  CumVar_PC2       = "higher",
+  Hopkins          = "higher",
+  Spectral_Entropy = "lower",
+  Condition_Number = "lower",
+  MDS1_VarPct      = "lower",
+  PCV_median       = "lower",
+  PMAD_median      = "lower",
+  PEV_median       = "lower"
 )
 
 # =============================================================================
@@ -1704,6 +1723,247 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
     ggplot2::expand_limits(y = max(rank_df$MDS1_VarPct, na.rm = TRUE) * 1.08)
 }
 
+# --------------------------------------------------------------------------
+# 14. Composite Ranking (rank-aggregation across all metrics)
+# --------------------------------------------------------------------------
+
+#' Composite ranking of normalization methods across all quality metrics
+#'
+#' Combines 14 metrics (11 from `nm_compute_metrics()` minus PERMANOVA_pval,
+#' plus MDS1_VarPct, PCV_median, PMAD_median, PEV_median) into a single
+#' rank-aggregation table. For each metric, methods are ranked according to
+#' `.NM_METRIC_DIRECTIONS` (higher-is-better or lower-is-better). The final
+#' `Rank_Mean` is the (optionally weighted) mean of per-metric ranks.
+#'
+#' @inheritParams nm_plot_boxplot
+#' @param weights Named numeric vector of metric weights. Names must match
+#'   metric column names. NULL (default) = equal weights.
+#' @param exclude_metrics Character vector of metric names to exclude from
+#'   ranking. NULL (default) = use all available metrics.
+#' @param verbose Logical. Print progress messages. Default `TRUE`.
+#' @return A `data.frame` with columns: `Method`, 14 value columns,
+#'   14 `*_Rank` columns, `Rank_Mean`, `Composite_Rank`.
+#'
+#' @examples
+#' \dontrun{
+#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' nm_rank_composite(se_nm)
+#' }
+#' @export
+nm_rank_composite <- function(se, assay_names = NULL,
+                              condition_col = "Condition",
+                              weights = NULL,
+                              exclude_metrics = NULL,
+                              verbose = TRUE) {
+  assay_names <- .nm_assay_names(se, assay_names)
+  condition   <- .nm_condition(se, condition_col)
+
+  # --- Step 1: Base metrics from nm_compute_metrics() ---
+  base_df <- nm_compute_metrics(se, assay_names, condition_col)
+  base_df$PERMANOVA_pval <- NULL
+
+  # --- Step 2: Additional metrics (MDS1, PCV, PMAD, PEV) ---
+  extra_rows <- vector("list", length(assay_names))
+  for (i in seq_along(assay_names)) {
+    mat    <- SummarizedExperiment::assay(se, assay_names[i])
+    mat_ok <- mat[complete.cases(mat), ]
+    groups <- condition
+
+    extra_rows[[i]] <- data.frame(
+      Method      = assay_names[i],
+      MDS1_VarPct = .nm_mds1_var_pct(mat_ok),
+      PCV_median  = median(.nm_pcv(mat_ok, groups), na.rm = TRUE),
+      PMAD_median = median(.nm_pmad(mat_ok, groups), na.rm = TRUE),
+      PEV_median  = median(.nm_pev(mat_ok, groups), na.rm = TRUE),
+      stringsAsFactors = FALSE
+    )
+  }
+  extra_df <- do.call(rbind, extra_rows)
+
+  # --- Step 3: Merge ---
+  full_df <- merge(base_df, extra_df, by = "Method", sort = FALSE)
+
+  # --- Step 4: Determine metric columns ---
+  metric_cols <- setdiff(colnames(full_df), "Method")
+
+  # Drop all-NA columns (optional deps missing)
+  all_na <- vapply(metric_cols, function(m) all(is.na(full_df[[m]])), logical(1))
+  if (any(all_na)) {
+    if (verbose) message("nm_rank_composite: dropping all-NA metric(s): ",
+                         paste(metric_cols[all_na], collapse = ", "))
+    metric_cols <- metric_cols[!all_na]
+  }
+
+  # Drop user-excluded metrics
+  if (!is.null(exclude_metrics)) {
+    metric_cols <- setdiff(metric_cols, exclude_metrics)
+  }
+
+  if (length(metric_cols) == 0) stop("No metrics available for ranking.")
+
+  # --- Step 5: Compute ranks per metric ---
+  directions <- .NM_METRIC_DIRECTIONS
+  rank_df <- full_df[, "Method", drop = FALSE]
+
+  for (m in metric_cols) {
+    x   <- full_df[[m]]
+    dir <- directions[m]
+    if (is.na(dir) || is.null(dir)) dir <- "higher"
+
+    if (dir == "higher") {
+      rank_df[[paste0(m, "_Rank")]] <- rank(-x, ties.method = "average",
+                                             na.last = "keep")
+    } else {
+      rank_df[[paste0(m, "_Rank")]] <- rank(x, ties.method = "average",
+                                             na.last = "keep")
+    }
+  }
+
+  # --- Step 6: Rank_Mean ---
+  rank_cols <- paste0(metric_cols, "_Rank")
+  rank_mat  <- as.matrix(rank_df[, rank_cols, drop = FALSE])
+
+  if (!is.null(weights)) {
+    w <- weights[metric_cols]
+    w[is.na(w)] <- 1
+    rank_df$Rank_Mean <- apply(rank_mat, 1, function(r) {
+      ok <- !is.na(r)
+      if (!any(ok)) return(NA_real_)
+      stats::weighted.mean(r[ok], w[ok])
+    })
+  } else {
+    rank_df$Rank_Mean <- rowMeans(rank_mat, na.rm = TRUE)
+  }
+
+  # --- Step 7: Combine values + ranks, sort, add Composite_Rank ---
+  out <- merge(full_df[, c("Method", metric_cols)], rank_df, by = "Method",
+               sort = FALSE)
+  out <- out[order(out$Rank_Mean), ]
+  out$Composite_Rank <- seq_len(nrow(out))
+  rownames(out) <- NULL
+
+  if (verbose) {
+    message("nm_rank_composite: Rank 1 = ", out$Method[1],
+            " (Rank_Mean = ", sprintf("%.2f", out$Rank_Mean[1]), ")")
+  }
+
+  out
+}
+
+#' Horizontal bar chart of composite normalization ranking
+#'
+#' Produces a horizontal bar chart with normalization methods ordered by
+#' ascending `Rank_Mean` (lower = better). Analogous to
+#' `nm_plot_pc1_ranking()` and `nm_plot_mds1_ranking()`.
+#'
+#' @inheritParams nm_rank_composite
+#' @param ... Additional arguments (currently unused).
+#' @return ggplot object.
+#'
+#' @examples
+#' \dontrun{
+#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' nm_plot_composite_ranking(se_nm)
+#' }
+#' @export
+nm_plot_composite_ranking <- function(se, assay_names = NULL,
+                                      condition_col = "Condition",
+                                      weights = NULL,
+                                      exclude_metrics = NULL, ...) {
+  comp_df    <- nm_rank_composite(se, assay_names, condition_col,
+                                  weights = weights,
+                                  exclude_metrics = exclude_metrics,
+                                  verbose = FALSE)
+  col_vector <- .nm_prone_colors(nrow(comp_df))
+
+  # Order factor: best (lowest Rank_Mean) at top in coord_flip
+  comp_df$Method <- factor(comp_df$Method,
+                           levels = rev(comp_df$Method))
+
+  ggplot2::ggplot(comp_df,
+    ggplot2::aes(x = Method, y = Rank_Mean, fill = Method)) +
+    ggplot2::geom_col(show.legend = FALSE) +
+    ggplot2::geom_text(
+      ggplot2::aes(label = sprintf("%.2f", Rank_Mean)),
+      hjust = -0.1, size = 3.2) +
+    ggplot2::coord_flip() +
+    ggplot2::scale_fill_manual(values = rep_len(col_vector, nrow(comp_df))) +
+    ggplot2::labs(
+      title    = "Composite Normalization Ranking",
+      subtitle = "Lower mean rank = better overall performance",
+      x = NULL,
+      y = "Mean Rank"
+    ) +
+    ggplot2::theme_bw() +
+    ggplot2::expand_limits(y = max(comp_df$Rank_Mean, na.rm = TRUE) * 1.08)
+}
+
+#' Heatmap of per-metric ranks for normalization methods
+#'
+#' Tile heatmap showing the rank each normalization method achieved in each
+#' quality metric. Rows = methods (ordered by `Rank_Mean`, best at top),
+#' columns = metrics. Follows the same pattern as `im_plot_ranking()` in
+#' `Imputation_Metrics.R`.
+#'
+#' @inheritParams nm_rank_composite
+#' @param ... Additional arguments (currently unused).
+#' @return ggplot object.
+#'
+#' @examples
+#' \dontrun{
+#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' nm_plot_composite_heatmap(se_nm)
+#' }
+#' @export
+nm_plot_composite_heatmap <- function(se, assay_names = NULL,
+                                      condition_col = "Condition",
+                                      weights = NULL,
+                                      exclude_metrics = NULL, ...) {
+  comp_df <- nm_rank_composite(se, assay_names, condition_col,
+                               weights = weights,
+                               exclude_metrics = exclude_metrics,
+                               verbose = FALSE)
+  method_order <- comp_df$Method
+
+  # Collect rank columns + Rank_Mean
+  rank_cols <- grep("_Rank$|^Rank_Mean$", colnames(comp_df), value = TRUE)
+  rank_df   <- comp_df[, c("Method", rank_cols)]
+
+  long_df <- tidyr::pivot_longer(
+    rank_df,
+    cols      = tidyr::all_of(rank_cols),
+    names_to  = "Metric",
+    values_to = "Rank"
+  )
+
+  long_df$Method <- factor(long_df$Method, levels = rev(method_order))
+  long_df$Metric <- factor(long_df$Metric, levels = rank_cols)
+
+  ggplot2::ggplot(long_df,
+    ggplot2::aes(x = Metric, y = Method, fill = Rank)) +
+    ggplot2::geom_tile(color = "white", linewidth = 0.8) +
+    ggplot2::geom_text(
+      ggplot2::aes(label = ifelse(is.na(Rank), "NA", sprintf("%.1f", Rank))),
+      size = 3, color = "black") +
+    ggplot2::scale_fill_gradient2(
+      low = "#2166AC", mid = "#F7F7F7", high = "#B2182B",
+      midpoint = median(long_df$Rank, na.rm = TRUE),
+      na.value = "grey80",
+      name = "Rank") +
+    ggplot2::labs(
+      title    = "Composite Normalization Ranking — Per-Metric Ranks",
+      subtitle = "Lower rank (blue) = better performance",
+      x = NULL, y = NULL
+    ) +
+    ggplot2::theme_bw() +
+    ggplot2::theme(
+      axis.text.x  = ggplot2::element_text(angle = 45, hjust = 1, size = 8),
+      axis.text.y  = ggplot2::element_text(size = 9),
+      plot.title   = ggplot2::element_text(face = "bold", size = 12),
+      panel.grid   = ggplot2::element_blank()
+    )
+}
+
 # =============================================================================
 # SECTION 4: EXPORT HELPER + MAIN ORCHESTRATOR
 # =============================================================================
@@ -1727,6 +1987,10 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
     if (!is.null(result$mds1_rank))
       utils::write.table(result$mds1_rank,
                          file.path(output_dir, "nm_mds1_rank.tsv"),
+                         sep = "\t", row.names = FALSE, quote = FALSE)
+    if (!is.null(result$composite_rank))
+      utils::write.table(result$composite_rank,
+                         file.path(output_dir, "nm_composite_rank.tsv"),
                          sep = "\t", row.names = FALSE, quote = FALSE)
     if (verbose) message("Exported tables to: ", output_dir)
   }
@@ -1870,7 +2134,8 @@ normalization_metrics <- function(se,
   # --- Plot registry ---
   all_plot_names <- c("boxplot", "density", "pcv", "pmad", "pev",
                       "pca", "correlation", "mds", "scatter", "qq",
-                      "metrics", "pc1_ranking", "mds1_ranking")
+                      "metrics", "pc1_ranking", "mds1_ranking",
+                      "composite_ranking", "composite_heatmap")
 
   # When pca_scales == "both", expand "pca" into "pca_free" + "pca_fixed"
   if (pca_scales == "both") {
@@ -1894,7 +2159,11 @@ normalization_metrics <- function(se,
     qq          = function() nm_plot_qq(se, assay_names, condition_col),
     metrics     = function() nm_plot_metrics(se, assay_names, condition_col),
     pc1_ranking  = function() nm_plot_pc1_ranking(se, assay_names, condition_col),
-    mds1_ranking = function() nm_plot_mds1_ranking(se, assay_names, condition_col)
+    mds1_ranking = function() nm_plot_mds1_ranking(se, assay_names, condition_col),
+    composite_ranking = function() nm_plot_composite_ranking(se, assay_names,
+                                                             condition_col),
+    composite_heatmap = function() nm_plot_composite_heatmap(se, assay_names,
+                                                             condition_col)
   )
   if (pca_scales == "both") {
     plot_fns$pca_free  <- function() nm_plot_pca(se, assay_names, condition_col,
@@ -1975,7 +2244,16 @@ normalization_metrics <- function(se,
     }
   )
 
-  non_plot <- c("metrics_table", "pc1_rank", "mds1_rank")
+  # --- Always compute composite_rank ---
+  result[["composite_rank"]] <- tryCatch(
+    nm_rank_composite(se, assay_names, condition_col, verbose = verbose),
+    error = function(e) {
+      warning("nm_rank_composite() failed: ", conditionMessage(e))
+      NULL
+    }
+  )
+
+  non_plot <- c("metrics_table", "pc1_rank", "mds1_rank", "composite_rank")
   n_ok   <- sum(!sapply(result[setdiff(names(result), non_plot)], is.null))
   n_fail <- length(selected) - n_ok
   if (verbose) {
