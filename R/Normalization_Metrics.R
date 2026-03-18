@@ -78,6 +78,19 @@ if (!exists(".norm_log2norm", mode = "function")) {
   PMAD_median      = "lower"
 )
 
+# --- Default weights: group-separation metrics dominate (75%) ---
+# PC1_VarPct is the best single predictor of DE performance.
+# Group-separation tier (weight 2-3) vs data-quality tier (weight 1).
+.NM_DEFAULT_WEIGHTS <- c(
+  PC1_VarPct       = 3,
+  PC1_F_ratio      = 2,
+  PERMANOVA_R2     = 2,
+  Silhouette_mean  = 2,
+  Spectral_Entropy = 1,
+  MDS1_VarPct      = 1,
+  PMAD_median      = 1
+)
+
 # =============================================================================
 # SECTION 1: INTERNAL METRIC HELPERS
 # =============================================================================
@@ -1734,7 +1747,10 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
 #'
 #' @inheritParams nm_plot_boxplot
 #' @param weights Named numeric vector of metric weights. Names must match
-#'   metric column names. NULL (default) = equal weights.
+#'   metric column names. `"default"` (the default) uses `.NM_DEFAULT_WEIGHTS`
+#'   which prioritizes group-separation metrics (PC1_VarPct = 3, F_ratio /
+#'   PERMANOVA / Silhouette = 2, rest = 1). Pass `NULL` for equal weights, or
+#'   a custom named vector to override.
 #' @param verbose Logical. Print progress messages. Default `TRUE`.
 #' @return A `data.frame` with columns: `Method`, 7 value columns,
 #'   7 `*_Rank` columns, `Rank_Mean`, `Composite_Rank`.
@@ -1747,10 +1763,15 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
 #' @export
 nm_rank_composite <- function(se, assay_names = NULL,
                               condition_col = "Condition",
-                              weights = NULL,
+                              weights = "default",
                               verbose = TRUE) {
   assay_names <- .nm_assay_names(se, assay_names)
   condition   <- .nm_condition(se, condition_col)
+
+  # Resolve weights: "default" → .NM_DEFAULT_WEIGHTS, NULL → equal weights
+  if (is.character(weights) && identical(weights, "default")) {
+    weights <- .NM_DEFAULT_WEIGHTS
+  }
 
   # --- Step 1: Base metrics from nm_compute_metrics() (keep 5 of 11) ---
   base_df <- nm_compute_metrics(se, assay_names, condition_col)
@@ -1857,7 +1878,7 @@ nm_rank_composite <- function(se, assay_names = NULL,
 #' @export
 nm_plot_composite_ranking <- function(se, assay_names = NULL,
                                       condition_col = "Condition",
-                                      weights = NULL, ...) {
+                                      weights = "default", ...) {
   comp_df    <- nm_rank_composite(se, assay_names, condition_col,
                                   weights = weights,
                                   verbose = FALSE)
@@ -1904,7 +1925,7 @@ nm_plot_composite_ranking <- function(se, assay_names = NULL,
 #' @export
 nm_plot_composite_heatmap <- function(se, assay_names = NULL,
                                       condition_col = "Condition",
-                                      weights = NULL, ...) {
+                                      weights = "default", ...) {
   comp_df <- nm_rank_composite(se, assay_names, condition_col,
                                weights = weights,
                                verbose = FALSE)
