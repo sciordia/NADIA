@@ -64,21 +64,18 @@ if (!exists(".norm_log2norm", mode = "function")) {
 )
 
 # --- Metric direction registry (higher/lower = better) ---
+# Curated set of 7 non-redundant metrics:
+#   Removed: Condition_Number (no discrimination), Hopkins (misleading on log2),
+#   MDS_GOF + MDS_CophCor (penalize good methods), CumVar_PC2 (redundant w/ PC1),
+#   PCV_median + PEV_median (redundant w/ PMAD_median)
 .NM_METRIC_DIRECTIONS <- c(
   PC1_VarPct       = "higher",
   PC1_F_ratio      = "higher",
   PERMANOVA_R2     = "higher",
   Silhouette_mean  = "higher",
-  MDS_GOF          = "higher",
-  MDS_CophCor      = "higher",
-  CumVar_PC2       = "higher",
-  Hopkins          = "higher",
   Spectral_Entropy = "lower",
-  Condition_Number = "lower",
   MDS1_VarPct      = "lower",
-  PCV_median       = "lower",
-  PMAD_median      = "lower",
-  PEV_median       = "lower"
+  PMAD_median      = "lower"
 )
 
 # =============================================================================
@@ -1727,22 +1724,20 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
 # 14. Composite Ranking (rank-aggregation across all metrics)
 # --------------------------------------------------------------------------
 
-#' Composite ranking of normalization methods across all quality metrics
+#' Composite ranking of normalization methods across 7 curated quality metrics
 #'
-#' Combines 14 metrics (11 from `nm_compute_metrics()` minus PERMANOVA_pval,
-#' plus MDS1_VarPct, PCV_median, PMAD_median, PEV_median) into a single
-#' rank-aggregation table. For each metric, methods are ranked according to
-#' `.NM_METRIC_DIRECTIONS` (higher-is-better or lower-is-better). The final
-#' `Rank_Mean` is the (optionally weighted) mean of per-metric ranks.
+#' Combines 7 non-redundant metrics (5 from `nm_compute_metrics()` plus
+#' MDS1_VarPct and PMAD_median) into a single rank-aggregation table. For each
+#' metric, methods are ranked according to `.NM_METRIC_DIRECTIONS`
+#' (higher-is-better or lower-is-better). The final `Rank_Mean` is the
+#' (optionally weighted) mean of per-metric ranks.
 #'
 #' @inheritParams nm_plot_boxplot
 #' @param weights Named numeric vector of metric weights. Names must match
 #'   metric column names. NULL (default) = equal weights.
-#' @param exclude_metrics Character vector of metric names to exclude from
-#'   ranking. NULL (default) = use all available metrics.
 #' @param verbose Logical. Print progress messages. Default `TRUE`.
-#' @return A `data.frame` with columns: `Method`, 14 value columns,
-#'   14 `*_Rank` columns, `Rank_Mean`, `Composite_Rank`.
+#' @return A `data.frame` with columns: `Method`, 7 value columns,
+#'   7 `*_Rank` columns, `Rank_Mean`, `Composite_Rank`.
 #'
 #' @examples
 #' \dontrun{
@@ -1753,16 +1748,17 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
 nm_rank_composite <- function(se, assay_names = NULL,
                               condition_col = "Condition",
                               weights = NULL,
-                              exclude_metrics = NULL,
                               verbose = TRUE) {
   assay_names <- .nm_assay_names(se, assay_names)
   condition   <- .nm_condition(se, condition_col)
 
-  # --- Step 1: Base metrics from nm_compute_metrics() ---
+  # --- Step 1: Base metrics from nm_compute_metrics() (keep 5 of 11) ---
   base_df <- nm_compute_metrics(se, assay_names, condition_col)
-  base_df$PERMANOVA_pval <- NULL
+  base_keep <- c("Method", "PC1_VarPct", "PC1_F_ratio", "PERMANOVA_R2",
+                 "Silhouette_mean", "Spectral_Entropy")
+  base_df <- base_df[, intersect(base_keep, colnames(base_df)), drop = FALSE]
 
-  # --- Step 2: Additional metrics (MDS1, PCV, PMAD, PEV) ---
+  # --- Step 2: Additional metrics (MDS1_VarPct, PMAD_median) ---
   extra_rows <- vector("list", length(assay_names))
   for (i in seq_along(assay_names)) {
     mat    <- SummarizedExperiment::assay(se, assay_names[i])
@@ -1772,9 +1768,7 @@ nm_rank_composite <- function(se, assay_names = NULL,
     extra_rows[[i]] <- data.frame(
       Method      = assay_names[i],
       MDS1_VarPct = .nm_mds1_var_pct(mat_ok),
-      PCV_median  = median(.nm_pcv(mat_ok, groups), na.rm = TRUE),
       PMAD_median = median(.nm_pmad(mat_ok, groups), na.rm = TRUE),
-      PEV_median  = median(.nm_pev(mat_ok, groups), na.rm = TRUE),
       stringsAsFactors = FALSE
     )
   }
@@ -1786,17 +1780,12 @@ nm_rank_composite <- function(se, assay_names = NULL,
   # --- Step 4: Determine metric columns ---
   metric_cols <- setdiff(colnames(full_df), "Method")
 
-  # Drop all-NA columns (optional deps missing)
+  # Drop all-NA columns (optional deps missing, e.g. vegan, cluster)
   all_na <- vapply(metric_cols, function(m) all(is.na(full_df[[m]])), logical(1))
   if (any(all_na)) {
     if (verbose) message("nm_rank_composite: dropping all-NA metric(s): ",
                          paste(metric_cols[all_na], collapse = ", "))
     metric_cols <- metric_cols[!all_na]
-  }
-
-  # Drop user-excluded metrics
-  if (!is.null(exclude_metrics)) {
-    metric_cols <- setdiff(metric_cols, exclude_metrics)
   }
 
   if (length(metric_cols) == 0) stop("No metrics available for ranking.")
@@ -1868,11 +1857,9 @@ nm_rank_composite <- function(se, assay_names = NULL,
 #' @export
 nm_plot_composite_ranking <- function(se, assay_names = NULL,
                                       condition_col = "Condition",
-                                      weights = NULL,
-                                      exclude_metrics = NULL, ...) {
+                                      weights = NULL, ...) {
   comp_df    <- nm_rank_composite(se, assay_names, condition_col,
                                   weights = weights,
-                                  exclude_metrics = exclude_metrics,
                                   verbose = FALSE)
   col_vector <- .nm_prone_colors(nrow(comp_df))
 
@@ -1917,11 +1904,9 @@ nm_plot_composite_ranking <- function(se, assay_names = NULL,
 #' @export
 nm_plot_composite_heatmap <- function(se, assay_names = NULL,
                                       condition_col = "Condition",
-                                      weights = NULL,
-                                      exclude_metrics = NULL, ...) {
+                                      weights = NULL, ...) {
   comp_df <- nm_rank_composite(se, assay_names, condition_col,
                                weights = weights,
-                               exclude_metrics = exclude_metrics,
                                verbose = FALSE)
   method_order <- comp_df$Method
 
