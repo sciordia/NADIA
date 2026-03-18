@@ -11,7 +11,7 @@
 #   nm_plot_boxplot, nm_plot_density, nm_plot_pcv,
 #   nm_plot_pmad, nm_plot_pev, nm_plot_pca, nm_plot_correlation,
 #   nm_plot_mds, nm_plot_scatter, nm_plot_qq, nm_plot_metrics,
-#   nm_plot_pc1_ranking
+#   nm_plot_pc1_ranking, nm_plot_mds1_ranking
 #
 # References: proteoDA, PRONE, NormalizerDE
 #
@@ -283,6 +283,25 @@ if (!exists(".norm_log2norm", mode = "function")) {
   d   <- dist(scale(t(mat)))
   mds <- cmdscale(d, k = 2, eig = TRUE)
   mds$GOF[1]
+}
+
+#' Percentage of variance explained by MDS dimension 1
+#'
+#' Computes the percentage of variance captured by the first MDS dimension,
+#' using only positive eigenvalues from classical MDS (`cmdscale(eig = TRUE)`).
+#' Uses scaled data (consistent with `nm_plot_mds`).
+#'
+#' @param mat Numeric matrix (proteins x samples), no NAs.
+#' @return Numeric scalar (0-100).
+#' @keywords internal
+.nm_mds1_var_pct <- function(mat) {
+  if (ncol(mat) < 3 || nrow(mat) < 2) return(NA_real_)
+  d   <- dist(scale(t(mat)))
+  mds <- cmdscale(d, k = 2, eig = TRUE)
+  eig <- mds$eig
+  pos <- eig[eig > 0]
+  if (length(pos) == 0) return(NA_real_)
+  100 * pos[1] / sum(pos)
 }
 
 #' MDS cophenetic correlation
@@ -1606,6 +1625,85 @@ nm_plot_pc1_ranking <- function(se, assay_names = NULL,
     ggplot2::expand_limits(y = max(rank_df$PC1_VarPct, na.rm = TRUE) * 1.08)
 }
 
+#' Rank normalization methods by MDS1 variance explained
+#'
+#' For each assay in `se`, computes the percentage of variance captured by the
+#' first MDS dimension (using only positive eigenvalues from classical MDS) and
+#' returns a ranking ordered by descending MDS1 variance.
+#'
+#' @inheritParams nm_plot_boxplot
+#' @return A `data.frame` with columns `Method`, `MDS1_VarPct`, `Rank`,
+#'   ordered by `MDS1_VarPct` descending.
+#'
+#' @examples
+#' \dontrun{
+#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' nm_rank_mds1(se_nm)
+#' }
+#' @export
+nm_rank_mds1 <- function(se, assay_names = NULL, condition_col = "Condition",
+                         verbose = TRUE) {
+  assay_names <- .nm_assay_names(se, assay_names)
+
+  pct <- vapply(assay_names, function(nm) {
+    mat    <- SummarizedExperiment::assay(se, nm)
+    mat_ok <- mat[complete.cases(mat), ]
+    .nm_mds1_var_pct(mat_ok)
+  }, numeric(1))
+
+  df <- data.frame(
+    Method      = assay_names,
+    MDS1_VarPct = pct,
+    stringsAsFactors = FALSE
+  )
+  df <- df[order(-df$MDS1_VarPct), ]
+  df$Rank <- seq_len(nrow(df))
+  rownames(df) <- NULL
+
+  df
+}
+
+#' Horizontal bar chart of MDS1 variance ranking
+#'
+#' Produces a horizontal bar chart with normalization methods ordered by
+#' descending MDS1 variance percentage. Uses the same PRONE-style palette
+#' as other `nm_plot_*()` functions.
+#'
+#' @inheritParams nm_plot_boxplot
+#' @return ggplot object.
+#'
+#' @examples
+#' \dontrun{
+#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' nm_plot_mds1_ranking(se_nm)
+#' }
+#' @export
+nm_plot_mds1_ranking <- function(se, assay_names = NULL,
+                                 condition_col = "Condition", ...) {
+  rank_df    <- nm_rank_mds1(se, assay_names, condition_col, verbose = FALSE)
+  col_vector <- .nm_prone_colors(nrow(rank_df))
+
+  # Order factor by MDS1_VarPct descending (bottom-to-top in coord_flip)
+  rank_df$Method <- factor(rank_df$Method,
+                           levels = rev(rank_df$Method))
+
+  ggplot2::ggplot(rank_df,
+    ggplot2::aes(x = Method, y = MDS1_VarPct, fill = Method)) +
+    ggplot2::geom_col(show.legend = FALSE) +
+    ggplot2::geom_text(
+      ggplot2::aes(label = sprintf("%.1f%%", MDS1_VarPct)),
+      hjust = -0.1, size = 3.2) +
+    ggplot2::coord_flip() +
+    ggplot2::scale_fill_manual(values = rep_len(col_vector, nrow(rank_df))) +
+    ggplot2::labs(
+      title = "MDS1 Variance Explained per Normalization Method",
+      x     = NULL,
+      y     = "MDS1 Variance (%)"
+    ) +
+    ggplot2::theme_bw() +
+    ggplot2::expand_limits(y = max(rank_df$MDS1_VarPct, na.rm = TRUE) * 1.08)
+}
+
 # =============================================================================
 # SECTION 4: EXPORT HELPER + MAIN ORCHESTRATOR
 # =============================================================================
@@ -1625,6 +1723,10 @@ nm_plot_pc1_ranking <- function(se, assay_names = NULL,
     if (!is.null(result$pc1_rank))
       utils::write.table(result$pc1_rank,
                          file.path(output_dir, "nm_pc1_rank.tsv"),
+                         sep = "\t", row.names = FALSE, quote = FALSE)
+    if (!is.null(result$mds1_rank))
+      utils::write.table(result$mds1_rank,
+                         file.path(output_dir, "nm_mds1_rank.tsv"),
                          sep = "\t", row.names = FALSE, quote = FALSE)
     if (verbose) message("Exported tables to: ", output_dir)
   }
@@ -1768,7 +1870,7 @@ normalization_metrics <- function(se,
   # --- Plot registry ---
   all_plot_names <- c("boxplot", "density", "pcv", "pmad", "pev",
                       "pca", "correlation", "mds", "scatter", "qq",
-                      "metrics", "pc1_ranking")
+                      "metrics", "pc1_ranking", "mds1_ranking")
 
   # When pca_scales == "both", expand "pca" into "pca_free" + "pca_fixed"
   if (pca_scales == "both") {
@@ -1791,7 +1893,8 @@ normalization_metrics <- function(se,
     scatter     = function() nm_plot_scatter(se, assay_names, condition_col),
     qq          = function() nm_plot_qq(se, assay_names, condition_col),
     metrics     = function() nm_plot_metrics(se, assay_names, condition_col),
-    pc1_ranking = function() nm_plot_pc1_ranking(se, assay_names, condition_col)
+    pc1_ranking  = function() nm_plot_pc1_ranking(se, assay_names, condition_col),
+    mds1_ranking = function() nm_plot_mds1_ranking(se, assay_names, condition_col)
   )
   if (pca_scales == "both") {
     plot_fns$pca_free  <- function() nm_plot_pca(se, assay_names, condition_col,
@@ -1863,7 +1966,16 @@ normalization_metrics <- function(se,
     }
   )
 
-  non_plot <- c("metrics_table", "pc1_rank")
+  # --- Always compute mds1_rank ---
+  result[["mds1_rank"]] <- tryCatch(
+    nm_rank_mds1(se, assay_names, condition_col, verbose = verbose),
+    error = function(e) {
+      warning("nm_rank_mds1() failed: ", conditionMessage(e))
+      NULL
+    }
+  )
+
+  non_plot <- c("metrics_table", "pc1_rank", "mds1_rank")
   n_ok   <- sum(!sapply(result[setdiff(names(result), non_plot)], is.null))
   n_fail <- length(selected) - n_ok
   if (verbose) {
