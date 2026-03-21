@@ -1421,9 +1421,22 @@ benchmark_roc_gg <- function(
     return(NULL)
   }
 
-  # AUC labels for legend
-  aucs <- vapply(roc_list, function(r) as.numeric(pROC::auc(r)), numeric(1))
-  labels <- paste0(names(roc_list), " (AUC=", sprintf("%.3f", aucs), ")")
+  # AUC / pAUC labels for legend
+  if (zoom) {
+    # pAUC corregido (McClish) en la región FPR 0-10%
+    aucs <- vapply(roc_list, function(r) {
+      tryCatch(
+        as.numeric(pROC::auc(r,
+                              partial.auc = c(1, 0.9),
+                              partial.auc.correct = TRUE)),
+        error = function(e) NA_real_
+      )
+    }, numeric(1))
+    labels <- paste0(names(roc_list), " (pAUC\u2080.\u2081=", sprintf("%.3f", aucs), ")")
+  } else {
+    aucs <- vapply(roc_list, function(r) as.numeric(pROC::auc(r)), numeric(1))
+    labels <- paste0(names(roc_list), " (AUC=", sprintf("%.3f", aucs), ")")
+  }
 
   # Build plot
   gg <- pROC::ggroc(roc_list, legacy.axes = TRUE, linewidth = 1) +
