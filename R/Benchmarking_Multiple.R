@@ -595,19 +595,49 @@ bm_plot_metrics_comparison <- function(opdea_combined,
   title <- title %||% "OpDEA Metrics Distribution by Method"
   subtitle <- paste0(n_methods, " methods, ", n_comps, " comparisons")
 
-  gg <- ggplot2::ggplot(long,
-                        ggplot2::aes(x = Assay, y = Value, fill = Assay)) +
-    ggplot2::geom_boxplot(alpha = 0.7, outlier.shape = NA) +
-    ggplot2::geom_jitter(width = 0.15, size = 1.2, alpha = 0.6) +
+  # Use distinct shapes + colors for comparisons on the jittered points
+  comp_levels <- sort(unique(long$Comparison))
+  long$Comparison <- factor(long$Comparison, levels = comp_levels)
+
+  # Select a colorblind-friendly palette
+  if (n_comps <= 8) {
+    comp_colors <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442",
+                     "#0072B2", "#D55E00", "#CC79A7", "#999999")[seq_len(n_comps)]
+  } else {
+    comp_colors <- grDevices::hcl.colors(n_comps, palette = "Dynamic")
+  }
+  names(comp_colors) <- comp_levels
+
+  # Shapes: cycle through distinguishable filled shapes
+  shape_pool <- c(16, 17, 15, 18, 8, 4, 3, 7, 9, 10, 12, 13, 14)
+  comp_shapes <- shape_pool[((seq_len(n_comps) - 1) %% length(shape_pool)) + 1]
+  names(comp_shapes) <- comp_levels
+
+  gg <- ggplot2::ggplot(long, ggplot2::aes(x = Assay, y = Value)) +
+    ggplot2::geom_boxplot(fill = "grey90", alpha = 0.7, outlier.shape = NA) +
+    ggplot2::geom_point(
+      ggplot2::aes(color = Comparison, shape = Comparison),
+      position = ggplot2::position_jitter(width = 0.15, seed = 42),
+      size = 2.2, alpha = 0.85
+    ) +
+    ggplot2::scale_color_manual(values = comp_colors) +
+    ggplot2::scale_shape_manual(values = comp_shapes) +
     ggplot2::facet_wrap(~ Metric, scales = "free_y", ncol = 3) +
     ggplot2::labs(title = title, subtitle = subtitle,
-                  x = NULL, y = "Value") +
+                  x = NULL, y = "Value",
+                  color = "Comparison", shape = "Comparison") +
     ggplot2::theme_minimal(base_size = 11) +
     ggplot2::theme(
       axis.text.x      = ggplot2::element_text(angle = 60, hjust = 1, size = 8),
       plot.title        = ggplot2::element_text(face = "bold"),
-      legend.position   = "none",
+      legend.position   = "bottom",
+      legend.title      = ggplot2::element_text(face = "bold", size = 9),
+      legend.text       = ggplot2::element_text(size = 8),
       strip.text        = ggplot2::element_text(face = "bold")
+    ) +
+    ggplot2::guides(
+      color = ggplot2::guide_legend(nrow = 1, override.aes = list(size = 3)),
+      shape = ggplot2::guide_legend(nrow = 1)
     )
 
   gg
