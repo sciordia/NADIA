@@ -614,7 +614,8 @@ bm_plot_metrics_comparison <- function(opdea_combined,
   names(comp_shapes) <- comp_levels
 
   gg <- ggplot2::ggplot(long, ggplot2::aes(x = Assay, y = Value)) +
-    ggplot2::geom_boxplot(fill = "grey90", alpha = 0.7, outlier.shape = NA) +
+    ggplot2::geom_boxplot(fill = "#e8f0fe", color = "#5a7dba",
+                          alpha = 0.6, outlier.shape = NA, linewidth = 0.4) +
     ggplot2::geom_point(
       ggplot2::aes(color = Comparison, shape = Comparison),
       position = ggplot2::position_jitter(width = 0.15, seed = 42),
