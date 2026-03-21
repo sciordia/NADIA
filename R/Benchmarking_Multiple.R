@@ -1171,145 +1171,6 @@ bm_plot_roc <- function(classified_combined,
 }
 
 
-#' Cumulative % Error Plot (ECDF) by Method
-#'
-#' Generates an ECDF plot of |% Error| per protein for each method (Assay).
-#' Based on the metric from J. Proteome Res. 2025
-#' (DOI: 10.1021/acs.jproteome.5c01028).
-#'
-#' Formula: % Error = ((logFC_observed - logFC_expected) / logFC_expected) * 100
-#'
-#' Curves further to the left indicate better recovery of expected fold changes.
-#'
-#' @param classified_combined data.frame with columns: Assay, Comparison,
-#'   Species, logFC, and a p-value column
-#' @param expected_values data.frame with columns: Comparison, Species,
-#'   expected_logFC
-#' @param comparison Single comparison to plot (NULL = facet all comparisons)
-#' @param p_col P-value column name (default: "adj.P.Val")
-#' @param alpha Significance threshold (default: 0.05)
-#' @param only_significant Filter to significant proteins only (default: TRUE)
-#' @param palette RColorBrewer palette name (default: "Set2")
-#'
-#' @return ggplot2 object or NULL if no data
-#'
-#' @export
-bm_plot_pct_error <- function(classified_combined,
-                              expected_values,
-                              comparison      = NULL,
-                              p_col           = "adj.P.Val",
-                              alpha           = 0.05,
-                              only_significant = TRUE,
-                              palette         = "Set2") {
-
-  # --- Validate inputs ---
-  required_cls <- c("Assay", "Comparison", "Species", "logFC")
-  missing_cls <- setdiff(required_cls, colnames(classified_combined))
-  if (length(missing_cls) > 0)
-    stop("Missing columns in classified_combined: ",
-         paste(missing_cls, collapse = ", "))
-
-  required_ev <- c("Comparison", "Species", "expected_logFC")
-  missing_ev <- setdiff(required_ev, colnames(expected_values))
-  if (length(missing_ev) > 0)
-    stop("Missing columns in expected_values: ",
-         paste(missing_ev, collapse = ", "))
-
-  if (!p_col %in% colnames(classified_combined))
-    stop("P-value column '", p_col, "' not found in classified_combined.")
-
-  # --- Filter to comparison if specified ---
-  df <- classified_combined
-  if (!is.null(comparison)) {
-    df <- df[df$Comparison == comparison, , drop = FALSE]
-  }
-
-  # --- Merge with expected_values to get expected_logFC ---
-  df <- merge(df, expected_values[, required_ev, drop = FALSE],
-              by = c("Comparison", "Species"), all.x = FALSE)
-
-  if (nrow(df) == 0) {
-    warning("No proteins matched expected_values after merge.")
-    return(NULL)
-  }
-
-  # --- Filter to significant proteins if requested ---
-  if (only_significant) {
-    pvals <- suppressWarnings(as.numeric(df[[p_col]]))
-    df <- df[!is.na(pvals) & pvals < alpha, , drop = FALSE]
-  }
-
-  if (nrow(df) == 0) {
-    warning("No significant proteins for % error calculation.")
-    return(NULL)
-  }
-
-  # --- Compute % error ---
-  df$logFC <- as.numeric(df$logFC)
-  df$expected_logFC <- as.numeric(df$expected_logFC)
-
-  # Filter out zero expected (avoid division by zero)
-  df <- df[df$expected_logFC != 0, , drop = FALSE]
-
-  df$pct_error <- ((df$logFC - df$expected_logFC) / df$expected_logFC) * 100
-  df$abs_pct_error <- abs(df$pct_error)
-
-  if (nrow(df) == 0) {
-    warning("No valid data for % error plot.")
-    return(NULL)
-  }
-
-  # --- Build ECDF plot ---
-  n_assays <- length(unique(df$Assay))
-
-  if (!is.null(comparison)) {
-    title_text <- paste0("Cumulative % Error \u2014 ", comparison)
-  } else {
-    title_text <- "Cumulative % Error by Comparison"
-  }
-
-  gg <- ggplot2::ggplot(df, ggplot2::aes(x = abs_pct_error,
-                                          color = Assay)) +
-    ggplot2::stat_ecdf(linewidth = 0.9, pad = FALSE) +
-    ggplot2::labs(
-      title    = title_text,
-      subtitle = "Curves further left = better fold-change recovery",
-      x        = "|% Error|",
-      y        = "Cumulative Probability",
-      color    = "Method"
-    ) +
-    ggplot2::theme_minimal(base_size = 13) +
-    ggplot2::theme(
-      plot.title    = ggplot2::element_text(hjust = 0.5, face = "bold",
-                                            size = 15, color = "#1D3557"),
-      plot.subtitle = ggplot2::element_text(hjust = 0.5, size = 11,
-                                            color = "#6C757D"),
-      legend.position = "right",
-      legend.text     = ggplot2::element_text(size = 10),
-      legend.title    = ggplot2::element_text(face = "bold"),
-      panel.grid.minor = ggplot2::element_blank()
-    )
-
-  # Apply palette
-  if (requireNamespace("RColorBrewer", quietly = TRUE)) {
-    max_n <- RColorBrewer::brewer.pal.info[palette, "maxcolors"]
-    n_colors <- min(n_assays, max_n)
-    pal_colors <- RColorBrewer::brewer.pal(max(n_colors, 3), palette)
-    gg <- gg + ggplot2::scale_color_manual(values = pal_colors)
-  }
-
-  # Limit x-axis to 0-100% (values beyond 100% are extreme outliers)
-  gg <- gg + ggplot2::coord_cartesian(xlim = c(0, 100))
-
-  # Facet if no specific comparison
-  if (is.null(comparison)) {
-    gg <- gg + ggplot2::facet_wrap(~ Comparison)
-  }
-
-  gg
-}
-
-
 # =============================================================================
 # SECTION 5: ORCHESTRATOR
 # =============================================================================
@@ -1337,14 +1198,8 @@ bm_plot_pct_error <- function(classified_combined,
 #' @param classified_combined Optional pre-built data.frame with columns:
 #'   Assay, Comparison, truth, and a p-value column. If NULL and
 #'   \code{results_dir} is provided, imported from
-#'   \code{benchmark_classified.tsv} files. Used for multi-method ROC curves
-#'   and \% Error ECDF plots.
-#' @param expected_values Optional data.frame with columns: Comparison, Species,
-#'   expected_logFC. Required for \% Error ECDF plots. If NULL, \% Error plots
-#'   are skipped with a message.
-#' @param p_col P-value column name for ROC curves and significance filtering
-#'   (default: "adj.P.Val")
-#' @param alpha Significance threshold for \% Error filtering (default: 0.05)
+#'   \code{benchmark_classified.tsv} files. Used for multi-method ROC curves.
+#' @param p_col P-value column name for ROC curves (default: "adj.P.Val")
 #' @param plots Which plots to generate: "all" or character vector of names.
 #'   Valid names: "ranking_heatmap_mean", "ranking_heatmap_median",
 #'   "ranking_bars_mean", "ranking_bars_median",
@@ -1382,8 +1237,6 @@ bm_plot_pct_error <- function(classified_combined,
 #'     \item{classified_combined}{Combined classified data.frame (if available)}
 #'     \item{gg_roc_by_comp}{Named list of ROC plots per comparison (if available)}
 #'     \item{gg_roc_zoom_by_comp}{Named list of ROC zoom plots per comparison (if available)}
-#'     \item{gg_pct_error}{Faceted ECDF plot of |% Error| (if expected_values provided)}
-#'     \item{gg_pct_error_by_comp}{Named list of % Error ECDF plots per comparison}
 #'     \item{parameters}{List of parameters used}
 #'   }
 #'
@@ -1412,14 +1265,12 @@ bm_plot_pct_error <- function(classified_combined,
 benchmarking_multiple <- function(opdea_combined       = NULL,
                                   confusion_combined   = NULL,
                                   classified_combined  = NULL,
-                                  expected_values      = NULL,
                                   results_dir          = NULL,
                                   pattern              = "benchmark_opdea_metrics\\.tsv$",
                                   method_names         = NULL,
                                   recursive            = TRUE,
                                   metrics              = .BM_METRICS,
                                   p_col                = "adj.P.Val",
-                                  alpha                = 0.05,
                                   plots                = "all",
                                   verbose        = TRUE,
                                   output_dir     = NULL,
@@ -1692,47 +1543,6 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
     if (verbose) message("  ", n_roc_ok, " ROC plot(s) generated.")
   }
 
-  # --- % Error ECDF plots ---
-  gg_pct_error         <- NULL
-  gg_pct_error_by_comp <- list()
-
-  if (has_classified && !is.null(expected_values)) {
-    if (verbose) message("  Generating % Error ECDF plots ...")
-
-    # Faceted (all comparisons)
-    gg_pct_error <- tryCatch(
-      bm_plot_pct_error(classified_combined, expected_values,
-                        p_col = p_col, alpha = alpha),
-      error = function(e) {
-        warning("bm_plot_pct_error() failed: ", conditionMessage(e))
-        NULL
-      }
-    )
-
-    # Per comparison
-    pct_comps <- unique(classified_combined$Comparison)
-    gg_pct_error_by_comp <- vector("list", length(pct_comps))
-    names(gg_pct_error_by_comp) <- pct_comps
-
-    for (comp in pct_comps) {
-      gg_pct_error_by_comp[[comp]] <- tryCatch(
-        bm_plot_pct_error(classified_combined, expected_values,
-                          comparison = comp, p_col = p_col, alpha = alpha),
-        error = function(e) {
-          warning("bm_plot_pct_error(", comp, ") failed: ", conditionMessage(e))
-          NULL
-        }
-      )
-    }
-
-    n_pct_ok <- (!is.null(gg_pct_error)) +
-                sum(!vapply(gg_pct_error_by_comp, is.null, logical(1)))
-    if (verbose) message("  ", n_pct_ok, " % Error plot(s) generated.")
-
-  } else if (has_classified && is.null(expected_values)) {
-    if (verbose) message("  Skipping % Error plots (expected_values not provided).")
-  }
-
   # ==========================================================================
   # STEP 4: Export
   # ==========================================================================
@@ -1852,28 +1662,6 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
       }
       if (verbose) message("  Exported classified data and ROC plots.")
     }
-
-    # % Error exports
-    if (!is.null(gg_pct_error) || length(gg_pct_error_by_comp) > 0) {
-      if (export_plots) {
-        if (!is.null(gg_pct_error)) {
-          .bm_export_gg_plot(gg_pct_error,
-                             file.path(output_dir, "bm_multiple_pct_error.png"),
-                             plot_width, plot_height, plot_dpi)
-        }
-        comp_dir <- file.path(output_dir, "by_comparison")
-        if (!dir.exists(comp_dir)) dir.create(comp_dir, recursive = TRUE)
-        for (comp in names(gg_pct_error_by_comp)) {
-          if (!is.null(gg_pct_error_by_comp[[comp]])) {
-            safe_comp <- gsub("[^A-Za-z0-9_-]", "_", comp)
-            .bm_export_gg_plot(gg_pct_error_by_comp[[comp]],
-                               file.path(comp_dir, paste0("bm_pct_error_", safe_comp, ".png")),
-                               plot_width, plot_height, plot_dpi)
-          }
-        }
-      }
-      if (verbose) message("  Exported % Error plots.")
-    }
   }
 
   # ==========================================================================
@@ -1910,12 +1698,6 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
     result$classified_combined     <- classified_combined
     result$gg_roc_by_comp          <- gg_roc_by_comp
     result$gg_roc_zoom_by_comp     <- gg_roc_zoom_by_comp
-  }
-
-  # % Error plots
-  if (!is.null(gg_pct_error) || length(gg_pct_error_by_comp) > 0) {
-    result$gg_pct_error         <- gg_pct_error
-    result$gg_pct_error_by_comp <- gg_pct_error_by_comp
   }
 
   result$parameters <- list(
@@ -2009,7 +1791,6 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
 #   opdea_combined      = opdea_all,
 #   confusion_combined  = confusion_all,
 #   classified_combined = classified_all,
-#   expected_values     = expected,
 #   output_dir          = "results/bm_multiple",
 #   verbose             = TRUE
 # )
@@ -2018,8 +1799,6 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
 # bm_result$gg_ranking_heatmap_mean
 # bm_result$gg_roc_by_comp[["B-A"]]
 # bm_result$gg_roc_zoom_by_comp[["B-A"]]
-# bm_result$gg_pct_error
-# bm_result$gg_pct_error_by_comp[["B-A"]]
 #
 #
 # --- Option B: Import from files ---
@@ -2034,14 +1813,12 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
 # #   results/benchmark_log2Norm_Impseqrob_MinDet/...
 #
 # bm_result <- benchmarking_multiple(
-#   results_dir     = "results",
-#   expected_values = expected,   # needed for % Error plots
-#   output_dir      = "results/bm_multiple",
-#   verbose         = TRUE
+#   results_dir = "results",
+#   output_dir  = "results/bm_multiple",
+#   verbose     = TRUE
 # )
 #
 # bm_result$mean_ranking
 # bm_result$gg_ranking_bars_mean
 # bm_result$gg_roc_by_comp[["B-A"]]
 # bm_result$gg_roc_zoom_by_comp[["B-A"]]
-# bm_result$gg_pct_error_by_comp[["B-A"]]
