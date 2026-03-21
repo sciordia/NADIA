@@ -1412,40 +1412,62 @@ benchmarking_multiple <- function(opdea_combined     = NULL,
 # combos <- list(
 #   list(norm = "cycloess", imp = "combo", mar = "Impseqrob", mnar = "min"),
 #   list(norm = "quantile", imp = "combo", mar = "knn",       mnar = "min"),
+#   list(norm = "cycloess", imp = "none"),
 #   list(norm = "log2Norm", imp = "combo", mar = "Impseqrob", mnar = "MinDet")
 # )
 #
+# # Helper: build assay name from combo
+# .make_assay_name <- function(combo) {
+#   if (combo$imp == "none") {
+#     paste0(combo$norm, "_none")
+#   } else {
+#     paste(combo$norm, combo$mar, combo$mnar, sep = "_")
+#   }
+# }
+#
 # # Run processing + benchmarking for each combo
-# opdea_list <- list()
+# opdea_list     <- list()
+# confusion_list <- list()
 # for (combo in combos) {
-#   result <- process_proteomics(
-#     preprocessing   = preprocessing,
-#     norm_method     = combo$norm,
-#     imp_method      = combo$imp,
-#     mar_method      = combo$mar,
-#     mnar_method     = combo$mnar
+#   # Build process_proteomics args (omit mar/mnar when imp = "none")
+#   proc_args <- list(
+#     preprocessing = preprocessing,
+#     norm_method   = combo$norm,
+#     imp_method    = combo$imp
 #   )
+#   if (combo$imp != "none") {
+#     proc_args$mar_method  <- combo$mar
+#     proc_args$mnar_method <- combo$mnar
+#   }
+#   result <- do.call(process_proteomics, proc_args)
+#
+#   assay_name <- .make_assay_name(combo)
 #
 #   bench <- benchmarking_proteomics(
 #     de_res          = result$DEPs_results,
 #     species_df      = species_df,
 #     expected_values = expected,
 #     alpha           = 0.05,
-#     output_dir      = paste0("results/benchmark_", combo$norm, "_",
-#                              combo$mar, "_", combo$mnar)
+#     output_dir      = paste0("results/benchmark_", assay_name)
 #   )
 #
 #   opdea <- bench$opdea_metrics
-#   opdea$Assay <- paste(combo$norm, combo$mar, combo$mnar, sep = "_")
+#   opdea$Assay <- assay_name
 #   opdea_list[[length(opdea_list) + 1]] <- opdea
+#
+#   conf <- bench$confusion_overall
+#   conf$Assay <- assay_name
+#   confusion_list[[length(confusion_list) + 1]] <- conf
 # }
 #
-# opdea_all <- do.call(rbind, opdea_list)
+# opdea_all     <- do.call(rbind, opdea_list)
+# confusion_all <- do.call(rbind, confusion_list)
 #
 # bm_result <- benchmarking_multiple(
-#   opdea_combined = opdea_all,
-#   output_dir     = "results/bm_multiple",
-#   verbose        = TRUE
+#   opdea_combined     = opdea_all,
+#   confusion_combined = confusion_all,
+#   output_dir         = "results/bm_multiple",
+#   verbose            = TRUE
 # )
 #
 # bm_result$mean_ranking
