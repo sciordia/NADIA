@@ -278,6 +278,75 @@ bm_compute_ranking <- function(opdea_combined,
 }
 
 
+#' Compute OpDEA ranking separately for each comparison
+#'
+#' For each comparison, ranks methods directly on their metric values
+#' (no aggregation needed since there is one value per method per comparison).
+#'
+#' @param opdea_combined data.frame with columns: Assay, Comparison,
+#'   nMCC, G_mean, pAUC_001, pAUC_005, pAUC_010
+#' @param metrics Character vector of metrics to include in ranking
+#'
+#' @return Named list with:
+#'   \describe{
+#'     \item{by_comparison}{Named list where each key is a comparison and
+#'       each value is a data.frame with metric values, ranks, and rank_final}
+#'     \item{ranking_combined}{data.frame with all comparisons in long format
+#'       (includes Comparison column)}
+#'   }
+#'
+#' @examples
+#' \dontrun{
+#' by_comp <- bm_compute_ranking_by_comparison(opdea_all)
+#' by_comp$by_comparison[["B-A"]]
+#' by_comp$ranking_combined
+#' }
+#' @export
+bm_compute_ranking_by_comparison <- function(opdea_combined,
+                                             metrics = .BM_METRICS) {
+  .bm_validate_opdea(opdea_combined)
+
+  avail <- intersect(metrics, colnames(opdea_combined))
+  if (length(avail) == 0)
+    stop("None of the requested metrics found in opdea_combined.")
+  metrics <- avail
+
+  comps <- sort(unique(opdea_combined$Comparison))
+  by_comp <- vector("list", length(comps))
+  names(by_comp) <- comps
+
+  combined_list <- vector("list", length(comps))
+
+  for (i in seq_along(comps)) {
+    comp <- comps[i]
+    sub <- opdea_combined[opdea_combined$Comparison == comp,
+                          c("Assay", metrics), drop = FALSE]
+
+    # Rank directly (no aggregation — 1 row per method)
+    rank_df <- .bm_rank_methods(sub, metrics)
+
+    # Merge values + ranks
+    merged <- merge(sub, rank_df, by = "Assay", sort = FALSE)
+    merged <- merged[order(merged$rank_final), , drop = FALSE]
+    rownames(merged) <- NULL
+
+    by_comp[[comp]] <- merged
+
+    combined_entry <- merged
+    combined_entry$Comparison <- comp
+    combined_list[[i]] <- combined_entry
+  }
+
+  ranking_combined <- do.call(rbind, combined_list)
+  rownames(ranking_combined) <- NULL
+
+  list(
+    by_comparison    = by_comp,
+    ranking_combined = ranking_combined
+  )
+}
+
+
 # =============================================================================
 # SECTION 4: VISUALIZATIONS
 # =============================================================================
@@ -545,6 +614,112 @@ bm_plot_metrics_comparison <- function(opdea_combined,
 }
 
 
+#' Heatmap of metric ranks for a single comparison
+#'
+#' @param ranking_by_comp List returned by \code{bm_compute_ranking_by_comparison()}
+#' @param comparison Character string: which comparison to plot
+#' @param title Optional plot title
+#'
+#' @return ggplot2 object
+#' @export
+bm_plot_ranking_heatmap_by_comp <- function(ranking_by_comp,
+                                            comparison,
+                                            title = NULL) {
+  if (!requireNamespace("ggplot2", quietly = TRUE))
+    stop("Package 'ggplot2' is required.")
+  if (!requireNamespace("tidyr", quietly = TRUE))
+    stop("Package 'tidyr' is required.")
+
+  if (!comparison %in% names(ranking_by_comp$by_comparison))
+    stop("Comparison '", comparison, "' not found. Available: ",
+         paste(names(ranking_by_comp$by_comparison), collapse = ", "))
+
+  comp_df <- ranking_by_comp$by_comparison[[comparison]]
+
+  rank_cols <- grep("^rank_", colnames(comp_df), value = TRUE)
+  plot_data <- comp_df[, c("Assay", rank_cols), drop = FALSE]
+
+  plot_data$Assay <- factor(plot_data$Assay, levels = rev(comp_df$Assay))
+
+  long <- tidyr::pivot_longer(plot_data,
+                              cols      = rank_cols,
+                              names_to  = "Metric",
+                              values_to = "Rank")
+
+  long$Metric <- sub("^rank_", "", long$Metric)
+  metric_order <- sub("^rank_", "", rank_cols)
+  long$Metric <- factor(long$Metric, levels = metric_order)
+
+  n_methods <- nrow(comp_df)
+
+  title <- title %||% paste0("OpDEA Ranking: ", comparison)
+
+  gg <- ggplot2::ggplot(long, ggplot2::aes(x = Metric, y = Assay, fill = Rank)) +
+    ggplot2::geom_tile(color = "white", linewidth = 0.5) +
+    ggplot2::geom_text(ggplot2::aes(label = round(Rank, 1)),
+                       size = 3.5, color = "black") +
+    ggplot2::scale_fill_gradient(low = "#2ca02c", high = "#d62728",
+                                 limits = c(1, n_methods),
+                                 name = "Rank") +
+    ggplot2::labs(title = title, x = NULL, y = NULL) +
+    ggplot2::theme_minimal(base_size = 12) +
+    ggplot2::theme(
+      axis.text.x    = ggplot2::element_text(angle = 45, hjust = 1),
+      panel.grid     = ggplot2::element_blank(),
+      plot.title     = ggplot2::element_text(face = "bold"),
+      legend.position = "right"
+    )
+
+  gg
+}
+
+
+#' Bar chart of final ranks for a single comparison
+#'
+#' @param ranking_by_comp List returned by \code{bm_compute_ranking_by_comparison()}
+#' @param comparison Character string: which comparison to plot
+#' @param title Optional plot title
+#'
+#' @return ggplot2 object
+#' @export
+bm_plot_ranking_bars_by_comp <- function(ranking_by_comp,
+                                         comparison,
+                                         title = NULL) {
+  if (!requireNamespace("ggplot2", quietly = TRUE))
+    stop("Package 'ggplot2' is required.")
+
+  if (!comparison %in% names(ranking_by_comp$by_comparison))
+    stop("Comparison '", comparison, "' not found. Available: ",
+         paste(names(ranking_by_comp$by_comparison), collapse = ", "))
+
+  comp_df <- ranking_by_comp$by_comparison[[comparison]]
+  n_methods <- nrow(comp_df)
+
+  comp_df$Assay <- factor(comp_df$Assay, levels = rev(comp_df$Assay))
+
+  title <- title %||% paste0("OpDEA Final Ranking: ", comparison)
+
+  gg <- ggplot2::ggplot(comp_df,
+                        ggplot2::aes(x = Assay, y = rank_final, fill = rank_final)) +
+    ggplot2::geom_col(width = 0.7) +
+    ggplot2::geom_text(ggplot2::aes(label = round(rank_final, 1)),
+                       hjust = -0.2, size = 3.5) +
+    ggplot2::scale_fill_gradient(low = "#2ca02c", high = "#d62728",
+                                 limits = c(1, n_methods),
+                                 name = "Rank") +
+    ggplot2::coord_flip() +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.15))) +
+    ggplot2::labs(title = title, x = NULL, y = "Final Rank (lower = better)") +
+    ggplot2::theme_minimal(base_size = 12) +
+    ggplot2::theme(
+      plot.title      = ggplot2::element_text(face = "bold"),
+      legend.position = "none"
+    )
+
+  gg
+}
+
+
 # =============================================================================
 # SECTION 5: ORCHESTRATOR
 # =============================================================================
@@ -593,6 +768,10 @@ bm_plot_metrics_comparison <- function(opdea_combined,
 #'     \item{gg_metrics_heatmap_mean}{Heatmap of metric values (mean)}
 #'     \item{gg_metrics_heatmap_median}{Heatmap of metric values (median)}
 #'     \item{gg_metrics_comparison}{Boxplot distributions}
+#'     \item{ranking_by_comparison}{Named list of ranking data.frames per comparison}
+#'     \item{ranking_by_comparison_combined}{data.frame with all per-comparison rankings}
+#'     \item{gg_ranking_heatmap_by_comp}{Named list of heatmaps per comparison}
+#'     \item{gg_ranking_bars_by_comp}{Named list of bar charts per comparison}
 #'     \item{parameters}{List of parameters used}
 #'   }
 #'
@@ -680,6 +859,21 @@ benchmarking_multiple <- function(opdea_combined = NULL,
   }
 
   # ==========================================================================
+  # STEP 2b: Compute ranking by comparison
+  # ==========================================================================
+  if (verbose) message("  Computing ranking by comparison ...")
+  ranking_by_comp <- bm_compute_ranking_by_comparison(opdea_combined, metrics)
+  comps <- names(ranking_by_comp$by_comparison)
+
+  if (verbose) {
+    for (comp in comps) {
+      best <- ranking_by_comp$by_comparison[[comp]]$Assay[1]
+      best_rf <- ranking_by_comp$by_comparison[[comp]]$rank_final[1]
+      message("    ", comp, ": best = ", best, " (rank_final = ", best_rf, ")")
+    }
+  }
+
+  # ==========================================================================
   # STEP 3: Plot registry
   # ==========================================================================
   all_plot_names <- c("ranking_heatmap_mean", "ranking_heatmap_median",
@@ -727,9 +921,39 @@ benchmarking_multiple <- function(opdea_combined = NULL,
   n_ok   <- sum(!vapply(plot_result, is.null, logical(1)))
   n_fail <- length(selected) - n_ok
   if (verbose) {
-    message("  ", n_ok, " plot(s) generated",
+    message("  ", n_ok, " global plot(s) generated",
             if (n_fail > 0) paste0(", ", n_fail, " failed") else ".")
   }
+
+  # --- Per-comparison plots ---
+  gg_heatmap_by_comp <- vector("list", length(comps))
+  names(gg_heatmap_by_comp) <- comps
+  gg_bars_by_comp <- vector("list", length(comps))
+  names(gg_bars_by_comp) <- comps
+
+  for (comp in comps) {
+    if (verbose) message("  Generating plots for comparison: ", comp, " ...")
+    gg_heatmap_by_comp[[comp]] <- tryCatch(
+      bm_plot_ranking_heatmap_by_comp(ranking_by_comp, comp),
+      error = function(e) {
+        warning("bm_plot_ranking_heatmap_by_comp(", comp, ") failed: ",
+                conditionMessage(e))
+        NULL
+      }
+    )
+    gg_bars_by_comp[[comp]] <- tryCatch(
+      bm_plot_ranking_bars_by_comp(ranking_by_comp, comp),
+      error = function(e) {
+        warning("bm_plot_ranking_bars_by_comp(", comp, ") failed: ",
+                conditionMessage(e))
+        NULL
+      }
+    )
+  }
+
+  n_comp_plots <- sum(!vapply(gg_heatmap_by_comp, is.null, logical(1))) +
+                  sum(!vapply(gg_bars_by_comp, is.null, logical(1)))
+  if (verbose) message("  ", n_comp_plots, " per-comparison plot(s) generated.")
 
   # ==========================================================================
   # STEP 4: Export
@@ -749,7 +973,22 @@ benchmarking_multiple <- function(opdea_combined = NULL,
                       file.path(output_dir, "bm_multiple_mean_ranking.tsv"))
       .bm_export_data(ranking$median_ranking,
                       file.path(output_dir, "bm_multiple_median_ranking.tsv"))
-      if (verbose) message("  Exported 5 TSV files.")
+
+      # Per-comparison tables
+      comp_dir <- file.path(output_dir, "by_comparison")
+      if (!dir.exists(comp_dir)) dir.create(comp_dir, recursive = TRUE)
+
+      .bm_export_data(ranking_by_comp$ranking_combined,
+                      file.path(output_dir, "bm_multiple_ranking_by_comparison.tsv"))
+
+      for (comp in comps) {
+        safe_comp <- gsub("[^A-Za-z0-9_-]", "_", comp)
+        .bm_export_data(ranking_by_comp$by_comparison[[comp]],
+                        file.path(comp_dir, paste0("bm_ranking_", safe_comp, ".tsv")))
+      }
+
+      n_tables <- 5 + 1 + length(comps)
+      if (verbose) message("  Exported ", n_tables, " TSV files.")
     }
 
     if (export_plots) {
@@ -760,7 +999,27 @@ benchmarking_multiple <- function(opdea_combined = NULL,
                              plot_width, plot_height, plot_dpi)
         }
       }
-      if (verbose) message("  Exported ", n_ok, " PNG files.")
+
+      # Per-comparison plots
+      comp_dir <- file.path(output_dir, "by_comparison")
+      if (!dir.exists(comp_dir)) dir.create(comp_dir, recursive = TRUE)
+
+      for (comp in comps) {
+        safe_comp <- gsub("[^A-Za-z0-9_-]", "_", comp)
+        if (!is.null(gg_heatmap_by_comp[[comp]])) {
+          .bm_export_gg_plot(gg_heatmap_by_comp[[comp]],
+                             file.path(comp_dir, paste0("bm_ranking_heatmap_", safe_comp, ".png")),
+                             plot_width, plot_height, plot_dpi)
+        }
+        if (!is.null(gg_bars_by_comp[[comp]])) {
+          .bm_export_gg_plot(gg_bars_by_comp[[comp]],
+                             file.path(comp_dir, paste0("bm_ranking_bars_", safe_comp, ".png")),
+                             plot_width, plot_height, plot_dpi)
+        }
+      }
+
+      if (verbose) message("  Exported ", n_ok, " global + ",
+                           n_comp_plots, " per-comparison PNG files.")
     }
   }
 
@@ -772,18 +1031,25 @@ benchmarking_multiple <- function(opdea_combined = NULL,
     mean_aggregated   = ranking$mean_aggregated,
     median_aggregated = ranking$median_aggregated,
     mean_ranking      = ranking$mean_ranking,
-    median_ranking    = ranking$median_ranking
+    median_ranking    = ranking$median_ranking,
+    ranking_by_comparison          = ranking_by_comp$by_comparison,
+    ranking_by_comparison_combined = ranking_by_comp$ranking_combined
   )
 
-  # Add plots with gg_ prefix
+  # Add global plots with gg_ prefix
   for (nm in selected) {
     result[[paste0("gg_", nm)]] <- plot_result[[nm]]
   }
+
+  # Add per-comparison plots
+  result$gg_ranking_heatmap_by_comp <- gg_heatmap_by_comp
+  result$gg_ranking_bars_by_comp    <- gg_bars_by_comp
 
   result$parameters <- list(
     metrics       = metrics,
     n_methods     = n_methods,
     n_comparisons = n_comps,
+    comparisons   = comps,
     plots         = selected
   )
 
@@ -816,8 +1082,7 @@ benchmarking_multiple <- function(opdea_combined = NULL,
 # opdea_list <- list()
 # for (combo in combos) {
 #   result <- process_proteomics(
-#     file_path       = "data/input.tsv",
-#     metadata_path   = "data/metadata.tsv",
+#     preprocessing   = preprocessing,
 #     norm_method     = combo$norm,
 #     imp_method      = combo$imp,
 #     mar_method      = combo$mar,
