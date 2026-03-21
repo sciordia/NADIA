@@ -902,21 +902,18 @@ bm_plot_confusion_stacked <- function(confusion_combined,
   assay_order <- names(sort(tp_order, decreasing = FALSE))
   long$Assay <- factor(long$Assay, levels = assay_order)
 
-  # Compute label positions (centered within each segment)
-  long <- long[order(long$Assay, long$Comparison, long$Category), ]
-  split_data <- split(long, list(long$Assay, long$Comparison), drop = TRUE)
-  long$label_y <- NA_real_
-
-  for (key in names(split_data)) {
-    idx <- which(paste(long$Assay, long$Comparison, sep = ".") == key)
-    counts <- long$Count[idx]
-    cum <- cumsum(counts)
-    mid <- cum - counts / 2
-    long$label_y[idx] <- mid
-  }
-
-  # Only show label if segment is wide enough
-  long$label_text <- ifelse(long$Count > 0, as.character(long$Count), "")
+  # Only show label if segment is large enough (>2% of total per bar)
+  total_per_bar <- tapply(long$Count, list(long$Assay, long$Comparison),
+                          sum, default = 0)
+  long$label_text <- vapply(seq_len(nrow(long)), function(i) {
+    total <- total_per_bar[as.character(long$Assay[i]),
+                           as.character(long$Comparison[i])]
+    if (!is.na(long$Count[i]) && long$Count[i] > total * 0.02) {
+      as.character(long$Count[i])
+    } else {
+      ""
+    }
+  }, character(1))
 
   title <- if (!is.null(title)) {
     title
@@ -930,8 +927,11 @@ bm_plot_confusion_stacked <- function(confusion_combined,
                         ggplot2::aes(x = Assay, y = Count,
                                      fill = Category)) +
     ggplot2::geom_col(width = 0.75, color = "white", linewidth = 0.3) +
-    ggplot2::geom_text(ggplot2::aes(y = label_y, label = label_text),
-                       size = 3, color = "black", fontface = "bold") +
+    ggplot2::geom_text(
+      ggplot2::aes(label = label_text),
+      position = ggplot2::position_stack(vjust = 0.5),
+      size = 3, color = "black", fontface = "bold"
+    ) +
     ggplot2::scale_fill_manual(values = conf_colors,
                                 name = NULL) +
     ggplot2::coord_flip() +
