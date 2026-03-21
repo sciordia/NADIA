@@ -21,6 +21,10 @@ if (!exists("%||%", mode = "function")) `%||%` <- function(a, b) if (!is.null(a)
 .BM_REQUIRED_COLS <- c("Assay", "Comparison", "nMCC", "G_mean",
                        "pAUC_001", "pAUC_005", "pAUC_010")
 
+#' Required columns in the combined confusion data.frame
+#' @keywords internal
+.BM_CONFUSION_COLS <- c("Assay", "Comparison", "TP", "FP", "TN", "FN")
+
 #' Default metrics for ranking
 #' @keywords internal
 .BM_METRICS <- c("nMCC", "G_mean", "pAUC_001", "pAUC_005", "pAUC_010")
@@ -55,6 +59,26 @@ if (!exists("%||%", mode = "function")) `%||%` <- function(a, b) if (!is.null(a)
 
   if (nrow(df) == 0)
     stop("opdea_combined has 0 rows.")
+
+  invisible(TRUE)
+}
+
+
+#' Validate combined confusion data.frame
+#' @param df data.frame to validate
+#' @keywords internal
+.bm_validate_confusion <- function(df) {
+  if (!is.data.frame(df))
+    stop("confusion_combined must be a data.frame.")
+
+  missing <- setdiff(.BM_CONFUSION_COLS, colnames(df))
+  if (length(missing) > 0)
+    stop("Missing required columns in confusion_combined: ",
+         paste(missing, collapse = ", "),
+         "\nRequired: ", paste(.BM_CONFUSION_COLS, collapse = ", "))
+
+  if (nrow(df) == 0)
+    stop("confusion_combined has 0 rows.")
 
   invisible(TRUE)
 }
@@ -204,6 +228,61 @@ import_opdea_results <- function(results_dir,
   n_methods <- length(unique(combined$Assay))
   n_comps   <- length(unique(combined$Comparison))
   message("import_opdea_results: loaded ", n_methods, " method(s), ",
+          n_comps, " comparison(s), ", nrow(combined), " rows.")
+
+  combined
+}
+
+
+
+#' Import confusion matrices from multiple benchmark result folders
+#'
+#' Reads \code{benchmark_confusion_overall.tsv} files from subdirectories,
+#' adding an \code{Assay} column derived from the folder name.
+#'
+#' @param results_dir Parent directory containing benchmark subfolders
+#' @param pattern Regex pattern for the confusion filename
+#' @param method_names Optional character vector of Assay names
+#' @param recursive Search subdirectories recursively? (default: TRUE)
+#'
+#' @return data.frame with columns:
+#'   Assay, Comparison, N, TP, FP, TN, FN, plus percentage columns
+#'
+#' @export
+import_confusion_results <- function(results_dir,
+                                     pattern      = "benchmark_confusion_overall\\.tsv$",
+                                     method_names = NULL,
+                                     recursive    = TRUE) {
+  if (!dir.exists(results_dir))
+    stop("Directory not found: ", results_dir)
+
+  files <- list.files(results_dir, pattern = pattern,
+                      full.names = TRUE, recursive = recursive)
+  if (length(files) == 0)
+    stop("No files matching pattern '", pattern, "' found in: ", results_dir)
+
+  if (is.null(method_names)) {
+    method_names <- basename(dirname(files))
+  }
+  if (length(method_names) != length(files))
+    stop("Length of method_names (", length(method_names),
+         ") must match number of files (", length(files), ").")
+
+  df_list <- vector("list", length(files))
+  for (i in seq_along(files)) {
+    df <- .bm_read_tsv(files[i])
+    df$Assay <- method_names[i]
+    df_list[[i]] <- df
+  }
+
+  combined <- do.call(rbind, df_list)
+  rownames(combined) <- NULL
+
+  .bm_validate_confusion(combined)
+
+  n_methods <- length(unique(combined$Assay))
+  n_comps   <- length(unique(combined$Comparison))
+  message("import_confusion_results: loaded ", n_methods, " method(s), ",
           n_comps, " comparison(s), ", nrow(combined), " rows.")
 
   combined
@@ -769,6 +848,113 @@ bm_plot_ranking_bars_by_comp <- function(ranking_by_comp,
 }
 
 
+#' Stacked bar chart of TP/FP/FN/TN (OpDEA Figure 5 style)
+#'
+#' Horizontal stacked bars showing confusion matrix counts per method.
+#' If \code{comparison} is NULL, generates a faceted plot with all comparisons.
+#'
+#' @param confusion_combined data.frame with columns:
+#'   Assay, Comparison, TP, FP, TN, FN
+#' @param comparison Optional: single comparison to plot.
+#'   If NULL, faceted plot with all comparisons.
+#' @param title Optional plot title
+#'
+#' @return ggplot2 object
+#' @export
+bm_plot_confusion_stacked <- function(confusion_combined,
+                                      comparison = NULL,
+                                      title      = NULL) {
+  if (!requireNamespace("ggplot2", quietly = TRUE))
+    stop("Package 'ggplot2' is required.")
+  if (!requireNamespace("tidyr", quietly = TRUE))
+    stop("Package 'tidyr' is required.")
+
+  .bm_validate_confusion(confusion_combined)
+
+  # Filter to single comparison if requested
+  if (!is.null(comparison)) {
+    confusion_combined <- confusion_combined[
+      confusion_combined$Comparison == comparison, , drop = FALSE]
+    if (nrow(confusion_combined) == 0)
+      stop("Comparison '", comparison, "' not found.")
+  }
+
+  # OpDEA colors: TP=blue, TN=coral, FP=teal, FN=gold
+  conf_colors <- c(TP = "#5494cc", TN = "#e18283", FP = "#0d898a", FN = "#f9cc52")
+  categories <- c("TP", "TN", "FP", "FN")
+
+  # Pivot to long
+  long <- tidyr::pivot_longer(
+    confusion_combined[, c("Assay", "Comparison", categories), drop = FALSE],
+    cols      = categories,
+    names_to  = "Category",
+    values_to = "Count"
+  )
+  long$Category <- factor(long$Category, levels = categories)
+
+  # Order methods by TP count (descending) within each comparison
+  # Use mean TP across comparisons for consistent ordering
+  tp_order <- tapply(
+    confusion_combined$TP,
+    confusion_combined$Assay,
+    mean, na.rm = TRUE
+  )
+  assay_order <- names(sort(tp_order, decreasing = FALSE))
+  long$Assay <- factor(long$Assay, levels = assay_order)
+
+  # Compute label positions (centered within each segment)
+  long <- long[order(long$Assay, long$Comparison, long$Category), ]
+  split_data <- split(long, list(long$Assay, long$Comparison), drop = TRUE)
+  long$label_y <- NA_real_
+
+  for (key in names(split_data)) {
+    idx <- which(paste(long$Assay, long$Comparison, sep = ".") == key)
+    counts <- long$Count[idx]
+    cum <- cumsum(counts)
+    mid <- cum - counts / 2
+    long$label_y[idx] <- mid
+  }
+
+  # Only show label if segment is wide enough
+  long$label_text <- ifelse(long$Count > 0, as.character(long$Count), "")
+
+  title <- if (!is.null(title)) {
+    title
+  } else if (!is.null(comparison)) {
+    paste0("Confusion Matrix: ", comparison)
+  } else {
+    "Confusion Matrix by Method"
+  }
+
+  gg <- ggplot2::ggplot(long,
+                        ggplot2::aes(x = Assay, y = Count,
+                                     fill = Category)) +
+    ggplot2::geom_col(width = 0.75, color = "white", linewidth = 0.3) +
+    ggplot2::geom_text(ggplot2::aes(y = label_y, label = label_text),
+                       size = 3, color = "black", fontface = "bold") +
+    ggplot2::scale_fill_manual(values = conf_colors,
+                                name = NULL) +
+    ggplot2::coord_flip() +
+    ggplot2::labs(title = title, x = NULL, y = "Number of proteins") +
+    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme(
+      plot.title      = ggplot2::element_text(face = "bold"),
+      axis.line.y     = ggplot2::element_blank(),
+      legend.position = "bottom",
+      legend.text     = ggplot2::element_text(size = 9),
+      panel.grid.major.y = ggplot2::element_blank()
+    ) +
+    ggplot2::guides(fill = ggplot2::guide_legend(nrow = 1))
+
+  # Facet if multiple comparisons
+  if (is.null(comparison)) {
+    gg <- gg + ggplot2::facet_wrap(~ Comparison, scales = "free_x")
+  }
+
+  gg
+}
+
+
 # =============================================================================
 # SECTION 5: ORCHESTRATOR
 # =============================================================================
@@ -790,6 +976,9 @@ bm_plot_ranking_bars_by_comp <- function(ranking_by_comp,
 #' @param recursive Search subdirectories? (default: TRUE)
 #' @param metrics Character vector of metrics for ranking
 #'   (default: all 5 OpDEA metrics)
+#' @param confusion_combined Optional pre-built data.frame with columns:
+#'   Assay, Comparison, TP, FP, TN, FN. If NULL and \code{results_dir}
+#'   is provided, imported from \code{benchmark_confusion_overall.tsv} files.
 #' @param plots Which plots to generate: "all" or character vector of names.
 #'   Valid names: "ranking_heatmap_mean", "ranking_heatmap_median",
 #'   "ranking_bars_mean", "ranking_bars_median",
@@ -821,6 +1010,9 @@ bm_plot_ranking_bars_by_comp <- function(ranking_by_comp,
 #'     \item{ranking_by_comparison_combined}{data.frame with all per-comparison rankings}
 #'     \item{gg_ranking_heatmap_by_comp}{Named list of heatmaps per comparison}
 #'     \item{gg_ranking_bars_by_comp}{Named list of bar charts per comparison}
+#'     \item{confusion_combined}{Combined confusion data.frame (if available)}
+#'     \item{gg_confusion_stacked}{Faceted confusion stacked bars (if available)}
+#'     \item{gg_confusion_stacked_by_comp}{Named list of confusion plots per comparison}
 #'     \item{parameters}{List of parameters used}
 #'   }
 #'
@@ -846,13 +1038,14 @@ bm_plot_ranking_bars_by_comp <- function(ranking_by_comp,
 #' result$gg_ranking_heatmap_mean
 #' }
 #' @export
-benchmarking_multiple <- function(opdea_combined = NULL,
-                                  results_dir    = NULL,
-                                  pattern        = "benchmark_opdea_metrics\\.tsv$",
-                                  method_names   = NULL,
-                                  recursive      = TRUE,
-                                  metrics        = .BM_METRICS,
-                                  plots          = "all",
+benchmarking_multiple <- function(opdea_combined     = NULL,
+                                  confusion_combined = NULL,
+                                  results_dir        = NULL,
+                                  pattern            = "benchmark_opdea_metrics\\.tsv$",
+                                  method_names       = NULL,
+                                  recursive          = TRUE,
+                                  metrics            = .BM_METRICS,
+                                  plots              = "all",
                                   verbose        = TRUE,
                                   output_dir     = NULL,
                                   export_plots   = TRUE,
@@ -884,6 +1077,29 @@ benchmarking_multiple <- function(opdea_combined = NULL,
 
   .bm_validate_opdea(opdea_combined)
 
+  # --- Import confusion data (optional) ---
+  has_confusion <- FALSE
+  if (is.null(confusion_combined) && !is.null(results_dir)) {
+    confusion_combined <- tryCatch({
+      if (verbose) message("  Importing confusion data ...")
+      import_confusion_results(results_dir,
+                               method_names = method_names,
+                               recursive    = recursive)
+    }, error = function(e) {
+      if (verbose) message("  No confusion data found (skipping): ", e$message)
+      NULL
+    })
+  }
+  if (!is.null(confusion_combined)) {
+    tryCatch({
+      .bm_validate_confusion(confusion_combined)
+      has_confusion <- TRUE
+    }, error = function(e) {
+      warning("Invalid confusion_combined (skipping): ", e$message)
+      confusion_combined <- NULL
+    })
+  }
+
   n_methods <- length(unique(opdea_combined$Assay))
   n_comps   <- length(unique(opdea_combined$Comparison))
 
@@ -892,6 +1108,7 @@ benchmarking_multiple <- function(opdea_combined = NULL,
     message("  Methods: ", n_methods,
             " | Comparisons: ", n_comps,
             " | Rows: ", nrow(opdea_combined))
+    if (has_confusion) message("  Confusion data: available")
   }
 
   # ==========================================================================
@@ -1004,6 +1221,43 @@ benchmarking_multiple <- function(opdea_combined = NULL,
                   sum(!vapply(gg_bars_by_comp, is.null, logical(1)))
   if (verbose) message("  ", n_comp_plots, " per-comparison plot(s) generated.")
 
+  # --- Confusion stacked bar plots ---
+  gg_confusion_stacked <- NULL
+  gg_confusion_by_comp <- list()
+
+  if (has_confusion) {
+    if (verbose) message("  Generating confusion stacked bar plots ...")
+
+    # Faceted (all comparisons)
+    gg_confusion_stacked <- tryCatch(
+      bm_plot_confusion_stacked(confusion_combined),
+      error = function(e) {
+        warning("bm_plot_confusion_stacked() failed: ", conditionMessage(e))
+        NULL
+      }
+    )
+
+    # Per comparison
+    conf_comps <- unique(confusion_combined$Comparison)
+    gg_confusion_by_comp <- vector("list", length(conf_comps))
+    names(gg_confusion_by_comp) <- conf_comps
+
+    for (comp in conf_comps) {
+      gg_confusion_by_comp[[comp]] <- tryCatch(
+        bm_plot_confusion_stacked(confusion_combined, comparison = comp),
+        error = function(e) {
+          warning("bm_plot_confusion_stacked(", comp, ") failed: ",
+                  conditionMessage(e))
+          NULL
+        }
+      )
+    }
+
+    n_conf_ok <- (!is.null(gg_confusion_stacked)) +
+                 sum(!vapply(gg_confusion_by_comp, is.null, logical(1)))
+    if (verbose) message("  ", n_conf_ok, " confusion plot(s) generated.")
+  }
+
   # ==========================================================================
   # STEP 4: Export
   # ==========================================================================
@@ -1070,6 +1324,33 @@ benchmarking_multiple <- function(opdea_combined = NULL,
       if (verbose) message("  Exported ", n_ok, " global + ",
                            n_comp_plots, " per-comparison PNG files.")
     }
+
+    # Confusion exports
+    if (has_confusion) {
+      if (export_tables) {
+        .bm_export_data(confusion_combined,
+                        file.path(output_dir, "bm_multiple_confusion_combined.tsv"))
+      }
+      if (export_plots) {
+        if (!is.null(gg_confusion_stacked)) {
+          .bm_export_gg_plot(gg_confusion_stacked,
+                             file.path(output_dir, "bm_multiple_confusion_stacked.png"),
+                             plot_width, plot_height, plot_dpi)
+        }
+        comp_dir <- file.path(output_dir, "by_comparison")
+        if (!dir.exists(comp_dir)) dir.create(comp_dir, recursive = TRUE)
+        for (comp in names(gg_confusion_by_comp)) {
+          if (!is.null(gg_confusion_by_comp[[comp]])) {
+            safe_comp <- gsub("[^A-Za-z0-9_-]", "_", comp)
+            .bm_export_gg_plot(gg_confusion_by_comp[[comp]],
+                               file.path(comp_dir,
+                                         paste0("bm_confusion_stacked_", safe_comp, ".png")),
+                               plot_width, plot_height, plot_dpi)
+          }
+        }
+      }
+      if (verbose) message("  Exported confusion data and plots.")
+    }
   }
 
   # ==========================================================================
@@ -1093,6 +1374,13 @@ benchmarking_multiple <- function(opdea_combined = NULL,
   # Add per-comparison plots
   result$gg_ranking_heatmap_by_comp <- gg_heatmap_by_comp
   result$gg_ranking_bars_by_comp    <- gg_bars_by_comp
+
+  # Confusion data and plots
+  if (has_confusion) {
+    result$confusion_combined              <- confusion_combined
+    result$gg_confusion_stacked            <- gg_confusion_stacked
+    result$gg_confusion_stacked_by_comp    <- gg_confusion_by_comp
+  }
 
   result$parameters <- list(
     metrics       = metrics,
