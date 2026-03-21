@@ -1432,7 +1432,7 @@ benchmark_roc_gg <- function(
         error = function(e) NA_real_
       )
     }, numeric(1))
-    labels <- paste0(names(roc_list), " (pAUC\u2080.\u2081=", sprintf("%.3f", aucs), ")")
+    labels <- paste0(names(roc_list), " (pAUC=", sprintf("%.3f", aucs), ")")
   } else {
     aucs <- vapply(roc_list, function(r) as.numeric(pROC::auc(r)), numeric(1))
     labels <- paste0(names(roc_list), " (AUC=", sprintf("%.3f", aucs), ")")
