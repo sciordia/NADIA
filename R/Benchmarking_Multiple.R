@@ -613,14 +613,32 @@ bm_plot_metrics_comparison <- function(opdea_combined,
   comp_shapes <- shape_pool[((seq_len(n_comps) - 1) %% length(shape_pool)) + 1]
   names(comp_shapes) <- comp_levels
 
+  # Pastel fill palette for boxplots (one per Assay), with matching darker borders
+  assay_levels <- unique(long$Assay)
+  n_assays <- length(assay_levels)
+  assay_fills <- grDevices::hcl.colors(n_assays, palette = "Pastel 1")
+  names(assay_fills) <- assay_levels
+  # Derive darker border colors by reducing luminance
+  assay_borders <- vapply(assay_fills, function(hex) {
+    rgb_vals <- grDevices::col2rgb(hex)[, 1] / 255
+    darker <- pmax(rgb_vals * 0.55, 0)
+    grDevices::rgb(darker[1], darker[2], darker[3])
+  }, character(1))
+  names(assay_borders) <- assay_levels
+
+  # Map border color per row for geom_boxplot
+  long$assay_border <- assay_borders[as.character(long$Assay)]
+
   gg <- ggplot2::ggplot(long, ggplot2::aes(x = Assay, y = Value)) +
-    ggplot2::geom_boxplot(fill = "#e8f0fe", color = "#5a7dba",
-                          alpha = 0.6, outlier.shape = NA, linewidth = 0.4) +
+    ggplot2::geom_boxplot(ggplot2::aes(fill = Assay),
+                          alpha = 0.5, outlier.shape = NA, linewidth = 0.4,
+                          show.legend = FALSE) +
     ggplot2::geom_point(
       ggplot2::aes(color = Comparison, shape = Comparison),
       position = ggplot2::position_jitter(width = 0.15, seed = 42),
       size = 2.2, alpha = 0.85
     ) +
+    ggplot2::scale_fill_manual(values = assay_fills) +
     ggplot2::scale_color_manual(values = comp_colors) +
     ggplot2::scale_shape_manual(values = comp_shapes) +
     ggplot2::facet_wrap(~ Metric, scales = "free_y", ncol = 3) +
