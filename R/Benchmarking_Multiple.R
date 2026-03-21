@@ -25,6 +25,10 @@ if (!exists("%||%", mode = "function")) `%||%` <- function(a, b) if (!is.null(a)
 #' @keywords internal
 .BM_CONFUSION_COLS <- c("Assay", "Comparison", "TP", "FP", "TN", "FN")
 
+#' Minimum required columns in the combined classified data.frame
+#' @keywords internal
+.BM_CLASSIFIED_COLS <- c("Assay", "Comparison", "truth")
+
 #' Default metrics for ranking
 #' @keywords internal
 .BM_METRICS <- c("nMCC", "G_mean", "pAUC_001", "pAUC_005", "pAUC_010")
@@ -79,6 +83,30 @@ if (!exists("%||%", mode = "function")) `%||%` <- function(a, b) if (!is.null(a)
 
   if (nrow(df) == 0)
     stop("confusion_combined has 0 rows.")
+
+  invisible(TRUE)
+}
+
+
+#' Validate combined classified data.frame
+#' @param df data.frame to validate
+#' @param p_col Name of the p-value column
+#' @keywords internal
+.bm_validate_classified <- function(df, p_col = "adj.P.Val") {
+  if (!is.data.frame(df))
+    stop("classified_combined must be a data.frame.")
+
+  missing <- setdiff(.BM_CLASSIFIED_COLS, colnames(df))
+  if (length(missing) > 0)
+    stop("Missing required columns in classified_combined: ",
+         paste(missing, collapse = ", "),
+         "\nRequired: ", paste(.BM_CLASSIFIED_COLS, collapse = ", "))
+
+  if (!p_col %in% colnames(df))
+    stop("P-value column '", p_col, "' not found in classified_combined.")
+
+  if (nrow(df) == 0)
+    stop("classified_combined has 0 rows.")
 
   invisible(TRUE)
 }
@@ -283,6 +311,57 @@ import_confusion_results <- function(results_dir,
   n_methods <- length(unique(combined$Assay))
   n_comps   <- length(unique(combined$Comparison))
   message("import_confusion_results: loaded ", n_methods, " method(s), ",
+          n_comps, " comparison(s), ", nrow(combined), " rows.")
+
+  combined
+}
+
+
+#' Import classified results from multiple benchmark result folders
+#'
+#' Reads \code{benchmark_classified.tsv} files from subdirectories,
+#' adding an \code{Assay} column derived from the folder name.
+#'
+#' @param results_dir Parent directory containing benchmark subfolders
+#' @param pattern Regex pattern for the classified filename
+#' @param method_names Optional character vector of Assay names
+#' @param recursive Search subdirectories recursively? (default: TRUE)
+#'
+#' @return data.frame with columns from classified_df plus Assay
+#'
+#' @export
+import_classified_results <- function(results_dir,
+                                      pattern      = "benchmark_classified\\.tsv$",
+                                      method_names = NULL,
+                                      recursive    = TRUE) {
+  if (!dir.exists(results_dir))
+    stop("Directory not found: ", results_dir)
+
+  files <- list.files(results_dir, pattern = pattern,
+                      full.names = TRUE, recursive = recursive)
+  if (length(files) == 0)
+    stop("No files matching pattern '", pattern, "' found in: ", results_dir)
+
+  if (is.null(method_names)) {
+    method_names <- basename(dirname(files))
+  }
+  if (length(method_names) != length(files))
+    stop("Length of method_names (", length(method_names),
+         ") must match number of files (", length(files), ").")
+
+  df_list <- vector("list", length(files))
+  for (i in seq_along(files)) {
+    df <- .bm_read_tsv(files[i])
+    df$Assay <- method_names[i]
+    df_list[[i]] <- df
+  }
+
+  combined <- do.call(rbind, df_list)
+  rownames(combined) <- NULL
+
+  n_methods <- length(unique(combined$Assay))
+  n_comps   <- length(unique(combined$Comparison))
+  message("import_classified_results: loaded ", n_methods, " method(s), ",
           n_comps, " comparison(s), ", nrow(combined), " rows.")
 
   combined
@@ -955,6 +1034,143 @@ bm_plot_confusion_stacked <- function(confusion_combined,
 }
 
 
+#' ROC Curves by Method for a Single Comparison
+#'
+#' Generates ROC (or ROC zoom) plot where each curve represents
+#' a different method (Assay) for one comparison.
+#'
+#' @param classified_combined data.frame with columns: Assay, Comparison,
+#'   truth, and a p-value column
+#' @param comparison Character. Single comparison to plot (e.g. "B-A")
+#' @param p_col P-value column name (default: "adj.P.Val")
+#' @param zoom Logical. If TRUE, zoom to FPR 0-10% and show pAUC in legend
+#' @param palette RColorBrewer palette name (default: "Set2")
+#'
+#' @return ggplot2 object or NULL if pROC not available
+#'
+#' @export
+bm_plot_roc <- function(classified_combined,
+                        comparison,
+                        p_col   = "adj.P.Val",
+                        zoom    = FALSE,
+                        palette = "Set2") {
+
+  if (!requireNamespace("pROC", quietly = TRUE)) {
+    warning("Package 'pROC' not installed. Cannot generate ROC curves.\n",
+            "Install with: install.packages('pROC')")
+    return(NULL)
+  }
+
+  # Filter to the requested comparison
+  df <- classified_combined[classified_combined$Comparison == comparison, , drop = FALSE]
+
+  if (nrow(df) == 0) {
+    warning("No data for comparison '", comparison, "'")
+    return(NULL)
+  }
+
+  # Compute score: -log10(p-value)
+  df$score <- -log10(pmax(as.numeric(df[[p_col]]), 1e-300))
+
+  # Filter valid rows
+  df <- df[!is.na(df$truth) & !is.na(df$score), , drop = FALSE]
+
+  if (nrow(df) == 0) {
+    warning("No valid data for ROC in comparison '", comparison, "'")
+    return(NULL)
+  }
+
+  # Build ROC objects per Assay
+  assay_order <- unique(df$Assay)
+  df$Assay <- factor(df$Assay, levels = assay_order)
+  assay_list <- split(df, df$Assay)
+
+  roc_list <- lapply(assay_list, function(d) {
+    if (length(unique(d$truth)) < 2 || nrow(d) < 10) return(NULL)
+    tryCatch(
+      pROC::roc(response = d$truth, predictor = d$score, quiet = TRUE),
+      error = function(e) NULL
+    )
+  })
+  roc_list <- Filter(Negate(is.null), roc_list)
+
+  if (length(roc_list) == 0) {
+    warning("Could not generate ROC curves for comparison '", comparison, "'")
+    return(NULL)
+  }
+
+  # AUC / pAUC labels
+  if (zoom) {
+    aucs <- vapply(roc_list, function(r) {
+      tryCatch(
+        as.numeric(pROC::auc(r,
+                              partial.auc = c(1, 0.9),
+                              partial.auc.correct = TRUE)),
+        error = function(e) NA_real_
+      )
+    }, numeric(1))
+    labels <- paste0(names(roc_list), " (pAUC=", sprintf("%.3f", aucs), ")")
+  } else {
+    aucs <- vapply(roc_list, function(r) as.numeric(pROC::auc(r)), numeric(1))
+    labels <- paste0(names(roc_list), " (AUC=", sprintf("%.3f", aucs), ")")
+  }
+
+  # Build plot
+  title_text <- if (zoom) {
+    paste0("ROC Zoom \u2014 ", comparison)
+  } else {
+    paste0("ROC \u2014 ", comparison)
+  }
+
+  gg <- pROC::ggroc(roc_list, legacy.axes = TRUE, linewidth = 1) +
+    ggplot2::geom_abline(
+      slope = 1, intercept = 0,
+      linetype = "dashed", color = "gray50", linewidth = 0.5
+    ) +
+    ggplot2::labs(
+      title    = title_text,
+      subtitle = if (zoom) {
+        "Low False Positive Rate region (0-10%)"
+      } else {
+        "Diagonal = random classifier"
+      },
+      x     = "False Positive Rate (1 - Specificity)",
+      y     = "True Positive Rate (Sensitivity)",
+      color = "Method"
+    ) +
+    ggplot2::theme_minimal(base_size = 13) +
+    ggplot2::theme(
+      plot.title    = ggplot2::element_text(hjust = 0.5, face = "bold",
+                                            size = 15, color = "#1D3557"),
+      plot.subtitle = ggplot2::element_text(hjust = 0.5, size = 11,
+                                            color = "#6C757D"),
+      legend.position = "right",
+      legend.text     = ggplot2::element_text(size = 10),
+      legend.title    = ggplot2::element_text(face = "bold"),
+      panel.grid.minor = ggplot2::element_blank()
+    )
+
+  # Apply palette
+  if (requireNamespace("RColorBrewer", quietly = TRUE)) {
+    n_colors <- min(length(roc_list),
+                    RColorBrewer::brewer.pal.info[palette, "maxcolors"])
+    pal_colors <- RColorBrewer::brewer.pal(max(n_colors, 3), palette)
+    gg <- gg + ggplot2::scale_color_manual(values = pal_colors, labels = labels)
+  } else {
+    gg <- gg + ggplot2::scale_color_discrete(labels = labels)
+  }
+
+  # Zoom or full view
+  if (zoom) {
+    gg <- gg + ggplot2::coord_cartesian(xlim = c(0, 0.1), ylim = c(0, 1))
+  } else {
+    gg <- gg + ggplot2::coord_cartesian(xlim = c(0, 1), ylim = c(0, 1))
+  }
+
+  gg
+}
+
+
 # =============================================================================
 # SECTION 5: ORCHESTRATOR
 # =============================================================================
@@ -979,6 +1195,11 @@ bm_plot_confusion_stacked <- function(confusion_combined,
 #' @param confusion_combined Optional pre-built data.frame with columns:
 #'   Assay, Comparison, TP, FP, TN, FN. If NULL and \code{results_dir}
 #'   is provided, imported from \code{benchmark_confusion_overall.tsv} files.
+#' @param classified_combined Optional pre-built data.frame with columns:
+#'   Assay, Comparison, truth, and a p-value column. If NULL and
+#'   \code{results_dir} is provided, imported from
+#'   \code{benchmark_classified.tsv} files. Used for multi-method ROC curves.
+#' @param p_col P-value column name for ROC curves (default: "adj.P.Val")
 #' @param plots Which plots to generate: "all" or character vector of names.
 #'   Valid names: "ranking_heatmap_mean", "ranking_heatmap_median",
 #'   "ranking_bars_mean", "ranking_bars_median",
@@ -1013,6 +1234,9 @@ bm_plot_confusion_stacked <- function(confusion_combined,
 #'     \item{confusion_combined}{Combined confusion data.frame (if available)}
 #'     \item{gg_confusion_stacked}{Faceted confusion stacked bars (if available)}
 #'     \item{gg_confusion_stacked_by_comp}{Named list of confusion plots per comparison}
+#'     \item{classified_combined}{Combined classified data.frame (if available)}
+#'     \item{gg_roc_by_comp}{Named list of ROC plots per comparison (if available)}
+#'     \item{gg_roc_zoom_by_comp}{Named list of ROC zoom plots per comparison (if available)}
 #'     \item{parameters}{List of parameters used}
 #'   }
 #'
@@ -1038,14 +1262,16 @@ bm_plot_confusion_stacked <- function(confusion_combined,
 #' result$gg_ranking_heatmap_mean
 #' }
 #' @export
-benchmarking_multiple <- function(opdea_combined     = NULL,
-                                  confusion_combined = NULL,
-                                  results_dir        = NULL,
-                                  pattern            = "benchmark_opdea_metrics\\.tsv$",
-                                  method_names       = NULL,
-                                  recursive          = TRUE,
-                                  metrics            = .BM_METRICS,
-                                  plots              = "all",
+benchmarking_multiple <- function(opdea_combined       = NULL,
+                                  confusion_combined   = NULL,
+                                  classified_combined  = NULL,
+                                  results_dir          = NULL,
+                                  pattern              = "benchmark_opdea_metrics\\.tsv$",
+                                  method_names         = NULL,
+                                  recursive            = TRUE,
+                                  metrics              = .BM_METRICS,
+                                  p_col                = "adj.P.Val",
+                                  plots                = "all",
                                   verbose        = TRUE,
                                   output_dir     = NULL,
                                   export_plots   = TRUE,
@@ -1100,6 +1326,29 @@ benchmarking_multiple <- function(opdea_combined     = NULL,
     })
   }
 
+  # --- Import classified data (optional, for ROC curves) ---
+  has_classified <- FALSE
+  if (is.null(classified_combined) && !is.null(results_dir)) {
+    classified_combined <- tryCatch({
+      if (verbose) message("  Importing classified data ...")
+      import_classified_results(results_dir,
+                                method_names = method_names,
+                                recursive    = recursive)
+    }, error = function(e) {
+      if (verbose) message("  No classified data found (skipping): ", e$message)
+      NULL
+    })
+  }
+  if (!is.null(classified_combined)) {
+    tryCatch({
+      .bm_validate_classified(classified_combined, p_col)
+      has_classified <- TRUE
+    }, error = function(e) {
+      warning("Invalid classified_combined (skipping): ", e$message)
+      classified_combined <- NULL
+    })
+  }
+
   n_methods <- length(unique(opdea_combined$Assay))
   n_comps   <- length(unique(opdea_combined$Comparison))
 
@@ -1109,6 +1358,7 @@ benchmarking_multiple <- function(opdea_combined     = NULL,
             " | Comparisons: ", n_comps,
             " | Rows: ", nrow(opdea_combined))
     if (has_confusion) message("  Confusion data: available")
+    if (has_classified) message("  Classified data: available (ROC curves)")
   }
 
   # ==========================================================================
@@ -1258,6 +1508,41 @@ benchmarking_multiple <- function(opdea_combined     = NULL,
     if (verbose) message("  ", n_conf_ok, " confusion plot(s) generated.")
   }
 
+  # --- ROC curves per comparison (one curve per method) ---
+  gg_roc_by_comp      <- list()
+  gg_roc_zoom_by_comp <- list()
+
+  if (has_classified) {
+    if (verbose) message("  Generating ROC curves per comparison ...")
+
+    roc_comps <- unique(classified_combined$Comparison)
+    gg_roc_by_comp      <- vector("list", length(roc_comps))
+    names(gg_roc_by_comp) <- roc_comps
+    gg_roc_zoom_by_comp <- vector("list", length(roc_comps))
+    names(gg_roc_zoom_by_comp) <- roc_comps
+
+    for (comp in roc_comps) {
+      gg_roc_by_comp[[comp]] <- tryCatch(
+        bm_plot_roc(classified_combined, comp, p_col = p_col, zoom = FALSE),
+        error = function(e) {
+          warning("bm_plot_roc(", comp, ") failed: ", conditionMessage(e))
+          NULL
+        }
+      )
+      gg_roc_zoom_by_comp[[comp]] <- tryCatch(
+        bm_plot_roc(classified_combined, comp, p_col = p_col, zoom = TRUE),
+        error = function(e) {
+          warning("bm_plot_roc(", comp, ", zoom) failed: ", conditionMessage(e))
+          NULL
+        }
+      )
+    }
+
+    n_roc_ok <- sum(!vapply(gg_roc_by_comp, is.null, logical(1))) +
+                sum(!vapply(gg_roc_zoom_by_comp, is.null, logical(1)))
+    if (verbose) message("  ", n_roc_ok, " ROC plot(s) generated.")
+  }
+
   # ==========================================================================
   # STEP 4: Export
   # ==========================================================================
@@ -1351,6 +1636,32 @@ benchmarking_multiple <- function(opdea_combined     = NULL,
       }
       if (verbose) message("  Exported confusion data and plots.")
     }
+
+    # ROC exports
+    if (has_classified) {
+      if (export_tables) {
+        .bm_export_data(classified_combined,
+                        file.path(output_dir, "bm_multiple_classified_combined.tsv"))
+      }
+      if (export_plots) {
+        comp_dir <- file.path(output_dir, "by_comparison")
+        if (!dir.exists(comp_dir)) dir.create(comp_dir, recursive = TRUE)
+        for (comp in names(gg_roc_by_comp)) {
+          safe_comp <- gsub("[^A-Za-z0-9_-]", "_", comp)
+          if (!is.null(gg_roc_by_comp[[comp]])) {
+            .bm_export_gg_plot(gg_roc_by_comp[[comp]],
+                               file.path(comp_dir, paste0("bm_roc_", safe_comp, ".png")),
+                               plot_width, plot_height, plot_dpi)
+          }
+          if (!is.null(gg_roc_zoom_by_comp[[comp]])) {
+            .bm_export_gg_plot(gg_roc_zoom_by_comp[[comp]],
+                               file.path(comp_dir, paste0("bm_roc_zoom_", safe_comp, ".png")),
+                               plot_width, plot_height, plot_dpi)
+          }
+        }
+      }
+      if (verbose) message("  Exported classified data and ROC plots.")
+    }
   }
 
   # ==========================================================================
@@ -1380,6 +1691,13 @@ benchmarking_multiple <- function(opdea_combined     = NULL,
     result$confusion_combined              <- confusion_combined
     result$gg_confusion_stacked            <- gg_confusion_stacked
     result$gg_confusion_stacked_by_comp    <- gg_confusion_by_comp
+  }
+
+  # Classified data and ROC plots
+  if (has_classified) {
+    result$classified_combined     <- classified_combined
+    result$gg_roc_by_comp          <- gg_roc_by_comp
+    result$gg_roc_zoom_by_comp     <- gg_roc_zoom_by_comp
   }
 
   result$parameters <- list(
@@ -1426,8 +1744,9 @@ benchmarking_multiple <- function(opdea_combined     = NULL,
 # }
 #
 # # Run processing + benchmarking for each combo
-# opdea_list     <- list()
-# confusion_list <- list()
+# opdea_list      <- list()
+# confusion_list  <- list()
+# classified_list <- list()
 # for (combo in combos) {
 #   # Build process_proteomics args (omit mar/mnar when imp = "none")
 #   proc_args <- list(
@@ -1458,20 +1777,28 @@ benchmarking_multiple <- function(opdea_combined     = NULL,
 #   conf <- bench$confusion_overall
 #   conf$Assay <- assay_name
 #   confusion_list[[length(confusion_list) + 1]] <- conf
+#
+#   cls <- bench$classified_df
+#   cls$Assay <- assay_name
+#   classified_list[[length(classified_list) + 1]] <- cls
 # }
 #
-# opdea_all     <- do.call(rbind, opdea_list)
-# confusion_all <- do.call(rbind, confusion_list)
+# opdea_all      <- do.call(rbind, opdea_list)
+# confusion_all  <- do.call(rbind, confusion_list)
+# classified_all <- do.call(rbind, classified_list)
 #
 # bm_result <- benchmarking_multiple(
-#   opdea_combined     = opdea_all,
-#   confusion_combined = confusion_all,
-#   output_dir         = "results/bm_multiple",
-#   verbose            = TRUE
+#   opdea_combined      = opdea_all,
+#   confusion_combined  = confusion_all,
+#   classified_combined = classified_all,
+#   output_dir          = "results/bm_multiple",
+#   verbose             = TRUE
 # )
 #
 # bm_result$mean_ranking
 # bm_result$gg_ranking_heatmap_mean
+# bm_result$gg_roc_by_comp[["B-A"]]
+# bm_result$gg_roc_zoom_by_comp[["B-A"]]
 #
 #
 # --- Option B: Import from files ---
@@ -1480,8 +1807,10 @@ benchmarking_multiple <- function(opdea_combined     = NULL,
 #
 # # Assumes folders like:
 # #   results/benchmark_cycloess_Impseqrob_min/benchmark_opdea_metrics.tsv
-# #   results/benchmark_quantile_knn_min/benchmark_opdea_metrics.tsv
-# #   results/benchmark_log2Norm_Impseqrob_MinDet/benchmark_opdea_metrics.tsv
+# #   results/benchmark_cycloess_Impseqrob_min/benchmark_confusion_overall.tsv
+# #   results/benchmark_cycloess_Impseqrob_min/benchmark_classified.tsv
+# #   results/benchmark_quantile_knn_min/...
+# #   results/benchmark_log2Norm_Impseqrob_MinDet/...
 #
 # bm_result <- benchmarking_multiple(
 #   results_dir = "results",
@@ -1491,3 +1820,5 @@ benchmarking_multiple <- function(opdea_combined     = NULL,
 #
 # bm_result$mean_ranking
 # bm_result$gg_ranking_bars_mean
+# bm_result$gg_roc_by_comp[["B-A"]]
+# bm_result$gg_roc_zoom_by_comp[["B-A"]]

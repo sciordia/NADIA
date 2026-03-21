@@ -2358,6 +2358,12 @@ benchmarking_proteomics <- function(
     )
     if (verbose) cat("  - benchmark_opdea_metrics.tsv\n")
 
+    .export_benchmark_data(
+      classified_df,
+      file.path(output_dir, "benchmark_classified.tsv"), "tsv"
+    )
+    if (verbose) cat("  - benchmark_classified.tsv\n")
+
     # Summary with Performance column + OpDEA metrics
     summary_df <- merge(
       metrics_table[, c("Comparison", "Sensitivity", "Specificity",
