@@ -1298,9 +1298,12 @@ bm_plot_pct_error <- function(classified_combined,
     gg <- gg + ggplot2::scale_color_manual(values = pal_colors)
   }
 
+  # Limit x-axis to 0-100% (values beyond 100% are extreme outliers)
+  gg <- gg + ggplot2::coord_cartesian(xlim = c(0, 100))
+
   # Facet if no specific comparison
   if (is.null(comparison)) {
-    gg <- gg + ggplot2::facet_wrap(~ Comparison, scales = "free_x")
+    gg <- gg + ggplot2::facet_wrap(~ Comparison)
   }
 
   gg
