@@ -1150,15 +1150,15 @@ bm_plot_roc <- function(classified_combined,
       panel.grid.minor = ggplot2::element_blank()
     )
 
-  # Apply palette
-  if (requireNamespace("RColorBrewer", quietly = TRUE)) {
-    n_colors <- min(length(roc_list),
-                    RColorBrewer::brewer.pal.info[palette, "maxcolors"])
-    pal_colors <- RColorBrewer::brewer.pal(max(n_colors, 3), palette)
-    gg <- gg + ggplot2::scale_color_manual(values = pal_colors, labels = labels)
+  # Apply palette — use hcl.colors to support any number of methods
+  n_methods <- length(roc_list)
+  pal_colors <- if (requireNamespace("RColorBrewer", quietly = TRUE) &&
+                    n_methods <= RColorBrewer::brewer.pal.info[palette, "maxcolors"]) {
+    RColorBrewer::brewer.pal(max(n_methods, 3), palette)[seq_len(n_methods)]
   } else {
-    gg <- gg + ggplot2::scale_color_discrete(labels = labels)
+    grDevices::hcl.colors(n_methods, palette = "Dynamic")
   }
+  gg <- gg + ggplot2::scale_color_manual(values = pal_colors, labels = labels)
 
   # Zoom or full view
   if (zoom) {
