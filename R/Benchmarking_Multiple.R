@@ -581,7 +581,10 @@ bm_compute_ranking_by_comparison <- function(opdea_combined,
     sub <- opdea_combined[opdea_combined$Comparison == comp,
                           c("Assay", metrics), drop = FALSE]
 
-    # Rank directly (no aggregation — 1 row per method)
+    # Aggregate by Assay to ensure 1 row per method (dedup)
+    sub <- .bm_aggregate_metrics(sub, metrics, mean)
+
+    # Rank directly (1 row per method)
     rank_df <- .bm_rank_methods(sub, metrics)
 
     # Merge values + ranks
@@ -1128,7 +1131,7 @@ bm_plot_ranking_heatmap_by_comp <- function(ranking_by_comp,
   rank_cols <- grep("^rank_", colnames(comp_df), value = TRUE)
   plot_data <- comp_df[, c("Assay", rank_cols), drop = FALSE]
 
-  plot_data$Assay <- factor(plot_data$Assay, levels = rev(comp_df$Assay))
+  plot_data$Assay <- factor(plot_data$Assay, levels = rev(unique(comp_df$Assay)))
 
   long <- tidyr::pivot_longer(plot_data,
                               cols      = rank_cols,
@@ -1184,7 +1187,7 @@ bm_plot_ranking_bars_by_comp <- function(ranking_by_comp,
   comp_df <- ranking_by_comp$by_comparison[[comparison]]
   n_methods <- nrow(comp_df)
 
-  comp_df$Assay <- factor(comp_df$Assay, levels = rev(comp_df$Assay))
+  comp_df$Assay <- factor(comp_df$Assay, levels = rev(unique(comp_df$Assay)))
 
   title <- title %||% paste0("OpDEA Final Ranking: ", comparison)
 
