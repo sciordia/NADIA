@@ -266,8 +266,8 @@ if (!exists("%||%", mode = "function")) {
 # All functions return a numeric matrix in log2 scale with the same
 # rownames/colnames as the input.
 #
-# Grupo A (.norm_log2norm .. .norm_max): receive x_raw (linear).
-# Grupo B (.norm_quantile .. .norm_center_quantile): receive x_log2.
+# Grupo A (.norm_log2norm .. .norm_vsn): receive x_raw (linear).
+# Grupo B (.norm_quantile .. .norm_quantile_robust): receive x_log2.
 #
 # Note: eqmedians belongs to Grupo A (receives x_raw) but applies log2() internally.
 
@@ -310,13 +310,6 @@ if (!exists("%||%", mode = "function")) {
          "Instalalo con BiocManager::install('vsn')")
   }
   vsn::justvsn(x_raw)
-}
-
-.norm_max <- function(x_raw) {
-  col_maxs <- apply(x_raw, 2, max, na.rm = TRUE)
-  x <- log2(sweep(x_raw, 2, col_maxs / median(col_maxs), "/"))
-  x[is.infinite(x)] <- NA
-  x
 }
 
 # --- Grupo B: x_log2 → log2 ---
@@ -378,12 +371,6 @@ if (!exists("%||%", mode = "function")) {
   x
 }
 
-.norm_center_quantile <- function(x_log2, q = 0.15) {
-  ref_quantiles <- apply(x_log2, 2, quantile, probs = q, na.rm = TRUE)
-  ref_center    <- median(ref_quantiles)
-  sweep(x_log2, 2, ref_quantiles - ref_center, "-")
-}
-
 .norm_quantile_robust <- function(x_log2) {
   # Quantile normalization robusta — base R, sin dependencias externas.
   # Identica a .norm_quantile() pero usa la mediana (en lugar de la media)
@@ -430,16 +417,14 @@ if (!exists("%||%", mode = "function")) {
 #' @param norm_method Normalization method (default: "cycloess"). One of:
 #'   \itemize{
 #'     \item Grupo A (input: raw intensities): "log2Norm", "GlobalMedian",
-#'       "GlobalMean", "eqmedians", "vsn", "max"
+#'       "GlobalMean", "eqmedians", "vsn"
 #'     \item Grupo B (input: log2 assay): "log2" (no extra normalization),
 #'       "quantile", "Rlr", "MAD", "cycloess",
-#'       "medianNorm", "meanNorm", "center_quantile",
-#'       "quantile.robust"
+#'       "medianNorm", "meanNorm", "quantile.robust"
 #'   }
 #' @param cyclic_loess_method Cyclic Loess method: "fast" or "pairs" (default: "fast")
 #' @param cyclic_loess_iterations Number of iterations for Cyclic Loess (default: 3)
 #' @param cyclic_loess_span Span parameter for Cyclic Loess (default: 0.7)
-#' @param center_quantile_q Quantile used by the "center_quantile" method (default: 0.15)
 #' @param verbose Print progress messages (default: TRUE)
 #'
 #' @return List with:
@@ -475,7 +460,6 @@ normalize_proteomics <- function(
     cyclic_loess_method     = c("fast", "pairs"),
     cyclic_loess_iterations = 3,
     cyclic_loess_span       = 0.7,
-    center_quantile_q       = 0.15,
     verbose                 = TRUE
 ) {
   # Match cycloess sub-parameters
@@ -560,7 +544,7 @@ normalize_proteomics <- function(
   .raw_methods <- c(
     "log2Norm", "GlobalMedian", "GlobalMean",
     "eqmedians",
-    "vsn", "max",
+    "vsn",
     "medianNorm", "meanNorm"
   )
 
@@ -568,8 +552,7 @@ normalize_proteomics <- function(
     "log2Norm", "eqmedians", "GlobalMedian", "GlobalMean",
     "log2", "quantile", "Rlr", "MAD", "cycloess",
     "medianNorm", "meanNorm",
-    "center_quantile",
-    "vsn", "max", "quantile.robust"
+    "vsn", "quantile.robust"
   ))
 
   x_raw  <- SummarizedExperiment::assay(se, "raw")
@@ -597,9 +580,7 @@ normalize_proteomics <- function(
                             span       = cyclic_loess_span),
       "medianNorm"        = .norm_mediannorm(x_input),
       "meanNorm"          = .norm_meannorm(x_input),
-      "center_quantile"   = .norm_center_quantile(x_input, q = center_quantile_q),
       "vsn"               = .norm_vsn(x_input),
-      "max"               = .norm_max(x_input),
       "quantile.robust"   = .norm_quantile_robust(x_input)
     )
 

@@ -48,18 +48,18 @@ if (!exists(".norm_log2norm", mode = "function")) {
   }
 }
 
-# --- Benchmark methods (14, excludes "log2" which is the baseline) ---
+# --- Benchmark methods (12, excludes "log2" which is the baseline) ---
 .NM_BENCH_METHODS <- c(
   "log2Norm", "GlobalMedian", "GlobalMean", "eqmedians",
-  "vsn", "max", "medianNorm", "meanNorm",
+  "vsn", "medianNorm", "meanNorm",
   "quantile", "Rlr", "MAD", "cycloess",
-  "center_quantile", "quantile.robust"
+  "quantile.robust"
 )
 
 # Methods that require x_raw (Grupo A) — rest use x_log2 (Grupo B)
 .NM_RAW_METHODS <- c(
   "log2Norm", "GlobalMedian", "GlobalMean", "eqmedians",
-  "vsn", "max", "medianNorm", "meanNorm"
+  "vsn", "medianNorm", "meanNorm"
 )
 
 # =============================================================================
@@ -450,7 +450,6 @@ if (!exists(".norm_log2norm", mode = "function")) {
     "GlobalMean"      = .norm_globalmean(x_input),
     "eqmedians"       = .norm_eqmedians(x_input),
     "vsn"             = .norm_vsn(x_input),
-    "max"             = .norm_max(x_input),
     "medianNorm"      = .norm_mediannorm(x_input),
     "meanNorm"        = .norm_meannorm(x_input),
     "quantile"        = .norm_quantile(x_input),
@@ -464,10 +463,6 @@ if (!exists(".norm_log2norm", mode = "function")) {
         iterations = args[["iterations"]] %||% 3,
         span       = args[["span"]]       %||% 0.7
       )
-    },
-    "center_quantile" = {
-      q <- (method_args[["center_quantile"]] %||% list())[["q"]] %||% 0.15
-      .norm_center_quantile(x_input, q = q)
     },
     "quantile.robust" = .norm_quantile_robust(x_input),
     stop("Unknown normalization method: '", method, "'")
@@ -1704,6 +1699,190 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
     ggplot2::expand_limits(y = max(rank_df$MDS1_VarPct, na.rm = TRUE) * 1.08)
 }
 
+# --------------------------------------------------------------------------
+# 14. Metric-based rankings (PCV, PMAD, PEV, Correlation)
+# --------------------------------------------------------------------------
+
+#' Rank normalization methods by median PCV (ascending — lower is better)
+#'
+#' @inheritParams nm_plot_boxplot
+#' @return A `data.frame` with columns `Method`, `Median_PCV`, `Rank`.
+#' @export
+nm_rank_pcv <- function(se, assay_names = NULL, condition_col = "Condition",
+                        verbose = TRUE) {
+  assay_names <- .nm_assay_names(se, assay_names)
+  condition   <- .nm_condition(se, condition_col)
+
+  med <- vapply(assay_names, function(nm) {
+    mat <- SummarizedExperiment::assay(se, nm)
+    median(.nm_pcv(mat, condition), na.rm = TRUE)
+  }, numeric(1))
+
+  df <- data.frame(Method = assay_names, Median_PCV = med,
+                   stringsAsFactors = FALSE)
+  df <- df[order(df$Median_PCV), ]
+  df$Rank <- seq_len(nrow(df))
+  rownames(df) <- NULL
+  df
+}
+
+#' Rank normalization methods by median PMAD (ascending — lower is better)
+#'
+#' @inheritParams nm_plot_boxplot
+#' @return A `data.frame` with columns `Method`, `Median_PMAD`, `Rank`.
+#' @export
+nm_rank_pmad <- function(se, assay_names = NULL, condition_col = "Condition",
+                         verbose = TRUE) {
+  assay_names <- .nm_assay_names(se, assay_names)
+  condition   <- .nm_condition(se, condition_col)
+
+  med <- vapply(assay_names, function(nm) {
+    mat <- SummarizedExperiment::assay(se, nm)
+    median(.nm_pmad(mat, condition), na.rm = TRUE)
+  }, numeric(1))
+
+  df <- data.frame(Method = assay_names, Median_PMAD = med,
+                   stringsAsFactors = FALSE)
+  df <- df[order(df$Median_PMAD), ]
+  df$Rank <- seq_len(nrow(df))
+  rownames(df) <- NULL
+  df
+}
+
+#' Rank normalization methods by median PEV (ascending — lower is better)
+#'
+#' @inheritParams nm_plot_boxplot
+#' @return A `data.frame` with columns `Method`, `Median_PEV`, `Rank`.
+#' @export
+nm_rank_pev <- function(se, assay_names = NULL, condition_col = "Condition",
+                        verbose = TRUE) {
+  assay_names <- .nm_assay_names(se, assay_names)
+  condition   <- .nm_condition(se, condition_col)
+
+  med <- vapply(assay_names, function(nm) {
+    mat <- SummarizedExperiment::assay(se, nm)
+    median(.nm_pev(mat, condition), na.rm = TRUE)
+  }, numeric(1))
+
+  df <- data.frame(Method = assay_names, Median_PEV = med,
+                   stringsAsFactors = FALSE)
+  df <- df[order(df$Median_PEV), ]
+  df$Rank <- seq_len(nrow(df))
+  rownames(df) <- NULL
+  df
+}
+
+#' Rank normalization methods by median intragroup correlation
+#' (descending — higher is better)
+#'
+#' @inheritParams nm_plot_boxplot
+#' @param cor_method Correlation method: "pearson", "spearman", or "kendall".
+#' @return A `data.frame` with columns `Method`, `Median_Cor`, `Rank`.
+#' @export
+nm_rank_cor <- function(se, assay_names = NULL, condition_col = "Condition",
+                        cor_method = "pearson", verbose = TRUE) {
+  assay_names <- .nm_assay_names(se, assay_names)
+  condition   <- .nm_condition(se, condition_col)
+
+  med <- vapply(assay_names, function(nm) {
+    mat  <- SummarizedExperiment::assay(se, nm)
+    cors <- .nm_intragroup_cor(mat, condition, method = cor_method)
+    if (length(cors) == 0) return(NA_real_)
+    median(cors, na.rm = TRUE)
+  }, numeric(1))
+
+  df <- data.frame(Method = assay_names, Median_Cor = med,
+                   stringsAsFactors = FALSE)
+  df <- df[order(-df$Median_Cor), ]
+  df$Rank <- seq_len(nrow(df))
+  rownames(df) <- NULL
+  df
+}
+
+# --------------------------------------------------------------------------
+# 15. Combined final ranking
+# --------------------------------------------------------------------------
+
+#' Compute a combined final ranking across PCV, PMAD, PEV, Correlation,
+#' PC1, and MDS1 rankings
+#'
+#' For each method, the final rank is the mean of the six individual ranks
+#' (pcv, pmad, pev, cor, pc1, mds1). Lower final rank = better overall
+#' normalization quality.
+#'
+#' @inheritParams nm_plot_boxplot
+#' @param cor_method Correlation method forwarded to `nm_rank_cor()`.
+#' @return A `data.frame` with columns: `Method`, `Rank_PCV`, `Rank_PMAD`,
+#'   `Rank_PEV`, `Rank_Cor`, `Rank_PC1`, `Rank_MDS1`, `Rank_Final`, ordered
+#'   by `Rank_Final` ascending (best first).
+#' @export
+nm_rank_final <- function(se, assay_names = NULL, condition_col = "Condition",
+                          cor_method = "pearson", verbose = TRUE) {
+  assay_names <- .nm_assay_names(se, assay_names)
+
+  r_pcv  <- nm_rank_pcv(se,  assay_names, condition_col, verbose = FALSE)
+  r_pmad <- nm_rank_pmad(se, assay_names, condition_col, verbose = FALSE)
+  r_pev  <- nm_rank_pev(se,  assay_names, condition_col, verbose = FALSE)
+  r_cor  <- nm_rank_cor(se,  assay_names, condition_col, cor_method, verbose = FALSE)
+  r_pc1  <- nm_rank_pc1(se,  assay_names, condition_col, verbose = FALSE)
+  r_mds1 <- nm_rank_mds1(se, assay_names, condition_col, verbose = FALSE)
+
+  # Merge all ranks by Method
+  df <- data.frame(Method = assay_names, stringsAsFactors = FALSE)
+  df$Rank_PCV  <- r_pcv$Rank[match(df$Method,  r_pcv$Method)]
+  df$Rank_PMAD <- r_pmad$Rank[match(df$Method, r_pmad$Method)]
+  df$Rank_PEV  <- r_pev$Rank[match(df$Method,  r_pev$Method)]
+  df$Rank_Cor  <- r_cor$Rank[match(df$Method,   r_cor$Method)]
+  df$Rank_PC1  <- r_pc1$Rank[match(df$Method,   r_pc1$Method)]
+  df$Rank_MDS1 <- r_mds1$Rank[match(df$Method,  r_mds1$Method)]
+
+  df$Rank_Final <- rowMeans(df[, c("Rank_PCV", "Rank_PMAD", "Rank_PEV",
+                                    "Rank_Cor", "Rank_PC1", "Rank_MDS1")],
+                            na.rm = TRUE)
+
+  df <- df[order(df$Rank_Final), ]
+  rownames(df) <- NULL
+  df
+}
+
+#' Horizontal bar chart of combined final ranking
+#'
+#' Produces a horizontal bar chart with normalization methods ordered by
+#' ascending final rank (best at top). Uses the same PRONE-style palette
+#' as other `nm_plot_*()` functions.
+#'
+#' @inheritParams nm_plot_boxplot
+#' @param cor_method Correlation method forwarded to `nm_rank_final()`.
+#' @return ggplot object.
+#' @export
+nm_plot_final_ranking <- function(se, assay_names = NULL,
+                                  condition_col = "Condition",
+                                  cor_method = "pearson", ...) {
+  rank_df    <- nm_rank_final(se, assay_names, condition_col,
+                              cor_method = cor_method, verbose = FALSE)
+  col_vector <- .nm_prone_colors(nrow(rank_df))
+
+  # Order factor: best (lowest Rank_Final) at top in coord_flip
+  rank_df$Method <- factor(rank_df$Method,
+                           levels = rev(rank_df$Method))
+
+  ggplot2::ggplot(rank_df,
+    ggplot2::aes(x = Method, y = Rank_Final, fill = Method)) +
+    ggplot2::geom_col(show.legend = FALSE) +
+    ggplot2::geom_text(
+      ggplot2::aes(label = sprintf("%.2f", Rank_Final)),
+      hjust = -0.1, size = 3.2) +
+    ggplot2::coord_flip() +
+    ggplot2::scale_fill_manual(values = rep_len(col_vector, nrow(rank_df))) +
+    ggplot2::labs(
+      title = "Combined Normalization Ranking (PCV + PMAD + PEV + Cor + PC1 + MDS1)",
+      x     = NULL,
+      y     = "Mean Rank"
+    ) +
+    ggplot2::theme_bw() +
+    ggplot2::expand_limits(y = max(rank_df$Rank_Final, na.rm = TRUE) * 1.12)
+}
+
 # =============================================================================
 # SECTION 4: EXPORT HELPER + MAIN ORCHESTRATOR
 # =============================================================================
@@ -1727,6 +1906,26 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
     if (!is.null(result$mds1_rank))
       utils::write.table(result$mds1_rank,
                          file.path(output_dir, "nm_mds1_rank.tsv"),
+                         sep = "\t", row.names = FALSE, quote = FALSE)
+    if (!is.null(result$pcv_rank))
+      utils::write.table(result$pcv_rank,
+                         file.path(output_dir, "nm_pcv_rank.tsv"),
+                         sep = "\t", row.names = FALSE, quote = FALSE)
+    if (!is.null(result$pmad_rank))
+      utils::write.table(result$pmad_rank,
+                         file.path(output_dir, "nm_pmad_rank.tsv"),
+                         sep = "\t", row.names = FALSE, quote = FALSE)
+    if (!is.null(result$pev_rank))
+      utils::write.table(result$pev_rank,
+                         file.path(output_dir, "nm_pev_rank.tsv"),
+                         sep = "\t", row.names = FALSE, quote = FALSE)
+    if (!is.null(result$cor_rank))
+      utils::write.table(result$cor_rank,
+                         file.path(output_dir, "nm_cor_rank.tsv"),
+                         sep = "\t", row.names = FALSE, quote = FALSE)
+    if (!is.null(result$final_rank))
+      utils::write.table(result$final_rank,
+                         file.path(output_dir, "nm_final_rank.tsv"),
                          sep = "\t", row.names = FALSE, quote = FALSE)
     if (verbose) message("Exported tables to: ", output_dir)
   }
@@ -1766,9 +1965,9 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
 #' @param plots Character vector of plot names to generate, or `"all"` (default).
 #'   Valid names: `"boxplot"`, `"density"`, `"pcv"`, `"pmad"`, `"pev"`,
 #'   `"pca"`, `"correlation"`, `"mds"`, `"scatter"`, `"qq"`, `"metrics"`,
-#'   `"pc1_ranking"`. When `pca_scales = "both"`, `"pca"` expands to
-#'   `"pca_free"` + `"pca_fixed"`. When `mds_scales = "both"`, `"mds"` expands
-#'   to `"mds_free"` + `"mds_fixed"`.
+#'   `"pc1_ranking"`, `"mds1_ranking"`, `"final_ranking"`.
+#'   When `pca_scales = "both"`, `"pca"` expands to `"pca_free"` + `"pca_fixed"`.
+#'   When `mds_scales = "both"`, `"mds"` expands to `"mds_free"` + `"mds_fixed"`.
 #' @param cor_method Correlation method for `nm_plot_correlation()`.
 #'   Default `"pearson"`.
 #' @param pca_scales Facet scaling for PCA plot: `"free"` (default),
@@ -1797,9 +1996,10 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
 #' @param plot_height Numeric. Height in inches for exported plots. Default `8`.
 #' @param plot_dpi Numeric. Resolution for exported plots. Default `150`.
 #' @return Named list of ggplot objects (or NULL for failed plots), plus
-#'   `metrics_table`: a `data.frame` from `nm_compute_metrics()` and
-#'   `pc1_rank`: a `data.frame` from `nm_rank_pc1()` (both always computed
-#'   regardless of `plots` selection).
+#'   data.frames always computed regardless of `plots` selection:
+#'   `metrics_table` (from `nm_compute_metrics()`), `pc1_rank`, `mds1_rank`,
+#'   `pcv_rank`, `pmad_rank`, `pev_rank`, `cor_rank`, and `final_rank`
+#'   (combined ranking as mean of the six individual ranks).
 #'
 #' @examples
 #' \dontrun{
@@ -1870,7 +2070,8 @@ normalization_metrics <- function(se,
   # --- Plot registry ---
   all_plot_names <- c("boxplot", "density", "pcv", "pmad", "pev",
                       "pca", "correlation", "mds", "scatter", "qq",
-                      "metrics", "pc1_ranking", "mds1_ranking")
+                      "metrics", "pc1_ranking", "mds1_ranking",
+                      "final_ranking")
 
   # When pca_scales == "both", expand "pca" into "pca_free" + "pca_fixed"
   if (pca_scales == "both") {
@@ -1893,8 +2094,10 @@ normalization_metrics <- function(se,
     scatter     = function() nm_plot_scatter(se, assay_names, condition_col),
     qq          = function() nm_plot_qq(se, assay_names, condition_col),
     metrics     = function() nm_plot_metrics(se, assay_names, condition_col),
-    pc1_ranking  = function() nm_plot_pc1_ranking(se, assay_names, condition_col),
-    mds1_ranking = function() nm_plot_mds1_ranking(se, assay_names, condition_col)
+    pc1_ranking    = function() nm_plot_pc1_ranking(se, assay_names, condition_col),
+    mds1_ranking   = function() nm_plot_mds1_ranking(se, assay_names, condition_col),
+    final_ranking  = function() nm_plot_final_ranking(se, assay_names, condition_col,
+                                                       cor_method = cor_method)
   )
   if (pca_scales == "both") {
     plot_fns$pca_free  <- function() nm_plot_pca(se, assay_names, condition_col,
@@ -1975,7 +2178,49 @@ normalization_metrics <- function(se,
     }
   )
 
-  non_plot <- c("metrics_table", "pc1_rank", "mds1_rank")
+  # --- Always compute metric-based ranks ---
+  result[["pcv_rank"]] <- tryCatch(
+    nm_rank_pcv(se, assay_names, condition_col, verbose = verbose),
+    error = function(e) {
+      warning("nm_rank_pcv() failed: ", conditionMessage(e))
+      NULL
+    }
+  )
+  result[["pmad_rank"]] <- tryCatch(
+    nm_rank_pmad(se, assay_names, condition_col, verbose = verbose),
+    error = function(e) {
+      warning("nm_rank_pmad() failed: ", conditionMessage(e))
+      NULL
+    }
+  )
+  result[["pev_rank"]] <- tryCatch(
+    nm_rank_pev(se, assay_names, condition_col, verbose = verbose),
+    error = function(e) {
+      warning("nm_rank_pev() failed: ", conditionMessage(e))
+      NULL
+    }
+  )
+  result[["cor_rank"]] <- tryCatch(
+    nm_rank_cor(se, assay_names, condition_col, cor_method = cor_method,
+                verbose = verbose),
+    error = function(e) {
+      warning("nm_rank_cor() failed: ", conditionMessage(e))
+      NULL
+    }
+  )
+
+  # --- Always compute combined final_rank ---
+  result[["final_rank"]] <- tryCatch(
+    nm_rank_final(se, assay_names, condition_col, cor_method = cor_method,
+                  verbose = verbose),
+    error = function(e) {
+      warning("nm_rank_final() failed: ", conditionMessage(e))
+      NULL
+    }
+  )
+
+  non_plot <- c("metrics_table", "pc1_rank", "mds1_rank",
+                "pcv_rank", "pmad_rank", "pev_rank", "cor_rank", "final_rank")
   n_ok   <- sum(!sapply(result[setdiff(names(result), non_plot)], is.null))
   n_fail <- length(selected) - n_ok
   if (verbose) {

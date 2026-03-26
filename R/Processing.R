@@ -335,11 +335,10 @@ if (!exists("%||%", mode = "function")) {
 #' @param min_reps_filter Minimum replicates for filtering. If NULL, auto-computed
 #' @param min_groups_filter Minimum groups for filtering (default: 1)
 #' @param norm_method Normalization method passed to normalize_proteomics()
-#'   (default: "cycloess"). See normalize_proteomics() for all 16 options.
+#'   (default: "cycloess"). See normalize_proteomics() for all 14 options.
 #' @param cyclic_loess_method Cyclic Loess method: "fast" or "pairs" (default: "fast")
 #' @param cyclic_loess_iterations Number of iterations for Cyclic Loess (default: 3)
 #' @param cyclic_loess_span Span parameter for Cyclic Loess (default: 0.7)
-#' @param center_quantile_q Quantile for "center_quantile" method (default: 0.15)
 #' @param imp_method Imputation method (default: "combo"). See impute_proteomics() for all options.
 #' @param mar_method MAR method for combo mode (default: "Impseqrob")
 #' @param mnar_method MNAR method for combo mode (default: "min")
@@ -411,7 +410,6 @@ process_proteomics <- function(
     cyclic_loess_method = "fast",
     cyclic_loess_iterations = 3,
     cyclic_loess_span = 0.7,
-    center_quantile_q = 0.15,
     imp_method = "combo",
     mar_method = "Impseqrob",
     mnar_method = "min",
@@ -479,7 +477,6 @@ process_proteomics <- function(
     cyclic_loess_method = cyclic_loess_method,
     cyclic_loess_iterations = cyclic_loess_iterations,
     cyclic_loess_span = cyclic_loess_span,
-    center_quantile_q = center_quantile_q,
     verbose = verbose
   )
 
@@ -642,7 +639,6 @@ process_proteomics <- function(
       cyclic_loess_method = cyclic_loess_method,
       cyclic_loess_iterations = cyclic_loess_iterations,
       cyclic_loess_span = cyclic_loess_span,
-      center_quantile_q = center_quantile_q,
       imp_method = imp_method,
       mar_method = mar_method,
       mnar_method = mnar_method,
