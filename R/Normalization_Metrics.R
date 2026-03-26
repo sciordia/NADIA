@@ -2327,8 +2327,32 @@ if (FALSE) {
   nm_plot_metrics(se_nm)
 
   # PC1 variance ranking
-  nm_rank_pc1(se_nm)              # data.frame with Method, PC1_VarPct, Rank
+  nm_rank_pc1(se_nm)              # data.frame: Method, PC1_VarPct, Rank
   nm_plot_pc1_ranking(se_nm)      # horizontal bar chart
+
+  # MDS1 variance ranking
+  nm_rank_mds1(se_nm)             # data.frame: Method, MDS1_VarPct, Rank
+  nm_plot_mds1_ranking(se_nm)     # horizontal bar chart
+
+  # Metric-based rankings (median per method)
+  nm_rank_pcv(se_nm)              # data.frame: Method, Median_PCV, Rank  (asc)
+  nm_rank_pmad(se_nm)             # data.frame: Method, Median_PMAD, Rank (asc)
+  nm_rank_pev(se_nm)              # data.frame: Method, Median_PEV, Rank  (asc)
+  nm_rank_cor(se_nm)              # data.frame: Method, Median_Cor, Rank  (desc)
+
+  # Combined final ranking (mean of 6 individual ranks)
+  nm_rank_final(se_nm)            # data.frame: Method, Rank_PCV..Rank_MDS1, Rank_Final
+  nm_plot_final_ranking(se_nm)    # horizontal bar chart
+
+  # Access rankings from orchestrator result
+  plots$pc1_rank                  # data.frame
+  plots$mds1_rank                 # data.frame
+  plots$pcv_rank                  # data.frame
+  plots$pmad_rank                 # data.frame
+  plots$pev_rank                  # data.frame
+  plots$cor_rank                  # data.frame
+  plots$final_rank                # data.frame (combined)
+  plots$final_ranking             # ggplot object (bar chart)
 
 
   # ---- 7. Auto-export plots and tables ----------------------------------------
