@@ -21,6 +21,11 @@ if (!exists("%||%", mode = "function")) `%||%` <- function(a, b) if (!is.null(a)
 .BM_REQUIRED_COLS <- c("Assay", "Comparison", "nMCC", "G_mean",
                        "pAUC_001", "pAUC_005", "pAUC_010")
 
+#' Required columns in the combined benchmark metrics data.frame
+#' @keywords internal
+.BM_METRICS_REQUIRED_COLS <- c("Assay", "Comparison", "Sensitivity", "Specificity",
+                               "Precision", "NPV", "F1", "Accuracy", "MCC")
+
 #' Required columns in the combined confusion data.frame
 #' @keywords internal
 .BM_CONFUSION_COLS <- c("Assay", "Comparison", "TP", "FP", "TN", "FN")
@@ -32,6 +37,12 @@ if (!exists("%||%", mode = "function")) `%||%` <- function(a, b) if (!is.null(a)
 #' Default metrics for ranking
 #' @keywords internal
 .BM_METRICS <- c("nMCC", "G_mean", "pAUC_001", "pAUC_005", "pAUC_010")
+
+#' Extended metrics for combined ranking (all higher = better)
+#' @keywords internal
+.BM_EXTENDED_METRICS <- c("Sensitivity", "Specificity", "Precision", "NPV",
+                          "F1", "pAUC_005", "Accuracy", "MCC",
+                          "Performance", "nMCC", "G_mean")
 
 
 #' Read a TSV file with readr fallback
@@ -109,6 +120,41 @@ if (!exists("%||%", mode = "function")) `%||%` <- function(a, b) if (!is.null(a)
     stop("classified_combined has 0 rows.")
 
   invisible(TRUE)
+}
+
+
+#' Validate combined benchmark metrics data.frame
+#' @param df data.frame to validate
+#' @keywords internal
+.bm_validate_bench_metrics <- function(df) {
+  if (!is.data.frame(df))
+    stop("bench_metrics_combined must be a data.frame.")
+
+  missing <- setdiff(.BM_METRICS_REQUIRED_COLS, colnames(df))
+  if (length(missing) > 0)
+    stop("Missing required columns in bench_metrics_combined: ",
+         paste(missing, collapse = ", "),
+         "\nRequired: ", paste(.BM_METRICS_REQUIRED_COLS, collapse = ", "))
+
+  if (nrow(df) == 0)
+    stop("bench_metrics_combined has 0 rows.")
+
+  invisible(TRUE)
+}
+
+
+#' Convert Performance (categorical) to numeric score
+#'
+#' Excellent=5, Very Good=4, Good=3, Acceptable=2, Poor=1, NA=0
+#' @param x Character vector of Performance labels
+#' @return Numeric vector
+#' @keywords internal
+.bm_performance_to_numeric <- function(x) {
+  map <- c("Excellent" = 5, "Very Good" = 4, "Good" = 3,
+           "Acceptable" = 2, "Poor" = 1)
+  vals <- map[x]
+  vals[is.na(vals)] <- 0
+  unname(vals)
 }
 
 
@@ -368,6 +414,61 @@ import_classified_results <- function(results_dir,
 }
 
 
+#' Import benchmark metrics from multiple benchmark result folders
+#'
+#' Reads \code{benchmark_metrics.tsv} files from subdirectories,
+#' adding an \code{Assay} column derived from the folder name.
+#'
+#' @param results_dir Parent directory containing benchmark subfolders
+#' @param pattern Regex pattern for the metrics filename
+#' @param method_names Optional character vector of Assay names
+#' @param recursive Search subdirectories recursively? (default: TRUE)
+#'
+#' @return data.frame with columns:
+#'   Assay, Comparison, TP, FP, TN, FN, Sensitivity, Specificity,
+#'   Precision, NPV, Accuracy, F1, MCC, AUC, Performance
+#'
+#' @export
+import_benchmark_metrics <- function(results_dir,
+                                     pattern      = "benchmark_metrics\\.tsv$",
+                                     method_names = NULL,
+                                     recursive    = TRUE) {
+  if (!dir.exists(results_dir))
+    stop("Directory not found: ", results_dir)
+
+  files <- list.files(results_dir, pattern = pattern,
+                      full.names = TRUE, recursive = recursive)
+  if (length(files) == 0)
+    stop("No files matching pattern '", pattern, "' found in: ", results_dir)
+
+  if (is.null(method_names)) {
+    method_names <- basename(dirname(files))
+  }
+  if (length(method_names) != length(files))
+    stop("Length of method_names (", length(method_names),
+         ") must match number of files (", length(files), ").")
+
+  df_list <- vector("list", length(files))
+  for (i in seq_along(files)) {
+    df <- .bm_read_tsv(files[i])
+    df$Assay <- method_names[i]
+    df_list[[i]] <- df
+  }
+
+  combined <- do.call(rbind, df_list)
+  rownames(combined) <- NULL
+
+  .bm_validate_bench_metrics(combined)
+
+  n_methods <- length(unique(combined$Assay))
+  n_comps   <- length(unique(combined$Comparison))
+  message("import_benchmark_metrics: loaded ", n_methods, " method(s), ",
+          n_comps, " comparison(s), ", nrow(combined), " rows.")
+
+  combined
+}
+
+
 # =============================================================================
 # SECTION 3: RANKING COMPUTATION
 # =============================================================================
@@ -502,6 +603,187 @@ bm_compute_ranking_by_comparison <- function(opdea_combined,
     by_comparison    = by_comp,
     ranking_combined = ranking_combined
   )
+}
+
+
+# =============================================================================
+# SECTION 3b: EXTENDED RANKING (11-metric combined ranking)
+# =============================================================================
+
+#' Build an extended combined data.frame from opdea + benchmark metrics
+#'
+#' Merges OpDEA metrics and benchmark classification metrics by Assay +
+#' Comparison, converts Performance to numeric, and selects the 11 extended
+#' metrics for ranking.
+#'
+#' @param opdea_combined data.frame from import_opdea_results()
+#' @param bench_metrics_combined data.frame from import_benchmark_metrics()
+#' @return data.frame with columns: Assay, Comparison, and the 11 metrics
+#'   in .BM_EXTENDED_METRICS
+#' @keywords internal
+.bm_build_extended <- function(opdea_combined, bench_metrics_combined) {
+  # Merge by Assay + Comparison
+  merged <- merge(
+    bench_metrics_combined[, c("Assay", "Comparison", "Sensitivity", "Specificity",
+                               "Precision", "NPV", "F1", "Accuracy", "MCC",
+                               "Performance"), drop = FALSE],
+    opdea_combined[, c("Assay", "Comparison", "nMCC", "G_mean",
+                       "pAUC_005"), drop = FALSE],
+    by = c("Assay", "Comparison"), all = FALSE
+  )
+
+  # Convert Performance to numeric
+  merged$Performance <- .bm_performance_to_numeric(merged$Performance)
+
+  merged
+}
+
+
+#' Compute extended ranking across 11 classification + OpDEA metrics
+#'
+#' For each of the 11 metrics, averages across comparisons per Assay (mean),
+#' then ranks methods in descending order (higher = better for all metrics).
+#' Final rank = mean of the 11 individual ranks.
+#'
+#' @param opdea_combined data.frame from import_opdea_results()
+#' @param bench_metrics_combined data.frame from import_benchmark_metrics()
+#' @param metrics Character vector of metrics to include (default:
+#'   all 11 extended metrics)
+#'
+#' @return Named list with:
+#'   \describe{
+#'     \item{extended_combined}{Merged data.frame (long format)}
+#'     \item{mean_aggregated}{data.frame of mean metric values per Assay}
+#'     \item{mean_ranking}{data.frame with rank columns and rank_final}
+#'     \item{n_methods}{Number of unique methods}
+#'     \item{n_comparisons}{Number of unique comparisons}
+#'     \item{metrics_used}{Metrics actually used}
+#'   }
+#'
+#' @export
+bm_compute_extended_ranking <- function(opdea_combined,
+                                        bench_metrics_combined,
+                                        metrics = .BM_EXTENDED_METRICS) {
+  .bm_validate_opdea(opdea_combined)
+  .bm_validate_bench_metrics(bench_metrics_combined)
+
+  extended <- .bm_build_extended(opdea_combined, bench_metrics_combined)
+
+  # Check requested metrics exist
+  available <- intersect(metrics, colnames(extended))
+  if (length(available) == 0)
+    stop("None of the requested metrics found in extended data.")
+  if (length(available) < length(metrics)) {
+    missing <- setdiff(metrics, available)
+    warning("Metrics not found (skipping): ", paste(missing, collapse = ", "))
+  }
+  metrics <- available
+
+  mean_agg  <- .bm_aggregate_metrics(extended, metrics, mean)
+  mean_rank <- .bm_rank_methods(mean_agg, metrics)
+
+  list(
+    extended_combined = extended,
+    mean_aggregated   = mean_agg,
+    mean_ranking      = mean_rank,
+    n_methods         = length(unique(extended$Assay)),
+    n_comparisons     = length(unique(extended$Comparison)),
+    metrics_used      = metrics
+  )
+}
+
+
+#' Horizontal bar chart of extended combined ranking
+#'
+#' @param extended_ranking List from bm_compute_extended_ranking()
+#' @param title Optional plot title
+#' @return ggplot object
+#' @export
+bm_plot_extended_ranking_bars <- function(extended_ranking, title = NULL) {
+  if (!requireNamespace("ggplot2", quietly = TRUE))
+    stop("Package 'ggplot2' is required.")
+
+  rank_df   <- extended_ranking$mean_ranking
+  n_methods <- extended_ranking$n_methods
+
+  rank_df$Assay <- factor(rank_df$Assay, levels = rev(rank_df$Assay))
+
+  title <- title %||% "Extended Combined Ranking (11 metrics)"
+  subtitle <- paste0(extended_ranking$n_methods, " methods, ",
+                     extended_ranking$n_comparisons, " comparisons")
+
+  ggplot2::ggplot(rank_df,
+                  ggplot2::aes(x = Assay, y = rank_final, fill = rank_final)) +
+    ggplot2::geom_col(width = 0.7) +
+    ggplot2::geom_text(ggplot2::aes(label = round(rank_final, 2)),
+                       hjust = -0.2, size = 3.5) +
+    ggplot2::scale_fill_gradient(low = "#2ca02c", high = "#d62728",
+                                 limits = c(1, n_methods),
+                                 name = "Rank") +
+    ggplot2::coord_flip() +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.15))) +
+    ggplot2::labs(title = title, subtitle = subtitle,
+                  x = NULL, y = "Final Rank (lower = better)") +
+    ggplot2::theme_minimal(base_size = 12) +
+    ggplot2::theme(
+      plot.title      = ggplot2::element_text(face = "bold"),
+      legend.position = "none"
+    )
+}
+
+
+#' Heatmap of extended ranking (11 metrics)
+#'
+#' @param extended_ranking List from bm_compute_extended_ranking()
+#' @param title Optional plot title
+#' @return ggplot object
+#' @export
+bm_plot_extended_ranking_heatmap <- function(extended_ranking, title = NULL) {
+  if (!requireNamespace("ggplot2", quietly = TRUE))
+    stop("Package 'ggplot2' is required.")
+
+  rank_df <- extended_ranking$mean_ranking
+  metrics <- extended_ranking$metrics_used
+  n_methods <- extended_ranking$n_methods
+
+  # Order methods by rank_final (best first)
+  method_order <- rank_df$Assay
+  rank_cols <- c(paste0("rank_", metrics), "rank_final")
+
+  # Reshape to long format
+  long_list <- lapply(rank_cols, function(rc) {
+    metric_label <- sub("^rank_", "", rc)
+    data.frame(
+      Assay  = rank_df$Assay,
+      Metric = metric_label,
+      Rank   = rank_df[[rc]],
+      stringsAsFactors = FALSE
+    )
+  })
+  long_df <- do.call(rbind, long_list)
+
+  # Factor levels
+  metric_order <- c(metrics, "final")
+  long_df$Metric <- factor(long_df$Metric, levels = metric_order)
+  long_df$Assay  <- factor(long_df$Assay, levels = rev(method_order))
+
+  title <- title %||% "Extended Ranking Heatmap (11 metrics)"
+
+  ggplot2::ggplot(long_df,
+                  ggplot2::aes(x = Metric, y = Assay, fill = Rank)) +
+    ggplot2::geom_tile(color = "white", linewidth = 0.5) +
+    ggplot2::geom_text(ggplot2::aes(label = round(Rank, 1)),
+                       size = 3, color = "black") +
+    ggplot2::scale_fill_gradient(low = "#2ca02c", high = "#d62728",
+                                 limits = c(1, n_methods),
+                                 name = "Rank") +
+    ggplot2::labs(title = title, x = NULL, y = NULL) +
+    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme(
+      plot.title      = ggplot2::element_text(face = "bold"),
+      axis.text.x     = ggplot2::element_text(angle = 45, hjust = 1),
+      panel.grid       = ggplot2::element_blank()
+    )
 }
 
 
@@ -1190,8 +1472,15 @@ bm_plot_roc <- function(classified_combined,
 #'   \code{"benchmark_opdea_metrics\\.tsv$"})
 #' @param method_names Optional Assay names for file import
 #' @param recursive Search subdirectories? (default: TRUE)
-#' @param metrics Character vector of metrics for ranking
+#' @param bench_metrics_combined Optional pre-built data.frame from
+#'   \code{import_benchmark_metrics()} with columns: Assay, Comparison,
+#'   Sensitivity, Specificity, Precision, NPV, F1, Accuracy, MCC, Performance.
+#'   If NULL and \code{results_dir} is provided, imported from
+#'   \code{benchmark_metrics.tsv} files. Used for extended 11-metric ranking.
+#' @param metrics Character vector of metrics for OpDEA ranking
 #'   (default: all 5 OpDEA metrics)
+#' @param extended_metrics Character vector of metrics for extended ranking
+#'   (default: all 11 classification + OpDEA metrics)
 #' @param confusion_combined Optional pre-built data.frame with columns:
 #'   Assay, Comparison, TP, FP, TN, FN. If NULL and \code{results_dir}
 #'   is provided, imported from \code{benchmark_confusion_overall.tsv} files.
@@ -1204,7 +1493,8 @@ bm_plot_roc <- function(classified_combined,
 #'   Valid names: "ranking_heatmap_mean", "ranking_heatmap_median",
 #'   "ranking_bars_mean", "ranking_bars_median",
 #'   "metrics_heatmap_mean", "metrics_heatmap_median",
-#'   "metrics_comparison"
+#'   "metrics_comparison", "extended_ranking_bars",
+#'   "extended_ranking_heatmap"
 #' @param verbose Print progress messages (default: TRUE)
 #' @param output_dir Directory for exporting results (NULL = no export)
 #' @param export_plots Export plots as PNG (default: TRUE)
@@ -1237,6 +1527,11 @@ bm_plot_roc <- function(classified_combined,
 #'     \item{classified_combined}{Combined classified data.frame (if available)}
 #'     \item{gg_roc_by_comp}{Named list of ROC plots per comparison (if available)}
 #'     \item{gg_roc_zoom_by_comp}{Named list of ROC zoom plots per comparison (if available)}
+#'     \item{extended_combined}{Merged classification + OpDEA data (if bench_metrics available)}
+#'     \item{extended_mean_aggregated}{Mean-aggregated extended metrics per Assay}
+#'     \item{extended_ranking}{Extended ranking table (11 metrics, mean-based)}
+#'     \item{gg_extended_ranking_bars}{Bar chart of extended ranking}
+#'     \item{gg_extended_ranking_heatmap}{Heatmap of extended ranking}
 #'     \item{parameters}{List of parameters used}
 #'   }
 #'
@@ -1262,16 +1557,18 @@ bm_plot_roc <- function(classified_combined,
 #' result$gg_ranking_heatmap_mean
 #' }
 #' @export
-benchmarking_multiple <- function(opdea_combined       = NULL,
-                                  confusion_combined   = NULL,
-                                  classified_combined  = NULL,
-                                  results_dir          = NULL,
-                                  pattern              = "benchmark_opdea_metrics\\.tsv$",
-                                  method_names         = NULL,
-                                  recursive            = TRUE,
-                                  metrics              = .BM_METRICS,
-                                  p_col                = "adj.P.Val",
-                                  plots                = "all",
+benchmarking_multiple <- function(opdea_combined            = NULL,
+                                  confusion_combined        = NULL,
+                                  classified_combined       = NULL,
+                                  bench_metrics_combined    = NULL,
+                                  results_dir               = NULL,
+                                  pattern                   = "benchmark_opdea_metrics\\.tsv$",
+                                  method_names              = NULL,
+                                  recursive                 = TRUE,
+                                  metrics                   = .BM_METRICS,
+                                  extended_metrics          = .BM_EXTENDED_METRICS,
+                                  p_col                     = "adj.P.Val",
+                                  plots                     = "all",
                                   verbose        = TRUE,
                                   output_dir     = NULL,
                                   export_plots   = TRUE,
@@ -1349,6 +1646,29 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
     })
   }
 
+  # --- Import benchmark metrics data (optional, for extended ranking) ---
+  has_bench_metrics <- FALSE
+  if (is.null(bench_metrics_combined) && !is.null(results_dir)) {
+    bench_metrics_combined <- tryCatch({
+      if (verbose) message("  Importing benchmark metrics data ...")
+      import_benchmark_metrics(results_dir,
+                               method_names = method_names,
+                               recursive    = recursive)
+    }, error = function(e) {
+      if (verbose) message("  No benchmark metrics data found (skipping): ", e$message)
+      NULL
+    })
+  }
+  if (!is.null(bench_metrics_combined)) {
+    tryCatch({
+      .bm_validate_bench_metrics(bench_metrics_combined)
+      has_bench_metrics <- TRUE
+    }, error = function(e) {
+      warning("Invalid bench_metrics_combined (skipping): ", e$message)
+      bench_metrics_combined <- NULL
+    })
+  }
+
   n_methods <- length(unique(opdea_combined$Assay))
   n_comps   <- length(unique(opdea_combined$Comparison))
 
@@ -1359,6 +1679,7 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
             " | Rows: ", nrow(opdea_combined))
     if (has_confusion) message("  Confusion data: available")
     if (has_classified) message("  Classified data: available (ROC curves)")
+    if (has_bench_metrics) message("  Benchmark metrics data: available (extended ranking)")
   }
 
   # ==========================================================================
@@ -1390,12 +1711,40 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
   }
 
   # ==========================================================================
+  # STEP 2c: Compute extended ranking (11 metrics)
+  # ==========================================================================
+  extended_ranking <- NULL
+  if (has_bench_metrics) {
+    if (verbose) message("  Computing extended ranking (11 metrics) ...")
+    extended_ranking <- tryCatch(
+      bm_compute_extended_ranking(opdea_combined, bench_metrics_combined,
+                                  extended_metrics),
+      error = function(e) {
+        warning("bm_compute_extended_ranking() failed: ", conditionMessage(e))
+        NULL
+      }
+    )
+    if (!is.null(extended_ranking) && verbose) {
+      message("  Best method (extended): ",
+              extended_ranking$mean_ranking$Assay[1],
+              " (rank_final = ",
+              extended_ranking$mean_ranking$rank_final[1], ")")
+    }
+  }
+
+  # ==========================================================================
   # STEP 3: Plot registry
   # ==========================================================================
   all_plot_names <- c("ranking_heatmap_mean", "ranking_heatmap_median",
                       "ranking_bars_mean", "ranking_bars_median",
                       "metrics_heatmap_mean", "metrics_heatmap_median",
                       "metrics_comparison")
+
+  # Add extended ranking plots if data available
+  if (!is.null(extended_ranking)) {
+    all_plot_names <- c(all_plot_names,
+                        "extended_ranking_bars", "extended_ranking_heatmap")
+  }
 
   plot_fns <- list(
     ranking_heatmap_mean   = function() bm_plot_ranking_heatmap(ranking, "mean"),
@@ -1406,6 +1755,12 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
     metrics_heatmap_median = function() bm_plot_metrics_heatmap(ranking, "median"),
     metrics_comparison     = function() bm_plot_metrics_comparison(opdea_combined, metrics)
   )
+
+  # Add extended ranking plot functions if data available
+  if (!is.null(extended_ranking)) {
+    plot_fns$extended_ranking_bars    <- function() bm_plot_extended_ranking_bars(extended_ranking)
+    plot_fns$extended_ranking_heatmap <- function() bm_plot_extended_ranking_heatmap(extended_ranking)
+  }
 
   # Determine which plots to run
   if (identical(plots, "all")) {
@@ -1575,7 +1930,18 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
                         file.path(comp_dir, paste0("bm_ranking_", safe_comp, ".tsv")))
       }
 
-      n_tables <- 5 + 1 + length(comps)
+      # Extended ranking tables
+      if (!is.null(extended_ranking)) {
+        .bm_export_data(extended_ranking$extended_combined,
+                        file.path(output_dir, "bm_multiple_extended_combined.tsv"))
+        .bm_export_data(extended_ranking$mean_aggregated,
+                        file.path(output_dir, "bm_multiple_extended_mean_aggregated.tsv"))
+        .bm_export_data(extended_ranking$mean_ranking,
+                        file.path(output_dir, "bm_multiple_extended_ranking.tsv"))
+      }
+
+      n_tables <- 5 + 1 + length(comps) +
+                  (if (!is.null(extended_ranking)) 3L else 0L)
       if (verbose) message("  Exported ", n_tables, " TSV files.")
     }
 
@@ -1700,12 +2066,21 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
     result$gg_roc_zoom_by_comp     <- gg_roc_zoom_by_comp
   }
 
+  # Extended ranking data and plots
+  if (!is.null(extended_ranking)) {
+    result$extended_combined          <- extended_ranking$extended_combined
+    result$extended_mean_aggregated   <- extended_ranking$mean_aggregated
+    result$extended_ranking           <- extended_ranking$mean_ranking
+    result$bench_metrics_combined     <- bench_metrics_combined
+  }
+
   result$parameters <- list(
-    metrics       = metrics,
-    n_methods     = n_methods,
-    n_comparisons = n_comps,
-    comparisons   = comps,
-    plots         = selected
+    metrics           = metrics,
+    extended_metrics  = if (!is.null(extended_ranking)) extended_ranking$metrics_used else NULL,
+    n_methods         = n_methods,
+    n_comparisons     = n_comps,
+    comparisons       = comps,
+    plots             = selected
   )
 
   if (verbose) message("=== DONE ===")
@@ -1744,9 +2119,10 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
 # }
 #
 # # Run processing + benchmarking for each combo
-# opdea_list      <- list()
-# confusion_list  <- list()
-# classified_list <- list()
+# opdea_list       <- list()
+# confusion_list   <- list()
+# classified_list  <- list()
+# bench_met_list   <- list()
 # for (combo in combos) {
 #   # Build process_proteomics args (omit mar/mnar when imp = "none")
 #   proc_args <- list(
@@ -1781,21 +2157,30 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
 #   cls <- bench$classified_df
 #   cls$Assay <- assay_name
 #   classified_list[[length(classified_list) + 1]] <- cls
+#
+#   bmet <- bench$metrics_table
+#   bmet$Assay <- assay_name
+#   bench_met_list[[length(bench_met_list) + 1]] <- bmet
 # }
 #
 # opdea_all      <- do.call(rbind, opdea_list)
 # confusion_all  <- do.call(rbind, confusion_list)
 # classified_all <- do.call(rbind, classified_list)
+# bench_met_all  <- do.call(rbind, bench_met_list)
 #
 # bm_result <- benchmarking_multiple(
-#   opdea_combined      = opdea_all,
-#   confusion_combined  = confusion_all,
-#   classified_combined = classified_all,
-#   output_dir          = "results/bm_multiple",
-#   verbose             = TRUE
+#   opdea_combined         = opdea_all,
+#   confusion_combined     = confusion_all,
+#   classified_combined    = classified_all,
+#   bench_metrics_combined = bench_met_all,
+#   output_dir             = "results/bm_multiple",
+#   verbose                = TRUE
 # )
 #
-# bm_result$mean_ranking
+# bm_result$mean_ranking                    # OpDEA ranking (5 metrics)
+# bm_result$extended_ranking                # Extended ranking (11 metrics)
+# bm_result$gg_extended_ranking_bars        # Bar chart of extended ranking
+# bm_result$gg_extended_ranking_heatmap     # Heatmap of extended ranking
 # bm_result$gg_ranking_heatmap_mean
 # bm_result$gg_roc_by_comp[["B-A"]]
 # bm_result$gg_roc_zoom_by_comp[["B-A"]]
@@ -1807,6 +2192,7 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
 #
 # # Assumes folders like:
 # #   results/benchmark_cycloess_Impseqrob_min/benchmark_opdea_metrics.tsv
+# #   results/benchmark_cycloess_Impseqrob_min/benchmark_metrics.tsv        (for extended ranking)
 # #   results/benchmark_cycloess_Impseqrob_min/benchmark_confusion_overall.tsv
 # #   results/benchmark_cycloess_Impseqrob_min/benchmark_classified.tsv
 # #   results/benchmark_quantile_knn_min/...
@@ -1818,7 +2204,10 @@ benchmarking_multiple <- function(opdea_combined       = NULL,
 #   verbose     = TRUE
 # )
 #
-# bm_result$mean_ranking
+# bm_result$mean_ranking                    # OpDEA ranking (5 metrics)
+# bm_result$extended_ranking                # Extended ranking (11 metrics)
+# bm_result$gg_extended_ranking_bars        # Bar chart of extended ranking
+# bm_result$gg_extended_ranking_heatmap     # Heatmap of extended ranking
 # bm_result$gg_ranking_bars_mean
 # bm_result$gg_roc_by_comp[["B-A"]]
 # bm_result$gg_roc_zoom_by_comp[["B-A"]]
