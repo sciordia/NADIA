@@ -625,18 +625,34 @@ bm_compute_ranking_by_comparison <- function(opdea_combined,
 #'   in .BM_EXTENDED_METRICS
 #' @keywords internal
 .bm_build_extended <- function(opdea_combined, bench_metrics_combined) {
+  # Compute Performance from F1 if column is missing
+  if (!"Performance" %in% colnames(bench_metrics_combined) &&
+      "F1" %in% colnames(bench_metrics_combined)) {
+    bench_metrics_combined$Performance <- ifelse(
+      is.na(bench_metrics_combined$F1), NA_character_,
+      ifelse(bench_metrics_combined$F1 >= 0.9, "Excellent",
+      ifelse(bench_metrics_combined$F1 >= 0.8, "Very Good",
+      ifelse(bench_metrics_combined$F1 >= 0.7, "Good",
+      ifelse(bench_metrics_combined$F1 >= 0.5, "Acceptable", "Poor")))))
+  }
+
   # Merge by Assay + Comparison
+  bench_cols <- intersect(
+    c("Assay", "Comparison", "Sensitivity", "Specificity",
+      "Precision", "NPV", "F1", "Accuracy", "MCC", "Performance"),
+    colnames(bench_metrics_combined)
+  )
   merged <- merge(
-    bench_metrics_combined[, c("Assay", "Comparison", "Sensitivity", "Specificity",
-                               "Precision", "NPV", "F1", "Accuracy", "MCC",
-                               "Performance"), drop = FALSE],
+    bench_metrics_combined[, bench_cols, drop = FALSE],
     opdea_combined[, c("Assay", "Comparison", "nMCC", "G_mean",
                        "pAUC_005"), drop = FALSE],
     by = c("Assay", "Comparison"), all = FALSE
   )
 
   # Convert Performance to numeric
-  merged$Performance <- .bm_performance_to_numeric(merged$Performance)
+  if ("Performance" %in% colnames(merged)) {
+    merged$Performance <- .bm_performance_to_numeric(merged$Performance)
+  }
 
   merged
 }
