@@ -14,12 +14,13 @@
 #   - Li et al. (2009) Biostatistics 10(2):317-326
 #   - Čuklina et al. (2021) Molecular & Cellular Proteomics 20 (proBatch)
 #
-# Dependencies (required):
-#   - SummarizedExperiment, ggplot2
+# Implementation uses lme4 directly (instead of the pvca package) to allow
+# automatic detection and exclusion of problematic interaction terms where
+# the number of levels >= number of observations (e.g., Condition:Patient
+# in paired designs).
 #
-# Dependencies (optional):
-#   - pvca   (Bioconductor): pvcaBatchAssess()
-#   - Biobase (Bioconductor): ExpressionSet construction
+# Dependencies (required):
+#   - SummarizedExperiment, ggplot2, lme4
 #
 # Author: Sergio Ciordia
 # License: MIT
@@ -35,9 +36,6 @@ if (!exists("%||%", mode = "function")) {
 # =============================================================================
 
 #' Validate that factors exist in colData
-#' @param se SummarizedExperiment
-#' @param factors Character vector of column names
-#' @return invisible(TRUE) or stops with error
 #' @keywords internal
 .pvca_validate_factors <- function(se, factors) {
   cd_cols <- colnames(SummarizedExperiment::colData(se))
@@ -49,14 +47,6 @@ if (!exists("%||%", mode = "function")) {
 }
 
 #' Extract and prepare the abundance matrix, handling NAs
-#'
-#' @param se SummarizedExperiment
-#' @param assay_name Character, assay to extract
-#' @param na_action One of "complete" (drop rows with any NA),
-#'   "fill" (replace NAs with fill_value), or "none" (no action).
-#' @param fill_value Numeric, used when na_action = "fill" (default -1).
-#' @param verbose Logical
-#' @return Numeric matrix (proteins x samples) with no NAs
 #' @keywords internal
 .pvca_prepare_matrix <- function(se, assay_name, na_action = "complete",
                                  fill_value = -1, verbose = TRUE) {
@@ -95,30 +85,137 @@ if (!exists("%||%", mode = "function")) {
   mat
 }
 
-#' Build a Biobase ExpressionSet from matrix and SE colData
-#' @param mat Numeric matrix (proteins x samples)
-#' @param se SummarizedExperiment (for colData extraction)
-#' @param factors Character vector of factor column names
-#' @return Biobase::ExpressionSet
+#' Check which interaction terms are safe (n_levels < n_obs)
+#'
+#' Returns only interactions whose combined factor levels are strictly less
+#' than the number of observations. This prevents lme4 from failing on
+#' saturated random effects (e.g., Condition:Patient in paired designs).
+#'
+#' @param annot_df data.frame with factor columns
+#' @param factors Character vector of main effect names
+#' @param verbose Logical
+#' @return Character vector of safe interaction terms (e.g., "A:B")
 #' @keywords internal
-.pvca_build_eset <- function(mat, se, factors) {
-  cd <- as.data.frame(SummarizedExperiment::colData(se))
-  # Keep only the factors and ensure correct sample order
-  annot_df <- cd[colnames(mat), factors, drop = FALSE]
-  # Convert all to factor (required by pvcaBatchAssess)
-  for (col in names(annot_df)) {
-    annot_df[[col]] <- as.factor(annot_df[[col]])
+.pvca_safe_interactions <- function(annot_df, factors, verbose = TRUE) {
+  n_obs <- nrow(annot_df)
+  if (length(factors) < 2) return(character(0))
+
+  pairs <- combn(factors, 2, simplify = FALSE)
+  safe <- character(0)
+  skipped <- character(0)
+
+  for (p in pairs) {
+    interaction_levels <- nlevels(interaction(annot_df[[p[1]]],
+                                              annot_df[[p[2]]],
+                                              drop = TRUE))
+    label <- paste(p, collapse = ":")
+    if (interaction_levels < n_obs) {
+      safe <- c(safe, label)
+    } else {
+      skipped <- c(skipped, label)
+    }
   }
-  pheno <- Biobase::AnnotatedDataFrame(data = annot_df)
-  Biobase::ExpressionSet(assayData = mat, phenoData = pheno)
+
+  if (verbose && length(skipped) > 0)
+    message("  Skipped interaction(s) with n_levels >= n_obs: ",
+            paste(skipped, collapse = ", "))
+
+  safe
+}
+
+#' Core PVCA algorithm using lme4
+#'
+#' 1. PCA on the expression matrix
+#' 2. Retain PCs explaining >= pca_threshold cumulative variance
+#' 3. For each retained PC, fit lme4 mixed model with factors as random effects
+#' 4. Extract variance components, weight by PC variance proportion
+#'
+#' @param mat Numeric matrix (proteins x samples)
+#' @param annot_df data.frame with factor columns (rows = samples)
+#' @param factors Character vector of factor names
+#' @param pca_threshold Numeric (0-1)
+#' @param verbose Logical
+#' @return data.frame with columns: label, weights
+#' @keywords internal
+.pvca_run <- function(mat, annot_df, factors, pca_threshold = 0.6,
+                      verbose = TRUE) {
+
+  # --- PCA ---
+  pca_res <- prcomp(t(mat), center = TRUE, scale. = FALSE)
+  var_pct <- pca_res$sdev^2 / sum(pca_res$sdev^2)
+  cum_var <- cumsum(var_pct)
+  n_pcs <- min(which(cum_var >= pca_threshold))
+  # Ensure at least 1 PC
+  n_pcs <- max(1, n_pcs)
+  # Cap at available PCs
+  n_pcs <- min(n_pcs, length(var_pct))
+
+  if (verbose)
+    message("  PCA: retaining ", n_pcs, " PC(s) (",
+            round(cum_var[n_pcs] * 100, 1), "% cumulative variance)")
+
+  pc_scores <- pca_res$x[, seq_len(n_pcs), drop = FALSE]
+  pc_weights <- var_pct[seq_len(n_pcs)]
+  # Renormalize weights to sum to 1
+  pc_weights <- pc_weights / sum(pc_weights)
+
+  # --- Determine safe interactions ---
+  safe_interactions <- .pvca_safe_interactions(annot_df, factors, verbose)
+
+  # --- Build random-effects terms ---
+  all_terms <- c(factors, safe_interactions)
+  re_formula_str <- paste0("(1|", all_terms, ")", collapse = " + ")
+  # Full formula: y ~ 1 + (1|factor1) + ... + (1|factorA:factorB) + ...
+
+  # --- Fit mixed model for each PC and extract variance components ---
+  # Prepare data frame for lme4
+  fit_df <- as.data.frame(annot_df[, factors, drop = FALSE])
+  # Ensure all are factors
+  for (f in factors) fit_df[[f]] <- as.factor(fit_df[[f]])
+
+  # Initialize accumulator for weighted variance proportions
+  varcomp_accum <- setNames(rep(0, length(all_terms) + 1),
+                            c(all_terms, "resid"))
+
+  for (k in seq_len(n_pcs)) {
+    fit_df$y <- pc_scores[, k]
+    formula_str <- paste0("y ~ 1 + ", re_formula_str)
+    fm <- lme4::lmer(as.formula(formula_str), data = fit_df,
+                     REML = TRUE,
+                     control = lme4::lmerControl(
+                       check.nobs.vs.nlev  = "warning",
+                       check.nobs.vs.nRE   = "warning",
+                       check.nlev.gtr.1    = "warning"
+                     ))
+
+    # Extract variance components
+    vc <- lme4::VarCorr(fm)
+    vc_df <- as.data.frame(vc)
+    # vc_df has columns: grp, var1, var2, vcov, sdcor
+    # grp contains factor names and "Residual"
+
+    total_var <- sum(vc_df$vcov)
+    if (total_var <= 0) next
+
+    for (row_i in seq_len(nrow(vc_df))) {
+      grp <- vc_df$grp[row_i]
+      prop <- vc_df$vcov[row_i] / total_var
+      key <- if (grp == "Residual") "resid" else grp
+      if (key %in% names(varcomp_accum)) {
+        varcomp_accum[key] <- varcomp_accum[key] + prop * pc_weights[k]
+      }
+    }
+  }
+
+  # --- Build result data.frame ---
+  data.frame(
+    label   = names(varcomp_accum),
+    weights = as.numeric(varcomp_accum),
+    stringsAsFactors = FALSE
+  )
 }
 
 #' Categorize PVCA labels as technical, biological, interaction, or residual
-#' @param pvca_df data.frame with columns label, weights
-#' @param technical_factors Character vector
-#' @param biological_factors Character vector
-#' @param variance_threshold Numeric
-#' @return data.frame with added column 'category'
 #' @keywords internal
 .pvca_categorize <- function(pvca_df, technical_factors, biological_factors,
                              variance_threshold = 0.01) {
@@ -176,7 +273,12 @@ if (!exists("%||%", mode = "function")) {
 #'
 #' Performs Principal Variance Component Analysis on a SummarizedExperiment
 #' object. Decomposes total variance into contributions from each specified
-#' factor plus their interactions and residual variance.
+#' factor, their pairwise interactions, and residual variance.
+#'
+#' Uses lme4 directly to fit mixed models, which allows automatic detection
+#' and exclusion of interaction terms where the number of levels equals or
+#' exceeds the number of observations (e.g., Condition:Patient in paired
+#' designs with one observation per patient-condition combination).
 #'
 #' @param se SummarizedExperiment object.
 #' @param assay_name Character. Name of the assay to use. If NULL, uses the
@@ -216,11 +318,9 @@ pvca_compute <- function(se,
                          verbose             = TRUE) {
 
   # --- Check required packages ---
-  for (pkg in c("pvca", "Biobase")) {
-    if (!requireNamespace(pkg, quietly = TRUE))
-      stop("Package '", pkg, "' is required for pvca_compute(). ",
-           "Install from Bioconductor: BiocManager::install('", pkg, "')")
-  }
+  if (!requireNamespace("lme4", quietly = TRUE))
+    stop("Package 'lme4' is required for pvca_compute(). ",
+         "Install with: install.packages('lme4')")
 
   # --- Resolve assay name ---
   all_assays <- SummarizedExperiment::assayNames(se)
@@ -239,20 +339,14 @@ pvca_compute <- function(se,
   # --- Prepare matrix (handle NAs) ---
   mat <- .pvca_prepare_matrix(se, assay_name, na_action, fill_value, verbose)
 
-  # --- Build ExpressionSet ---
-  eset <- .pvca_build_eset(mat, se, factors)
+  # --- Prepare annotation data ---
+  cd <- as.data.frame(SummarizedExperiment::colData(se))
+  annot_df <- cd[colnames(mat), factors, drop = FALSE]
 
-  # --- Run PVCA ---
-  if (verbose) message("  Running pvcaBatchAssess (", length(factors),
+  # --- Run PVCA via lme4 ---
+  if (verbose) message("  Running PVCA (", length(factors),
                        " factors, pca_threshold=", pca_threshold, ") ...")
-  pvca_out <- pvca::pvcaBatchAssess(eset, factors, threshold = pca_threshold)
-
-  # --- Format results ---
-  pvca_df <- data.frame(
-    label   = pvca_out$label,
-    weights = as.vector(pvca_out$dat),
-    stringsAsFactors = FALSE
-  )
+  pvca_df <- .pvca_run(mat, annot_df, factors, pca_threshold, verbose)
 
   # Aggregate small components
   label_of_small <- sprintf("Below %1.0f%%", 100 * variance_threshold)
@@ -265,9 +359,9 @@ pvca_compute <- function(se,
   }
 
   if (verbose) {
-    message("  PVCA complete. Top components:")
+    message("  PVCA complete. Variance components:")
     top <- pvca_df[order(-pvca_df$weights), ]
-    for (i in seq_len(min(5, nrow(top)))) {
+    for (i in seq_len(nrow(top))) {
       message(sprintf("    %-25s %5.1f%%", top$label[i], top$weights[i] * 100))
     }
   }
@@ -475,7 +569,7 @@ pvca_analysis <- function(se,
   if (verbose) message("  Generating PVCA plot ...")
   gg <- tryCatch(
     pvca_plot(pvca_df, colors = colors,
-              title = paste0("PVCA — ", used_assay, " (", n_proteins,
+              title = paste0("PVCA \u2014 ", used_assay, " (", n_proteins,
                              " proteins)"),
               base_size = 15),
     error = function(e) {
