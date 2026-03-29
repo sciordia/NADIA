@@ -706,44 +706,60 @@ pvca_analysis <- function(se,
                               cores       = 1,
                               ur          = TRUE) {
 
-  # HarmonizR internally mangles column names (check.names=TRUE in
+  # HarmonizR's programmatic interface has a bug: rebuild() via plyr::rbind.fill
+  # can alter column names, causing "undefined columns selected" when it tries
+  # to restore original column order. Workaround: use the file-based interface
+  # (HarmonizR's primary and best-tested input method).
 
-  # intermediate data.frames), causing "undefined columns selected" on rebuild.
-  # Workaround: use safe temporary names, then restore originals.
   orig_colnames <- colnames(mat)
   orig_rownames <- rownames(mat)
-  safe_colnames <- paste0("S", seq_len(ncol(mat)))
 
-  colnames(mat) <- safe_colnames
+  # Create temp directory for HarmonizR I/O
+  tmp_dir <- tempfile("harmonizr_")
+  dir.create(tmp_dir)
+  on.exit(unlink(tmp_dir, recursive = TRUE), add = TRUE)
 
-  input_df <- as.data.frame(mat, check.names = FALSE)
+  # Write data file (TSV: first column = feature IDs, rest = samples)
+  data_file <- file.path(tmp_dir, "input_data.tsv")
+  data_df <- data.frame(ID = orig_rownames, mat, check.names = FALSE)
+  utils::write.table(data_df, data_file, sep = "\t", quote = FALSE,
+                      row.names = FALSE)
 
-  # Update description to use safe names
-  description$ID <- safe_colnames
+  # Write description file (CSV: ID, sample, batch)
+  desc_file <- file.path(tmp_dir, "description.csv")
+  utils::write.csv(description, desc_file, row.names = FALSE)
 
-  # Build args list (exclude NULL values)
+  # Output file path (HarmonizR appends .tsv)
+  output_base <- file.path(tmp_dir, "cured_data")
+
+  # Build args list
   hr_args <- list(
-    data_as_input        = input_df,
-    description_as_input = description,
+    data_as_input        = data_file,
+    description_as_input = desc_file,
     algorithm            = algorithm,
     ComBat_mode          = ComBat_mode,
     sort                 = sort_method,
     cores                = cores,
     ur                   = ur,
-    output_file          = FALSE
+    output_file          = output_base
   )
   if (!is.null(block)) hr_args$block <- block
 
-  result <- do.call(HarmonizR::harmonizR, hr_args)
+  do.call(HarmonizR::harmonizR, hr_args)
 
-  # HarmonizR returns a data.frame; convert back to matrix and restore names
-  if (is.data.frame(result)) {
-    result <- as.matrix(result)
+  # Read the output file written by HarmonizR
+  output_file <- paste0(output_base, ".tsv")
+  if (!file.exists(output_file))
+    stop("HarmonizR did not produce output file: ", output_file)
+
+  result_df <- utils::read.delim(output_file, sep = "\t", row.names = 1,
+                                  check.names = FALSE)
+  result <- as.matrix(result_df)
+
+  # Ensure column order matches input
+  if (all(orig_colnames %in% colnames(result))) {
+    result <- result[, orig_colnames, drop = FALSE]
   }
-
-  # Restore original column names (safe_colnames → orig_colnames)
-  safe_to_orig <- setNames(orig_colnames, safe_colnames)
-  colnames(result) <- safe_to_orig[colnames(result)]
 
   result
 }
