@@ -1062,6 +1062,16 @@ batch_correct_proteomics <- function(
 #' @param fill_value Numeric. NA replacement when na_action="fill" (default -1).
 #' @param center Logical. Center before PCA (default TRUE).
 #' @param scale. Logical. Scale before PCA (default FALSE).
+#' @param de_results Data.frame with differential expression results (e.g.,
+#'   result$DEPs_results). Must contain columns "Protein.IDs", "adj.P.Val", and
+#'   "Comparison". When provided, PCA is computed using only significant proteins.
+#'   Default NULL (all proteins).
+#' @param comparison Character. Which comparison to filter by. Use "any"
+#'   (default) to keep proteins significant in any comparison, or specify a
+#'   comparison name (e.g., "Post_vs_Pre") to filter to that one only.
+#'   Ignored if de_results is NULL.
+#' @param alpha Numeric. Significance threshold for adj.P.Val when filtering
+#'   by de_results (default 0.05). Ignored if de_results is NULL.
 #' @param point_size Numeric. Size of scatter points (default 3).
 #' @param verbose Logical (default TRUE).
 #'
@@ -1094,6 +1104,9 @@ pca_covariates_plot <- function(
     fill_value    = -1,
     center        = TRUE,
     scale.        = FALSE,
+    de_results    = NULL,
+    comparison    = "any",
+    alpha         = 0.05,
     point_size    = 3,
     verbose       = TRUE
 ) {
@@ -1112,6 +1125,40 @@ pca_covariates_plot <- function(
 
   # --- Validate covariates ---
   .pvca_validate_factors(se, covariates)
+
+  # --- Filter to differential proteins if de_results provided ---
+  protein_label <- "proteins"
+  if (!is.null(de_results)) {
+    required_cols <- c("Protein.IDs", "adj.P.Val", "Comparison")
+    missing_cols <- setdiff(required_cols, colnames(de_results))
+    if (length(missing_cols) > 0)
+      stop("de_results must contain columns: ",
+           paste(missing_cols, collapse = ", "))
+
+    # Filter by comparison
+    if (!identical(comparison, "any")) {
+      available_comps <- unique(de_results$Comparison)
+      if (!comparison %in% available_comps)
+        stop("Comparison '", comparison, "' not found. Available: ",
+             paste(available_comps, collapse = ", "))
+      de_sub <- de_results[de_results$Comparison == comparison, ]
+      comp_label <- comparison
+    } else {
+      de_sub <- de_results
+      comp_label <- "any comparison"
+    }
+
+    sig_ids <- unique(de_sub$Protein.IDs[de_sub$adj.P.Val < alpha])
+    keep <- rownames(se) %in% sig_ids
+    if (sum(keep) < 3)
+      stop("Only ", sum(keep), " differential proteins found (adj.P.Val < ",
+           alpha, ", comparison: ", comp_label, "). Need at least 3 for PCA.")
+    se <- se[keep, ]
+    protein_label <- paste0("DEPs (", comp_label, ")")
+    if (verbose) message("PCA covariates: filtered to ", sum(keep),
+                         " DEPs (adj.P.Val < ", alpha,
+                         ", comparison: ", comp_label, ")")
+  }
 
   if (verbose) message("PCA covariates: using assay '", assay_name, "'")
 
@@ -1162,7 +1209,7 @@ pca_covariates_plot <- function(
       ggplot2::geom_point(size = point_size, alpha = 0.8) +
       ggplot2::labs(
         title    = paste0("PCA \u2014 ", assay_name),
-        subtitle = paste0(n_proteins, " proteins | colored by ", cov),
+        subtitle = paste0(n_proteins, " ", protein_label, " | colored by ", cov),
         x = x_lab, y = y_lab, color = cov
       ) +
       common_theme
@@ -1210,7 +1257,7 @@ pca_covariates_plot <- function(
     ggplot2::scale_color_viridis_d(option = "H") +
     ggplot2::labs(
       title    = paste0("PCA \u2014 ", assay_name,
-                         " (", n_proteins, " proteins)"),
+                         " (", n_proteins, " ", protein_label, ")"),
       x = x_lab, y = y_lab, color = "Value"
     ) +
     common_theme +
