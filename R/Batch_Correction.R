@@ -1,5 +1,5 @@
 # =============================================================================
-# Batch Diagnostics — PVCA + Batch Correction (HarmonizR)
+# Batch Correction — PVCA + HarmonizR
 # =============================================================================
 #
 # Two complementary modules for batch effect analysis:
@@ -535,7 +535,7 @@ pvca_plot <- function(pvca_res,
 #'
 #' @examples
 #' \dontrun{
-#' source("R/Batch_Diagnostics.R")
+#' source("R/Batch_Correction.R")
 #' pvca_res <- pvca_analysis(
 #'   se = result$se_proc,
 #'   assay_name = "cycloess",
@@ -894,7 +894,7 @@ pvca_analysis <- function(se,
 #'
 #' @examples
 #' \dontrun{
-#' source("R/Batch_Diagnostics.R")
+#' source("R/Batch_Correction.R")
 #' se_corrected <- batch_correct_proteomics(
 #'   se         = result$se_proc,
 #'   assay_name = "cycloess",
@@ -1092,7 +1092,7 @@ batch_correct_proteomics <- function(
 #'
 #' @examples
 #' \dontrun{
-#' source("R/Batch_Diagnostics.R")
+#' source("R/Batch_Correction.R")
 #' pca_cov <- pca_covariates_plot(
 #'   se = result$se_proc,
 #'   assay_name = "HarmonizR",

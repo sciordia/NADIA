@@ -520,13 +520,13 @@ process_proteomics <- function(
   }
 
   # =========================================================================
-  # 2b. BATCH CORRECTION (optional — Batch_Diagnostics.R / HarmonizR)
+  # 2b. BATCH CORRECTION (optional — Batch_Correction.R / HarmonizR)
   # =========================================================================
 
   input_to_imputation <- norm_method
 
   if (batch_correct) {
-    source(file.path(.self_dir, "Batch_Diagnostics.R"))
+    source(file.path(.self_dir, "Batch_Correction.R"))
 
     if (!batch_column %in% colnames(SummarizedExperiment::colData(se))) {
       stop("batch_correct=TRUE but batch column '", batch_column,
