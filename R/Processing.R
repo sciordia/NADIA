@@ -345,7 +345,7 @@ if (!exists("%||%", mode = "function")) {
 #'   (default: "Batch"). Must have >= 2 unique values.
 #' @param batch_algorithm Batch correction algorithm: "ComBat" (default) or "limma"
 #' @param batch_ComBat_mode Integer 1-4 for ComBat parametric/mean-only settings (default: 1)
-#' @param batch_sort Sorting for matrix dissection: "sparcity_sort" (default),
+#' @param batch_sort Sorting for matrix dissection: "sparsity_sort" (default),
 #'   "seriation_sort", or "jaccard_sort"
 #' @param batch_block Integer or NULL. Block size for batch grouping (default: NULL)
 #' @param batch_cores Integer. Cores for HarmonizR parallelization (default: 1)
@@ -425,7 +425,7 @@ process_proteomics <- function(
     batch_column = "Batch",
     batch_algorithm = "ComBat",
     batch_ComBat_mode = 1,
-    batch_sort = "sparcity_sort",
+    batch_sort = "sparsity_sort",
     batch_block = NULL,
     batch_cores = 1,
     batch_ur = TRUE,

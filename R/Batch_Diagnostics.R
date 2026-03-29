@@ -677,7 +677,8 @@ pvca_analysis <- function(se,
 .bc_build_description <- function(se, batch_column) {
   cd <- as.data.frame(SummarizedExperiment::colData(se))
   data.frame(
-    sample = colnames(se),
+    ID     = colnames(se),
+    sample = seq_len(ncol(se)),
     batch  = as.integer(as.factor(cd[[batch_column]])),
     stringsAsFactors = FALSE
   )
@@ -700,22 +701,15 @@ pvca_analysis <- function(se,
 .bc_run_harmonizr <- function(mat, description,
                               algorithm   = "ComBat",
                               ComBat_mode = 1,
-                              sort_method = "sparcity_sort",
+                              sort_method = "sparsity_sort",
                               block       = NULL,
                               cores       = 1,
                               ur          = TRUE) {
 
-  # HarmonizR expects a data.frame with first column as feature IDs
-  input_df <- data.frame(
-    ID = rownames(mat),
-    mat,
-    check.names = FALSE,
-    stringsAsFactors = FALSE
-  )
-
+  # HarmonizR accepts a matrix with rownames as feature IDs
   # Build args list (exclude NULL values)
   hr_args <- list(
-    data_as_input        = input_df,
+    data_as_input        = as.data.frame(mat),
     description_as_input = description,
     algorithm            = algorithm,
     ComBat_mode          = ComBat_mode,
@@ -769,7 +763,7 @@ pvca_analysis <- function(se,
 #'   1 = parametric + mean+variance, 2 = parametric + mean-only,
 #'   3 = non-parametric + mean+variance, 4 = non-parametric + mean-only.
 #' @param sort_method Character. Sorting strategy for matrix dissection:
-#'   "sparcity_sort" (default), "seriation_sort", or "jaccard_sort".
+#'   "sparsity_sort" (default), "seriation_sort", or "jaccard_sort".
 #' @param block Integer or NULL. Block size for batch grouping during
 #'   dissection (default NULL = automatic).
 #' @param cores Integer. Number of cores for parallel processing (default 1).
@@ -800,7 +794,7 @@ batch_correct_proteomics <- function(
     corrected_assay_name   = "HarmonizR",
     algorithm              = "ComBat",
     ComBat_mode            = 1,
-    sort_method            = "sparcity_sort",
+    sort_method            = "sparsity_sort",
     block                  = NULL,
     cores                  = 1,
     ur                     = TRUE,
