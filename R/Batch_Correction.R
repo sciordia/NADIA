@@ -1223,6 +1223,8 @@ pca_covariates_plot <- function(
       axis.text        = ggplot2::element_text(size = 11, color = "#495057"),
       axis.title       = ggplot2::element_text(
         size = 13, face = "bold", color = "#212529"),
+      axis.line        = ggplot2::element_line(color = "#DEE2E6", linewidth = 0.5),
+      axis.ticks       = ggplot2::element_line(color = "#DEE2E6", linewidth = 0.3),
       strip.text       = ggplot2::element_text(
         face = "bold", size = 12, color = "#1D3557"),
       legend.position  = "bottom",
@@ -1271,13 +1273,7 @@ pca_covariates_plot <- function(
     } else {
       n_levels <- length(unique(vals))
       gg <- gg +
-        ggplot2::scale_color_manual(values = .pca_cov_palette(n_levels)) +
-        ggplot2::stat_ellipse(
-          ggplot2::aes(group = .data[[cov]]),
-          type = "norm", level = 0.95,
-          linetype = "solid", linewidth = 0.5, alpha = 0.4,
-          show.legend = FALSE
-        )
+        ggplot2::scale_color_manual(values = .pca_cov_palette(n_levels))
     }
 
     plot_list[[cov]] <- gg
