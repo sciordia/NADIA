@@ -733,12 +733,17 @@ pvca_analysis <- function(se,
   output_base <- file.path(tmp_dir, "cured_data")
 
   # Build args list
+  # Note: sort is only useful together with block parameter. HarmonizR 1.8.0
+  # has a bug in the "sort back to normal" step that causes "undefined columns
+  # selected". When block is NULL, we disable sorting entirely (FALSE).
+  use_sort <- if (!is.null(block)) sort_method else FALSE
+
   hr_args <- list(
     data_as_input        = data_file,
     description_as_input = desc_file,
     algorithm            = algorithm,
     ComBat_mode          = ComBat_mode,
-    sort                 = sort_method,
+    sort                 = use_sort,
     cores                = cores,
     ur                   = ur,
     output_file          = output_base
