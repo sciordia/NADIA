@@ -706,8 +706,20 @@ pvca_analysis <- function(se,
                               cores       = 1,
                               ur          = TRUE) {
 
-  # HarmonizR accepts a data.frame; check.names=FALSE preserves sample names
+  # HarmonizR internally mangles column names (check.names=TRUE in
+
+  # intermediate data.frames), causing "undefined columns selected" on rebuild.
+  # Workaround: use safe temporary names, then restore originals.
+  orig_colnames <- colnames(mat)
+  orig_rownames <- rownames(mat)
+  safe_colnames <- paste0("S", seq_len(ncol(mat)))
+
+  colnames(mat) <- safe_colnames
+
   input_df <- as.data.frame(mat, check.names = FALSE)
+
+  # Update description to use safe names
+  description$ID <- safe_colnames
 
   # Build args list (exclude NULL values)
   hr_args <- list(
@@ -724,14 +736,14 @@ pvca_analysis <- function(se,
 
   result <- do.call(HarmonizR::harmonizR, hr_args)
 
-  # HarmonizR returns a data.frame; convert back to matrix
+  # HarmonizR returns a data.frame; convert back to matrix and restore names
   if (is.data.frame(result)) {
-    rn <- rownames(result)
-    result <- as.matrix(result)
-    if (!is.null(rn)) rownames(result) <- rn
-  } else {
     result <- as.matrix(result)
   }
+
+  # Restore original column names (safe_colnames → orig_colnames)
+  safe_to_orig <- setNames(orig_colnames, safe_colnames)
+  colnames(result) <- safe_to_orig[colnames(result)]
 
   result
 }
