@@ -880,8 +880,31 @@ batch_correct_proteomics <- function(
   # --- Align output to SE ---
   n_features_out <- nrow(corrected_mat)
 
-  # Ensure column order matches SE
-  corrected_mat <- corrected_mat[, colnames(se), drop = FALSE]
+  # HarmonizR (via file I/O) may mangle column names (e.g. prepend "X" to
+  # names starting with digits). Restore original SE column names by position
+  # or by matching make.names() versions.
+  se_colnames <- colnames(se)
+  hr_colnames <- colnames(corrected_mat)
+
+  if (!all(se_colnames %in% hr_colnames)) {
+    # Try matching via make.names (R's column name sanitization)
+    safe_map <- setNames(se_colnames, make.names(se_colnames))
+    if (all(hr_colnames %in% names(safe_map))) {
+      colnames(corrected_mat) <- safe_map[hr_colnames]
+    } else if (ncol(corrected_mat) == ncol(se)) {
+      # Same number of columns: assume same order, restore names directly
+      colnames(corrected_mat) <- se_colnames
+    } else {
+      stop("Cannot align HarmonizR output columns to SE.\n",
+           "  SE columns (first 3): ",
+           paste(head(se_colnames, 3), collapse = ", "), "\n",
+           "  HarmonizR columns (first 3): ",
+           paste(head(hr_colnames, 3), collapse = ", "))
+    }
+  }
+
+  # Reorder to match SE column order
+  corrected_mat <- corrected_mat[, se_colnames, drop = FALSE]
 
   # Handle potential feature loss
   if (n_features_out < n_features_in) {
