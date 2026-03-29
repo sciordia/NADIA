@@ -435,29 +435,47 @@ pvca_plot <- function(pvca_res,
   # --- Factor ordering (preserve current row order) ---
   pvca_res$label <- factor(pvca_res$label, levels = pvca_res$label)
 
-  # --- Colors ---
+  # --- Colors (consistent with benchmarking palette) ---
   if (is.null(colors)) {
     colors <- c(
-      "residual"   = "#999999",
-      "biological" = "#56B4E9",
-      "biol:techn" = "#E69F00",
-      "technical"  = "#D55E00"
+      "biological" = "#1a9850",
+      "technical"  = "#E63946",
+      "biol:techn" = "#F4D35E",
+      "residual"   = "#CCCCCC"
     )
   }
+
+  # --- Percentage labels for bars ---
+  pvca_res$pct_label <- sprintf("%.1f%%", pvca_res$weights * 100)
 
   # --- Build plot ---
   gg <- ggplot2::ggplot(pvca_res,
                         ggplot2::aes(x = label, y = weights, fill = category)) +
-    ggplot2::geom_bar(stat = "identity", color = "black", width = 0.7) +
+    ggplot2::geom_col(width = 0.7) +
+    ggplot2::geom_text(
+      ggplot2::aes(label = pct_label),
+      vjust = -0.5, size = 3, color = "#495057"
+    ) +
     ggplot2::scale_fill_manual(values = colors) +
-    ggplot2::scale_y_continuous(labels = function(x) paste0(round(x * 100), "%"),
-                                expand = ggplot2::expansion(mult = c(0, 0.05))) +
-    ggplot2::labs(y = "Weighted average proportion of variance", x = NULL,
+    ggplot2::scale_y_continuous(
+      labels = function(x) paste0(round(x * 100), "%"),
+      expand = ggplot2::expansion(mult = c(0, 0.10))
+    ) +
+    ggplot2::labs(y = "Weighted Average Proportion of Variance", x = NULL,
                   fill = "Category") +
-    ggplot2::theme_classic(base_size = base_size) +
+    ggplot2::theme_minimal(base_size = 13) +
     ggplot2::theme(
-      axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, vjust = 1),
-      legend.position = "top"
+      plot.title    = ggplot2::element_text(
+        hjust = 0.5, face = "bold", size = 15, color = "#1D3557"),
+      axis.text.x   = ggplot2::element_text(
+        size = 11, angle = 45, hjust = 1, color = "#495057"),
+      axis.text.y   = ggplot2::element_text(size = 11, color = "#495057"),
+      axis.title.y  = ggplot2::element_text(size = 12, color = "#1D3557"),
+      legend.position = "bottom",
+      legend.title  = ggplot2::element_text(face = "bold"),
+      legend.text   = ggplot2::element_text(size = 10),
+      panel.grid.major.x = ggplot2::element_blank(),
+      panel.grid.minor    = ggplot2::element_blank()
     )
 
   if (!is.null(title))
