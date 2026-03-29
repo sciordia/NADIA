@@ -1,26 +1,38 @@
 # =============================================================================
-# PVCA — Principal Variance Component Analysis
+# Batch Diagnostics — PVCA + Batch Correction (HarmonizR)
 # =============================================================================
 #
-# Decomposes total variance across experimental factors to identify the main
-# sources of variation (batch effects, biological covariates, etc.).
+# Two complementary modules for batch effect analysis:
 #
-# Public functions:
-#   pvca_compute()  : Core variance decomposition (returns data.frame)
-#   pvca_plot()     : Bar plot of variance components (returns ggplot2)
-#   pvca_analysis() : Orchestrator (compute + plot + export)
+# SECTION 1-2: PVCA (Principal Variance Component Analysis)
+#   Decomposes total variance across experimental factors to identify the main
+#   sources of variation (batch effects, biological covariates, etc.).
+#   Public functions:
+#     pvca_compute()               : Core variance decomposition (data.frame)
+#     pvca_plot()                  : Bar plot of variance components (ggplot2)
+#     pvca_analysis()              : Orchestrator (compute + plot + export)
 #
-# Based on the PVCA approach described in:
-#   - Li et al. (2009) Biostatistics 10(2):317-326
-#   - Čuklina et al. (2021) Molecular & Cellular Proteomics 20 (proBatch)
+# SECTION 3-4: Batch Correction (HarmonizR)
+#   Optional batch effect correction using HarmonizR (ComBat/limma with
+#   matrix dissection for missing-value-tolerant correction).
+#   Public functions:
+#     batch_correct_proteomics()   : Correct batch effects, add assay to SE
 #
-# Implementation uses lme4 directly (instead of the pvca package) to allow
-# automatic detection and exclusion of problematic interaction terms where
-# the number of levels >= number of observations (e.g., Condition:Patient
-# in paired designs).
+# References:
+#   PVCA: Li et al. (2009) Biostatistics 10(2):317-326
+#         Cuklina et al. (2021) Molecular & Cellular Proteomics 20 (proBatch)
+#   HarmonizR: Voß et al. (2022) Nature Communications 13:6171
+#              Gregoricchio et al. (2024) DEprot
 #
-# Dependencies (required):
-#   - SummarizedExperiment, ggplot2, lme4
+# Implementation notes:
+#   - PVCA uses lme4 directly (not pvca package) to allow automatic detection
+#     and exclusion of problematic interaction terms where n_levels >= n_obs
+#   - HarmonizR handles missing values via matrix dissection, suitable for
+#     pre-imputation batch correction on protein-level data
+#
+# Dependencies:
+#   PVCA: SummarizedExperiment, ggplot2, lme4
+#   Batch Correction: SummarizedExperiment, HarmonizR (Bioconductor)
 #
 # Author: Sergio Ciordia
 # License: MIT
@@ -496,7 +508,7 @@ pvca_plot <- function(pvca_res,
 #'
 #' @examples
 #' \dontrun{
-#' source("R/PVCA.R")
+#' source("R/Batch_Diagnostics.R")
 #' pvca_res <- pvca_analysis(
 #'   se = result$se_proc,
 #'   assay_name = "cycloess",
@@ -616,4 +628,263 @@ pvca_analysis <- function(se,
       fill_value         = fill_value
     )
   )
+}
+
+
+# =============================================================================
+# SECTION 3: BATCH CORRECTION — INTERNAL HELPERS
+# =============================================================================
+
+#' Check that HarmonizR is available
+#' @keywords internal
+.bc_check_harmonizr <- function() {
+  if (!requireNamespace("HarmonizR", quietly = TRUE))
+    stop("Package 'HarmonizR' is required for batch correction.\n",
+         "  Install with: BiocManager::install('HarmonizR')")
+  invisible(TRUE)
+}
+
+#' Validate batch column in colData
+#' @param se SummarizedExperiment
+#' @param batch_column Character. Column name in colData
+#' @keywords internal
+.bc_validate_batch <- function(se, batch_column) {
+  cd_cols <- colnames(SummarizedExperiment::colData(se))
+  if (!batch_column %in% cd_cols)
+    stop("Batch column '", batch_column, "' not found in colData(se).\n",
+         "  Available columns: ", paste(cd_cols, collapse = ", "), "\n",
+         "  Ensure covariate_df with a '", batch_column,
+         "' column is passed to process_proteomics().")
+
+  batch_vals <- SummarizedExperiment::colData(se)[[batch_column]]
+  n_batch <- length(unique(batch_vals[!is.na(batch_vals)]))
+  if (n_batch < 2)
+    stop("Batch column '", batch_column, "' has ", n_batch,
+         " unique value(s). Batch correction requires at least 2 batches.")
+
+  invisible(TRUE)
+}
+
+#' Build HarmonizR description data.frame from SE colData
+#'
+#' Creates the batch description format required by HarmonizR:
+#' a data.frame with sample IDs and numeric batch assignments.
+#'
+#' @param se SummarizedExperiment
+#' @param batch_column Character. Column name containing batch info
+#' @return data.frame with columns: sample (character), batch (integer)
+#' @keywords internal
+.bc_build_description <- function(se, batch_column) {
+  cd <- as.data.frame(SummarizedExperiment::colData(se))
+  data.frame(
+    sample = colnames(se),
+    batch  = as.integer(as.factor(cd[[batch_column]])),
+    stringsAsFactors = FALSE
+  )
+}
+
+#' Run HarmonizR batch correction
+#'
+#' Core wrapper around HarmonizR::harmonizR() with error handling.
+#'
+#' @param mat Numeric matrix (proteins x samples)
+#' @param description data.frame from .bc_build_description()
+#' @param algorithm Character: "ComBat" or "limma"
+#' @param ComBat_mode Integer 1-4
+#' @param sort_method Character: sorting strategy for matrix dissection
+#' @param block Integer or NULL
+#' @param cores Integer
+#' @param ur Logical: unique combination removal
+#' @return Numeric matrix (proteins x samples), possibly fewer rows
+#' @keywords internal
+.bc_run_harmonizr <- function(mat, description,
+                              algorithm   = "ComBat",
+                              ComBat_mode = 1,
+                              sort_method = "sparcity_sort",
+                              block       = NULL,
+                              cores       = 1,
+                              ur          = TRUE) {
+
+  # HarmonizR expects a data.frame with first column as feature IDs
+  input_df <- data.frame(
+    ID = rownames(mat),
+    mat,
+    check.names = FALSE,
+    stringsAsFactors = FALSE
+  )
+
+  # Build args list (exclude NULL values)
+  hr_args <- list(
+    data_as_input        = input_df,
+    description_as_input = description,
+    algorithm            = algorithm,
+    ComBat_mode          = ComBat_mode,
+    sort                 = sort_method,
+    cores                = cores,
+    ur                   = ur
+  )
+  if (!is.null(block)) hr_args$block <- block
+
+  result <- tryCatch(
+    do.call(HarmonizR::harmonizR, hr_args),
+    error = function(e) {
+      stop("HarmonizR::harmonizR() failed:\n  ", conditionMessage(e),
+           call. = FALSE)
+    }
+  )
+
+  # HarmonizR returns a data.frame; convert back to matrix
+  if (is.data.frame(result)) {
+    rn <- result[[1]]
+    result <- as.matrix(result[, -1, drop = FALSE])
+    rownames(result) <- rn
+  } else {
+    result <- as.matrix(result)
+  }
+
+  result
+}
+
+
+# =============================================================================
+# SECTION 4: BATCH CORRECTION — PUBLIC FUNCTION
+# =============================================================================
+
+#' Batch Correction with HarmonizR
+#'
+#' Applies HarmonizR batch effect correction to a normalized assay in a
+#' SummarizedExperiment. HarmonizR uses matrix dissection to handle missing
+#' values, making it suitable for pre-imputation batch correction on
+#' protein-level proteomics data.
+#'
+#' @param se SummarizedExperiment with a normalized assay.
+#' @param assay_name Character. Name of the input assay to correct
+#'   (e.g., "cycloess").
+#' @param batch_column Character. Column in colData(se) containing batch
+#'   assignments (default "Batch").
+#' @param corrected_assay_name Character. Name for the new corrected assay
+#'   added to the SE (default "HarmonizR").
+#' @param algorithm Character: "ComBat" (default) or "limma".
+#' @param ComBat_mode Integer 1-4 controlling ComBat behavior:
+#'   1 = parametric + mean+variance, 2 = parametric + mean-only,
+#'   3 = non-parametric + mean+variance, 4 = non-parametric + mean-only.
+#' @param sort_method Character. Sorting strategy for matrix dissection:
+#'   "sparcity_sort" (default), "seriation_sort", or "jaccard_sort".
+#' @param block Integer or NULL. Block size for batch grouping during
+#'   dissection (default NULL = automatic).
+#' @param cores Integer. Number of cores for parallel processing (default 1).
+#' @param ur Logical. Enable unique combination removal for improved feature
+#'   recovery (default TRUE).
+#' @param verbose Logical (default TRUE).
+#'
+#' @return SummarizedExperiment with the new corrected assay added.
+#'   If HarmonizR returns fewer features than the input, the SE is subsetted
+#'   to match and a warning is issued.
+#'
+#' @examples
+#' \dontrun{
+#' source("R/Batch_Diagnostics.R")
+#' se_corrected <- batch_correct_proteomics(
+#'   se         = result$se_proc,
+#'   assay_name = "cycloess",
+#'   batch_column = "Batch"
+#' )
+#' SummarizedExperiment::assayNames(se_corrected)
+#' # [1] "raw" "log2" "cycloess" "HarmonizR"
+#' }
+#' @export
+batch_correct_proteomics <- function(
+    se,
+    assay_name,
+    batch_column           = "Batch",
+    corrected_assay_name   = "HarmonizR",
+    algorithm              = "ComBat",
+    ComBat_mode            = 1,
+    sort_method            = "sparcity_sort",
+    block                  = NULL,
+    cores                  = 1,
+    ur                     = TRUE,
+    verbose                = TRUE
+) {
+
+  # --- Check dependencies ---
+  .bc_check_harmonizr()
+
+  # --- Validate assay ---
+  all_assays <- SummarizedExperiment::assayNames(se)
+  if (!assay_name %in% all_assays)
+    stop("Assay '", assay_name, "' not found in SE. Available: ",
+         paste(all_assays, collapse = ", "))
+
+  # --- Validate batch column ---
+  .bc_validate_batch(se, batch_column)
+
+  batch_vals <- SummarizedExperiment::colData(se)[[batch_column]]
+  n_batches <- length(unique(batch_vals[!is.na(batch_vals)]))
+  if (verbose) {
+    cat("\n=== BATCH CORRECTION (HarmonizR) ===\n")
+    cat("- Input assay:", assay_name, "\n")
+    cat("- Batch column:", batch_column,
+        "(", n_batches, "batches )\n")
+    cat("- Algorithm:", algorithm)
+    if (algorithm == "ComBat") cat(" (mode", ComBat_mode, ")")
+    cat("\n")
+  }
+
+  # --- Extract matrix ---
+  mat <- SummarizedExperiment::assay(se, assay_name)
+  n_features_in <- nrow(mat)
+  if (verbose) cat("- Input features:", n_features_in,
+                   "| Samples:", ncol(mat), "\n")
+
+  # --- Build description ---
+  description <- .bc_build_description(se, batch_column)
+
+  # --- Run HarmonizR ---
+  if (verbose) cat("- Running HarmonizR (sort:", sort_method, ") ...\n")
+  corrected_mat <- .bc_run_harmonizr(
+    mat         = mat,
+    description = description,
+    algorithm   = algorithm,
+    ComBat_mode = ComBat_mode,
+    sort_method = sort_method,
+    block       = block,
+    cores       = cores,
+    ur          = ur
+  )
+
+  # --- Align output to SE ---
+  n_features_out <- nrow(corrected_mat)
+
+  # Ensure column order matches SE
+  corrected_mat <- corrected_mat[, colnames(se), drop = FALSE]
+
+  # Handle potential feature loss
+  if (n_features_out < n_features_in) {
+    n_dropped <- n_features_in - n_features_out
+    warning("HarmonizR returned ", n_features_out, " features (", n_dropped,
+            " dropped due to batch-specific missingness).",
+            "\n  The SE will be subsetted to match.")
+
+    # Subset SE to keep only features returned by HarmonizR
+    keep_features <- rownames(corrected_mat)
+    se <- se[keep_features, ]
+    if (verbose) cat("- Features after correction:", n_features_out,
+                     " (", n_dropped, " dropped)\n")
+  } else {
+    if (verbose) cat("- Features after correction:", n_features_out,
+                     " (none dropped)\n")
+  }
+
+  # --- Add corrected assay to SE ---
+  SummarizedExperiment::assay(se, corrected_assay_name) <- corrected_mat
+
+  if (verbose) {
+    cat("- New assay added: '", corrected_assay_name, "'\n", sep = "")
+    cat("- Assays in SE:", paste(SummarizedExperiment::assayNames(se),
+                                 collapse = ", "), "\n")
+    cat("=== BATCH CORRECTION COMPLETADA ===\n")
+  }
+
+  se
 }

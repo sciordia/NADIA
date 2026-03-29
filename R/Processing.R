@@ -339,6 +339,17 @@ if (!exists("%||%", mode = "function")) {
 #' @param cyclic_loess_method Cyclic Loess method: "fast" or "pairs" (default: "fast")
 #' @param cyclic_loess_iterations Number of iterations for Cyclic Loess (default: 3)
 #' @param cyclic_loess_span Span parameter for Cyclic Loess (default: 0.7)
+#' @param batch_correct Logical. Apply HarmonizR batch correction after
+#'   normalization (default: FALSE). Requires covariate_df with batch_column.
+#' @param batch_column Column in covariate_df containing batch assignments
+#'   (default: "Batch"). Must have >= 2 unique values.
+#' @param batch_algorithm Batch correction algorithm: "ComBat" (default) or "limma"
+#' @param batch_ComBat_mode Integer 1-4 for ComBat parametric/mean-only settings (default: 1)
+#' @param batch_sort Sorting for matrix dissection: "sparcity_sort" (default),
+#'   "seriation_sort", or "jaccard_sort"
+#' @param batch_block Integer or NULL. Block size for batch grouping (default: NULL)
+#' @param batch_cores Integer. Cores for HarmonizR parallelization (default: 1)
+#' @param batch_ur Logical. Unique combination removal for feature recovery (default: TRUE)
 #' @param imp_method Imputation method (default: "combo"). See impute_proteomics() for all options.
 #' @param mar_method MAR method for combo mode (default: "Impseqrob")
 #' @param mnar_method MNAR method for combo mode (default: "min")
@@ -410,6 +421,14 @@ process_proteomics <- function(
     cyclic_loess_method = "fast",
     cyclic_loess_iterations = 3,
     cyclic_loess_span = 0.7,
+    batch_correct = FALSE,
+    batch_column = "Batch",
+    batch_algorithm = "ComBat",
+    batch_ComBat_mode = 1,
+    batch_sort = "sparcity_sort",
+    batch_block = NULL,
+    batch_cores = 1,
+    batch_ur = TRUE,
     imp_method = "combo",
     mar_method = "Impseqrob",
     mnar_method = "min",
@@ -501,12 +520,63 @@ process_proteomics <- function(
   }
 
   # =========================================================================
+  # 2b. BATCH CORRECTION (optional — Batch_Diagnostics.R / HarmonizR)
+  # =========================================================================
+
+  input_to_imputation <- norm_method
+
+  if (batch_correct) {
+    source(file.path(.self_dir, "Batch_Diagnostics.R"))
+
+    if (!batch_column %in% colnames(SummarizedExperiment::colData(se))) {
+      stop("batch_correct=TRUE but batch column '", batch_column,
+           "' not found in colData(se).\n",
+           "  Ensure covariate_df contains a '", batch_column, "' column.")
+    }
+
+    se <- batch_correct_proteomics(
+      se                   = se,
+      assay_name           = norm_method,
+      batch_column         = batch_column,
+      corrected_assay_name = "HarmonizR",
+      algorithm            = batch_algorithm,
+      ComBat_mode          = batch_ComBat_mode,
+      sort_method          = batch_sort,
+      block                = batch_block,
+      cores                = batch_cores,
+      ur                   = batch_ur,
+      verbose              = verbose
+    )
+
+    input_to_imputation <- "HarmonizR"
+
+    # Export batch-corrected matrix
+    if (export_normalized) {
+      x_bc <- SummarizedExperiment::assay(se, "HarmonizR")
+      bc_file <- file.path(export_dir,
+                           paste0("matrix_log2_", norm_method, "_HarmonizR.tsv"))
+      if (requireNamespace("readr", quietly = TRUE)) {
+        readr::write_tsv(
+          data.frame(ProteinGroups = rownames(x_bc), x_bc, check.names = FALSE),
+          bc_file
+        )
+      } else {
+        write.table(
+          data.frame(ProteinGroups = rownames(x_bc), x_bc, check.names = FALSE),
+          bc_file, sep = "\t", quote = FALSE, row.names = FALSE
+        )
+      }
+      if (verbose) cat("- Exportado:", basename(bc_file), "\n")
+    }
+  }
+
+  # =========================================================================
   # 3. IMPUTATION (Imputation.R)
   # =========================================================================
 
   imp_result <- impute_proteomics(
     se = se,
-    normalized_assay_name = norm_method,
+    normalized_assay_name = input_to_imputation,
     imputed_assay_name = NULL,
     imp_method = imp_method,
     mar_method = mar_method,
@@ -639,6 +709,10 @@ process_proteomics <- function(
       cyclic_loess_method = cyclic_loess_method,
       cyclic_loess_iterations = cyclic_loess_iterations,
       cyclic_loess_span = cyclic_loess_span,
+      batch_correct = batch_correct,
+      batch_column = batch_column,
+      batch_algorithm = batch_algorithm,
+      batch_ComBat_mode = batch_ComBat_mode,
       imp_method = imp_method,
       mar_method = mar_method,
       mnar_method = mnar_method,
