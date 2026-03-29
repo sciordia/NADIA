@@ -1208,22 +1208,41 @@ pca_covariates_plot <- function(
   x_lab <- paste0("PC1 (", pct_var[1], "%)")
   y_lab <- paste0("PC2 (", pct_var[2], "%)")
 
-  # --- Common theme ---
+  # --- Common theme (matching PCA_Highcharts style) ---
   common_theme <- ggplot2::theme_minimal(base_size = 13) +
     ggplot2::theme(
-      plot.title    = ggplot2::element_text(
-        hjust = 0.5, face = "bold", size = 15, color = "#1D3557"),
-      plot.subtitle = ggplot2::element_text(
-        hjust = 0.5, size = 9, color = "#495057"),
-      axis.text     = ggplot2::element_text(size = 11, color = "#495057"),
-      axis.title    = ggplot2::element_text(size = 12, color = "#1D3557"),
-      strip.text    = ggplot2::element_text(
+      plot.title       = ggplot2::element_text(
+        hjust = 0.5, face = "bold", size = 16, color = "#1D3557"),
+      plot.subtitle    = ggplot2::element_text(
+        hjust = 0.5, size = 10, color = "#495057"),
+      plot.background  = ggplot2::element_rect(fill = "white", color = NA),
+      panel.background = ggplot2::element_rect(fill = "white", color = NA),
+      panel.grid.major = ggplot2::element_line(
+        color = "#F1F3F4", linetype = "dotted", linewidth = 0.5),
+      panel.grid.minor = ggplot2::element_blank(),
+      axis.text        = ggplot2::element_text(size = 11, color = "#495057"),
+      axis.title       = ggplot2::element_text(
+        size = 13, face = "bold", color = "#212529"),
+      strip.text       = ggplot2::element_text(
         face = "bold", size = 12, color = "#1D3557"),
-      legend.position = "right",
-      legend.title  = ggplot2::element_text(face = "bold"),
-      legend.text   = ggplot2::element_text(size = 10),
-      panel.grid.minor = ggplot2::element_blank()
+      legend.position  = "bottom",
+      legend.title     = ggplot2::element_text(face = "bold", color = "#495057"),
+      legend.text      = ggplot2::element_text(size = 10, color = "#495057"),
+      plot.margin      = ggplot2::margin(10, 15, 10, 15)
     )
+
+  # Reference lines at x=0 and y=0 (dashed, subtle)
+  ref_lines <- list(
+    ggplot2::geom_hline(yintercept = 0, color = "#ADB5BD",
+                        linetype = "dashed", linewidth = 0.4),
+    ggplot2::geom_vline(xintercept = 0, color = "#ADB5BD",
+                        linetype = "dashed", linewidth = 0.4)
+  )
+
+  # Default palette: hcl Dark 3 (same as Highcharts PCA)
+  .pca_cov_palette <- function(n) {
+    grDevices::hcl.colors(max(n, 3), "Dark 3")[seq_len(n)]
+  }
 
   # --- Individual plots ---
   plot_list <- stats::setNames(vector("list", length(covariates)), covariates)
@@ -1238,7 +1257,8 @@ pca_covariates_plot <- function(
 
     gg <- ggplot2::ggplot(scores,
                           ggplot2::aes(x = PC1, y = PC2, color = .data[[cov]])) +
-      ggplot2::geom_point(size = point_size, alpha = 0.8) +
+      ref_lines +
+      ggplot2::geom_point(size = point_size, alpha = 0.85) +
       ggplot2::labs(
         title    = paste0("PCA \u2014 ", assay_name),
         subtitle = paste0(n_proteins, " ", protein_label, " | colored by ", cov),
@@ -1250,13 +1270,14 @@ pca_covariates_plot <- function(
       gg <- gg + ggplot2::scale_color_viridis_c(option = "D")
     } else {
       n_levels <- length(unique(vals))
-      if (n_levels <= 8) {
-        gg <- gg + ggplot2::scale_color_brewer(palette = "Set2")
-      } else if (n_levels <= 12) {
-        gg <- gg + ggplot2::scale_color_brewer(palette = "Set3")
-      } else {
-        gg <- gg + ggplot2::scale_color_viridis_d(option = "H")
-      }
+      gg <- gg +
+        ggplot2::scale_color_manual(values = .pca_cov_palette(n_levels)) +
+        ggplot2::stat_ellipse(
+          ggplot2::aes(group = .data[[cov]]),
+          type = "norm", level = 0.95,
+          linetype = "solid", linewidth = 0.5, alpha = 0.4,
+          show.legend = FALSE
+        )
     }
 
     plot_list[[cov]] <- gg
@@ -1284,9 +1305,11 @@ pca_covariates_plot <- function(
 
   grid_plot <- ggplot2::ggplot(long_df,
                                ggplot2::aes(x = PC1, y = PC2, color = Value)) +
-    ggplot2::geom_point(size = point_size * 0.7, alpha = 0.8) +
+    ref_lines +
+    ggplot2::geom_point(size = point_size * 0.7, alpha = 0.85) +
     ggplot2::facet_wrap(~ Covariate, ncol = 2) +
-    ggplot2::scale_color_viridis_d(option = "H") +
+    ggplot2::scale_color_manual(
+      values = .pca_cov_palette(length(unique(long_df$Value)))) +
     ggplot2::labs(
       title    = paste0("PCA \u2014 ", assay_name,
                          " (", n_proteins, " ", protein_label, ")"),
