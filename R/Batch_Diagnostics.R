@@ -918,6 +918,8 @@ batch_correct_proteomics <- function(
   }
 
   # --- Add corrected assay to SE ---
+  # Ensure exact row/column order matches SE (HarmonizR may reorder features)
+  corrected_mat <- corrected_mat[rownames(se), colnames(se), drop = FALSE]
   SummarizedExperiment::assay(se, corrected_assay_name) <- corrected_mat
 
   if (verbose) {
