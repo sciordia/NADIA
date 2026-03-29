@@ -18,6 +18,12 @@
 #   Public functions:
 #     batch_correct_proteomics()   : Correct batch effects, add assay to SE
 #
+# SECTION 5: PCA Colored by Covariates
+#   PCA scatter plots colored by different covariates for visual batch
+#   effect identification.
+#   Public functions:
+#     pca_covariates_plot()        : Grid + individual PCA plots per covariate
+#
 # References:
 #   PVCA: Li et al. (2009) Biostatistics 10(2):317-326
 #         Cuklina et al. (2021) Molecular & Cellular Proteomics 20 (proBatch)
@@ -497,6 +503,9 @@ pvca_plot <- function(pvca_res,
 #'   variation (e.g., "Injection", "Digestion").
 #' @param biological_factors Character vector. Factors representing biological
 #'   variation (e.g., "Condition", "Gender", "Age").
+#' @param pca_covariates Character vector or NULL. If provided, generates PCA
+#'   plots colored by each covariate (grid + individual plots). These are
+#'   included in the returned list and exported as PNGs. Default NULL (skip).
 #' @param pca_threshold Numeric (0-1). Cumulative variance threshold for PCA
 #'   (default 0.6).
 #' @param variance_threshold Numeric (0-1). Minimum weight for individual
@@ -543,6 +552,7 @@ pvca_analysis <- function(se,
                           assay_name          = NULL,
                           technical_factors   = character(0),
                           biological_factors  = character(0),
+                          pca_covariates      = NULL,
                           pca_threshold       = 0.6,
                           variance_threshold  = 0.01,
                           na_action           = "complete",
@@ -608,6 +618,26 @@ pvca_analysis <- function(se,
     }
   )
 
+  # --- STEP 3b: PCA colored by covariates (optional) ---
+  pca_cov_result <- NULL
+  if (!is.null(pca_covariates) && length(pca_covariates) > 0) {
+    if (verbose) message("  Generating PCA covariate plots ...")
+    pca_cov_result <- tryCatch(
+      pca_covariates_plot(
+        se         = se,
+        assay_name = used_assay,
+        covariates = pca_covariates,
+        na_action  = na_action,
+        fill_value = fill_value,
+        verbose    = verbose
+      ),
+      error = function(e) {
+        warning("pca_covariates_plot() failed: ", conditionMessage(e))
+        NULL
+      }
+    )
+  }
+
   # --- STEP 4: Export ---
   if (!is.null(output_dir)) {
     if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
@@ -628,6 +658,23 @@ pvca_analysis <- function(se,
       .pvca_export_gg_plot(gg, png_path, plot_width, plot_height, plot_dpi)
       if (verbose) message("  Exported: ", png_path)
     }
+
+    # Export PCA covariate plots
+    if (export_plots && !is.null(pca_cov_result)) {
+      grid_path <- file.path(output_dir, "pca_covariates_grid.png")
+      .pvca_export_gg_plot(pca_cov_result$grid, grid_path,
+                           plot_width, plot_height + 2, plot_dpi)
+      if (verbose) message("  Exported: ", grid_path)
+
+      for (cov_name in names(pca_cov_result$plots)) {
+        cov_path <- file.path(output_dir,
+                              paste0("pca_covariate_", cov_name, ".png"))
+        .pvca_export_gg_plot(pca_cov_result$plots[[cov_name]], cov_path,
+                             plot_width, plot_height, plot_dpi)
+      }
+      if (verbose) message("  Exported: ", length(pca_cov_result$plots),
+                           " individual PCA covariate plots")
+    }
   }
 
   if (verbose) message("=== PVCA Analysis complete ===")
@@ -635,11 +682,13 @@ pvca_analysis <- function(se,
   list(
     variance_components = pvca_df,
     plot                = gg,
+    pca_covariates      = pca_cov_result,
     n_proteins          = n_proteins,
     assay_name          = used_assay,
     parameters          = list(
       technical_factors  = technical_factors,
       biological_factors = biological_factors,
+      pca_covariates     = pca_covariates,
       pca_threshold      = pca_threshold,
       variance_threshold = variance_threshold,
       na_action          = na_action,
@@ -948,4 +997,236 @@ batch_correct_proteomics <- function(
   }
 
   se
+}
+
+
+# =============================================================================
+# SECTION 5: PCA COLORED BY COVARIATES
+# =============================================================================
+
+#' Compute PCA scores from a SE assay
+#'
+#' @param se SummarizedExperiment
+#' @param assay_name Character. Assay to use.
+#' @param na_action Character: "complete" (remove rows with NAs) or "fill".
+#' @param fill_value Numeric. Replacement for NAs when na_action="fill".
+#' @param center Logical. Center variables before PCA (default TRUE).
+#' @param scale. Logical. Scale variables before PCA (default FALSE).
+#' @param verbose Logical.
+#' @return List with: scores (data.frame PC1, PC2, Sample + colData),
+#'   pct_var (numeric vector of % variance per PC), n_proteins (integer).
+#' @keywords internal
+.pca_compute_scores <- function(se, assay_name, na_action = "complete",
+                                fill_value = -1, center = TRUE,
+                                scale. = FALSE, verbose = TRUE) {
+
+  mat <- .pvca_prepare_matrix(se, assay_name, na_action, fill_value, verbose)
+
+  if (nrow(mat) < 2)
+    stop("Insufficient complete rows for PCA (", nrow(mat), " rows).")
+
+  pca_res <- stats::prcomp(t(mat), center = center, scale. = scale.)
+  pct_var <- round(100 * pca_res$sdev^2 / sum(pca_res$sdev^2), 1)
+
+  scores <- data.frame(
+    PC1    = pca_res$x[, 1],
+    PC2    = pca_res$x[, 2],
+    Sample = rownames(pca_res$x),
+    stringsAsFactors = FALSE
+  )
+
+  # Merge all colData
+  cd <- as.data.frame(SummarizedExperiment::colData(se))
+  cd$Sample <- colnames(se)
+  scores <- merge(scores, cd, by = "Sample")
+
+  list(scores = scores, pct_var = pct_var, n_proteins = nrow(mat))
+}
+
+
+#' PCA Plots Colored by Covariates
+#'
+#' Generates PCA scatter plots (PC1 vs PC2) from a SummarizedExperiment assay,
+#' coloring points by different covariates. Useful for visually identifying
+#' batch effects or confounding.
+#'
+#' Categorical covariates use a discrete color scale; numeric covariates
+#' use a continuous viridis gradient.
+#'
+#' @param se SummarizedExperiment object.
+#' @param assay_name Character. Assay to analyze. NULL = second assay
+#'   (normalized, pre-imputation).
+#' @param covariates Character vector. Column names in colData(se) to use
+#'   for coloring (e.g., c("Injection", "Digestion", "Condition")).
+#' @param na_action Character: "complete" (default) or "fill".
+#' @param fill_value Numeric. NA replacement when na_action="fill" (default -1).
+#' @param center Logical. Center before PCA (default TRUE).
+#' @param scale. Logical. Scale before PCA (default FALSE).
+#' @param point_size Numeric. Size of scatter points (default 3).
+#' @param verbose Logical (default TRUE).
+#'
+#' @return Named list:
+#'   \describe{
+#'     \item{grid}{ggplot2 facet_wrap with one panel per covariate}
+#'     \item{plots}{Named list of individual ggplot2 objects per covariate}
+#'     \item{pca_summary}{data.frame with PC1/PC2 variance explained}
+#'     \item{assay_name}{Assay used}
+#'     \item{n_proteins}{Number of proteins used}
+#'   }
+#'
+#' @examples
+#' \dontrun{
+#' source("R/Batch_Diagnostics.R")
+#' pca_cov <- pca_covariates_plot(
+#'   se = result$se_proc,
+#'   assay_name = "HarmonizR",
+#'   covariates = c("Injection", "Digestion", "Condition", "Gender")
+#' )
+#' pca_cov$grid              # faceted grid
+#' pca_cov$plots$Injection   # individual plot
+#' }
+#' @export
+pca_covariates_plot <- function(
+    se,
+    assay_name    = NULL,
+    covariates,
+    na_action     = "complete",
+    fill_value    = -1,
+    center        = TRUE,
+    scale.        = FALSE,
+    point_size    = 3,
+    verbose       = TRUE
+) {
+
+  if (!requireNamespace("ggplot2", quietly = TRUE))
+    stop("Package 'ggplot2' is required for pca_covariates_plot().")
+
+  # --- Resolve assay name ---
+  all_assays <- SummarizedExperiment::assayNames(se)
+  if (is.null(assay_name)) {
+    assay_name <- if (length(all_assays) >= 2) all_assays[2] else all_assays[1]
+  }
+  if (!assay_name %in% all_assays)
+    stop("Assay '", assay_name, "' not found. Available: ",
+         paste(all_assays, collapse = ", "))
+
+  # --- Validate covariates ---
+  .pvca_validate_factors(se, covariates)
+
+  if (verbose) message("PCA covariates: using assay '", assay_name, "'")
+
+  # --- Compute PCA ---
+  pca_data <- .pca_compute_scores(
+    se = se, assay_name = assay_name, na_action = na_action,
+    fill_value = fill_value, center = center, scale. = scale.,
+    verbose = verbose
+  )
+
+  scores     <- pca_data$scores
+  pct_var    <- pca_data$pct_var
+  n_proteins <- pca_data$n_proteins
+
+  x_lab <- paste0("PC1 (", pct_var[1], "%)")
+  y_lab <- paste0("PC2 (", pct_var[2], "%)")
+
+  # --- Common theme ---
+  common_theme <- ggplot2::theme_minimal(base_size = 13) +
+    ggplot2::theme(
+      plot.title    = ggplot2::element_text(
+        hjust = 0.5, face = "bold", size = 15, color = "#1D3557"),
+      plot.subtitle = ggplot2::element_text(
+        hjust = 0.5, size = 9, color = "#495057"),
+      axis.text     = ggplot2::element_text(size = 11, color = "#495057"),
+      axis.title    = ggplot2::element_text(size = 12, color = "#1D3557"),
+      strip.text    = ggplot2::element_text(
+        face = "bold", size = 12, color = "#1D3557"),
+      legend.position = "right",
+      legend.title  = ggplot2::element_text(face = "bold"),
+      legend.text   = ggplot2::element_text(size = 10),
+      panel.grid.minor = ggplot2::element_blank()
+    )
+
+  # --- Individual plots ---
+  plot_list <- stats::setNames(vector("list", length(covariates)), covariates)
+
+  for (cov in covariates) {
+    vals <- scores[[cov]]
+    is_numeric <- is.numeric(vals) && length(unique(vals)) > 6
+
+    if (!is_numeric) {
+      scores[[cov]] <- as.factor(scores[[cov]])
+    }
+
+    gg <- ggplot2::ggplot(scores,
+                          ggplot2::aes(x = PC1, y = PC2, color = .data[[cov]])) +
+      ggplot2::geom_point(size = point_size, alpha = 0.8) +
+      ggplot2::labs(
+        title    = paste0("PCA \u2014 ", assay_name),
+        subtitle = paste0(n_proteins, " proteins | colored by ", cov),
+        x = x_lab, y = y_lab, color = cov
+      ) +
+      common_theme
+
+    if (is_numeric) {
+      gg <- gg + ggplot2::scale_color_viridis_c(option = "D")
+    } else {
+      n_levels <- length(unique(vals))
+      if (n_levels <= 8) {
+        gg <- gg + ggplot2::scale_color_brewer(palette = "Set2")
+      } else if (n_levels <= 12) {
+        gg <- gg + ggplot2::scale_color_brewer(palette = "Set3")
+      } else {
+        gg <- gg + ggplot2::scale_color_viridis_d(option = "H")
+      }
+    }
+
+    plot_list[[cov]] <- gg
+  }
+
+  # --- Grid (faceted) ---
+  # Build long-format data for faceting
+  long_rows <- vector("list", length(covariates))
+  for (i in seq_along(covariates)) {
+    cov <- covariates[i]
+    vals <- scores[[cov]]
+    is_numeric <- is.numeric(vals) && length(unique(vals)) > 6
+    long_rows[[i]] <- data.frame(
+      PC1       = scores$PC1,
+      PC2       = scores$PC2,
+      Sample    = scores$Sample,
+      Covariate = cov,
+      Value     = if (is_numeric) as.character(round(as.numeric(vals), 1))
+                  else as.character(vals),
+      stringsAsFactors = FALSE
+    )
+  }
+  long_df <- do.call(rbind, long_rows)
+  long_df$Covariate <- factor(long_df$Covariate, levels = covariates)
+
+  grid_plot <- ggplot2::ggplot(long_df,
+                               ggplot2::aes(x = PC1, y = PC2, color = Value)) +
+    ggplot2::geom_point(size = point_size * 0.7, alpha = 0.8) +
+    ggplot2::facet_wrap(~ Covariate, ncol = 2) +
+    ggplot2::scale_color_viridis_d(option = "H") +
+    ggplot2::labs(
+      title    = paste0("PCA \u2014 ", assay_name,
+                         " (", n_proteins, " proteins)"),
+      x = x_lab, y = y_lab, color = "Value"
+    ) +
+    common_theme +
+    ggplot2::theme(legend.position = "none")
+
+  if (verbose) message("  Generated ", length(covariates),
+                       " individual PCA plots + 1 grid plot.")
+
+  list(
+    grid        = grid_plot,
+    plots       = plot_list,
+    pca_summary = data.frame(
+      PC       = paste0("PC", seq_along(pct_var)),
+      Variance = pct_var
+    ),
+    assay_name  = assay_name,
+    n_proteins  = n_proteins
+  )
 }
