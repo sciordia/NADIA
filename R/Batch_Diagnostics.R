@@ -1072,6 +1072,12 @@ batch_correct_proteomics <- function(
 #'   Ignored if de_results is NULL.
 #' @param alpha Numeric. Significance threshold for adj.P.Val when filtering
 #'   by de_results (default 0.05). Ignored if de_results is NULL.
+#' @param filter_samples Logical. If TRUE and a specific comparison is given
+#'   (not "any"), subset samples to only those belonging to the comparison
+#'   conditions. Mirrors pca_highchart_list(filter_samples_to_comparison).
+#'   Default FALSE (use all samples).
+#' @param condition_column Character. Column name in colData(se) containing
+#'   condition labels, used when filter_samples=TRUE. Default "Condition".
 #' @param point_size Numeric. Size of scatter points (default 3).
 #' @param verbose Logical (default TRUE).
 #'
@@ -1104,11 +1110,13 @@ pca_covariates_plot <- function(
     fill_value    = -1,
     center        = TRUE,
     scale.        = FALSE,
-    de_results    = NULL,
-    comparison    = "any",
-    alpha         = 0.05,
-    point_size    = 3,
-    verbose       = TRUE
+    de_results       = NULL,
+    comparison       = "any",
+    alpha            = 0.05,
+    filter_samples   = FALSE,
+    condition_column = "Condition",
+    point_size       = 3,
+    verbose          = TRUE
 ) {
 
   if (!requireNamespace("ggplot2", quietly = TRUE))
@@ -1158,6 +1166,30 @@ pca_covariates_plot <- function(
     if (verbose) message("PCA covariates: filtered to ", sum(keep),
                          " DEPs (adj.P.Val < ", alpha,
                          ", comparison: ", comp_label, ")")
+  }
+
+  # --- Filter samples to comparison conditions ---
+  if (isTRUE(filter_samples) && !identical(comparison, "any") &&
+      !is.null(de_results)) {
+    conds <- unique(trimws(unlist(strsplit(comparison, "[-|:_]"))))
+    conds <- conds[nchar(conds) > 0 & conds != "vs"]
+
+    if (!condition_column %in% colnames(SummarizedExperiment::colData(se)))
+      stop("Column '", condition_column,
+           "' not found in colData for sample filtering.")
+
+    cd <- SummarizedExperiment::colData(se)
+    keep_samples <- colnames(se)[cd[[condition_column]] %in% conds]
+
+    if (length(keep_samples) < 3)
+      stop("Only ", length(keep_samples),
+           " samples after filtering by comparison '", comparison,
+           "'. Need at least 3.")
+
+    se <- se[, keep_samples]
+    if (verbose) message("PCA covariates: filtered to ", length(keep_samples),
+                         " samples from conditions: ",
+                         paste(conds, collapse = ", "))
   }
 
   if (verbose) message("PCA covariates: using assay '", assay_name, "'")
