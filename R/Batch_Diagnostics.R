@@ -706,32 +706,29 @@ pvca_analysis <- function(se,
                               cores       = 1,
                               ur          = TRUE) {
 
-  # HarmonizR accepts a matrix with rownames as feature IDs
+  # HarmonizR accepts a data.frame; check.names=FALSE preserves sample names
+  input_df <- as.data.frame(mat, check.names = FALSE)
+
   # Build args list (exclude NULL values)
   hr_args <- list(
-    data_as_input        = as.data.frame(mat),
+    data_as_input        = input_df,
     description_as_input = description,
     algorithm            = algorithm,
     ComBat_mode          = ComBat_mode,
     sort                 = sort_method,
     cores                = cores,
-    ur                   = ur
+    ur                   = ur,
+    output_file          = FALSE
   )
   if (!is.null(block)) hr_args$block <- block
 
-  result <- tryCatch(
-    do.call(HarmonizR::harmonizR, hr_args),
-    error = function(e) {
-      stop("HarmonizR::harmonizR() failed:\n  ", conditionMessage(e),
-           call. = FALSE)
-    }
-  )
+  result <- do.call(HarmonizR::harmonizR, hr_args)
 
   # HarmonizR returns a data.frame; convert back to matrix
   if (is.data.frame(result)) {
-    rn <- result[[1]]
-    result <- as.matrix(result[, -1, drop = FALSE])
-    rownames(result) <- rn
+    rn <- rownames(result)
+    result <- as.matrix(result)
+    if (!is.null(rn)) rownames(result) <- rn
   } else {
     result <- as.matrix(result)
   }
