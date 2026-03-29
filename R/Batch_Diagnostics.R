@@ -773,6 +773,16 @@ pvca_analysis <- function(se,
   colnames(result) <- col_map[colnames(result)]
   rownames(result) <- row_map[rownames(result)]
 
+  # Check for sample loss (too many batches + missing data can cause this)
+  if (ncol(result) < n_samples) {
+    stop("HarmonizR returned only ", ncol(result), " of ", n_samples,
+         " samples.\n",
+         "  This happens when matrix dissection cannot cover all samples ",
+         "(too many batches relative to sample size and missingness).\n",
+         "  Try: (1) fewer batches (e.g., correct by a single factor), ",
+         "(2) set block parameter, or (3) algorithm='limma'.")
+  }
+
   # Reorder to match input
   result <- result[, orig_colnames, drop = FALSE]
 
