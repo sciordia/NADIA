@@ -153,7 +153,7 @@ build_pca_scores <- function(pca_input,
                              comparison = NULL,
                              subset_label = NULL,
                              center = TRUE,
-                             scale. = FALSE,
+                             scale. = TRUE,
                              filter_samples_to_comparison = FALSE,
                              cond_col = "Condition") {
 
@@ -819,7 +819,7 @@ pca_highchart_list <- function(pca_input,
                                show_labels = FALSE,
                                label_size = 10,
                                center = TRUE,
-                               scale. = FALSE,
+                               scale. = TRUE,
                                filter_samples_to_comparison = FALSE) {
 
   ellipse_type <- match.arg(ellipse_type)

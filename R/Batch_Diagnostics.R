@@ -1018,7 +1018,7 @@ batch_correct_proteomics <- function(
 #' @keywords internal
 .pca_compute_scores <- function(se, assay_name, na_action = "complete",
                                 fill_value = -1, center = TRUE,
-                                scale. = FALSE, verbose = TRUE) {
+                                scale. = TRUE, verbose = TRUE) {
 
   mat <- .pvca_prepare_matrix(se, assay_name, na_action, fill_value, verbose)
 
@@ -1109,7 +1109,7 @@ pca_covariates_plot <- function(
     na_action     = "complete",
     fill_value    = -1,
     center        = TRUE,
-    scale.        = FALSE,
+    scale.        = TRUE,
     de_results       = NULL,
     comparison       = "any",
     alpha            = 0.05,
