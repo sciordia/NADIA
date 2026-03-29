@@ -1,5 +1,5 @@
 # =============================================================================
-# Batch Correction — PVCA + HarmonizR
+# Batch Correction — PVCA + BERT
 # =============================================================================
 #
 # Two complementary modules for batch effect analysis:
@@ -12,9 +12,9 @@
 #     pvca_plot()                  : Bar plot of variance components (ggplot2)
 #     pvca_analysis()              : Orchestrator (compute + plot + export)
 #
-# SECTION 3-4: Batch Correction (HarmonizR)
-#   Optional batch effect correction using HarmonizR (ComBat/limma with
-#   matrix dissection for missing-value-tolerant correction).
+# SECTION 3-4: Batch Correction (BERT)
+#   Optional batch effect correction using BERT (ComBat/limma/ref with
+#   hierarchical tree-based correction for missing-value-tolerant correction).
 #   Public functions:
 #     batch_correct_proteomics()   : Correct batch effects, add assay to SE
 #
@@ -27,18 +27,17 @@
 # References:
 #   PVCA: Li et al. (2009) Biostatistics 10(2):317-326
 #         Cuklina et al. (2021) Molecular & Cellular Proteomics 20 (proBatch)
-#   HarmonizR: Voß et al. (2022) Nature Communications 13:6171
-#              Gregoricchio et al. (2024) DEprot
+#   BERT: Habarta et al. (2025) Nature Communications 16:2044
 #
 # Implementation notes:
 #   - PVCA uses lme4 directly (not pvca package) to allow automatic detection
 #     and exclusion of problematic interaction terms where n_levels >= n_obs
-#   - HarmonizR handles missing values via matrix dissection, suitable for
-#     pre-imputation batch correction on protein-level data
+#   - BERT handles missing values via hierarchical tree decomposition,
+#     suitable for pre-imputation batch correction on protein-level data
 #
 # Dependencies:
 #   PVCA: SummarizedExperiment, ggplot2, lme4
-#   Batch Correction: SummarizedExperiment, HarmonizR (Bioconductor)
+#   Batch Correction: SummarizedExperiment, BERT (Bioconductor)
 #
 # Author: Sergio Ciordia
 # License: MIT
@@ -702,12 +701,12 @@ pvca_analysis <- function(se,
 # SECTION 3: BATCH CORRECTION — INTERNAL HELPERS
 # =============================================================================
 
-#' Check that HarmonizR is available
+#' Check that BERT is available
 #' @keywords internal
-.bc_check_harmonizr <- function() {
-  if (!requireNamespace("HarmonizR", quietly = TRUE))
-    stop("Package 'HarmonizR' is required for batch correction.\n",
-         "  Install with: BiocManager::install('HarmonizR')")
+.bc_check_bert <- function() {
+  if (!requireNamespace("BERT", quietly = TRUE))
+    stop("Package 'BERT' is required for batch correction.\n",
+         "  Install with: BiocManager::install('BERT')")
   invisible(TRUE)
 }
 
@@ -732,128 +731,67 @@ pvca_analysis <- function(se,
   invisible(TRUE)
 }
 
-#' Build HarmonizR description data.frame from SE colData
+#' Run BERT batch correction
 #'
-#' Creates the batch description format required by HarmonizR:
-#' a data.frame with sample IDs and numeric batch assignments.
-#'
-#' @param se SummarizedExperiment
-#' @param batch_column Character. Column name containing batch info
-#' @return data.frame with columns: sample (character), batch (integer)
-#' @keywords internal
-.bc_build_description <- function(se, batch_column) {
-  cd <- as.data.frame(SummarizedExperiment::colData(se))
-  data.frame(
-    ID     = colnames(se),
-    sample = seq_len(ncol(se)),
-    batch  = as.integer(as.factor(cd[[batch_column]])),
-    stringsAsFactors = FALSE
-  )
-}
-
-#' Run HarmonizR batch correction
-#'
-#' Core wrapper around HarmonizR::harmonizR() with error handling.
+#' Core wrapper around BERT::BERT() with error handling.
+#' BERT uses hierarchical tree decomposition: pairwise batch corrections
+#' are organized in a binary tree, enabling robust handling of missing values
+#' and multiple batches.
 #'
 #' @param mat Numeric matrix (proteins x samples)
-#' @param description data.frame from .bc_build_description()
-#' @param algorithm Character: "ComBat" or "limma"
-#' @param ComBat_mode Integer 1-4
-#' @param sort_method Character: sorting strategy for matrix dissection
-#' @param block Integer or NULL
-#' @param cores Integer
-#' @param ur Logical: unique combination removal
+#' @param batch_vec Factor or character vector of batch assignments per sample
+#' @param method Character: "ComBat" (default), "limma", or "ref"
+#' @param combatmode Integer 1-4 (only used when method = "ComBat")
+#' @param covariates data.frame with columns Cov_1, Cov_2, ... or NULL
+#' @param qualitycontrol Logical: compute ASW quality metrics
 #' @return Numeric matrix (proteins x samples), possibly fewer rows
 #' @keywords internal
-.bc_run_harmonizr <- function(mat, description,
-                              algorithm   = "ComBat",
-                              ComBat_mode = 1,
-                              sort_method = "sparsity_sort",
-                              block       = NULL,
-                              cores       = 1,
-                              ur          = TRUE) {
+.bc_run_bert <- function(mat, batch_vec,
+                         method         = "ComBat",
+                         combatmode     = 1,
+                         covariates     = NULL,
+                         qualitycontrol = FALSE) {
 
-  # Use safe column/row names (S1..Sn, F1..Fm) to avoid any name mangling
-  # through HarmonizR's file I/O pipeline. Restore originals after.
   orig_colnames <- colnames(mat)
   orig_rownames <- rownames(mat)
   n_samples  <- ncol(mat)
   n_features <- nrow(mat)
 
-  safe_col <- paste0("S", seq_len(n_samples))
-  safe_row <- paste0("F", seq_len(n_features))
+  # Transpose: proteins x samples → samples x features (BERT format)
+  bert_input <- as.data.frame(t(mat))
 
-  colnames(mat) <- safe_col
-  rownames(mat) <- safe_row
+  # Add Batch column (integer required by BERT)
+  bert_input$Batch <- as.integer(as.factor(batch_vec))
 
-  # Update description to use safe sample names
-  description$ID <- safe_col
+  # Add covariate columns if provided (Cov_1, Cov_2, ...)
+  if (!is.null(covariates)) {
+    bert_input <- cbind(bert_input, covariates)
+  }
 
-  # Create temp directory for HarmonizR I/O
-  tmp_dir <- tempfile("harmonizr_")
-  dir.create(tmp_dir)
-  on.exit(unlink(tmp_dir, recursive = TRUE), add = TRUE)
+  # Call BERT
+  result <- BERT::BERT(bert_input,
+                       method         = method,
+                       combatmode     = combatmode,
+                       qualitycontrol = qualitycontrol)
 
-  # Write data file (TSV: first column = feature IDs, rest = samples)
-  data_file <- file.path(tmp_dir, "input_data.tsv")
-  data_df <- data.frame(ID = safe_row, mat, check.names = FALSE)
-  utils::write.table(data_df, data_file, sep = "\t", quote = FALSE,
-                      row.names = FALSE)
+  # Extract corrected matrix (remove Batch and Cov_* columns)
+  meta_cols <- c("Batch", grep("^Cov_", colnames(result), value = TRUE))
+  corrected <- as.matrix(result[, !colnames(result) %in% meta_cols,
+                                drop = FALSE])
 
-  # Write description file (CSV: ID, sample, batch)
-  desc_file <- file.path(tmp_dir, "description.csv")
-  utils::write.csv(description, desc_file, row.names = FALSE)
+  # Transpose back: samples x features → proteins x samples
+  corrected <- t(corrected)
 
-  # Output file path (HarmonizR appends .tsv)
-  output_base <- file.path(tmp_dir, "cured_data")
-
-  # sort is only useful with block; HarmonizR 1.8.0 has a sorting bug
-  use_sort <- if (!is.null(block)) sort_method else FALSE
-
-  hr_args <- list(
-    data_as_input        = data_file,
-    description_as_input = desc_file,
-    algorithm            = algorithm,
-    ComBat_mode          = ComBat_mode,
-    sort                 = use_sort,
-    cores                = cores,
-    ur                   = ur,
-    output_file          = output_base
-  )
-  if (!is.null(block)) hr_args$block <- block
-
-  do.call(HarmonizR::harmonizR, hr_args)
-
-  # Read the output file written by HarmonizR
-  output_file <- paste0(output_base, ".tsv")
-  if (!file.exists(output_file))
-    stop("HarmonizR did not produce output file: ", output_file)
-
-  result_df <- utils::read.delim(output_file, sep = "\t", row.names = 1,
-                                  check.names = FALSE)
-  result <- as.matrix(result_df)
-
-  # Restore original names via safe→original mapping
-  col_map <- setNames(orig_colnames, safe_col)
-  row_map <- setNames(orig_rownames, safe_row)
-
-  colnames(result) <- col_map[colnames(result)]
-  rownames(result) <- row_map[rownames(result)]
-
-  # Check for sample loss (too many batches + missing data can cause this)
-  if (ncol(result) < n_samples) {
-    stop("HarmonizR returned only ", ncol(result), " of ", n_samples,
-         " samples.\n",
-         "  This happens when matrix dissection cannot cover all samples ",
-         "(too many batches relative to sample size and missingness).\n",
-         "  Try: (1) fewer batches (e.g., correct by a single factor), ",
-         "(2) set block parameter, or (3) algorithm='limma'.")
+  # Verify dimensions
+  if (ncol(corrected) != n_samples) {
+    stop("BERT returned ", ncol(corrected), " of ", n_samples,
+         " samples. Check batch assignments and data structure.")
   }
 
   # Reorder to match input
-  result <- result[, orig_colnames, drop = FALSE]
+  corrected <- corrected[, orig_colnames, drop = FALSE]
 
-  result
+  corrected
 }
 
 
@@ -861,11 +799,11 @@ pvca_analysis <- function(se,
 # SECTION 4: BATCH CORRECTION — PUBLIC FUNCTION
 # =============================================================================
 
-#' Batch Correction with HarmonizR
+#' Batch Correction with BERT
 #'
-#' Applies HarmonizR batch effect correction to a normalized assay in a
-#' SummarizedExperiment. HarmonizR uses matrix dissection to handle missing
-#' values, making it suitable for pre-imputation batch correction on
+#' Applies BERT batch effect correction to a normalized assay in a
+#' SummarizedExperiment. BERT uses hierarchical tree decomposition to handle
+#' missing values, making it suitable for pre-imputation batch correction on
 #' protein-level proteomics data.
 #'
 #' @param se SummarizedExperiment with a normalized assay.
@@ -874,22 +812,20 @@ pvca_analysis <- function(se,
 #' @param batch_column Character. Column in colData(se) containing batch
 #'   assignments (default "Batch").
 #' @param corrected_assay_name Character. Name for the new corrected assay
-#'   added to the SE (default "HarmonizR").
-#' @param algorithm Character: "ComBat" (default) or "limma".
+#'   added to the SE (default "BERT").
+#' @param algorithm Character: "ComBat" (default), "limma", or "ref".
 #' @param ComBat_mode Integer 1-4 controlling ComBat behavior:
 #'   1 = parametric + mean+variance, 2 = parametric + mean-only,
 #'   3 = non-parametric + mean+variance, 4 = non-parametric + mean-only.
-#' @param sort_method Character. Sorting strategy for matrix dissection:
-#'   "sparsity_sort" (default), "seriation_sort", or "jaccard_sort".
-#' @param block Integer or NULL. Block size for batch grouping during
-#'   dissection (default NULL = automatic).
-#' @param cores Integer. Number of cores for parallel processing (default 1).
-#' @param ur Logical. Enable unique combination removal for improved feature
-#'   recovery (default TRUE).
+#' @param covariates Character vector of column names from colData(se) to
+#'   use as categorical covariates for batch correction (default NULL).
+#'   These are mapped to BERT's Cov_1, Cov_2, ... format internally.
+#' @param qualitycontrol Logical. Compute ASW (Average Silhouette Width)
+#'   quality metrics for raw vs corrected data (default FALSE).
 #' @param verbose Logical (default TRUE).
 #'
 #' @return SummarizedExperiment with the new corrected assay added.
-#'   If HarmonizR returns fewer features than the input, the SE is subsetted
+#'   If BERT returns fewer features than the input, the SE is subsetted
 #'   to match and a warning is issued.
 #'
 #' @examples
@@ -901,25 +837,34 @@ pvca_analysis <- function(se,
 #'   batch_column = "Batch"
 #' )
 #' SummarizedExperiment::assayNames(se_corrected)
-#' # [1] "raw" "log2" "cycloess" "HarmonizR"
+#' # [1] "raw" "log2" "cycloess" "BERT"
+#'
+#' # With covariates
+#' se_corrected <- batch_correct_proteomics(
+#'   se         = result$se_proc,
+#'   assay_name = "cycloess",
+#'   batch_column = "Batch",
+#'   covariates = c("Gender", "Age")
+#' )
 #' }
 #' @export
 batch_correct_proteomics <- function(
     se,
     assay_name,
     batch_column           = "Batch",
-    corrected_assay_name   = "HarmonizR",
+    corrected_assay_name   = "BERT",
     algorithm              = "ComBat",
     ComBat_mode            = 1,
-    sort_method            = "sparsity_sort",
-    block                  = NULL,
-    cores                  = 1,
-    ur                     = TRUE,
+    covariates             = NULL,
+    qualitycontrol         = FALSE,
     verbose                = TRUE
 ) {
 
   # --- Check dependencies ---
-  .bc_check_harmonizr()
+  .bc_check_bert()
+
+  # --- Validate algorithm ---
+  algorithm <- match.arg(algorithm, c("ComBat", "limma", "ref"))
 
   # --- Validate assay ---
   all_assays <- SummarizedExperiment::assayNames(se)
@@ -933,13 +878,15 @@ batch_correct_proteomics <- function(
   batch_vals <- SummarizedExperiment::colData(se)[[batch_column]]
   n_batches <- length(unique(batch_vals[!is.na(batch_vals)]))
   if (verbose) {
-    cat("\n=== BATCH CORRECTION (HarmonizR) ===\n")
+    cat("\n=== BATCH CORRECTION (BERT) ===\n")
     cat("- Input assay:", assay_name, "\n")
     cat("- Batch column:", batch_column,
         "(", n_batches, "batches )\n")
     cat("- Algorithm:", algorithm)
     if (algorithm == "ComBat") cat(" (mode", ComBat_mode, ")")
     cat("\n")
+    if (!is.null(covariates))
+      cat("- Covariates:", paste(covariates, collapse = ", "), "\n")
   }
 
   # --- Extract matrix ---
@@ -948,20 +895,27 @@ batch_correct_proteomics <- function(
   if (verbose) cat("- Input features:", n_features_in,
                    "| Samples:", ncol(mat), "\n")
 
-  # --- Build description ---
-  description <- .bc_build_description(se, batch_column)
+  # --- Build covariates data.frame in BERT format (Cov_1, Cov_2, ...) ---
+  cov_df <- NULL
+  if (!is.null(covariates)) {
+    cd <- as.data.frame(SummarizedExperiment::colData(se))
+    missing_covs <- setdiff(covariates, colnames(cd))
+    if (length(missing_covs) > 0)
+      stop("Covariate column(s) not found in colData: ",
+           paste(missing_covs, collapse = ", "))
+    cov_df <- cd[, covariates, drop = FALSE]
+    colnames(cov_df) <- paste0("Cov_", seq_along(covariates))
+  }
 
-  # --- Run HarmonizR ---
-  if (verbose) cat("- Running HarmonizR (sort:", sort_method, ") ...\n")
-  corrected_mat <- .bc_run_harmonizr(
-    mat         = mat,
-    description = description,
-    algorithm   = algorithm,
-    ComBat_mode = ComBat_mode,
-    sort_method = sort_method,
-    block       = block,
-    cores       = cores,
-    ur          = ur
+  # --- Run BERT ---
+  if (verbose) cat("- Running BERT ...\n")
+  corrected_mat <- .bc_run_bert(
+    mat            = mat,
+    batch_vec      = batch_vals,
+    method         = algorithm,
+    combatmode     = ComBat_mode,
+    covariates     = cov_df,
+    qualitycontrol = qualitycontrol
   )
 
   # --- Align output to SE ---
@@ -970,11 +924,11 @@ batch_correct_proteomics <- function(
   # Handle potential feature loss
   if (n_features_out < n_features_in) {
     n_dropped <- n_features_in - n_features_out
-    warning("HarmonizR returned ", n_features_out, " features (", n_dropped,
+    warning("BERT returned ", n_features_out, " features (", n_dropped,
             " dropped due to batch-specific missingness).",
             "\n  The SE will be subsetted to match.")
 
-    # Subset SE to keep only features returned by HarmonizR
+    # Subset SE to keep only features returned by BERT
     keep_features <- rownames(corrected_mat)
     se <- se[keep_features, ]
     if (verbose) cat("- Features after correction:", n_features_out,
@@ -985,7 +939,7 @@ batch_correct_proteomics <- function(
   }
 
   # --- Add corrected assay to SE ---
-  # Ensure exact row/column order matches SE (HarmonizR may reorder features)
+  # Ensure exact row/column order matches SE (BERT may reorder features)
   corrected_mat <- corrected_mat[rownames(se), colnames(se), drop = FALSE]
   SummarizedExperiment::assay(se, corrected_assay_name) <- corrected_mat
 
@@ -1095,7 +1049,7 @@ batch_correct_proteomics <- function(
 #' source("R/Batch_Correction.R")
 #' pca_cov <- pca_covariates_plot(
 #'   se = result$se_proc,
-#'   assay_name = "HarmonizR",
+#'   assay_name = "BERT",
 #'   covariates = c("Injection", "Digestion", "Condition", "Gender")
 #' )
 #' pca_cov$grid              # faceted grid

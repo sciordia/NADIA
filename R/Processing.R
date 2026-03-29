@@ -339,17 +339,15 @@ if (!exists("%||%", mode = "function")) {
 #' @param cyclic_loess_method Cyclic Loess method: "fast" or "pairs" (default: "fast")
 #' @param cyclic_loess_iterations Number of iterations for Cyclic Loess (default: 3)
 #' @param cyclic_loess_span Span parameter for Cyclic Loess (default: 0.7)
-#' @param batch_correct Logical. Apply HarmonizR batch correction after
+#' @param batch_correct Logical. Apply BERT batch correction after
 #'   normalization (default: FALSE). Requires covariate_df with batch_column.
 #' @param batch_column Column in covariate_df containing batch assignments
 #'   (default: "Batch"). Must have >= 2 unique values.
-#' @param batch_algorithm Batch correction algorithm: "ComBat" (default) or "limma"
+#' @param batch_algorithm Batch correction algorithm: "ComBat" (default), "limma", or "ref"
 #' @param batch_ComBat_mode Integer 1-4 for ComBat parametric/mean-only settings (default: 1)
-#' @param batch_sort Sorting for matrix dissection: "sparsity_sort" (default),
-#'   "seriation_sort", or "jaccard_sort"
-#' @param batch_block Integer or NULL. Block size for batch grouping (default: NULL)
-#' @param batch_cores Integer. Cores for HarmonizR parallelization (default: 1)
-#' @param batch_ur Logical. Unique combination removal for feature recovery (default: TRUE)
+#' @param batch_covariates Character vector of colData column names to use as
+#'   categorical covariates for BERT batch correction (default: NULL)
+#' @param batch_qualitycontrol Logical. Compute ASW quality metrics (default: FALSE)
 #' @param imp_method Imputation method (default: "combo"). See impute_proteomics() for all options.
 #' @param mar_method MAR method for combo mode (default: "Impseqrob")
 #' @param mnar_method MNAR method for combo mode (default: "min")
@@ -425,10 +423,8 @@ process_proteomics <- function(
     batch_column = "Batch",
     batch_algorithm = "ComBat",
     batch_ComBat_mode = 1,
-    batch_sort = "sparsity_sort",
-    batch_block = NULL,
-    batch_cores = 1,
-    batch_ur = TRUE,
+    batch_covariates = NULL,
+    batch_qualitycontrol = FALSE,
     imp_method = "combo",
     mar_method = "Impseqrob",
     mnar_method = "min",
@@ -520,7 +516,7 @@ process_proteomics <- function(
   }
 
   # =========================================================================
-  # 2b. BATCH CORRECTION (optional — Batch_Correction.R / HarmonizR)
+  # 2b. BATCH CORRECTION (optional — Batch_Correction.R / BERT)
   # =========================================================================
 
   input_to_imputation <- norm_method
@@ -538,23 +534,21 @@ process_proteomics <- function(
       se                   = se,
       assay_name           = norm_method,
       batch_column         = batch_column,
-      corrected_assay_name = "HarmonizR",
+      corrected_assay_name = "BERT",
       algorithm            = batch_algorithm,
       ComBat_mode          = batch_ComBat_mode,
-      sort_method          = batch_sort,
-      block                = batch_block,
-      cores                = batch_cores,
-      ur                   = batch_ur,
+      covariates           = batch_covariates,
+      qualitycontrol       = batch_qualitycontrol,
       verbose              = verbose
     )
 
-    input_to_imputation <- "HarmonizR"
+    input_to_imputation <- "BERT"
 
     # Export batch-corrected matrix
     if (export_normalized) {
-      x_bc <- SummarizedExperiment::assay(se, "HarmonizR")
+      x_bc <- SummarizedExperiment::assay(se, "BERT")
       bc_file <- file.path(export_dir,
-                           paste0("matrix_log2_", norm_method, "_HarmonizR.tsv"))
+                           paste0("matrix_log2_", norm_method, "_BERT.tsv"))
       if (requireNamespace("readr", quietly = TRUE)) {
         readr::write_tsv(
           data.frame(ProteinGroups = rownames(x_bc), x_bc, check.names = FALSE),
@@ -713,6 +707,8 @@ process_proteomics <- function(
       batch_column = batch_column,
       batch_algorithm = batch_algorithm,
       batch_ComBat_mode = batch_ComBat_mode,
+      batch_covariates = batch_covariates,
+      batch_qualitycontrol = batch_qualitycontrol,
       imp_method = imp_method,
       mar_method = mar_method,
       mnar_method = mnar_method,
