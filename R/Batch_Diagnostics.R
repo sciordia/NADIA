@@ -706,13 +706,21 @@ pvca_analysis <- function(se,
                               cores       = 1,
                               ur          = TRUE) {
 
-  # HarmonizR's programmatic interface has a bug: rebuild() via plyr::rbind.fill
-  # can alter column names, causing "undefined columns selected" when it tries
-  # to restore original column order. Workaround: use the file-based interface
-  # (HarmonizR's primary and best-tested input method).
-
+  # Use safe column/row names (S1..Sn, F1..Fm) to avoid any name mangling
+  # through HarmonizR's file I/O pipeline. Restore originals after.
   orig_colnames <- colnames(mat)
   orig_rownames <- rownames(mat)
+  n_samples  <- ncol(mat)
+  n_features <- nrow(mat)
+
+  safe_col <- paste0("S", seq_len(n_samples))
+  safe_row <- paste0("F", seq_len(n_features))
+
+  colnames(mat) <- safe_col
+  rownames(mat) <- safe_row
+
+  # Update description to use safe sample names
+  description$ID <- safe_col
 
   # Create temp directory for HarmonizR I/O
   tmp_dir <- tempfile("harmonizr_")
@@ -721,7 +729,7 @@ pvca_analysis <- function(se,
 
   # Write data file (TSV: first column = feature IDs, rest = samples)
   data_file <- file.path(tmp_dir, "input_data.tsv")
-  data_df <- data.frame(ID = orig_rownames, mat, check.names = FALSE)
+  data_df <- data.frame(ID = safe_row, mat, check.names = FALSE)
   utils::write.table(data_df, data_file, sep = "\t", quote = FALSE,
                       row.names = FALSE)
 
@@ -732,10 +740,7 @@ pvca_analysis <- function(se,
   # Output file path (HarmonizR appends .tsv)
   output_base <- file.path(tmp_dir, "cured_data")
 
-  # Build args list
-  # Note: sort is only useful together with block parameter. HarmonizR 1.8.0
-  # has a bug in the "sort back to normal" step that causes "undefined columns
-  # selected". When block is NULL, we disable sorting entirely (FALSE).
+  # sort is only useful with block; HarmonizR 1.8.0 has a sorting bug
   use_sort <- if (!is.null(block)) sort_method else FALSE
 
   hr_args <- list(
@@ -761,10 +766,15 @@ pvca_analysis <- function(se,
                                   check.names = FALSE)
   result <- as.matrix(result_df)
 
-  # Ensure column order matches input
-  if (all(orig_colnames %in% colnames(result))) {
-    result <- result[, orig_colnames, drop = FALSE]
-  }
+  # Restore original names via safe→original mapping
+  col_map <- setNames(orig_colnames, safe_col)
+  row_map <- setNames(orig_rownames, safe_row)
+
+  colnames(result) <- col_map[colnames(result)]
+  rownames(result) <- row_map[rownames(result)]
+
+  # Reorder to match input
+  result <- result[, orig_colnames, drop = FALSE]
 
   result
 }
@@ -879,32 +889,6 @@ batch_correct_proteomics <- function(
 
   # --- Align output to SE ---
   n_features_out <- nrow(corrected_mat)
-
-  # HarmonizR (via file I/O) may mangle column names (e.g. prepend "X" to
-  # names starting with digits). Restore original SE column names by position
-  # or by matching make.names() versions.
-  se_colnames <- colnames(se)
-  hr_colnames <- colnames(corrected_mat)
-
-  if (!all(se_colnames %in% hr_colnames)) {
-    # Try matching via make.names (R's column name sanitization)
-    safe_map <- setNames(se_colnames, make.names(se_colnames))
-    if (all(hr_colnames %in% names(safe_map))) {
-      colnames(corrected_mat) <- safe_map[hr_colnames]
-    } else if (ncol(corrected_mat) == ncol(se)) {
-      # Same number of columns: assume same order, restore names directly
-      colnames(corrected_mat) <- se_colnames
-    } else {
-      stop("Cannot align HarmonizR output columns to SE.\n",
-           "  SE columns (first 3): ",
-           paste(head(se_colnames, 3), collapse = ", "), "\n",
-           "  HarmonizR columns (first 3): ",
-           paste(head(hr_colnames, 3), collapse = ", "))
-    }
-  }
-
-  # Reorder to match SE column order
-  corrected_mat <- corrected_mat[, se_colnames, drop = FALSE]
 
   # Handle potential feature loss
   if (n_features_out < n_features_in) {
