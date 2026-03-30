@@ -892,8 +892,15 @@ batch_correct_proteomics <- function(
   # --- Extract matrix ---
   mat <- SummarizedExperiment::assay(se, assay_name)
   n_features_in <- nrow(mat)
-  if (verbose) cat("- Input features:", n_features_in,
-                   "| Samples:", ncol(mat), "\n")
+  na_count_in  <- sum(is.na(mat))
+  na_total_in  <- length(mat)
+  na_pct_in    <- round(100 * na_count_in / na_total_in, 2)
+  if (verbose) {
+    cat("- Input features:", n_features_in,
+        "| Samples:", ncol(mat), "\n")
+    cat("- Input NAs:", na_count_in, "/", na_total_in,
+        "(", na_pct_in, "% )\n")
+  }
 
   # --- Build covariates data.frame in BERT format (Cov_1, Cov_2, ...) ---
   cov_df <- NULL
@@ -936,6 +943,18 @@ batch_correct_proteomics <- function(
   } else {
     if (verbose) cat("- Features after correction:", n_features_out,
                      " (none dropped)\n")
+  }
+
+  # --- Verify NA pattern ---
+  na_count_out <- sum(is.na(corrected_mat))
+  na_total_out <- length(corrected_mat)
+  na_pct_out   <- round(100 * na_count_out / na_total_out, 2)
+  if (verbose) cat("- Output NAs:", na_count_out, "/", na_total_out,
+                   "(", na_pct_out, "% )\n")
+
+  if (na_count_out != na_count_in && n_features_out == n_features_in) {
+    warning("NA count changed after BERT: ", na_count_in, " -> ", na_count_out,
+            ". Expected identical NA pattern when no features are dropped.")
   }
 
   # --- Add corrected assay to SE ---
