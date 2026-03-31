@@ -769,10 +769,12 @@ pvca_analysis <- function(se,
   }
 
   # Call BERT
-  result <- BERT::BERT(bert_input,
-                       method         = method,
-                       combatmode     = combatmode,
-                       qualitycontrol = qualitycontrol)
+  result <- suppressWarnings(
+    BERT::BERT(bert_input,
+               method         = method,
+               combatmode     = combatmode,
+               qualitycontrol = qualitycontrol)
+  )
 
   # Extract corrected matrix (remove Batch and Cov_* columns)
   meta_cols <- c("Batch", grep("^Cov_", colnames(result), value = TRUE))
