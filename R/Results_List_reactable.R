@@ -418,25 +418,23 @@ results_list_reactable <- function(
   max_abs_lfc <- max(abs(df$logFC), na.rm = TRUE)
   if (max_abs_lfc == 0) max_abs_lfc <- 1
 
-  # --- Definicion de columnas ---
+  # --- Definicion de columnas (JS renderers para rendimiento con +60K filas) ---
   cols <- list(
 
-    # Gen (primer gen, negrita)
+    # Gen (primer gen, negrita + badge count)
     Gene.Names = colDef(
       name = "Gen",
       minWidth = 140,
-      cell = function(value) {
-        genes <- trimws(unlist(strsplit(as.character(value), ";")))
-        first_gene <- genes[1]
-        if (length(genes) > 1) {
-          tagList(
-            tags$strong(first_gene),
-            span(class = "protein-count", paste0("+", length(genes) - 1))
-          )
-        } else {
-          tags$strong(first_gene)
+      html = TRUE,
+      cell = JS("function(cellInfo) {
+        var val = cellInfo.value || '';
+        var genes = val.split(';').map(function(s) { return s.trim(); }).filter(Boolean);
+        var first = genes[0] || val;
+        if (genes.length > 1) {
+          return '<strong>' + first + '</strong> <span class=\"protein-count\">+' + (genes.length - 1) + '</span>';
         }
-      },
+        return '<strong>' + first + '</strong>';
+      }"),
       style = list(alignItems = "center")
     ),
 
@@ -452,15 +450,14 @@ results_list_reactable <- function(
       name = "Cambio",
       width = 130,
       align = "center",
-      cell = function(value) {
-        cls <- switch(as.character(value),
-          "Up"        = "tag status-green",
-          "Down"      = "tag status-red",
-          "No Change" = "tag status-grey",
-          "tag status-grey"
-        )
-        span(class = cls, value)
-      }
+      html = TRUE,
+      cell = JS("function(cellInfo) {
+        var val = cellInfo.value;
+        var cls = 'tag status-grey';
+        if (val === 'Up') cls = 'tag status-green';
+        else if (val === 'Down') cls = 'tag status-red';
+        return '<span class=\"' + cls + '\">' + val + '</span>';
+      }")
     ),
 
     # logFC (valor + barra)
@@ -468,16 +465,19 @@ results_list_reactable <- function(
       name = "log\u2082 FC",
       width = 160,
       align = "center",
-      cell = function(value) {
-        pct <- abs(value) / max_abs_lfc * 100
-        bar_class <- if (value >= 0) "lfc-bar positive" else "lfc-bar negative"
-        div(class = "lfc-bar-container",
-          span(class = "lfc-value", formatC(value, format = "f", digits = 3)),
-          div(class = "lfc-bar-wrapper",
-            div(class = bar_class, style = paste0("width:", round(pct, 1), "%"))
-          )
-        )
-      }
+      html = TRUE,
+      cell = JS(sprintf("function(cellInfo) {
+        var val = cellInfo.value;
+        var maxLfc = %s;
+        var pct = Math.abs(val) / maxLfc * 100;
+        var barClass = val >= 0 ? 'lfc-bar positive' : 'lfc-bar negative';
+        var formatted = val.toFixed(3);
+        return '<div class=\"lfc-bar-container\">' +
+          '<span class=\"lfc-value\">' + formatted + '</span>' +
+          '<div class=\"lfc-bar-wrapper\">' +
+          '<div class=\"' + barClass + '\" style=\"width:' + pct.toFixed(1) + '%%\"></div>' +
+          '</div></div>';
+      }", max_abs_lfc))
     ),
 
     # FDR (notacion cientifica, negrita si significativo)
@@ -485,14 +485,16 @@ results_list_reactable <- function(
       name = "FDR",
       width = 120,
       align = "right",
-      cell = function(value) {
-        formatted <- formatC(value, format = "e", digits = 2)
-        if (!is.na(value) && value < alpha) {
-          tags$strong(style = "color: #0E6655;", formatted)
-        } else {
-          formatted
+      html = TRUE,
+      cell = JS(sprintf("function(cellInfo) {
+        var val = cellInfo.value;
+        if (val == null || isNaN(val)) return '';
+        var formatted = val.toExponential(2);
+        if (val < %s) {
+          return '<strong style=\"color: #0E6655;\">' + formatted + '</strong>';
         }
-      }
+        return formatted;
+      }", alpha))
     ),
 
     # P-valor (oculto por defecto, visible en detalle)
@@ -501,27 +503,27 @@ results_list_reactable <- function(
       width = 110,
       align = "right",
       show = FALSE,
-      cell = function(value) {
-        formatC(value, format = "e", digits = 2)
-      }
+      cell = JS("function(cellInfo) {
+        var val = cellInfo.value;
+        if (val == null || isNaN(val)) return '';
+        return val.toExponential(2);
+      }")
     ),
 
     # Protein.IDs (truncado + count badge)
     Protein.IDs = colDef(
       name = "Prote\u00ednas",
       minWidth = 160,
-      cell = function(value) {
-        pids <- trimws(unlist(strsplit(as.character(value), ";")))
-        first_id <- pids[1]
-        if (length(pids) > 1) {
-          tagList(
-            first_id,
-            span(class = "protein-count", paste0("+", length(pids) - 1))
-          )
-        } else {
-          first_id
+      html = TRUE,
+      cell = JS("function(cellInfo) {
+        var val = cellInfo.value || '';
+        var pids = val.split(';').map(function(s) { return s.trim(); }).filter(Boolean);
+        var first = pids[0] || val;
+        if (pids.length > 1) {
+          return first + ' <span class=\"protein-count\">+' + (pids.length - 1) + '</span>';
         }
-      }
+        return first;
+      }")
     )
   )
 
@@ -534,48 +536,41 @@ results_list_reactable <- function(
     )
   }
 
-  # Columnas de Missing%
+  # Columnas de Missing% (JS renderer)
   if (show_missing) {
-    .missing_cell <- function(value) {
-      pct <- as.numeric(value)
-      if (is.na(pct)) return("")
-
-      # Color: verde (0%) -> naranja (50%+)
-      r <- min(pct / 50, 1)
-      bar_color <- if (pct == 0) {
-        "#02905A"
-      } else if (pct <= 25) {
-        "#ffa62d"
-      } else {
-        "#E63946"
-      }
-
-      div(class = "missing-bar-container",
-        span(class = "missing-value", paste0(pct, "%")),
-        div(class = "missing-bar-wrapper",
-          div(class = "missing-bar",
-              style = paste0("width:", pct, "%; background-color:", bar_color, ";"))
-        )
-      )
-    }
+    .missing_col_js <- JS("function(cellInfo) {
+      var pct = cellInfo.value;
+      if (pct == null || isNaN(pct)) return '';
+      var color = '#02905A';
+      if (pct > 25) color = '#E63946';
+      else if (pct > 0) color = '#ffa62d';
+      return '<div class=\"missing-bar-container\">' +
+        '<span class=\"missing-value\">' + pct + '%</span>' +
+        '<div class=\"missing-bar-wrapper\">' +
+        '<div class=\"missing-bar\" style=\"width:' + pct + '%; background-color:' + color + ';\"></div>' +
+        '</div></div>';
+    }")
 
     cols$MissingGlobal <- colDef(
       name = "% Ausencia",
       width = 120,
       align = "center",
-      cell = .missing_cell
+      html = TRUE,
+      cell = .missing_col_js
     )
     cols$MissingPCT1 <- colDef(
       name = "% Grupo 1",
       width = 110,
       align = "center",
-      cell = .missing_cell
+      html = TRUE,
+      cell = .missing_col_js
     )
     cols$MissingPCT2 <- colDef(
       name = "% Grupo 2",
       width = 110,
       align = "center",
-      cell = .missing_cell
+      html = TRUE,
+      cell = .missing_col_js
     )
   }
 
