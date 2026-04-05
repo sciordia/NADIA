@@ -283,56 +283,49 @@ if (!exists("%||%", mode = "function")) {
 }
 
 
-#' Funcion de detalle para filas expandibles
-#' @param df Data frame con los datos (el mismo pasado a reactable)
-#' @return Funcion para el parametro details de reactable
+#' Funcion de detalle para filas expandibles (JS renderer)
+#' @param has_assay Logico, si el data frame tiene columna Assay
+#' @return Objeto JS para el parametro details de reactable
 #' @noRd
-.rl_detail_row <- function(df) {
-  function(index) {
-    row <- df[index, ]
-
-    # Protein.IDs con enlaces UniProt
-    pids <- trimws(unlist(strsplit(as.character(row$Protein.IDs), ";")))
-    protein_links <- lapply(pids, function(pid) {
-      tags$span(
-        tags$a(
-          href = paste0("https://www.uniprot.org/uniprot/", pid),
-          target = "_blank",
-          pid
-        ),
-        " "
-      )
-    })
-
-    # Gene.Names completo
-    genes <- as.character(row$Gene.Names)
-
-    # Construir panel de detalle
-    div(class = "rl-detail",
-      div(class = "detail-row",
-        span(class = "detail-label", "Prote\u00ednas:"),
-        tagList(protein_links)
-      ),
-      div(class = "detail-row",
-        span(class = "detail-label", "Genes:"),
-        genes
-      ),
-      div(class = "detail-row",
-        span(class = "detail-label", "P-valor:"),
-        formatC(row$P.Value, format = "e", digits = 4)
-      ),
-      div(class = "detail-row",
-        span(class = "detail-label", "FDR:"),
-        formatC(row$adj.P.Val, format = "e", digits = 4)
-      ),
-      if ("Assay" %in% names(row)) {
-        div(class = "detail-row",
-          span(class = "detail-label", "M\u00e9todo:"),
-          as.character(row$Assay)
-        )
-      }
-    )
+.rl_detail_row <- function(has_assay = TRUE) {
+  assay_block <- if (has_assay) {
+    "
+    var assay = row['Assay'] || '';
+    if (assay) {
+      html += '<div class=\"detail-row\"><span class=\"detail-label\">M\\u00e9todo:</span> ' + assay + '</div>';
+    }
+    "
+  } else {
+    ""
   }
+
+  JS(sprintf("function(rowInfo) {
+    var row = rowInfo.row;
+    var html = '<div class=\"rl-detail\">';
+
+    // Protein.IDs con enlaces UniProt
+    var pids = (row['Protein.IDs'] || '').split(';').map(function(s) { return s.trim(); }).filter(Boolean);
+    var links = pids.map(function(pid) {
+      return '<a href=\"https://www.uniprot.org/uniprot/' + pid + '\" target=\"_blank\">' + pid + '</a>';
+    }).join(' \\u00b7 ');
+    html += '<div class=\"detail-row\"><span class=\"detail-label\">Prote\\u00ednas:</span> ' + links + '</div>';
+
+    // Gene.Names completo
+    var genes = row['Gene.Names'] || '';
+    html += '<div class=\"detail-row\"><span class=\"detail-label\">Genes:</span> ' + genes + '</div>';
+
+    // P-valor y FDR con precision completa
+    var pval = row['P.Value'];
+    var fdr = row['adj.P.Val'];
+    html += '<div class=\"detail-row\"><span class=\"detail-label\">P-valor:</span> ' + (pval != null ? pval.toExponential(4) : '') + '</div>';
+    html += '<div class=\"detail-row\"><span class=\"detail-label\">FDR:</span> ' + (fdr != null ? fdr.toExponential(4) : '') + '</div>';
+
+    // Assay (si existe)
+    %s
+
+    html += '</div>';
+    return React.createElement('div', { dangerouslySetInnerHTML: { __html: html } });
+  }", assay_block))
 }
 
 
@@ -619,7 +612,7 @@ results_list_reactable <- function(
     striped    = TRUE,
     theme      = .rl_theme(),
     language   = .rl_lang(),
-    details    = .rl_detail_row(df)
+    details    = .rl_detail_row(has_assay)
   )
 }
 
@@ -632,18 +625,20 @@ results_list_reactable <- function(
 #'
 #' Envuelve \code{results_list_reactable()} con CSS embebido y campo de busqueda
 #' externo. Ideal para documentos Quarto o uso interactivo en RStudio.
+#' El resultado es browsable: al imprimirlo en consola se abre automaticamente
+#' en el Viewer de RStudio o en el navegador.
 #'
 #' @inheritParams results_list_reactable
 #' @param element_id ID del elemento (default: "deps_table")
 #'
-#' @return Objeto htmltools tagList
+#' @return Objeto htmltools browsable tagList (se muestra automaticamente en RStudio Viewer)
 #'
 #' @examples
-#' # Uso standalone
-#' widget <- results_list_widget("results/VolcanoPlot_Input_cycloess_Impseq_min.tsv")
+#' # Uso standalone (se abre en RStudio Viewer)
+#' results_list_widget("results/VolcanoPlot_Input_cycloess_Impseq_min.tsv")
 #'
-#' # Con filtro
-#' widget <- results_list_widget(de_res, comparisons = "B-A")
+#' # Con filtro de comparacion
+#' results_list_widget(de_res, comparisons = "B-A")
 results_list_widget <- function(
     data,
     comparisons = NULL,
@@ -688,5 +683,6 @@ results_list_widget <- function(
     searchable   = searchable
   )
 
-  tagList(css, search_input, tbl)
+  # browsable() permite que RStudio Viewer lo muestre automaticamente
+  browsable(tagList(css, search_input, tbl))
 }
