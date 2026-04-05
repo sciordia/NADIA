@@ -120,7 +120,7 @@ if (!exists("%||%", mode = "function")) {
       overflow-x: auto;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
       font-size: 14px;
-      margin-top: 1rem;
+      margin-top: 0.25rem;
       border: 1px solid hsl(213, 33%, 93%);
       border-radius: 4px;
       box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1);
@@ -225,7 +225,7 @@ if (!exists("%||%", mode = "function")) {
     .rl-search-actions {
       display: flex;
       gap: 0.75rem;
-      margin-bottom: 1rem;
+      margin-bottom: 0.5rem;
       align-items: center;
       width: 100%;
     }
@@ -305,15 +305,17 @@ if (!exists("%||%", mode = "function")) {
     /* Contenedor de filtros (colapsable) */
     .rl-filters-container {
       background: #f8f9fa;
-      border: 1px solid #dee2e6;
+      border: 0 solid #dee2e6;
       border-radius: 8px;
-      padding: 1.5rem;
+      padding: 0;
       margin-bottom: 0;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      box-shadow: none;
       max-height: 0;
       opacity: 0;
       overflow: hidden;
-      transition: max-height 0.4s ease, opacity 0.3s ease, margin-bottom 0.3s ease;
+      transition: max-height 0.4s ease, opacity 0.3s ease,
+                  margin-bottom 0.3s ease, padding 0.3s ease,
+                  border-width 0.3s ease, box-shadow 0.3s ease;
     }
     .rl-filters-row {
       display: grid;
@@ -840,12 +842,18 @@ results_list_widget <- function(
         container.style.maxHeight = '0';
         container.style.opacity = '0';
         container.style.marginBottom = '0';
+        container.style.padding = '0';
+        container.style.borderWidth = '0';
+        container.style.boxShadow = 'none';
         container.style.overflow = 'hidden';
         btn.classList.add('filters-hidden');
       } else {
         container.style.maxHeight = '500px';
         container.style.opacity = '1';
-        container.style.marginBottom = '1.5rem';
+        container.style.marginBottom = '1rem';
+        container.style.padding = '1.5rem';
+        container.style.borderWidth = '1px';
+        container.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)';
         container.style.overflow = 'visible';
         btn.classList.remove('filters-hidden');
       }
