@@ -922,8 +922,9 @@ results_list_widget <- function(
           visibleHeaders.forEach(function(h) { rowData[h] = row[h]; });
           var addedRow = ws.addRow(rowData);
 
-          // Convertir numericos
-          ['logFC', 'adj.P.Val', 'P.Value', 'MissingGlobal', 'MissingPCT1', 'MissingPCT2'].forEach(function(col) {
+          // Convertir numericos (solo columnas visibles)
+          ['logFC', 'adj.P.Val', 'MissingGlobal', 'MissingPCT1', 'MissingPCT2'].forEach(function(col) {
+            if (visibleHeaders.indexOf(col) === -1) return;
             var cell = addedRow.getCell(col);
             if (cell && cell.value) {
               var num = parseFloat(cell.value);
