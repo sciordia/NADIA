@@ -64,6 +64,57 @@ if (!exists("%||%", mode = "function")) {
 }
 
 
+#' Join con protein_quant para anadir Description y Quant_Pepts
+#' @param df Data frame de resultados DE
+#' @param protein_quant Data frame (preprocessing$protein_quant) o ruta a TSV.
+#'   NULL para no hacer join.
+#' @return Data frame con columnas Description y Quant_Pepts anadidas
+#' @noRd
+.rl_join_protein_info <- function(df, protein_quant) {
+  if (is.null(protein_quant)) return(df)
+
+  # Cargar si es ruta
+  if (is.character(protein_quant) && length(protein_quant) == 1) {
+    pq <- .rl_load_data(protein_quant)
+  } else {
+    pq <- as.data.frame(protein_quant)
+  }
+
+  # Verificar columna clave
+  if (!"PG.ProteinGroups" %in% names(pq)) {
+    stop("protein_quant debe contener la columna 'PG.ProteinGroups'")
+  }
+
+  # Extraer Description
+  desc_col <- if ("PG.ProteinDescriptions" %in% names(pq)) pq$PG.ProteinDescriptions else NA_character_
+  info <- data.frame(
+    Protein.IDs = pq$PG.ProteinGroups,
+    Description = desc_col,
+    stringsAsFactors = FALSE
+  )
+
+  # Calcular max Quant_Pepts
+  pept_cols <- grep("^PG\\.NrOfStrippedSequencesUsedForQuantification_", names(pq), value = TRUE)
+  if (length(pept_cols) > 0) {
+    pept_mat <- as.matrix(pq[, pept_cols, drop = FALSE])
+    storage.mode(pept_mat) <- "numeric"
+    info$Quant_Pepts <- apply(pept_mat, 1, function(x) {
+      vals <- x[!is.na(x)]
+      if (length(vals) == 0) 0L else as.integer(max(vals))
+    })
+  } else {
+    info$Quant_Pepts <- NA_integer_
+  }
+
+  # Join por Protein.IDs (match para preservar orden y evitar duplicacion)
+  idx <- match(df$Protein.IDs, info$Protein.IDs)
+  df$Description  <- info$Description[idx]
+  df$Quant_Pepts  <- info$Quant_Pepts[idx]
+
+  df
+}
+
+
 #' Tema reactable estilo teal/green
 #' @return Objeto reactableTheme
 #' @noRd
@@ -151,32 +202,9 @@ if (!exists("%||%", mode = "function")) {
       border-radius: 2px;
       min-width: 2px;
     }
-    .lfc-bar.positive { background-color: #E63946; }
-    .lfc-bar.negative { background-color: #457B9D; }
-
-    /* Barra porcentaje ausencia */
-    .missing-bar-container {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      width: 100%;
-    }
-    .missing-value {
-      min-width: 35px;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-    }
-    .missing-bar-wrapper {
-      flex: 1;
-      height: 12px;
-      background: #f0f0f0;
-      border-radius: 2px;
-      overflow: hidden;
-    }
-    .missing-bar {
-      height: 100%;
-      border-radius: 2px;
-    }
+    .lfc-bar.up { background-color: #02905A; }
+    .lfc-bar.down { background-color: #E63946; }
+    .lfc-bar.nochange { background-color: #ADB5BD; }
 
     /* Panel de detalle expandido */
     .rl-detail {
@@ -332,11 +360,13 @@ if (!exists("%||%", mode = "function")) {
       display: flex;
       flex-direction: column;
       gap: 0.25rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      font-size: 14px;
     }
     .rl-filter-label {
-      font-weight: 600;
+      font-weight: normal;
       color: #495057;
-      font-size: 0.9rem;
+      font-size: 14px;
       margin-bottom: 0.25rem;
     }
 
@@ -345,7 +375,7 @@ if (!exists("%||%", mode = "function")) {
       border: 2px solid #e0e0e0;
       border-radius: 6px;
       padding: 8px 12px;
-      font-size: 0.9rem;
+      font-size: 14px;
       min-height: 38px;
       transition: all 0.3s ease;
     }
@@ -361,6 +391,7 @@ if (!exists("%||%", mode = "function")) {
       border-top: none;
       border-radius: 0 0 6px 6px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      font-size: 14px;
     }
     .rl-filter-item .selectize-dropdown .active {
       background-color: rgba(14, 102, 85, 0.1);
@@ -378,6 +409,16 @@ if (!exists("%||%", mode = "function")) {
     }
     .selectize-control.multi .selectize-input > div .remove:hover {
       color: #ffa62d;
+    }
+
+    /* Celdas Missing% con fondo coloreado */
+    .rl-missing-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      font-variant-numeric: tabular-nums;
     }
 
     /* Radio buttons estilo teal */
@@ -405,7 +446,7 @@ if (!exists("%||%", mode = "function")) {
 }
 
 
-#' Traduccion al espanol
+#' Traduccion al espanol (interfaz)
 #' @return Objeto reactableLang
 #' @noRd
 .rl_lang <- function() {
@@ -413,23 +454,35 @@ if (!exists("%||%", mode = "function")) {
     searchPlaceholder = "Buscar...",
     pagePrevious      = "Anterior",
     pageNext          = "Siguiente",
-    noData            = "No hay datos para mostrar",
-    pageSizeOptions   = "Mostrar {rows}",
-    pageInfo          = "{rowStart}\u2013{rowEnd} de {rows} Prote\u00ednas"
+    noData            = "No data to display",
+    pageSizeOptions   = "Show {rows}",
+    pageInfo          = "{rowStart}\u2013{rowEnd} of {rows} Proteins"
   )
 }
 
 
 #' Funcion de detalle para filas expandibles (JS renderer)
 #' @param has_assay Logico, si el data frame tiene columna Assay
+#' @param has_description Logico, si el data frame tiene columna Description
 #' @return Objeto JS para el parametro details de reactable
 #' @noRd
-.rl_detail_row <- function(has_assay = TRUE) {
+.rl_detail_row <- function(has_assay = TRUE, has_description = FALSE) {
   assay_block <- if (has_assay) {
     "
     var assay = row['Assay'] || '';
     if (assay) {
-      html += '<div class=\"detail-row\"><span class=\"detail-label\">M\\u00e9todo:</span> ' + assay + '</div>';
+      html += '<div class=\"detail-row\"><span class=\"detail-label\">Method:</span> ' + assay + '</div>';
+    }
+    "
+  } else {
+    ""
+  }
+
+  desc_block <- if (has_description) {
+    "
+    var desc = row['Description'] || '';
+    if (desc) {
+      html += '<div class=\"detail-row\"><span class=\"detail-label\">Description:</span> ' + desc + '</div>';
     }
     "
   } else {
@@ -445,16 +498,19 @@ if (!exists("%||%", mode = "function")) {
     var links = pids.map(function(pid) {
       return '<a href=\"https://www.uniprot.org/uniprot/' + pid + '\" target=\"_blank\">' + pid + '</a>';
     }).join(' \\u00b7 ');
-    html += '<div class=\"detail-row\"><span class=\"detail-label\">Prote\\u00ednas:</span> ' + links + '</div>';
+    html += '<div class=\"detail-row\"><span class=\"detail-label\">Proteins:</span> ' + links + '</div>';
 
     // Gene.Names completo
     var genes = row['Gene.Names'] || '';
     html += '<div class=\"detail-row\"><span class=\"detail-label\">Genes:</span> ' + genes + '</div>';
 
+    // Description
+    %s
+
     // P-valor y FDR con precision completa
     var pval = row['P.Value'];
     var fdr = row['adj.P.Val'];
-    html += '<div class=\"detail-row\"><span class=\"detail-label\">P-valor:</span> ' + (pval != null ? pval.toExponential(4) : '') + '</div>';
+    html += '<div class=\"detail-row\"><span class=\"detail-label\">P-value:</span> ' + (pval != null ? pval.toExponential(4) : '') + '</div>';
     html += '<div class=\"detail-row\"><span class=\"detail-label\">FDR:</span> ' + (fdr != null ? fdr.toExponential(4) : '') + '</div>';
 
     // Assay (si existe)
@@ -462,7 +518,194 @@ if (!exists("%||%", mode = "function")) {
 
     html += '</div>';
     return React.createElement('div', { dangerouslySetInnerHTML: { __html: html } });
-  }", assay_block))
+  }", desc_block, assay_block))
+}
+
+
+#' Construir definiciones de columnas compartidas
+#' @param max_abs_lfc Valor maximo absoluto de logFC para escalar barras
+#' @param alpha Umbral de significancia
+#' @param has_assay Logico, si hay columna Assay
+#' @param single_assay Logico, si solo hay un assay
+#' @param show_missing Logico, si mostrar columnas Missing%
+#' @param has_description Logico, si hay columna Description
+#' @param has_quant_pepts Logico, si hay columna Quant_Pepts
+#' @return Lista de colDef
+#' @noRd
+.rl_build_columns <- function(max_abs_lfc, alpha, has_assay, single_assay,
+                               show_missing, has_description, has_quant_pepts) {
+
+  # JS renderer para Missing% con fondo coloreado
+  .missing_style_js <- JS("function(rowInfo, column) {
+    var pct = rowInfo.row[column.id];
+    if (pct == null || isNaN(pct)) return {};
+    var r, g, b;
+    if (pct === 0) {
+      return { color: '#aaa' };
+    } else if (pct <= 12.5) {
+      r = 255; g = 253; b = 210;
+    } else if (pct <= 25) {
+      r = 252; g = 220; b = 149;
+    } else if (pct <= 37.5) {
+      r = 247; g = 180; b = 128;
+    } else {
+      r = 240; g = 140; b = 130;
+    }
+    return { background: 'rgb(' + r + ',' + g + ',' + b + ')', color: '#111' };
+  }")
+
+  cols <- list(
+    # --- Comparison (1ro) ---
+    Comparison = colDef(
+      name = "Comparison",
+      width = 120,
+      align = "center"
+    ),
+
+    # --- Gene (2do) ---
+    Gene.Names = colDef(
+      name = "Gene",
+      minWidth = 140,
+      html = TRUE,
+      cell = JS("function(cellInfo) {
+        var val = cellInfo.value || '';
+        var genes = val.split(';').map(function(s) { return s.trim(); }).filter(Boolean);
+        var first = genes[0] || val;
+        if (genes.length > 1) {
+          return '<strong>' + first + '</strong> <span class=\"protein-count\">+' + (genes.length - 1) + '</span>';
+        }
+        return '<strong>' + first + '</strong>';
+      }"),
+      style = list(alignItems = "center")
+    ),
+
+    # --- Protein Groups (3ro) ---
+    Protein.IDs = colDef(
+      name = "Protein Groups",
+      minWidth = 160,
+      html = TRUE,
+      cell = JS("function(cellInfo) {
+        var val = cellInfo.value || '';
+        var pids = val.split(';').map(function(s) { return s.trim(); }).filter(Boolean);
+        var first = pids[0] || val;
+        if (pids.length > 1) {
+          return first + ' <span class=\"protein-count\">+' + (pids.length - 1) + '</span>';
+        }
+        return first;
+      }")
+    )
+  )
+
+  # --- Description (4to, condicional) ---
+  if (has_description) {
+    cols$Description <- colDef(
+      name = "Description",
+      minWidth = 250
+    )
+  }
+
+  # --- Quant_Pepts (5to, condicional) ---
+  if (has_quant_pepts) {
+    cols$Quant_Pepts <- colDef(
+      name = "Quant Pepts",
+      width = 100,
+      align = "center"
+    )
+  }
+
+  # --- Change (badge) ---
+  cols$Change <- colDef(
+    name = "Change",
+    width = 130,
+    align = "center",
+    html = TRUE,
+    cell = JS("function(cellInfo) {
+      var val = cellInfo.value;
+      var cls = 'tag status-grey';
+      if (val === 'Up') cls = 'tag status-green';
+      else if (val === 'Down') cls = 'tag status-red';
+      return '<span class=\"' + cls + '\">' + val + '</span>';
+    }")
+  )
+
+  # --- logFC (valor + barra coloreada por Change) ---
+  cols$logFC <- colDef(
+    name = "log\u2082 FC",
+    width = 160,
+    align = "center",
+    html = TRUE,
+    cell = JS(sprintf("function(cellInfo) {
+      var val = cellInfo.value;
+      var change = cellInfo.row['Change'];
+      var maxLfc = %s;
+      var pct = Math.abs(val) / maxLfc * 100;
+      var barClass = 'lfc-bar nochange';
+      if (change === 'Up') barClass = 'lfc-bar up';
+      else if (change === 'Down') barClass = 'lfc-bar down';
+      var formatted = val.toFixed(3);
+      return '<div class=\"lfc-bar-container\">' +
+        '<span class=\"lfc-value\">' + formatted + '</span>' +
+        '<div class=\"lfc-bar-wrapper\">' +
+        '<div class=\"' + barClass + '\" style=\"width:' + pct.toFixed(1) + '%%\"></div>' +
+        '</div></div>';
+    }", max_abs_lfc))
+  )
+
+  # --- FDR ---
+  cols$adj.P.Val <- colDef(
+    name = "FDR",
+    width = 120,
+    align = "right",
+    html = TRUE,
+    cell = JS(sprintf("function(cellInfo) {
+      var val = cellInfo.value;
+      if (val == null || isNaN(val)) return '';
+      var formatted = val.toExponential(2);
+      if (val < %s) {
+        return '<strong style=\"color: #0E6655;\">' + formatted + '</strong>';
+      }
+      return formatted;
+    }", alpha))
+  )
+
+  # --- P-value (oculto) ---
+  cols$P.Value <- colDef(
+    name = "P-value",
+    width = 110,
+    align = "right",
+    show = FALSE,
+    cell = JS("function(cellInfo) {
+      var val = cellInfo.value;
+      if (val == null || isNaN(val)) return '';
+      return val.toExponential(2);
+    }")
+  )
+
+  # --- Assay ---
+  if (has_assay) {
+    cols$Assay <- colDef(name = "Method", width = 130, show = !single_assay)
+  }
+
+  # --- Missing% con fondo coloreado ---
+  if (show_missing) {
+    cols$MissingGlobal <- colDef(
+      name = "% Missing", width = 100, align = "center",
+      cell = JS("function(cellInfo) { var v = cellInfo.value; return (v == null || isNaN(v)) ? '' : v + '%'; }"),
+      style = .missing_style_js
+    )
+    cols$MissingPCT1 <- colDef(
+      name = "% Group 1", width = 100, align = "center",
+      cell = JS("function(cellInfo) { var v = cellInfo.value; return (v == null || isNaN(v)) ? '' : v + '%'; }"),
+      style = .missing_style_js
+    )
+    cols$MissingPCT2 <- colDef(
+      name = "% Group 2", width = 100, align = "center",
+      cell = JS("function(cellInfo) { var v = cellInfo.value; return (v == null || isNaN(v)) ? '' : v + '%'; }"),
+      style = .missing_style_js
+    )
+  }
+
+  cols
 }
 
 
@@ -479,6 +722,8 @@ if (!exists("%||%", mode = "function")) {
 #' @param data Data frame o ruta a archivo TSV/CSV/Parquet con resultados DE.
 #'   Columnas requeridas: Protein.IDs, Gene.Names, logFC, P.Value, adj.P.Val,
 #'   Change, Comparison. Opcionales: Assay, MissingGlobal, MissingPCT1, MissingPCT2
+#' @param protein_quant Data frame (preprocessing$protein_quant) o ruta a archivo
+#'   Protein_QUANT_*.tsv. Si no es NULL, anade columnas Description y Quant_Pepts.
 #' @param comparisons Vector de comparaciones a incluir (NULL = todas)
 #' @param ain Vector de assays a filtrar (NULL = todos)
 #' @param alpha Umbral de significancia para resaltar FDR (default: 0.05)
@@ -496,15 +741,16 @@ if (!exists("%||%", mode = "function")) {
 #' # Desde archivo
 #' tbl <- results_list_reactable("results/VolcanoPlot_Input_cycloess_Impseq_min.tsv")
 #'
-#' # Con filtro de comparacion
-#' tbl <- results_list_reactable(de_res, comparisons = c("B-A", "C-A"))
+#' # Con protein_quant para Description y Quant_Pepts
+#' tbl <- results_list_reactable(de_res, protein_quant = preprocessing$protein_quant)
 #'
 #' # En Shiny
 #' # output$tabla <- renderReactable({
-#' #   results_list_reactable(data(), comparisons = input$comp, element_id = "tabla")
+#' #   results_list_reactable(data(), protein_quant = pq, element_id = "tabla")
 #' # })
 results_list_reactable <- function(
     data,
+    protein_quant = NULL,
     comparisons = NULL,
     ain = NULL,
     alpha = 0.05,
@@ -520,6 +766,9 @@ results_list_reactable <- function(
   # --- Carga y validacion ---
   df <- .rl_load_data(data)
 
+  # --- Join con protein_quant ---
+  df <- .rl_join_protein_info(df, protein_quant)
+
   # --- Filtrado ---
   if (!is.null(ain) && "Assay" %in% names(df)) {
     df <- df[df$Assay %in% ain, , drop = FALSE]
@@ -531,7 +780,6 @@ results_list_reactable <- function(
     stop("No hay datos tras aplicar los filtros de comparaciones/assays")
   }
 
-  # Aviso si hay muchas filas sin filtro
   if (nrow(df) > 15000 && is.null(comparisons)) {
     message("Nota: ", format(nrow(df), big.mark = "."),
             " filas. Considera filtrar por 'comparisons' para mejor rendimiento.")
@@ -540,171 +788,17 @@ results_list_reactable <- function(
   # --- Detectar columnas opcionales ---
   has_missing <- all(c("MissingGlobal", "MissingPCT1", "MissingPCT2") %in% names(df))
   show_missing <- show_missing && has_missing
-
   has_assay <- "Assay" %in% names(df)
   single_assay <- has_assay && length(unique(df$Assay)) == 1
+  has_description <- "Description" %in% names(df)
+  has_quant_pepts <- "Quant_Pepts" %in% names(df)
 
-  # --- Pre-calcular max abs logFC para escalar barras ---
   max_abs_lfc <- max(abs(df$logFC), na.rm = TRUE)
   if (max_abs_lfc == 0) max_abs_lfc <- 1
 
-  # --- Definicion de columnas (JS renderers para rendimiento con +60K filas) ---
-  cols <- list(
+  cols <- .rl_build_columns(max_abs_lfc, alpha, has_assay, single_assay,
+                             show_missing, has_description, has_quant_pepts)
 
-    # Gen (primer gen, negrita + badge count)
-    Gene.Names = colDef(
-      name = "Gen",
-      minWidth = 140,
-      html = TRUE,
-      cell = JS("function(cellInfo) {
-        var val = cellInfo.value || '';
-        var genes = val.split(';').map(function(s) { return s.trim(); }).filter(Boolean);
-        var first = genes[0] || val;
-        if (genes.length > 1) {
-          return '<strong>' + first + '</strong> <span class=\"protein-count\">+' + (genes.length - 1) + '</span>';
-        }
-        return '<strong>' + first + '</strong>';
-      }"),
-      style = list(alignItems = "center")
-    ),
-
-    # Comparacion
-    Comparison = colDef(
-      name = "Comparaci\u00f3n",
-      width = 120,
-      align = "center"
-    ),
-
-    # Cambio (badge)
-    Change = colDef(
-      name = "Cambio",
-      width = 130,
-      align = "center",
-      html = TRUE,
-      cell = JS("function(cellInfo) {
-        var val = cellInfo.value;
-        var cls = 'tag status-grey';
-        if (val === 'Up') cls = 'tag status-green';
-        else if (val === 'Down') cls = 'tag status-red';
-        return '<span class=\"' + cls + '\">' + val + '</span>';
-      }")
-    ),
-
-    # logFC (valor + barra)
-    logFC = colDef(
-      name = "log\u2082 FC",
-      width = 160,
-      align = "center",
-      html = TRUE,
-      cell = JS(sprintf("function(cellInfo) {
-        var val = cellInfo.value;
-        var maxLfc = %s;
-        var pct = Math.abs(val) / maxLfc * 100;
-        var barClass = val >= 0 ? 'lfc-bar positive' : 'lfc-bar negative';
-        var formatted = val.toFixed(3);
-        return '<div class=\"lfc-bar-container\">' +
-          '<span class=\"lfc-value\">' + formatted + '</span>' +
-          '<div class=\"lfc-bar-wrapper\">' +
-          '<div class=\"' + barClass + '\" style=\"width:' + pct.toFixed(1) + '%%\"></div>' +
-          '</div></div>';
-      }", max_abs_lfc))
-    ),
-
-    # FDR (notacion cientifica, negrita si significativo)
-    adj.P.Val = colDef(
-      name = "FDR",
-      width = 120,
-      align = "right",
-      html = TRUE,
-      cell = JS(sprintf("function(cellInfo) {
-        var val = cellInfo.value;
-        if (val == null || isNaN(val)) return '';
-        var formatted = val.toExponential(2);
-        if (val < %s) {
-          return '<strong style=\"color: #0E6655;\">' + formatted + '</strong>';
-        }
-        return formatted;
-      }", alpha))
-    ),
-
-    # P-valor (oculto por defecto, visible en detalle)
-    P.Value = colDef(
-      name = "P-valor",
-      width = 110,
-      align = "right",
-      show = FALSE,
-      cell = JS("function(cellInfo) {
-        var val = cellInfo.value;
-        if (val == null || isNaN(val)) return '';
-        return val.toExponential(2);
-      }")
-    ),
-
-    # Protein.IDs (truncado + count badge)
-    Protein.IDs = colDef(
-      name = "Prote\u00ednas",
-      minWidth = 160,
-      html = TRUE,
-      cell = JS("function(cellInfo) {
-        var val = cellInfo.value || '';
-        var pids = val.split(';').map(function(s) { return s.trim(); }).filter(Boolean);
-        var first = pids[0] || val;
-        if (pids.length > 1) {
-          return first + ' <span class=\"protein-count\">+' + (pids.length - 1) + '</span>';
-        }
-        return first;
-      }")
-    )
-  )
-
-  # Assay: ocultar si hay un solo valor
-  if (has_assay) {
-    cols$Assay <- colDef(
-      name = "M\u00e9todo",
-      width = 130,
-      show = !single_assay
-    )
-  }
-
-  # Columnas de Missing% (JS renderer)
-  if (show_missing) {
-    .missing_col_js <- JS("function(cellInfo) {
-      var pct = cellInfo.value;
-      if (pct == null || isNaN(pct)) return '';
-      var color = '#02905A';
-      if (pct > 25) color = '#E63946';
-      else if (pct > 0) color = '#ffa62d';
-      return '<div class=\"missing-bar-container\">' +
-        '<span class=\"missing-value\">' + pct + '%</span>' +
-        '<div class=\"missing-bar-wrapper\">' +
-        '<div class=\"missing-bar\" style=\"width:' + pct + '%; background-color:' + color + ';\"></div>' +
-        '</div></div>';
-    }")
-
-    cols$MissingGlobal <- colDef(
-      name = "% Ausencia",
-      width = 120,
-      align = "center",
-      html = TRUE,
-      cell = .missing_col_js
-    )
-    cols$MissingPCT1 <- colDef(
-      name = "% Grupo 1",
-      width = 110,
-      align = "center",
-      html = TRUE,
-      cell = .missing_col_js
-    )
-    cols$MissingPCT2 <- colDef(
-      name = "% Grupo 2",
-      width = 110,
-      align = "center",
-      html = TRUE,
-      cell = .missing_col_js
-    )
-  }
-
-  # --- Construir reactable ---
   reactable(
     df,
     elementId     = element_id,
@@ -715,7 +809,6 @@ results_list_reactable <- function(
     resizable   = TRUE,
     selection   = selection,
     onClick     = if (!is.null(selection)) "select" else NULL,
-
     defaultColDef = colDef(
       align = "left",
       headerStyle = list(
@@ -732,13 +825,8 @@ results_list_reactable <- function(
           }
         }
       }"),
-      style = list(
-        height     = "48px",
-        display    = "flex",
-        alignItems = "center"
-      )
+      style = list(height = "48px", display = "flex", alignItems = "center")
     ),
-
     columns    = cols,
     wrap       = FALSE,
     class      = "rl-table",
@@ -749,7 +837,7 @@ results_list_reactable <- function(
     striped    = TRUE,
     theme      = .rl_theme(),
     language   = .rl_lang(),
-    details    = .rl_detail_row(has_assay)
+    details    = .rl_detail_row(has_assay, has_description)
   )
 }
 
@@ -761,24 +849,24 @@ results_list_reactable <- function(
 #' Widget Completo con Filtros, Busqueda, Export y CSS
 #'
 #' Envuelve \code{results_list_reactable()} con filtros interactivos crosstalk
-#' (Comparacion, Cambio, Metodo), campo de busqueda, boton de exportar a Excel
-#' y CSS embebido. Ideal para documentos Quarto o uso interactivo en RStudio.
-#' El resultado es browsable: al imprimirlo en consola se abre automaticamente
-#' en el Viewer de RStudio o en el navegador.
+#' (Comparison, Change, Method), campo de busqueda, boton de exportar a Excel
+#' y CSS embebido. El resultado es browsable: al imprimirlo en consola se abre
+#' automaticamente en el Viewer de RStudio o en el navegador.
 #'
 #' @inheritParams results_list_reactable
 #' @param element_id ID del elemento (default: "deps_table")
 #'
-#' @return Objeto htmltools browsable (se muestra automaticamente en RStudio Viewer)
+#' @return Objeto htmltools browsable
 #'
 #' @examples
-#' # Uso standalone (se abre en RStudio Viewer con filtros)
+#' # Uso standalone
 #' results_list_widget("results/VolcanoPlot_Input_cycloess_Impseq_min.tsv")
 #'
-#' # Con filtro previo de comparacion (ademas de filtros interactivos)
-#' results_list_widget(de_res, comparisons = "B-A")
+#' # Con protein_quant
+#' results_list_widget(de_res, protein_quant = preprocessing$protein_quant)
 results_list_widget <- function(
     data,
+    protein_quant = NULL,
     comparisons = NULL,
     ain = NULL,
     alpha = 0.05,
@@ -796,8 +884,9 @@ results_list_widget <- function(
          "Inst\u00e1lalo con install.packages('crosstalk')")
   }
 
-  # --- Carga y filtrado previo (misma logica que results_list_reactable) ---
+  # --- Carga, join y filtrado previo ---
   df <- .rl_load_data(data)
+  df <- .rl_join_protein_info(df, protein_quant)
 
   if (!is.null(ain) && "Assay" %in% names(df)) {
     df <- df[df$Assay %in% ain, , drop = FALSE]
@@ -814,8 +903,9 @@ results_list_widget <- function(
   show_missing_cols <- show_missing && has_missing
   has_assay <- "Assay" %in% names(df)
   single_assay <- has_assay && length(unique(df$Assay)) == 1
+  has_description <- "Description" %in% names(df)
+  has_quant_pepts <- "Quant_Pepts" %in% names(df)
 
-  # --- Pre-calcular max abs logFC ---
   max_abs_lfc <- max(abs(df$logFC), na.rm = TRUE)
   if (max_abs_lfc == 0) max_abs_lfc <- 1
 
@@ -861,12 +951,10 @@ results_list_widget <- function(
     }
 
     function rlClearFilters() {
-      // Limpiar selectize (crosstalk)
       var selects = document.querySelectorAll('.rl-filter-item .selectized');
       selects.forEach(function(sel) {
         if (sel.selectize) sel.selectize.clear();
       });
-      // Limpiar busqueda
       var searchInput = document.querySelector('.rl-search-input');
       if (searchInput) {
         searchInput.value = '';
@@ -882,48 +970,47 @@ results_list_widget <- function(
         var headers = parseResult.meta.fields;
 
         var headerMap = {
-          'Gene.Names': 'Gen',
-          'Comparison': 'Comparaci\\u00f3n',
-          'Change': 'Cambio',
+          'Gene.Names': 'Gene',
+          'Comparison': 'Comparison',
+          'Change': 'Change',
           'logFC': 'log2 FC',
           'adj.P.Val': 'FDR',
-          'P.Value': 'P-valor',
-          'Protein.IDs': 'Prote\\u00ednas',
-          'Assay': 'M\\u00e9todo',
-          'MissingGlobal': '%%Ausencia',
-          'MissingPCT1': '%%Grupo1',
-          'MissingPCT2': '%%Grupo2'
+          'P.Value': 'P-value',
+          'Protein.IDs': 'Protein Groups',
+          'Description': 'Description',
+          'Quant_Pepts': 'Quant Pepts',
+          'Assay': 'Method',
+          'MissingGlobal': '%%Missing',
+          'MissingPCT1': '%%Group1',
+          'MissingPCT2': '%%Group2'
         };
 
         var wb = new ExcelJS.Workbook();
-        var ws = wb.addWorksheet('Resultados DE');
+        var ws = wb.addWorksheet('DE Results');
 
-        // Columnas visibles (excluir las ocultas)
         var visibleHeaders = headers.filter(function(h) { return h !== 'P.Value'; });
 
         ws.columns = visibleHeaders.map(function(h) {
           return {
             header: headerMap[h] || h,
             key: h,
-            width: (h === 'Protein.IDs' || h === 'Gene.Names') ? 30 : 15
+            width: (h === 'Protein.IDs' || h === 'Gene.Names') ? 25 :
+                   (h === 'Description') ? 40 : 15
           };
         });
 
-        // Estilo header
         var headerRow = ws.getRow(1);
         headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
         headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0E6655' } };
         headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
         headerRow.height = 30;
 
-        // Datos
         rows.forEach(function(row) {
           var rowData = {};
           visibleHeaders.forEach(function(h) { rowData[h] = row[h]; });
           var addedRow = ws.addRow(rowData);
 
-          // Convertir numericos (solo columnas visibles)
-          ['logFC', 'adj.P.Val', 'MissingGlobal', 'MissingPCT1', 'MissingPCT2'].forEach(function(col) {
+          ['logFC', 'adj.P.Val', 'MissingGlobal', 'MissingPCT1', 'MissingPCT2', 'Quant_Pepts'].forEach(function(col) {
             if (visibleHeaders.indexOf(col) === -1) return;
             var cell = addedRow.getCell(col);
             if (cell && cell.value) {
@@ -933,7 +1020,6 @@ results_list_widget <- function(
           });
         });
 
-        // Bordes
         ws.eachRow(function(row) {
           row.eachCell(function(cell) {
             cell.border = {
@@ -959,34 +1045,29 @@ results_list_widget <- function(
 
   # --- Barra de busqueda + botones de accion ---
   search_actions <- div(class = "rl-search-actions",
-    # Busqueda
     tags$input(
       type = "search",
-      placeholder = "Buscar...",
+      placeholder = "Search...",
       class = "rl-search-input",
       oninput = sprintf("Reactable.setSearch('%s', this.value)", element_id)
     ),
-    # Botones
     div(class = "rl-action-buttons",
-      # Toggle filtros
       tags$button(
         class = "rl-btn-action rl-btn-toggle-filters filters-hidden",
         onclick = "rlToggleFilters()",
-        title = "Mostrar/Ocultar filtros",
+        title = "Show/Hide filters",
         HTML('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>')
       ),
-      # Limpiar filtros
       tags$button(
         class = "rl-btn-action",
         onclick = "rlClearFilters()",
-        title = "Limpiar filtros",
+        title = "Clear filters",
         HTML('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><path d="M19 6l-1 14c0 1-1 2-2 2H8c-1 0-2-1-2-2L5 6"></path><line x1="1" y1="1" x2="23" y2="23" stroke="#E63946" stroke-width="2"></line></svg>')
       ),
-      # Exportar Excel
       tags$button(
         class = "rl-btn-action",
         onclick = "rlExportExcel()",
-        title = "Exportar a Excel",
+        title = "Export to Excel",
         HTML('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>')
       )
     )
@@ -995,38 +1076,28 @@ results_list_widget <- function(
   # --- Panel de filtros crosstalk ---
   filter_items <- list(
     div(class = "rl-filter-item",
-      tags$label(class = "rl-filter-label", "Comparaci\u00f3n"),
+      tags$label(class = "rl-filter-label", "Comparison"),
       crosstalk::filter_select(
-        id = "rl_filter_comparison",
-        label = NULL,
-        sharedData = shared_data,
-        group = ~Comparison,
-        multiple = TRUE
+        id = "rl_filter_comparison", label = NULL,
+        sharedData = shared_data, group = ~Comparison, multiple = TRUE
       )
     ),
     div(class = "rl-filter-item",
-      tags$label(class = "rl-filter-label", "Cambio"),
+      tags$label(class = "rl-filter-label", "Change"),
       crosstalk::filter_select(
-        id = "rl_filter_change",
-        label = NULL,
-        sharedData = shared_data,
-        group = ~Change,
-        multiple = TRUE
+        id = "rl_filter_change", label = NULL,
+        sharedData = shared_data, group = ~Change, multiple = TRUE
       )
     )
   )
 
-  # Filtro Assay solo si hay mas de un valor
   if (has_assay && !single_assay) {
     filter_items <- c(filter_items, list(
       div(class = "rl-filter-item",
-        tags$label(class = "rl-filter-label", "M\u00e9todo"),
+        tags$label(class = "rl-filter-label", "Method"),
         crosstalk::filter_select(
-          id = "rl_filter_assay",
-          label = NULL,
-          sharedData = shared_data,
-          group = ~Assay,
-          multiple = TRUE
+          id = "rl_filter_assay", label = NULL,
+          sharedData = shared_data, group = ~Assay, multiple = TRUE
         )
       )
     ))
@@ -1036,102 +1107,9 @@ results_list_widget <- function(
     div(class = "rl-filters-row", filter_items)
   )
 
-  # --- Construir columnas (replica la logica de results_list_reactable) ---
-  cols <- list(
-    Gene.Names = colDef(
-      name = "Gen", minWidth = 140, html = TRUE,
-      cell = JS("function(cellInfo) {
-        var val = cellInfo.value || '';
-        var genes = val.split(';').map(function(s) { return s.trim(); }).filter(Boolean);
-        var first = genes[0] || val;
-        if (genes.length > 1) {
-          return '<strong>' + first + '</strong> <span class=\"protein-count\">+' + (genes.length - 1) + '</span>';
-        }
-        return '<strong>' + first + '</strong>';
-      }"),
-      style = list(alignItems = "center")
-    ),
-    Comparison = colDef(name = "Comparaci\u00f3n", width = 120, align = "center"),
-    Change = colDef(
-      name = "Cambio", width = 130, align = "center", html = TRUE,
-      cell = JS("function(cellInfo) {
-        var val = cellInfo.value;
-        var cls = 'tag status-grey';
-        if (val === 'Up') cls = 'tag status-green';
-        else if (val === 'Down') cls = 'tag status-red';
-        return '<span class=\"' + cls + '\">' + val + '</span>';
-      }")
-    ),
-    logFC = colDef(
-      name = "log\u2082 FC", width = 160, align = "center", html = TRUE,
-      cell = JS(sprintf("function(cellInfo) {
-        var val = cellInfo.value;
-        var maxLfc = %s;
-        var pct = Math.abs(val) / maxLfc * 100;
-        var barClass = val >= 0 ? 'lfc-bar positive' : 'lfc-bar negative';
-        var formatted = val.toFixed(3);
-        return '<div class=\"lfc-bar-container\">' +
-          '<span class=\"lfc-value\">' + formatted + '</span>' +
-          '<div class=\"lfc-bar-wrapper\">' +
-          '<div class=\"' + barClass + '\" style=\"width:' + pct.toFixed(1) + '%%\"></div>' +
-          '</div></div>';
-      }", max_abs_lfc))
-    ),
-    adj.P.Val = colDef(
-      name = "FDR", width = 120, align = "right", html = TRUE,
-      cell = JS(sprintf("function(cellInfo) {
-        var val = cellInfo.value;
-        if (val == null || isNaN(val)) return '';
-        var formatted = val.toExponential(2);
-        if (val < %s) {
-          return '<strong style=\"color: #0E6655;\">' + formatted + '</strong>';
-        }
-        return formatted;
-      }", alpha))
-    ),
-    P.Value = colDef(
-      name = "P-valor", width = 110, align = "right", show = FALSE,
-      cell = JS("function(cellInfo) {
-        var val = cellInfo.value;
-        if (val == null || isNaN(val)) return '';
-        return val.toExponential(2);
-      }")
-    ),
-    Protein.IDs = colDef(
-      name = "Prote\u00ednas", minWidth = 160, html = TRUE,
-      cell = JS("function(cellInfo) {
-        var val = cellInfo.value || '';
-        var pids = val.split(';').map(function(s) { return s.trim(); }).filter(Boolean);
-        var first = pids[0] || val;
-        if (pids.length > 1) {
-          return first + ' <span class=\"protein-count\">+' + (pids.length - 1) + '</span>';
-        }
-        return first;
-      }")
-    )
-  )
-
-  if (has_assay) {
-    cols$Assay <- colDef(name = "M\u00e9todo", width = 130, show = !single_assay)
-  }
-
-  if (show_missing_cols) {
-    .missing_js <- JS("function(cellInfo) {
-      var pct = cellInfo.value;
-      if (pct == null || isNaN(pct)) return '';
-      var color = '#02905A';
-      if (pct > 25) color = '#E63946';
-      else if (pct > 0) color = '#ffa62d';
-      return '<div class=\"missing-bar-container\">' +
-        '<span class=\"missing-value\">' + pct + '%</span>' +
-        '<div class=\"missing-bar-wrapper\">' +
-        '<div class=\"missing-bar\" style=\"width:' + pct + '%; background-color:' + color + ';\"></div>' +
-        '</div></div>';
-    }")
-    cols$MissingGlobal <- colDef(name = "% Ausencia", width = 120, align = "center", html = TRUE, cell = .missing_js)
-    cols$MissingPCT1   <- colDef(name = "% Grupo 1", width = 110, align = "center", html = TRUE, cell = .missing_js)
-    cols$MissingPCT2   <- colDef(name = "% Grupo 2", width = 110, align = "center", html = TRUE, cell = .missing_js)
-  }
+  # --- Columnas ---
+  cols <- .rl_build_columns(max_abs_lfc, alpha, has_assay, single_assay,
+                             show_missing_cols, has_description, has_quant_pepts)
 
   # --- Tabla reactable con SharedData ---
   tbl <- reactable(
@@ -1172,10 +1150,9 @@ results_list_widget <- function(
     striped    = TRUE,
     theme      = .rl_theme(),
     language   = .rl_lang(),
-    details    = .rl_detail_row(has_assay)
+    details    = .rl_detail_row(has_assay, has_description)
   )
 
-  # --- Ensamblar widget ---
   browsable(tagList(
     css,
     cdn_scripts,
