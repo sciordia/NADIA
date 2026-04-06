@@ -244,8 +244,11 @@ if (!exists("%||%", mode = "function")) {
       margin-left: 4px;
     }
 
-    /* Ocultar busqueda por defecto de reactable */
+    /* Ocultar busqueda por defecto y fila de filtros inline de reactable */
     .rt-search {
+      display: none !important;
+    }
+    .rl-table .rt-thead.-filters {
       display: none !important;
     }
 
@@ -589,23 +592,29 @@ if (!exists("%||%", mode = "function")) {
 
   .numeric_filter_method <- JS("function(rows, columnId, filterValue) {
     if (!filterValue) return rows;
-    var match = filterValue.trim().match(/^(>=|<=|!=|<>|>|<|=)?\\s*(.+)$/);
-    if (!match) return rows;
-    var op = match[1] || '=';
-    var val = parseFloat(match[2]);
-    if (isNaN(val)) return rows;
+    var orGroups = filterValue.split('|').map(function(s) { return s.trim(); }).filter(Boolean);
     return rows.filter(function(row) {
       var v = row.values[columnId];
       if (v == null || isNaN(v)) return false;
-      switch(op) {
-        case '>=': return v >= val;
-        case '<=': return v <= val;
-        case '>':  return v > val;
-        case '<':  return v < val;
-        case '!=': case '<>': return v !== val;
-        case '=':  return v === val;
-        default:   return true;
-      }
+      return orGroups.some(function(group) {
+        var conditions = group.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+        return conditions.every(function(cond) {
+          var match = cond.match(/^(>=|<=|!=|<>|>|<|=)?\\s*(.+)$/);
+          if (!match) return true;
+          var op = match[1] || '=';
+          var val = parseFloat(match[2]);
+          if (isNaN(val)) return true;
+          switch(op) {
+            case '>=': return v >= val;
+            case '<=': return v <= val;
+            case '>':  return v > val;
+            case '<':  return v < val;
+            case '!=': case '<>': return v !== val;
+            case '=':  return v === val;
+            default:   return true;
+          }
+        });
+      });
     });
   }")
 
@@ -664,7 +673,10 @@ if (!exists("%||%", mode = "function")) {
     cols$Quant_Pepts <- colDef(
       name = "Quant Pepts",
       width = 110,
-      align = "center"
+      align = "center",
+      filterable = TRUE,
+      filterInput = .numeric_filter_hidden,
+      filterMethod = .numeric_filter_method
     )
   }
 
@@ -1202,7 +1214,7 @@ results_list_widget <- function(
         placeholder = placeholder,
         oninput = sprintf("rlApplyNumericFilter('%s', this.value)", column_id)
       ),
-      tags$span(class = "rl-filter-hint", "e.g. >=2, <0.05, =0")
+      tags$span(class = "rl-filter-hint", "AND: >=2, <=5 \u00b7 OR: <=-1 | >=1")
     )
   }
 
@@ -1210,6 +1222,12 @@ results_list_widget <- function(
     .make_numeric_filter("log\u2082 FC", "logFC", "\u2264 -1, \u2265 2 ..."),
     .make_numeric_filter("FDR", "adj.P.Val", "\u2264 0.05 ...")
   ))
+
+  if (has_quant_pepts) {
+    filter_items <- c(filter_items, list(
+      .make_numeric_filter("Quant Pepts", "Quant_Pepts", "\u2265 3 ...")
+    ))
+  }
 
   if (show_missing_cols) {
     filter_items <- c(filter_items, list(
