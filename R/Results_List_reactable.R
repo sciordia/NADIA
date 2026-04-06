@@ -358,15 +358,13 @@ if (!exists("%||%", mode = "function")) {
                   border-width 0.3s ease, box-shadow 0.3s ease;
     }
     .rl-filters-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
     }
-    @media (max-width: 1200px) {
-      .rl-filters-row { grid-template-columns: repeat(3, 1fr); }
-    }
-    @media (max-width: 768px) {
-      .rl-filters-row { grid-template-columns: repeat(2, 1fr); }
+    .rl-filters-row > .rl-filter-item {
+      flex: 1 1 0;
+      min-width: 100px;
     }
     .rl-filter-item {
       display: flex;
