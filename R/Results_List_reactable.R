@@ -531,7 +531,7 @@ if (!exists("%||%", mode = "function")) {
     if (pct == null || isNaN(pct)) return '';
     var rounded = Math.round(pct);
     var color;
-    if (pct === 0) color = '#aaa';
+    if (pct === 0) color = '#02905A';
     else if (pct <= 12.5) color = '#f5c842';
     else if (pct <= 25) color = '#e8a735';
     else if (pct <= 37.5) color = '#e07b3c';
@@ -543,7 +543,7 @@ if (!exists("%||%", mode = "function")) {
     var pct = rowInfo.row[column.id];
     if (pct == null || isNaN(pct)) return {};
     var color;
-    if (pct === 0) color = '#aaa';
+    if (pct === 0) color = '#02905A';
     else if (pct <= 12.5) color = '#f5c842';
     else if (pct <= 25) color = '#e8a735';
     else if (pct <= 37.5) color = '#e07b3c';
@@ -793,6 +793,13 @@ results_list_reactable <- function(
   cols <- .rl_build_columns(max_abs_lfc, alpha, has_assay, single_assay,
                              show_missing, has_description, has_quant_pepts)
 
+  # --- Reordenar columnas del data frame (reactable usa este orden visual) ---
+  desired_order <- c("Comparison", "Protein.IDs", "Description", "Gene.Names",
+                     "Quant_Pepts", "Change", "logFC", "adj.P.Val", "P.Value",
+                     "Assay", "MissingGlobal", "MissingPCT1", "MissingPCT2")
+  desired_order <- intersect(desired_order, names(df))
+  df <- df[, c(desired_order, setdiff(names(df), desired_order)), drop = FALSE]
+
   reactable(
     df,
     elementId     = element_id,
@@ -902,6 +909,13 @@ results_list_widget <- function(
 
   max_abs_lfc <- max(abs(df$logFC), na.rm = TRUE)
   if (max_abs_lfc == 0) max_abs_lfc <- 1
+
+  # --- Reordenar columnas del data frame (reactable usa este orden visual) ---
+  desired_order <- c("Comparison", "Protein.IDs", "Description", "Gene.Names",
+                     "Quant_Pepts", "Change", "logFC", "adj.P.Val", "P.Value",
+                     "Assay", "MissingGlobal", "MissingPCT1", "MissingPCT2")
+  desired_order <- intersect(desired_order, names(df))
+  df <- df[, c(desired_order, setdiff(names(df), desired_order)), drop = FALSE]
 
   # --- SharedData para crosstalk ---
   shared_data <- crosstalk::SharedData$new(df)
