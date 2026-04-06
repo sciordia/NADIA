@@ -426,6 +426,22 @@ if (!exists("%||%", mode = "function")) {
       box-shadow: inset 0 0 0 2px #fff;
     }
 
+    /* Filtros numericos inline en cabeceras de columna */
+    .rl-table .rt-th-inner input[type='text'] {
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .rl-table .rt-th-inner input[type='text']:focus {
+      border-color: #0E6655 !important;
+      box-shadow: 0 0 0 2px rgba(14, 102, 85, 0.15);
+    }
+
+    /* Centrado vertical en celdas Missing% */
+    .rl-table .rt-td.missing-cell {
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+    }
+
     /* Pagination focus */
     .rl-table .rt-page-size-select:focus {
       border-color: #0E6655;
@@ -548,64 +564,34 @@ if (!exists("%||%", mode = "function")) {
     else if (pct <= 25) color = '#e8a735';
     else if (pct <= 37.5) color = '#e07b3c';
     else color = '#d94545';
-    return { color: color, fontWeight: 600, verticalAlign: 'middle' };
+    return { color: color, fontWeight: 600 };
   }")
 
-  # --- Filtro numerico con desplegable de operador + campo valor ---
+  # --- Filtro numerico: campo de texto con sintaxis de operador (ej: >=2, <0.05) ---
   .numeric_filter_input <- JS("function(column, state) {
-    var fv = state.filterValue || '';
-    var parts = fv.split(':');
-    var curOp = parts[0] || '<=';
-    var curVal = parts.length > 1 ? parts[1] : '';
-
-    function update(op, val) {
-      if (val === '' || val == null) column.setFilter(undefined);
-      else column.setFilter(op + ':' + val);
-    }
-
-    var sel = React.createElement('select', {
-      value: curOp,
-      onChange: function(e) { update(e.target.value, curVal); },
-      'aria-label': 'Operator',
+    return React.createElement('input', {
+      type: 'text',
+      value: state.filterValue || '',
+      onChange: function(e) {
+        column.setFilter(e.target.value || undefined);
+      },
+      placeholder: '\\u2265 0.05',
+      'aria-label': 'Filter ' + column.name,
       style: {
-        width: '46px', fontSize: '11px', padding: '3px 1px',
-        border: '1px solid #dee2e6', borderRight: 'none',
-        borderRadius: '4px 0 0 4px', background: '#f8f9fa',
-        color: '#495057', cursor: 'pointer'
-      }
-    },
-      React.createElement('option', { value: '<=' }, '\\u2264'),
-      React.createElement('option', { value: '>=' }, '\\u2265'),
-      React.createElement('option', { value: '<' },  '<'),
-      React.createElement('option', { value: '>' },  '>'),
-      React.createElement('option', { value: '=' },  '='),
-      React.createElement('option', { value: '!=' }, '\\u2260')
-    );
-
-    var inp = React.createElement('input', {
-      type: 'number',
-      step: 'any',
-      value: curVal,
-      onChange: function(e) { update(curOp, e.target.value); },
-      placeholder: 'value',
-      'aria-label': 'Filter value for ' + column.name,
-      style: {
-        width: '58px', fontSize: '11px', padding: '3px 5px',
-        border: '1px solid #dee2e6', borderRadius: '0 4px 4px 0',
-        outline: 'none'
+        width: '100%', fontSize: '11px', padding: '4px 6px',
+        border: '1px solid #dee2e6', borderRadius: '4px',
+        marginTop: '4px', outline: 'none', textAlign: 'center',
+        fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif'
       }
     });
-
-    return React.createElement('div', {
-      style: { display: 'flex', marginTop: '4px', justifyContent: 'center' }
-    }, sel, inp);
   }")
 
   .numeric_filter_method <- JS("function(rows, columnId, filterValue) {
     if (!filterValue) return rows;
-    var parts = filterValue.split(':');
-    var op = parts[0];
-    var val = parseFloat(parts[1]);
+    var match = filterValue.trim().match(/^(>=|<=|!=|<>|>|<|=)?\\s*(.+)$/);
+    if (!match) return rows;
+    var op = match[1] || '=';
+    var val = parseFloat(match[2]);
     if (isNaN(val)) return rows;
     return rows.filter(function(row) {
       var v = row.values[columnId];
@@ -615,8 +601,8 @@ if (!exists("%||%", mode = "function")) {
         case '<=': return v <= val;
         case '>':  return v > val;
         case '<':  return v < val;
+        case '!=': case '<>': return v !== val;
         case '=':  return v === val;
-        case '!=': return v !== val;
         default:   return true;
       }
     });
@@ -763,19 +749,19 @@ if (!exists("%||%", mode = "function")) {
   # --- Missing% estilo rating con circulo de color ---
   if (show_missing) {
     cols$MissingGlobal <- colDef(
-      name = "% Missing", width = 110, align = "center",
+      name = "% Missing", width = 110, align = "center", class = "missing-cell",
       header = function(value) htmltools::tags$span(title = "Global percentage of NAs in the comparison", value),
       filterable = TRUE, filterInput = .numeric_filter_input, filterMethod = .numeric_filter_method,
       cell = .missing_cell_js, style = .missing_style_js
     )
     cols$MissingPCT1 <- colDef(
-      name = "% Group 1", width = 110, align = "center",
+      name = "% Group 1", width = 110, align = "center", class = "missing-cell",
       header = function(value) htmltools::tags$span(title = "Percentage of NAs in the numerator", value),
       filterable = TRUE, filterInput = .numeric_filter_input, filterMethod = .numeric_filter_method,
       cell = .missing_cell_js, style = .missing_style_js
     )
     cols$MissingPCT2 <- colDef(
-      name = "% Group 2", width = 110, align = "center",
+      name = "% Group 2", width = 110, align = "center", class = "missing-cell",
       header = function(value) htmltools::tags$span(title = "Percentage of NAs in the denominator", value),
       filterable = TRUE, filterInput = .numeric_filter_input, filterMethod = .numeric_filter_method,
       cell = .missing_cell_js, style = .missing_style_js
