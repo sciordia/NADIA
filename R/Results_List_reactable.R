@@ -248,8 +248,17 @@ if (!exists("%||%", mode = "function")) {
     .rt-search {
       display: none !important;
     }
-    .rl-table .rt-thead.-filters {
+    .rl-table .rt-thead.-filters,
+    .rl-table .rt-tr.-filters,
+    .rl-table .rt-thead .rt-tr-filters,
+    .rl-table [class*='filterRow'],
+    .rl-table .rt-thead .rt-th.-filter {
       display: none !important;
+      height: 0 !important;
+      overflow: hidden !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: none !important;
     }
 
     /* Contenedor de busqueda + botones de accion */
@@ -350,36 +359,36 @@ if (!exists("%||%", mode = "function")) {
     }
     .rl-filters-row {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1.5rem;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
     }
     @media (max-width: 1200px) {
-      .rl-filters-row { grid-template-columns: repeat(2, 1fr); }
+      .rl-filters-row { grid-template-columns: repeat(3, 1fr); }
     }
     @media (max-width: 768px) {
-      .rl-filters-row { grid-template-columns: 1fr; }
+      .rl-filters-row { grid-template-columns: repeat(2, 1fr); }
     }
     .rl-filter-item {
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
+      gap: 0.15rem;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-      font-size: 14px;
+      font-size: 12.5px;
     }
     .rl-filter-label {
       font-weight: normal;
       color: #495057;
-      font-size: 14px;
-      margin-bottom: 0.25rem;
+      font-size: 12.5px;
+      margin-bottom: 0.1rem;
     }
 
     /* Selectize dropdowns dentro de filtros */
     .rl-filter-item .selectize-input {
       border: 2px solid #e0e0e0;
       border-radius: 6px;
-      padding: 8px 12px;
-      font-size: 14px;
-      min-height: 38px;
+      padding: 5px 8px;
+      font-size: 12.5px;
+      min-height: 32px;
       transition: all 0.3s ease;
     }
     .rl-filter-item .selectize-input:hover {
@@ -394,7 +403,7 @@ if (!exists("%||%", mode = "function")) {
       border-top: none;
       border-radius: 0 0 6px 6px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      font-size: 14px;
+      font-size: 12.5px;
     }
     .rl-filter-item .selectize-dropdown .active {
       background-color: rgba(14, 102, 85, 0.1);
@@ -432,12 +441,12 @@ if (!exists("%||%", mode = "function")) {
     /* Inputs numericos en panel de filtros */
     .rl-numeric-input {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-      font-size: 14px;
+      font-size: 12.5px;
       width: 100%;
-      padding: 8px 12px;
+      padding: 5px 8px;
       border: 2px solid #e0e0e0;
       border-radius: 6px;
-      min-height: 38px;
+      min-height: 32px;
       transition: all 0.3s ease;
       box-sizing: border-box;
       outline: none;
