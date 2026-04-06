@@ -426,13 +426,30 @@ if (!exists("%||%", mode = "function")) {
       box-shadow: inset 0 0 0 2px #fff;
     }
 
-    /* Filtros numericos inline en cabeceras de columna */
-    .rl-table .rt-th-inner input[type='text'] {
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    /* Inputs numericos en panel de filtros */
+    .rl-numeric-input {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      width: 100%;
+      padding: 8px 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      min-height: 38px;
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+      outline: none;
     }
-    .rl-table .rt-th-inner input[type='text']:focus {
-      border-color: #0E6655 !important;
-      box-shadow: 0 0 0 2px rgba(14, 102, 85, 0.15);
+    .rl-numeric-input:hover {
+      border-color: #0E6655;
+    }
+    .rl-numeric-input:focus {
+      border-color: #0E6655;
+      box-shadow: 0 0 0 0.2rem rgba(14, 102, 85, 0.25);
+    }
+    .rl-filter-hint {
+      font-size: 11px;
+      color: #999;
+      margin-top: 2px;
     }
 
     /* Centrado vertical en celdas Missing% */
@@ -567,24 +584,8 @@ if (!exists("%||%", mode = "function")) {
     return { color: color, fontWeight: 600 };
   }")
 
-  # --- Filtro numerico: campo de texto con sintaxis de operador (ej: >=2, <0.05) ---
-  .numeric_filter_input <- JS("function(column, state) {
-    return React.createElement('input', {
-      type: 'text',
-      value: state.filterValue || '',
-      onChange: function(e) {
-        column.setFilter(e.target.value || undefined);
-      },
-      placeholder: '\\u2265 0.05',
-      'aria-label': 'Filter ' + column.name,
-      style: {
-        width: '100%', fontSize: '11px', padding: '4px 6px',
-        border: '1px solid #dee2e6', borderRadius: '4px',
-        marginTop: '4px', outline: 'none', textAlign: 'center',
-        fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif'
-      }
-    });
-  }")
+  # --- Filtro numerico: input oculto en cabecera, se controla desde panel externo ---
+  .numeric_filter_hidden <- JS("function() { return null; }")
 
   .numeric_filter_method <- JS("function(rows, columnId, filterValue) {
     if (!filterValue) return rows;
@@ -689,7 +690,7 @@ if (!exists("%||%", mode = "function")) {
     align = "center",
     html = TRUE,
     filterable = TRUE,
-    filterInput = .numeric_filter_input,
+    filterInput = .numeric_filter_hidden,
     filterMethod = .numeric_filter_method,
     cell = JS(sprintf("function(cellInfo) {
       var val = cellInfo.value;
@@ -728,7 +729,7 @@ if (!exists("%||%", mode = "function")) {
     align = "right",
     html = TRUE,
     filterable = TRUE,
-    filterInput = .numeric_filter_input,
+    filterInput = .numeric_filter_hidden,
     filterMethod = .numeric_filter_method,
     cell = JS(sprintf("function(cellInfo) {
       var val = cellInfo.value;
@@ -751,19 +752,19 @@ if (!exists("%||%", mode = "function")) {
     cols$MissingGlobal <- colDef(
       name = "% Missing", width = 110, align = "center", class = "missing-cell",
       header = function(value) htmltools::tags$span(title = "Global percentage of NAs in the comparison", value),
-      filterable = TRUE, filterInput = .numeric_filter_input, filterMethod = .numeric_filter_method,
+      filterable = TRUE, filterInput = .numeric_filter_hidden, filterMethod = .numeric_filter_method,
       cell = .missing_cell_js, style = .missing_style_js
     )
     cols$MissingPCT1 <- colDef(
       name = "% Group 1", width = 110, align = "center", class = "missing-cell",
       header = function(value) htmltools::tags$span(title = "Percentage of NAs in the numerator", value),
-      filterable = TRUE, filterInput = .numeric_filter_input, filterMethod = .numeric_filter_method,
+      filterable = TRUE, filterInput = .numeric_filter_hidden, filterMethod = .numeric_filter_method,
       cell = .missing_cell_js, style = .missing_style_js
     )
     cols$MissingPCT2 <- colDef(
       name = "% Group 2", width = 110, align = "center", class = "missing-cell",
       header = function(value) htmltools::tags$span(title = "Percentage of NAs in the denominator", value),
-      filterable = TRUE, filterInput = .numeric_filter_input, filterMethod = .numeric_filter_method,
+      filterable = TRUE, filterInput = .numeric_filter_hidden, filterMethod = .numeric_filter_method,
       cell = .missing_cell_js, style = .missing_style_js
     )
   }
@@ -1027,10 +1028,20 @@ results_list_widget <- function(
       rlFiltersVisible = !rlFiltersVisible;
     }
 
+    function rlApplyNumericFilter(columnId, value) {
+      Reactable.setFilter('%s', columnId, value || undefined);
+    }
+
     function rlClearFilters() {
       var selects = document.querySelectorAll('.rl-filter-item .selectized');
       selects.forEach(function(sel) {
         if (sel.selectize) sel.selectize.clear();
+      });
+      var numInputs = document.querySelectorAll('.rl-numeric-input');
+      numInputs.forEach(function(inp) {
+        inp.value = '';
+        var col = inp.getAttribute('data-column');
+        if (col) Reactable.setFilter('%s', col, undefined);
       });
       var searchInput = document.querySelector('.rl-search-input');
       if (searchInput) {
@@ -1118,7 +1129,7 @@ results_list_widget <- function(
         console.error('Error exportando:', e);
       }
     }
-  ", element_id, element_id)))
+  ", element_id, element_id, element_id, element_id)))
 
   # --- Barra de busqueda + botones de accion ---
   search_actions <- div(class = "rl-search-actions",
@@ -1150,7 +1161,7 @@ results_list_widget <- function(
     )
   )
 
-  # --- Panel de filtros crosstalk ---
+  # --- Panel de filtros crosstalk + numericos ---
   filter_items <- list(
     div(class = "rl-filter-item",
       tags$label(class = "rl-filter-label", "Comparison"),
@@ -1177,6 +1188,34 @@ results_list_widget <- function(
           sharedData = shared_data, group = ~Assay, multiple = TRUE
         )
       )
+    ))
+  }
+
+  # --- Filtros numericos (misma fila, mismos estilos) ---
+  .make_numeric_filter <- function(label, column_id, placeholder) {
+    div(class = "rl-filter-item",
+      tags$label(class = "rl-filter-label", label),
+      tags$input(
+        type = "text",
+        class = "rl-numeric-input",
+        `data-column` = column_id,
+        placeholder = placeholder,
+        oninput = sprintf("rlApplyNumericFilter('%s', this.value)", column_id)
+      ),
+      tags$span(class = "rl-filter-hint", "e.g. >=2, <0.05, =0")
+    )
+  }
+
+  filter_items <- c(filter_items, list(
+    .make_numeric_filter("log\u2082 FC", "logFC", "\u2264 -1, \u2265 2 ..."),
+    .make_numeric_filter("FDR", "adj.P.Val", "\u2264 0.05 ...")
+  ))
+
+  if (show_missing_cols) {
+    filter_items <- c(filter_items, list(
+      .make_numeric_filter("% Missing", "MissingGlobal", "\u2264 25 ..."),
+      .make_numeric_filter("% Group 1", "MissingPCT1", "\u2264 50 ..."),
+      .make_numeric_filter("% Group 2", "MissingPCT2", "\u2264 50 ...")
     ))
   }
 
