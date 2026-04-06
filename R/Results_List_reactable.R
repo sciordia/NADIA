@@ -569,9 +569,9 @@ if (!exists("%||%", mode = "function")) {
         var pids = val.split(';').map(function(s) { return s.trim(); }).filter(Boolean);
         var first = pids[0] || val;
         if (pids.length > 1) {
-          return first + ' <span class=\"protein-count\">+' + (pids.length - 1) + '</span>';
+          return '<strong>' + first + '</strong> <span class=\"protein-count\">+' + (pids.length - 1) + '</span>';
         }
-        return first;
+        return '<strong>' + first + '</strong>';
       }")
     )
   )
@@ -594,9 +594,9 @@ if (!exists("%||%", mode = "function")) {
       var genes = val.split(';').map(function(s) { return s.trim(); }).filter(Boolean);
       var first = genes[0] || val;
       if (genes.length > 1) {
-        return '<strong>' + first + '</strong> <span class=\"protein-count\">+' + (genes.length - 1) + '</span>';
+        return first + ' <span class=\"protein-count\">+' + (genes.length - 1) + '</span>';
       }
-      return '<strong>' + first + '</strong>';
+      return first;
     }"),
     style = list(alignItems = "center")
   )
@@ -605,7 +605,7 @@ if (!exists("%||%", mode = "function")) {
   if (has_quant_pepts) {
     cols$Quant_Pepts <- colDef(
       name = "Quant Pepts",
-      width = 100,
+      width = 110,
       align = "center"
     )
   }
@@ -648,6 +648,19 @@ if (!exists("%||%", mode = "function")) {
     }", max_abs_lfc))
   )
 
+  # --- P-value ---
+  cols$P.Value <- colDef(
+    name = "P-value",
+    width = 110,
+    align = "right",
+    html = TRUE,
+    cell = JS("function(cellInfo) {
+      var val = cellInfo.value;
+      if (val == null || isNaN(val)) return '';
+      return val.toExponential(2);
+    }")
+  )
+
   # --- FDR ---
   cols$adj.P.Val <- colDef(
     name = "FDR",
@@ -665,19 +678,6 @@ if (!exists("%||%", mode = "function")) {
     }", alpha))
   )
 
-  # --- P-value (oculto) ---
-  cols$P.Value <- colDef(
-    name = "P-value",
-    width = 110,
-    align = "right",
-    show = FALSE,
-    cell = JS("function(cellInfo) {
-      var val = cellInfo.value;
-      if (val == null || isNaN(val)) return '';
-      return val.toExponential(2);
-    }")
-  )
-
   # --- Assay ---
   if (has_assay) {
     cols$Assay <- colDef(name = "Method", width = 130, show = !single_assay)
@@ -686,15 +686,18 @@ if (!exists("%||%", mode = "function")) {
   # --- Missing% estilo rating con circulo de color ---
   if (show_missing) {
     cols$MissingGlobal <- colDef(
-      name = "% Missing", width = 90, align = "center",
+      name = "% Missing", width = 110, align = "center",
+      header = function(value) htmltools::tags$span(title = "Global percentage of NAs in the comparison", value),
       cell = .missing_cell_js, style = .missing_style_js
     )
     cols$MissingPCT1 <- colDef(
-      name = "% Group 1", width = 90, align = "center",
+      name = "% Group 1", width = 110, align = "center",
+      header = function(value) htmltools::tags$span(title = "Percentage of NAs in the numerator", value),
       cell = .missing_cell_js, style = .missing_style_js
     )
     cols$MissingPCT2 <- colDef(
-      name = "% Group 2", width = 90, align = "center",
+      name = "% Group 2", width = 110, align = "center",
+      header = function(value) htmltools::tags$span(title = "Percentage of NAs in the denominator", value),
       cell = .missing_cell_js, style = .missing_style_js
     )
   }
@@ -795,7 +798,7 @@ results_list_reactable <- function(
 
   # --- Reordenar columnas del data frame (reactable usa este orden visual) ---
   desired_order <- c("Comparison", "Protein.IDs", "Description", "Gene.Names",
-                     "Quant_Pepts", "Change", "logFC", "adj.P.Val", "P.Value",
+                     "Quant_Pepts", "Change", "logFC", "P.Value", "adj.P.Val",
                      "Assay", "MissingGlobal", "MissingPCT1", "MissingPCT2")
   desired_order <- intersect(desired_order, names(df))
   df <- df[, c(desired_order, setdiff(names(df), desired_order)), drop = FALSE]
@@ -912,7 +915,7 @@ results_list_widget <- function(
 
   # --- Reordenar columnas del data frame (reactable usa este orden visual) ---
   desired_order <- c("Comparison", "Protein.IDs", "Description", "Gene.Names",
-                     "Quant_Pepts", "Change", "logFC", "adj.P.Val", "P.Value",
+                     "Quant_Pepts", "Change", "logFC", "P.Value", "adj.P.Val",
                      "Assay", "MissingGlobal", "MissingPCT1", "MissingPCT2")
   desired_order <- intersect(desired_order, names(df))
   df <- df[, c(desired_order, setdiff(names(df), desired_order)), drop = FALSE]
@@ -978,7 +981,7 @@ results_list_widget <- function(
         var headers = parseResult.meta.fields;
 
         var headerMap = {
-          'Gene.Names': 'Gene',
+          'Gene.Names': 'Gene Names',
           'Comparison': 'Comparison',
           'Change': 'Change',
           'logFC': 'log2 FC',
@@ -996,7 +999,7 @@ results_list_widget <- function(
         var wb = new ExcelJS.Workbook();
         var ws = wb.addWorksheet('DE Results');
 
-        var visibleHeaders = headers.filter(function(h) { return h !== 'P.Value'; });
+        var visibleHeaders = headers;
 
         ws.columns = visibleHeaders.map(function(h) {
           return {
@@ -1018,7 +1021,7 @@ results_list_widget <- function(
           visibleHeaders.forEach(function(h) { rowData[h] = row[h]; });
           var addedRow = ws.addRow(rowData);
 
-          ['logFC', 'adj.P.Val', 'MissingGlobal', 'MissingPCT1', 'MissingPCT2', 'Quant_Pepts'].forEach(function(col) {
+          ['logFC', 'P.Value', 'adj.P.Val', 'MissingGlobal', 'MissingPCT1', 'MissingPCT2', 'Quant_Pepts'].forEach(function(col) {
             if (visibleHeaders.indexOf(col) === -1) return;
             var cell = addedRow.getCell(col);
             if (cell && cell.value) {
