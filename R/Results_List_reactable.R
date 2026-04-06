@@ -411,16 +411,6 @@ if (!exists("%||%", mode = "function")) {
       color: #ffa62d;
     }
 
-    /* Celdas Missing% con fondo coloreado */
-    .rl-missing-cell {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 100%;
-      font-variant-numeric: tabular-nums;
-    }
-
     /* Radio buttons estilo teal */
     .rl-table .rt-select-input[type='radio'] {
       background-color: #ffffff;
@@ -535,23 +525,30 @@ if (!exists("%||%", mode = "function")) {
 .rl_build_columns <- function(max_abs_lfc, alpha, has_assay, single_assay,
                                show_missing, has_description, has_quant_pepts) {
 
-  # JS renderer para Missing% con fondo coloreado
+  # JS renderer para Missing% estilo rating con circulo de color
+  .missing_cell_js <- JS("function(cellInfo) {
+    var pct = cellInfo.value;
+    if (pct == null || isNaN(pct)) return '';
+    var rounded = Math.round(pct);
+    var color;
+    if (pct === 0) color = '#aaa';
+    else if (pct <= 12.5) color = '#f5c842';
+    else if (pct <= 25) color = '#e8a735';
+    else if (pct <= 37.5) color = '#e07b3c';
+    else color = '#d94545';
+    return '\\u25cf ' + rounded;
+  }")
+
   .missing_style_js <- JS("function(rowInfo, column) {
     var pct = rowInfo.row[column.id];
     if (pct == null || isNaN(pct)) return {};
-    var r, g, b;
-    if (pct === 0) {
-      return { color: '#aaa' };
-    } else if (pct <= 12.5) {
-      r = 255; g = 253; b = 210;
-    } else if (pct <= 25) {
-      r = 252; g = 220; b = 149;
-    } else if (pct <= 37.5) {
-      r = 247; g = 180; b = 128;
-    } else {
-      r = 240; g = 140; b = 130;
-    }
-    return { background: 'rgb(' + r + ',' + g + ',' + b + ')', color: '#111' };
+    var color;
+    if (pct === 0) color = '#aaa';
+    else if (pct <= 12.5) color = '#f5c842';
+    else if (pct <= 25) color = '#e8a735';
+    else if (pct <= 37.5) color = '#e07b3c';
+    else color = '#d94545';
+    return { color: color, fontWeight: 600 };
   }")
 
   cols <- list(
@@ -562,24 +559,7 @@ if (!exists("%||%", mode = "function")) {
       align = "center"
     ),
 
-    # --- Gene (2do) ---
-    Gene.Names = colDef(
-      name = "Gene",
-      minWidth = 140,
-      html = TRUE,
-      cell = JS("function(cellInfo) {
-        var val = cellInfo.value || '';
-        var genes = val.split(';').map(function(s) { return s.trim(); }).filter(Boolean);
-        var first = genes[0] || val;
-        if (genes.length > 1) {
-          return '<strong>' + first + '</strong> <span class=\"protein-count\">+' + (genes.length - 1) + '</span>';
-        }
-        return '<strong>' + first + '</strong>';
-      }"),
-      style = list(alignItems = "center")
-    ),
-
-    # --- Protein Groups (3ro) ---
+    # --- Protein Groups (2do) ---
     Protein.IDs = colDef(
       name = "Protein Groups",
       minWidth = 160,
@@ -596,13 +576,30 @@ if (!exists("%||%", mode = "function")) {
     )
   )
 
-  # --- Description (4to, condicional) ---
+  # --- Description (3ro, condicional) ---
   if (has_description) {
     cols$Description <- colDef(
       name = "Description",
       minWidth = 250
     )
   }
+
+  # --- Gene Names (4to) ---
+  cols$Gene.Names <- colDef(
+    name = "Gene Names",
+    minWidth = 140,
+    html = TRUE,
+    cell = JS("function(cellInfo) {
+      var val = cellInfo.value || '';
+      var genes = val.split(';').map(function(s) { return s.trim(); }).filter(Boolean);
+      var first = genes[0] || val;
+      if (genes.length > 1) {
+        return '<strong>' + first + '</strong> <span class=\"protein-count\">+' + (genes.length - 1) + '</span>';
+      }
+      return '<strong>' + first + '</strong>';
+    }"),
+    style = list(alignItems = "center")
+  )
 
   # --- Quant_Pepts (5to, condicional) ---
   if (has_quant_pepts) {
@@ -686,22 +683,19 @@ if (!exists("%||%", mode = "function")) {
     cols$Assay <- colDef(name = "Method", width = 130, show = !single_assay)
   }
 
-  # --- Missing% con fondo coloreado ---
+  # --- Missing% estilo rating con circulo de color ---
   if (show_missing) {
     cols$MissingGlobal <- colDef(
-      name = "% Missing", width = 100, align = "center",
-      cell = JS("function(cellInfo) { var v = cellInfo.value; return (v == null || isNaN(v)) ? '' : v + '%'; }"),
-      style = .missing_style_js
+      name = "% Missing", width = 90, align = "center",
+      cell = .missing_cell_js, style = .missing_style_js
     )
     cols$MissingPCT1 <- colDef(
-      name = "% Group 1", width = 100, align = "center",
-      cell = JS("function(cellInfo) { var v = cellInfo.value; return (v == null || isNaN(v)) ? '' : v + '%'; }"),
-      style = .missing_style_js
+      name = "% Group 1", width = 90, align = "center",
+      cell = .missing_cell_js, style = .missing_style_js
     )
     cols$MissingPCT2 <- colDef(
-      name = "% Group 2", width = 100, align = "center",
-      cell = JS("function(cellInfo) { var v = cellInfo.value; return (v == null || isNaN(v)) ? '' : v + '%'; }"),
-      style = .missing_style_js
+      name = "% Group 2", width = 90, align = "center",
+      cell = .missing_cell_js, style = .missing_style_js
     )
   }
 
