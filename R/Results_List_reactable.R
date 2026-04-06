@@ -636,7 +636,7 @@ if (!exists("%||%", mode = "function")) {
     # --- Protein Groups (2do) ---
     Protein.IDs = colDef(
       name = "Protein Groups",
-      minWidth = 160,
+      width = 160,
       html = TRUE,
       cell = JS("function(cellInfo) {
         var val = cellInfo.value || '';
