@@ -572,7 +572,6 @@ if (!exists("%||%", mode = "function")) {
       z-index: 1;
       padding: 0 6px;
       font-variant-numeric: tabular-nums;
-      font-size: 12px;
       font-weight: 600;
       color: #212529;
     }
@@ -610,7 +609,10 @@ if (!exists("%||%", mode = "function")) {
     .pl-hdr-G { background: rgba(159, 138, 118, 0.85) !important; color: #ffffff !important; }
     .pl-hdr-H { background: rgba(100, 100, 100, 0.85) !important; color: #ffffff !important; }
 
-    /* Sticky: fondo solido opaco + sombra lateral */
+    /* Sticky: fondo solido opaco que reproduce la alternancia verde/blanco
+       del tema (rl_theme: stripedColor=rgba(180,220,210,0.2) sobre blanco
+       → #F0F8F6 opaco; highlightColor=rgba(2,144,82,0.1) sobre blanco
+       → #E5F4ED opaco) */
     .pl-table .rt-td.rt-sticky,
     .pl-table .rt-td.rt-td-sticky,
     .pl-table .rt-tbody .rt-td[style*='position: sticky'],
@@ -623,13 +625,13 @@ if (!exists("%||%", mode = "function")) {
     .pl-table .rt-tr-striped .rt-td.rt-td-sticky,
     .pl-table .rt-tr-striped .rt-td[style*='position: sticky'],
     .pl-table .rt-tr-striped .rt-td[style*='position:sticky'] {
-      background-color: #fafbfc !important;
+      background-color: #F0F8F6 !important;
     }
     .pl-table .rt-tr:hover .rt-td.rt-sticky,
     .pl-table .rt-tr:hover .rt-td.rt-td-sticky,
     .pl-table .rt-tr:hover .rt-td[style*='position: sticky'],
     .pl-table .rt-tr:hover .rt-td[style*='position:sticky'] {
-      background-color: rgba(2, 144, 82, 0.08) !important;
+      background-color: #E5F4ED !important;
     }
     .pl-table .rt-th.rt-sticky,
     .pl-table .rt-th.rt-th-sticky,
@@ -639,10 +641,10 @@ if (!exists("%||%", mode = "function")) {
       box-shadow: 2px 0 6px -3px rgba(0, 0, 0, 0.2);
     }
 
-    /* Separador grueso entre grupos de metricas */
+    /* Separador fino entre grupos de metricas */
     .pl-table .rt-td.pl-group-end,
     .pl-table .rt-th.pl-group-end {
-      border-right: 3px solid #0E6655 !important;
+      border-right: 1px solid #0E6655 !important;
     }
 
     /* Celdas de muestra compactas (menos padding) */
