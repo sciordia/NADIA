@@ -192,7 +192,7 @@ if (!exists("%||%", mode = "function")) {
     }
     .lfc-value.up       { color: #02905A; }
     .lfc-value.down     { color: #E63946; }
-    .lfc-value.nochange { color: #ADB5BD; }
+    .lfc-value.nochange { color: #6C757D; }
     .lfc-bar-wrapper {
       flex: 1;
       height: 14px;
