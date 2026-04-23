@@ -44,48 +44,6 @@ if (!exists("%||%", mode = "function")) {
   });
 }")
 
-# --- Filtro OR-por-grupo (aplicado como proxy en PG.ProteinGroups):
-#     ignora su propio filterValue, lee window.plGroupFilters[groupKey] y
-#     window.plGroupCols[groupKey] para filtrar.
-#     AND entre grupos activos; dentro de cada grupo, OR sobre las 16 cols.
-.pl_group_filter_method <- reactable::JS("function(rows, columnId, filterValue) {
-  var state  = (typeof window !== 'undefined' && window.plGroupFilters) ? window.plGroupFilters : {};
-  var groups = (typeof window !== 'undefined' && window.plGroupCols)    ? window.plGroupCols    : {};
-  var active = Object.keys(state).filter(function(k) { return state[k] && state[k].trim() !== ''; });
-  if (active.length === 0) return rows;
-  return rows.filter(function(row) {
-    return active.every(function(g) {
-      var groupCols = groups[g];
-      if (!groupCols || groupCols.length === 0) return true;
-      var fv = state[g];
-      var orParts = fv.split('|').map(function(s) { return s.trim(); }).filter(Boolean);
-      return orParts.some(function(grp) {
-        var conds = grp.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
-        return conds.every(function(cond) {
-          var m = cond.match(/^(>=|<=|!=|<>|>|<|=)?\\s*(.+)$/);
-          if (!m) return true;
-          var op = m[1] || '=';
-          var val = parseFloat(m[2]);
-          if (isNaN(val)) return true;
-          return groupCols.some(function(c) {
-            var v = row.values[c];
-            if (v == null || isNaN(v)) return false;
-            switch(op) {
-              case '>=': return v >= val;
-              case '<=': return v <= val;
-              case '>':  return v > val;
-              case '<':  return v < val;
-              case '!=': case '<>': return v !== val;
-              case '=':  return v === val;
-              default:   return true;
-            }
-          });
-        });
-      });
-    });
-  });
-}")
-
 
 #' Cargar y validar datos de expresion diferencial
 #' @param input Data frame o ruta a archivo TSV/Parquet
@@ -581,6 +539,13 @@ if (!exists("%||%", mode = "function")) {
       z-index: 1;
       padding: 0 6px;
       font-variant-numeric: tabular-nums;
+      font-size: 14px;
+      font-weight: 600;
+      color: #212529;
+    }
+    .pl-plain-value {
+      font-variant-numeric: tabular-nums;
+      font-size: 14px;
       font-weight: 600;
       color: #212529;
     }
@@ -609,6 +574,15 @@ if (!exists("%||%", mode = "function")) {
       font-weight: 600;
       border-right: 1px solid rgba(255,255,255,0.15);
     }
+    .pl-table .rt-tr-header .rt-th {
+      font-size: 14px;
+    }
+
+    /* Separador vertical entre bloques metricos */
+    .pl-table .rt-td.pl-group-boundary,
+    .pl-table .rt-th.pl-group-boundary {
+      border-left: 2px solid rgba(33, 37, 41, 0.35) !important;
+    }
     .pl-hdr-A { background: rgba(79, 129, 189, 0.85) !important; color: #ffffff !important; }
     .pl-hdr-B { background: rgba(155, 187, 89, 0.85) !important; color: #ffffff !important; }
     .pl-hdr-C { background: rgba(247, 150, 70, 0.85) !important; color: #ffffff !important; }
@@ -618,38 +592,17 @@ if (!exists("%||%", mode = "function")) {
     .pl-hdr-G { background: rgba(159, 138, 118, 0.85) !important; color: #ffffff !important; }
     .pl-hdr-H { background: rgba(100, 100, 100, 0.85) !important; color: #ffffff !important; }
 
-    /* Sticky (reactable 0.4.4 usa inline style; no aplica clase rt-sticky):
-       selector por atributo + fondos opacos equivalentes al tema rl_theme
-       (stripedColor rgba(180,220,210,0.2) sobre blanco → #F0F8F6 opaco;
-        highlightColor rgba(2,144,82,0.1) sobre blanco → #E5F4ED opaco).
-       z-index cuidadosamente escalonado: thead > sticky-th > sticky-td */
-    .pl-table .rt-thead {
-      z-index: 10;
-    }
-    .pl-table .rt-tbody [style*='position: sticky'],
-    .pl-table .rt-tbody [style*='position:sticky'] {
+    /* Sticky: sombra lateral para marcar separacion */
+    .pl-table .rt-td-sticky,
+    .pl-table .rt-th-sticky {
       background-color: #ffffff !important;
-      z-index: 1;
       box-shadow: 2px 0 6px -3px rgba(0, 0, 0, 0.2);
     }
-    .pl-table .rt-tr-striped [style*='position: sticky'],
-    .pl-table .rt-tr-striped [style*='position:sticky'] {
-      background-color: #F0F8F6 !important;
+    .pl-table .rt-tr-striped .rt-td-sticky {
+      background-color: #fafbfc !important;
     }
-    .pl-table .rt-tr:hover [style*='position: sticky'],
-    .pl-table .rt-tr:hover [style*='position:sticky'] {
-      background-color: #E5F4ED !important;
-    }
-    .pl-table .rt-thead [style*='position: sticky'],
-    .pl-table .rt-thead [style*='position:sticky'] {
-      z-index: 11;
-      box-shadow: 2px 0 6px -3px rgba(0, 0, 0, 0.2);
-    }
-
-    /* Separador fino entre grupos de metricas */
-    .pl-table .rt-td.pl-group-end,
-    .pl-table .rt-th.pl-group-end {
-      border-right: 1px solid #0E6655 !important;
+    .pl-table .rt-tr:hover .rt-td-sticky {
+      background-color: rgba(2, 144, 82, 0.08) !important;
     }
 
     /* Celdas de muestra compactas (menos padding) */
@@ -1622,9 +1575,6 @@ results_list_widget <- function(
     minWidth = 160,
     sticky = "left",
     html = TRUE,
-    filterable = TRUE,
-    filterInput = .numeric_filter_hidden,
-    filterMethod = .pl_group_filter_method,
     cell = JS("function(cellInfo) {
       var val = cellInfo.value || '';
       var pids = val.split(';').map(function(s){return s.trim();}).filter(Boolean);
@@ -1662,12 +1612,6 @@ results_list_widget <- function(
     name = "MW [kDa]",
     width = 95,
     align = "right",
-    sticky = "left",
-    class = "pl-group-end",
-    headerClass = "pl-group-end",
-    filterable = TRUE,
-    filterInput = .numeric_filter_hidden,
-    filterMethod = .numeric_filter_method,
     cell = JS("function(cellInfo) {
       var val = cellInfo.value;
       if (val == null || isNaN(val)) return '';
@@ -1675,21 +1619,11 @@ results_list_widget <- function(
     }")
   )
 
-  # Ultima columna de cada grupo de metricas (excepto la ultima, que es borde externo)
-  metric_last_col <- tapply(sample_map$column, sample_map$metric, function(x) x[length(x)])
-  metric_last_col <- as.character(metric_last_col)
-  # excluir la ultima metrica presente (borde exterior no necesita separador)
-  present_metrics <- levels(droplevels(factor(
-    sample_map$metric,
-    levels = c("PG.NrOfPrecursorsIdentified",
-               "PG.NrOfStrippedSequencesIdentified",
-               "PG.Coverage",
-               "PG.Cscore.RunWise")
-  )))
-  if (length(present_metrics) > 0) {
-    last_metric <- present_metrics[length(present_metrics)]
-    metric_last_col <- setdiff(metric_last_col, sample_map$column[sample_map$metric == last_metric])
-  }
+  # Primera columna de cada metrica -> ancla para borde y filtro agregado
+  first_cols_by_metric <- vapply(
+    split(sample_map$column, sample_map$metric),
+    function(x) x[1], character(1)
+  )
 
   for (i in seq_len(nrow(sample_map))) {
     col_id    <- sample_map$column[i]
@@ -1706,10 +1640,7 @@ results_list_widget <- function(
       "Math.round(val)"
     )
 
-    is_coverage   <- metric == "PG.Coverage"
-    is_group_end  <- col_id %in% metric_last_col
-
-    if (is_coverage) {
+    if (metric == "PG.Coverage") {
       cell_js <- JS(sprintf("function(cellInfo) {
         var val = cellInfo.value;
         if (val == null || isNaN(val)) {
@@ -1725,16 +1656,19 @@ results_list_widget <- function(
     } else {
       cell_js <- JS(sprintf("function(cellInfo) {
         var val = cellInfo.value;
-        if (val == null || isNaN(val)) {
-          return '<span class=\"pl-bar-value pl-bar-empty\">–</span>';
-        }
-        var formatted = %s;
-        return '<span class=\"pl-bar-value\">' + formatted + '</span>';
+        if (val == null || isNaN(val)) return '<span class=\"pl-plain-value pl-bar-empty\">–</span>';
+        return '<span class=\"pl-plain-value\">' + (%s) + '</span>';
       }", fmt_js))
     }
 
-    cell_class   <- if (is_group_end) "pl-sample-cell pl-group-end" else "pl-sample-cell"
-    header_class <- if (is_group_end) paste0("pl-hdr-", cond, " pl-group-end") else paste0("pl-hdr-", cond)
+    is_anchor <- col_id %in% first_cols_by_metric
+    cell_class <- if (is_anchor) "pl-sample-cell pl-group-boundary" else "pl-sample-cell"
+    hdr_class  <- if (is_anchor) paste0("pl-hdr-", cond, " pl-group-boundary") else paste0("pl-hdr-", cond)
+    fm <- if (is_anchor) {
+      .pl_agg_filter_method(sample_map$column[sample_map$metric == metric])
+    } else {
+      .numeric_filter_method
+    }
 
     cols[[col_id]] <- colDef(
       name = paste(cond, replicate, sep = "_"),
@@ -1742,10 +1676,10 @@ results_list_widget <- function(
       align = "center",
       html = TRUE,
       class = cell_class,
-      headerClass = header_class,
+      headerClass = hdr_class,
       filterable = TRUE,
       filterInput = .numeric_filter_hidden,
-      filterMethod = .numeric_filter_method,
+      filterMethod = fm,
       cell = cell_js
     )
   }
@@ -1815,6 +1749,52 @@ results_list_widget <- function(
     html += '</div>';
     return React.createElement('div', { dangerouslySetInnerHTML: { __html: html } });
   }")
+}
+
+
+#' Filtro numerico agregado OR sobre varias columnas
+#' @description Genera un filterMethod que evalua la expresion numerica (>=, <=, >, <,
+#'   =, !=) contra CUALQUIERA de las columnas indicadas: basta con que una cumpla
+#'   para conservar la fila. Soporta operadores compuestos AND (coma) y OR (barra),
+#'   igual que \code{.numeric_filter_method}.
+#' @param col_ids Vector de nombres de columnas sobre las que aplicar OR.
+#' @return Objeto JS para usar como filterMethod en colDef.
+#' @noRd
+.pl_agg_filter_method <- function(col_ids) {
+  if (!requireNamespace("jsonlite", quietly = TRUE)) {
+    stop("'jsonlite' es necesario para filtros agregados.")
+  }
+  cols_json <- jsonlite::toJSON(col_ids)
+  JS(sprintf("function(rows, columnId, filterValue) {
+    var cols = %s;
+    if (!filterValue) return rows;
+    var orGroups = filterValue.split('|').map(function(s){return s.trim();}).filter(Boolean);
+    return rows.filter(function(row) {
+      return orGroups.some(function(group) {
+        var conditions = group.split(',').map(function(s){return s.trim();}).filter(Boolean);
+        return conditions.every(function(cond) {
+          var m = cond.match(/^(>=|<=|!=|<>|>|<|=)?\\s*(.+)$/);
+          if (!m) return true;
+          var op = m[1] || '=';
+          var val = parseFloat(m[2]);
+          if (isNaN(val)) return true;
+          return cols.some(function(cid) {
+            var v = row.values[cid];
+            if (v == null || isNaN(v)) return false;
+            switch(op) {
+              case '>=': return v >= val;
+              case '<=': return v <= val;
+              case '>':  return v > val;
+              case '<':  return v < val;
+              case '!=': case '<>': return v !== val;
+              case '=':  return v === val;
+              default:   return true;
+            }
+          });
+        });
+      });
+    });
+  }", cols_json))
 }
 
 
@@ -1997,24 +1977,6 @@ protein_list_widget <- function(
   ordered_cols <- c(static_cols, sample_map$column)
   df <- df[, ordered_cols, drop = FALSE]
 
-  # --- Mapeo de grupos para el filtro OR-por-grupo ---
-  # No se anaden columnas sinteticas al data.frame; el filtro se aplica
-  # como proxy sobre PG.ProteinGroups y consulta window.plGroupFilters +
-  # window.plGroupCols para decidir que filas pasan.
-  metric_group_map <- list(
-    "plgrp_precursors" = "PG.NrOfPrecursorsIdentified",
-    "plgrp_pepts"      = "PG.NrOfStrippedSequencesIdentified",
-    "plgrp_coverage"   = "PG.Coverage",
-    "plgrp_cscore"     = "PG.Cscore.RunWise"
-  )
-  group_filter_cols <- list()
-  for (key in names(metric_group_map)) {
-    metric <- metric_group_map[[key]]
-    real_cols <- sample_map$column[sample_map$metric == metric]
-    if (length(real_cols) == 0) next
-    group_filter_cols[[key]] <- real_cols
-  }
-
   cols   <- .pl_build_columns(sample_map, max_per_col)
   groups <- .pl_build_column_groups(sample_map, static_cols)
 
@@ -2025,8 +1987,6 @@ protein_list_widget <- function(
   if (!requireNamespace("jsonlite", quietly = TRUE)) {
     stop("El paquete 'jsonlite' es necesario para protein_list_widget().")
   }
-
-  group_filter_cols_json <- jsonlite::toJSON(group_filter_cols, auto_unbox = FALSE)
 
   cond_struct <- setNames(
     lapply(conditions, function(cc) sample_map$column[sample_map$condition == cc]),
@@ -2082,16 +2042,6 @@ protein_list_widget <- function(
     var plCondStruct = %s;
     var plGroupStruct = %s;
     var plPalette = %s;
-    window.plGroupCols    = %s;
-    window.plGroupFilters = window.plGroupFilters || {};
-
-    function plApplyGroupFilter(groupKey, value) {
-      window.plGroupFilters[groupKey] = value || '';
-      var anyActive = Object.keys(window.plGroupFilters).some(function(k) {
-        return window.plGroupFilters[k] && window.plGroupFilters[k].trim() !== '';
-      });
-      Reactable.setFilter('%s', 'PG.ProteinGroups', anyActive ? ('__pl_' + Date.now()) : undefined);
-    }
 
     function plToggleFilters() {
       var container = document.querySelector('.pl-filters-container');
@@ -2118,6 +2068,10 @@ protein_list_widget <- function(
       plFiltersVisible = !plFiltersVisible;
     }
 
+    function plApplyNumericFilter(columnId, value) {
+      Reactable.setFilter('%s', columnId, value || undefined);
+    }
+
     function plToggleCondition(cond) {
       plHiddenConditions[cond] = !plHiddenConditions[cond];
       var chip = document.querySelector('.pl-cond-chip[data-cond=\"' + cond + '\"]');
@@ -2133,9 +2087,11 @@ protein_list_widget <- function(
 
     function plClearFilters() {
       var numInputs = document.querySelectorAll('.pl-filters-container .rl-numeric-input');
-      numInputs.forEach(function(inp) { inp.value = ''; });
-      Object.keys(window.plGroupFilters).forEach(function(k) { window.plGroupFilters[k] = ''; });
-      Reactable.setFilter('%s', 'PG.ProteinGroups', undefined);
+      numInputs.forEach(function(inp) {
+        inp.value = '';
+        var col = inp.getAttribute('data-column');
+        if (col) Reactable.setFilter('%s', col, undefined);
+      });
       Object.keys(plHiddenConditions).forEach(function(c) {
         plHiddenConditions[c] = false;
         var chip = document.querySelector('.pl-cond-chip[data-cond=\"' + c + '\"]');
@@ -2255,7 +2211,7 @@ protein_list_widget <- function(
         console.error('Error exportando:', e);
       }
     }
-  ", cond_struct_json, group_struct_json, palette_json, group_filter_cols_json,
+  ", cond_struct_json, group_struct_json, palette_json,
       element_id, element_id, element_id, element_id, element_id, element_id)))
 
   # --- Barra de busqueda + botones ---
@@ -2299,48 +2255,38 @@ protein_list_widget <- function(
     )
   })
 
-  # Filtros OR-por-grupo: una fila pasa si >=1 de las 16 cols cumple el operador
-  .make_group_filter <- function(label, group_key, placeholder) {
+  # --- Anclas de filtro agregado (primera columna de cada metrica) ---
+  .first_of <- function(mm) {
+    cc <- sample_map$column[sample_map$metric == mm]
+    if (length(cc) == 0) NA_character_ else cc[1]
+  }
+  metric_filters <- list(
+    list(label = "# Uniq. PSMs Identified",  anchor = .first_of("PG.NrOfPrecursorsIdentified"),        placeholder = "≥ 2 ..."),
+    list(label = "# Uniq. Pepts Identified", anchor = .first_of("PG.NrOfStrippedSequencesIdentified"), placeholder = "≥ 2 ..."),
+    list(label = "Coverage [%]",             anchor = .first_of("PG.Coverage"),                        placeholder = "≥ 10 ..."),
+    list(label = "Spectronaut Cscore",       anchor = .first_of("PG.Cscore.RunWise"),                  placeholder = "≥ 2 ...")
+  )
+  metric_filter_items <- lapply(Filter(function(f) !is.na(f$anchor), metric_filters), function(f) {
     div(class = "rl-filter-item",
-      tags$label(class = "rl-filter-label", label),
+      tags$label(class = "rl-filter-label", f$label),
       tags$input(
         type = "text",
         class = "rl-numeric-input",
-        `data-group` = group_key,
-        placeholder = placeholder,
-        oninput = sprintf("plApplyGroupFilter('%s', this.value)", group_key)
+        `data-column` = f$anchor,
+        placeholder = f$placeholder,
+        oninput = sprintf("plApplyNumericFilter('%s', this.value)", f$anchor)
       ),
-      tags$span(class = "rl-filter-hint", "Fila pasa si ≥1 muestra cumple")
+      tags$span(class = "rl-filter-hint", "OR entre las muestras del bloque")
     )
-  }
-
-  group_filter_items <- list()
-  if ("plgrp_precursors" %in% names(group_filter_cols)) {
-    group_filter_items[[length(group_filter_items) + 1]] <-
-      .make_group_filter("# PSMs (any sample)", "plgrp_precursors", "≥ 2 ...")
-  }
-  if ("plgrp_pepts" %in% names(group_filter_cols)) {
-    group_filter_items[[length(group_filter_items) + 1]] <-
-      .make_group_filter("# Pepts (any sample)", "plgrp_pepts", "≥ 2 ...")
-  }
-  if ("plgrp_coverage" %in% names(group_filter_cols)) {
-    group_filter_items[[length(group_filter_items) + 1]] <-
-      .make_group_filter("Coverage % (any sample)", "plgrp_coverage", "≥ 30 ...")
-  }
-  if ("plgrp_cscore" %in% names(group_filter_cols)) {
-    group_filter_items[[length(group_filter_items) + 1]] <-
-      .make_group_filter("Cscore (any sample)", "plgrp_cscore", "≥ 0.9 ...")
-  }
+  })
 
   filters_panel <- div(class = "rl-filters-container pl-filters-container",
     div(class = "rl-filters-row",
       div(class = "rl-filter-item", style = "flex: 2 1 300px;",
         tags$label(class = "rl-filter-label", "Conditions (click to hide/show 16 cols)"),
         div(class = "pl-cond-chips", cond_chips)
-      )
-    ),
-    div(class = "rl-filters-row", style = "margin-top: 0.75rem;",
-      group_filter_items
+      ),
+      metric_filter_items
     )
   )
 
