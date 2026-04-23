@@ -44,33 +44,42 @@ if (!exists("%||%", mode = "function")) {
   });
 }")
 
-# --- Filtro OR-por-grupo: fila pasa si >=1 col del grupo satisface el operador ---
+# --- Filtro OR-por-grupo (aplicado como proxy en PG.ProteinGroups):
+#     ignora su propio filterValue, lee window.plGroupFilters[groupKey] y
+#     window.plGroupCols[groupKey] para filtrar.
+#     AND entre grupos activos; dentro de cada grupo, OR sobre las 16 cols.
 .pl_group_filter_method <- reactable::JS("function(rows, columnId, filterValue) {
-  if (!filterValue) return rows;
-  var groupCols = (typeof window !== 'undefined' && window.plGroupCols) ? window.plGroupCols[columnId] : null;
-  if (!groupCols || groupCols.length === 0) return rows;
-  var orGroups = filterValue.split('|').map(function(s) { return s.trim(); }).filter(Boolean);
+  var state  = (typeof window !== 'undefined' && window.plGroupFilters) ? window.plGroupFilters : {};
+  var groups = (typeof window !== 'undefined' && window.plGroupCols)    ? window.plGroupCols    : {};
+  var active = Object.keys(state).filter(function(k) { return state[k] && state[k].trim() !== ''; });
+  if (active.length === 0) return rows;
   return rows.filter(function(row) {
-    return orGroups.some(function(grp) {
-      var conditions = grp.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
-      return conditions.every(function(cond) {
-        var match = cond.match(/^(>=|<=|!=|<>|>|<|=)?\\s*(.+)$/);
-        if (!match) return true;
-        var op = match[1] || '=';
-        var val = parseFloat(match[2]);
-        if (isNaN(val)) return true;
-        return groupCols.some(function(c) {
-          var v = row.values[c];
-          if (v == null || isNaN(v)) return false;
-          switch(op) {
-            case '>=': return v >= val;
-            case '<=': return v <= val;
-            case '>':  return v > val;
-            case '<':  return v < val;
-            case '!=': case '<>': return v !== val;
-            case '=':  return v === val;
-            default:   return true;
-          }
+    return active.every(function(g) {
+      var groupCols = groups[g];
+      if (!groupCols || groupCols.length === 0) return true;
+      var fv = state[g];
+      var orParts = fv.split('|').map(function(s) { return s.trim(); }).filter(Boolean);
+      return orParts.some(function(grp) {
+        var conds = grp.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+        return conds.every(function(cond) {
+          var m = cond.match(/^(>=|<=|!=|<>|>|<|=)?\\s*(.+)$/);
+          if (!m) return true;
+          var op = m[1] || '=';
+          var val = parseFloat(m[2]);
+          if (isNaN(val)) return true;
+          return groupCols.some(function(c) {
+            var v = row.values[c];
+            if (v == null || isNaN(v)) return false;
+            switch(op) {
+              case '>=': return v >= val;
+              case '<=': return v <= val;
+              case '>':  return v > val;
+              case '<':  return v < val;
+              case '!=': case '<>': return v !== val;
+              case '=':  return v === val;
+              default:   return true;
+            }
+          });
         });
       });
     });
@@ -609,35 +618,31 @@ if (!exists("%||%", mode = "function")) {
     .pl-hdr-G { background: rgba(159, 138, 118, 0.85) !important; color: #ffffff !important; }
     .pl-hdr-H { background: rgba(100, 100, 100, 0.85) !important; color: #ffffff !important; }
 
-    /* Sticky: fondo solido opaco que reproduce la alternancia verde/blanco
-       del tema (rl_theme: stripedColor=rgba(180,220,210,0.2) sobre blanco
-       → #F0F8F6 opaco; highlightColor=rgba(2,144,82,0.1) sobre blanco
-       → #E5F4ED opaco) */
-    .pl-table .rt-td.rt-sticky,
-    .pl-table .rt-td.rt-td-sticky,
-    .pl-table .rt-tbody .rt-td[style*='position: sticky'],
-    .pl-table .rt-tbody .rt-td[style*='position:sticky'] {
+    /* Sticky (reactable 0.4.4 usa inline style; no aplica clase rt-sticky):
+       selector por atributo + fondos opacos equivalentes al tema rl_theme
+       (stripedColor rgba(180,220,210,0.2) sobre blanco → #F0F8F6 opaco;
+        highlightColor rgba(2,144,82,0.1) sobre blanco → #E5F4ED opaco).
+       z-index cuidadosamente escalonado: thead > sticky-th > sticky-td */
+    .pl-table .rt-thead {
+      z-index: 10;
+    }
+    .pl-table .rt-tbody [style*='position: sticky'],
+    .pl-table .rt-tbody [style*='position:sticky'] {
       background-color: #ffffff !important;
-      z-index: 3;
+      z-index: 1;
       box-shadow: 2px 0 6px -3px rgba(0, 0, 0, 0.2);
     }
-    .pl-table .rt-tr-striped .rt-td.rt-sticky,
-    .pl-table .rt-tr-striped .rt-td.rt-td-sticky,
-    .pl-table .rt-tr-striped .rt-td[style*='position: sticky'],
-    .pl-table .rt-tr-striped .rt-td[style*='position:sticky'] {
+    .pl-table .rt-tr-striped [style*='position: sticky'],
+    .pl-table .rt-tr-striped [style*='position:sticky'] {
       background-color: #F0F8F6 !important;
     }
-    .pl-table .rt-tr:hover .rt-td.rt-sticky,
-    .pl-table .rt-tr:hover .rt-td.rt-td-sticky,
-    .pl-table .rt-tr:hover .rt-td[style*='position: sticky'],
-    .pl-table .rt-tr:hover .rt-td[style*='position:sticky'] {
+    .pl-table .rt-tr:hover [style*='position: sticky'],
+    .pl-table .rt-tr:hover [style*='position:sticky'] {
       background-color: #E5F4ED !important;
     }
-    .pl-table .rt-th.rt-sticky,
-    .pl-table .rt-th.rt-th-sticky,
-    .pl-table .rt-thead .rt-th[style*='position: sticky'],
-    .pl-table .rt-thead .rt-th[style*='position:sticky'] {
-      z-index: 5;
+    .pl-table .rt-thead [style*='position: sticky'],
+    .pl-table .rt-thead [style*='position:sticky'] {
+      z-index: 11;
       box-shadow: 2px 0 6px -3px rgba(0, 0, 0, 0.2);
     }
 
@@ -1617,6 +1622,9 @@ results_list_widget <- function(
     minWidth = 160,
     sticky = "left",
     html = TRUE,
+    filterable = TRUE,
+    filterInput = .numeric_filter_hidden,
+    filterMethod = .pl_group_filter_method,
     cell = JS("function(cellInfo) {
       var val = cellInfo.value || '';
       var pids = val.split(';').map(function(s){return s.trim();}).filter(Boolean);
@@ -1989,35 +1997,26 @@ protein_list_widget <- function(
   ordered_cols <- c(static_cols, sample_map$column)
   df <- df[, ordered_cols, drop = FALSE]
 
-  # --- Columnas sinteticas para filtros OR-por-grupo (ocultas) ---
-  # Valores NA_real_: el filterMethod ignora el valor local y usa las 16 cols reales
+  # --- Mapeo de grupos para el filtro OR-por-grupo ---
+  # No se anaden columnas sinteticas al data.frame; el filtro se aplica
+  # como proxy sobre PG.ProteinGroups y consulta window.plGroupFilters +
+  # window.plGroupCols para decidir que filas pasan.
   metric_group_map <- list(
-    ".plgrp_precursors" = "PG.NrOfPrecursorsIdentified",
-    ".plgrp_pepts"      = "PG.NrOfStrippedSequencesIdentified",
-    ".plgrp_coverage"   = "PG.Coverage",
-    ".plgrp_cscore"     = "PG.Cscore.RunWise"
+    "plgrp_precursors" = "PG.NrOfPrecursorsIdentified",
+    "plgrp_pepts"      = "PG.NrOfStrippedSequencesIdentified",
+    "plgrp_coverage"   = "PG.Coverage",
+    "plgrp_cscore"     = "PG.Cscore.RunWise"
   )
   group_filter_cols <- list()
-  for (syn_col in names(metric_group_map)) {
-    metric <- metric_group_map[[syn_col]]
+  for (key in names(metric_group_map)) {
+    metric <- metric_group_map[[key]]
     real_cols <- sample_map$column[sample_map$metric == metric]
     if (length(real_cols) == 0) next
-    df[[syn_col]] <- NA_real_
-    group_filter_cols[[syn_col]] <- real_cols
+    group_filter_cols[[key]] <- real_cols
   }
 
   cols   <- .pl_build_columns(sample_map, max_per_col)
   groups <- .pl_build_column_groups(sample_map, static_cols)
-
-  # Anadir colDefs ocultos para los filtros de grupo
-  for (syn_col in names(group_filter_cols)) {
-    cols[[syn_col]] <- colDef(
-      show = FALSE,
-      filterable = TRUE,
-      filterInput = .numeric_filter_hidden,
-      filterMethod = .pl_group_filter_method
-    )
-  }
 
   conditions <- unique(sample_map$condition)
   palette    <- .pl_condition_palette(conditions)
@@ -2083,7 +2082,16 @@ protein_list_widget <- function(
     var plCondStruct = %s;
     var plGroupStruct = %s;
     var plPalette = %s;
-    window.plGroupCols = %s;
+    window.plGroupCols    = %s;
+    window.plGroupFilters = window.plGroupFilters || {};
+
+    function plApplyGroupFilter(groupKey, value) {
+      window.plGroupFilters[groupKey] = value || '';
+      var anyActive = Object.keys(window.plGroupFilters).some(function(k) {
+        return window.plGroupFilters[k] && window.plGroupFilters[k].trim() !== '';
+      });
+      Reactable.setFilter('%s', 'PG.ProteinGroups', anyActive ? ('__pl_' + Date.now()) : undefined);
+    }
 
     function plToggleFilters() {
       var container = document.querySelector('.pl-filters-container');
@@ -2110,10 +2118,6 @@ protein_list_widget <- function(
       plFiltersVisible = !plFiltersVisible;
     }
 
-    function plApplyNumericFilter(columnId, value) {
-      Reactable.setFilter('%s', columnId, value || undefined);
-    }
-
     function plToggleCondition(cond) {
       plHiddenConditions[cond] = !plHiddenConditions[cond];
       var chip = document.querySelector('.pl-cond-chip[data-cond=\"' + cond + '\"]');
@@ -2129,11 +2133,9 @@ protein_list_widget <- function(
 
     function plClearFilters() {
       var numInputs = document.querySelectorAll('.pl-filters-container .rl-numeric-input');
-      numInputs.forEach(function(inp) {
-        inp.value = '';
-        var col = inp.getAttribute('data-column');
-        if (col) Reactable.setFilter('%s', col, undefined);
-      });
+      numInputs.forEach(function(inp) { inp.value = ''; });
+      Object.keys(window.plGroupFilters).forEach(function(k) { window.plGroupFilters[k] = ''; });
+      Reactable.setFilter('%s', 'PG.ProteinGroups', undefined);
       Object.keys(plHiddenConditions).forEach(function(c) {
         plHiddenConditions[c] = false;
         var chip = document.querySelector('.pl-cond-chip[data-cond=\"' + c + '\"]');
@@ -2298,36 +2300,36 @@ protein_list_widget <- function(
   })
 
   # Filtros OR-por-grupo: una fila pasa si >=1 de las 16 cols cumple el operador
-  .make_group_filter <- function(label, column_id, placeholder) {
+  .make_group_filter <- function(label, group_key, placeholder) {
     div(class = "rl-filter-item",
       tags$label(class = "rl-filter-label", label),
       tags$input(
         type = "text",
         class = "rl-numeric-input",
-        `data-column` = column_id,
+        `data-group` = group_key,
         placeholder = placeholder,
-        oninput = sprintf("plApplyNumericFilter('%s', this.value)", column_id)
+        oninput = sprintf("plApplyGroupFilter('%s', this.value)", group_key)
       ),
       tags$span(class = "rl-filter-hint", "Fila pasa si ≥1 muestra cumple")
     )
   }
 
   group_filter_items <- list()
-  if (".plgrp_precursors" %in% names(group_filter_cols)) {
+  if ("plgrp_precursors" %in% names(group_filter_cols)) {
     group_filter_items[[length(group_filter_items) + 1]] <-
-      .make_group_filter("# PSMs (any sample)", ".plgrp_precursors", "≥ 2 ...")
+      .make_group_filter("# PSMs (any sample)", "plgrp_precursors", "≥ 2 ...")
   }
-  if (".plgrp_pepts" %in% names(group_filter_cols)) {
+  if ("plgrp_pepts" %in% names(group_filter_cols)) {
     group_filter_items[[length(group_filter_items) + 1]] <-
-      .make_group_filter("# Pepts (any sample)", ".plgrp_pepts", "≥ 2 ...")
+      .make_group_filter("# Pepts (any sample)", "plgrp_pepts", "≥ 2 ...")
   }
-  if (".plgrp_coverage" %in% names(group_filter_cols)) {
+  if ("plgrp_coverage" %in% names(group_filter_cols)) {
     group_filter_items[[length(group_filter_items) + 1]] <-
-      .make_group_filter("Coverage % (any sample)", ".plgrp_coverage", "≥ 30 ...")
+      .make_group_filter("Coverage % (any sample)", "plgrp_coverage", "≥ 30 ...")
   }
-  if (".plgrp_cscore" %in% names(group_filter_cols)) {
+  if ("plgrp_cscore" %in% names(group_filter_cols)) {
     group_filter_items[[length(group_filter_items) + 1]] <-
-      .make_group_filter("Cscore (any sample)", ".plgrp_cscore", "≥ 0.9 ...")
+      .make_group_filter("Cscore (any sample)", "plgrp_cscore", "≥ 0.9 ...")
   }
 
   filters_panel <- div(class = "rl-filters-container pl-filters-container",
