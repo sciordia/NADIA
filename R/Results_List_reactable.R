@@ -188,7 +188,11 @@ if (!exists("%||%", mode = "function")) {
       min-width: 60px;
       text-align: right;
       font-variant-numeric: tabular-nums;
+      font-weight: 700;
     }
+    .lfc-value.up       { color: #02905A; }
+    .lfc-value.down     { color: #E63946; }
+    .lfc-value.nochange { color: #ADB5BD; }
     .lfc-bar-wrapper {
       flex: 1;
       height: 14px;
@@ -717,11 +721,17 @@ if (!exists("%||%", mode = "function")) {
       var maxLfc = %s;
       var pct = Math.abs(val) / maxLfc * 100;
       var barClass = 'lfc-bar nochange';
-      if (change === 'Up') barClass = 'lfc-bar up';
-      else if (change === 'Down') barClass = 'lfc-bar down';
-      var formatted = val.toFixed(3);
+      var valueClass = 'lfc-value nochange';
+      if (change === 'Up') {
+        barClass = 'lfc-bar up';
+        valueClass = 'lfc-value up';
+      } else if (change === 'Down') {
+        barClass = 'lfc-bar down';
+        valueClass = 'lfc-value down';
+      }
+      var formatted = (val > 0 ? '+' : '') + val.toFixed(3);
       return '<div class=\"lfc-bar-container\">' +
-        '<span class=\"lfc-value\">' + formatted + '</span>' +
+        '<span class=\"' + valueClass + '\">' + formatted + '</span>' +
         '<div class=\"lfc-bar-wrapper\">' +
         '<div class=\"' + barClass + '\" style=\"width:' + pct.toFixed(1) + '%%\"></div>' +
         '</div></div>';
