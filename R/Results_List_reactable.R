@@ -44,6 +44,39 @@ if (!exists("%||%", mode = "function")) {
   });
 }")
 
+# --- Filtro OR-por-grupo: fila pasa si >=1 col del grupo satisface el operador ---
+.pl_group_filter_method <- reactable::JS("function(rows, columnId, filterValue) {
+  if (!filterValue) return rows;
+  var groupCols = (typeof window !== 'undefined' && window.plGroupCols) ? window.plGroupCols[columnId] : null;
+  if (!groupCols || groupCols.length === 0) return rows;
+  var orGroups = filterValue.split('|').map(function(s) { return s.trim(); }).filter(Boolean);
+  return rows.filter(function(row) {
+    return orGroups.some(function(grp) {
+      var conditions = grp.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+      return conditions.every(function(cond) {
+        var match = cond.match(/^(>=|<=|!=|<>|>|<|=)?\\s*(.+)$/);
+        if (!match) return true;
+        var op = match[1] || '=';
+        var val = parseFloat(match[2]);
+        if (isNaN(val)) return true;
+        return groupCols.some(function(c) {
+          var v = row.values[c];
+          if (v == null || isNaN(v)) return false;
+          switch(op) {
+            case '>=': return v >= val;
+            case '<=': return v <= val;
+            case '>':  return v > val;
+            case '<':  return v < val;
+            case '!=': case '<>': return v !== val;
+            case '=':  return v === val;
+            default:   return true;
+          }
+        });
+      });
+    });
+  });
+}")
+
 
 #' Cargar y validar datos de expresion diferencial
 #' @param input Data frame o ruta a archivo TSV/Parquet
@@ -568,9 +601,6 @@ if (!exists("%||%", mode = "function")) {
       font-weight: 600;
       border-right: 1px solid rgba(255,255,255,0.15);
     }
-    .pl-table .rt-tr-header .rt-th {
-      font-size: 12px;
-    }
     .pl-hdr-A { background: rgba(79, 129, 189, 0.85) !important; color: #ffffff !important; }
     .pl-hdr-B { background: rgba(155, 187, 89, 0.85) !important; color: #ffffff !important; }
     .pl-hdr-C { background: rgba(247, 150, 70, 0.85) !important; color: #ffffff !important; }
@@ -580,17 +610,39 @@ if (!exists("%||%", mode = "function")) {
     .pl-hdr-G { background: rgba(159, 138, 118, 0.85) !important; color: #ffffff !important; }
     .pl-hdr-H { background: rgba(100, 100, 100, 0.85) !important; color: #ffffff !important; }
 
-    /* Sticky: sombra lateral para marcar separacion */
-    .pl-table .rt-td-sticky,
-    .pl-table .rt-th-sticky {
+    /* Sticky: fondo solido opaco + sombra lateral */
+    .pl-table .rt-td.rt-sticky,
+    .pl-table .rt-td.rt-td-sticky,
+    .pl-table .rt-tbody .rt-td[style*='position: sticky'],
+    .pl-table .rt-tbody .rt-td[style*='position:sticky'] {
       background-color: #ffffff !important;
+      z-index: 3;
       box-shadow: 2px 0 6px -3px rgba(0, 0, 0, 0.2);
     }
-    .pl-table .rt-tr-striped .rt-td-sticky {
+    .pl-table .rt-tr-striped .rt-td.rt-sticky,
+    .pl-table .rt-tr-striped .rt-td.rt-td-sticky,
+    .pl-table .rt-tr-striped .rt-td[style*='position: sticky'],
+    .pl-table .rt-tr-striped .rt-td[style*='position:sticky'] {
       background-color: #fafbfc !important;
     }
-    .pl-table .rt-tr:hover .rt-td-sticky {
+    .pl-table .rt-tr:hover .rt-td.rt-sticky,
+    .pl-table .rt-tr:hover .rt-td.rt-td-sticky,
+    .pl-table .rt-tr:hover .rt-td[style*='position: sticky'],
+    .pl-table .rt-tr:hover .rt-td[style*='position:sticky'] {
       background-color: rgba(2, 144, 82, 0.08) !important;
+    }
+    .pl-table .rt-th.rt-sticky,
+    .pl-table .rt-th.rt-th-sticky,
+    .pl-table .rt-thead .rt-th[style*='position: sticky'],
+    .pl-table .rt-thead .rt-th[style*='position:sticky'] {
+      z-index: 5;
+      box-shadow: 2px 0 6px -3px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Separador grueso entre grupos de metricas */
+    .pl-table .rt-td.pl-group-end,
+    .pl-table .rt-th.pl-group-end {
+      border-right: 3px solid #0E6655 !important;
     }
 
     /* Celdas de muestra compactas (menos padding) */
@@ -1600,6 +1652,9 @@ results_list_widget <- function(
     name = "MW [kDa]",
     width = 95,
     align = "right",
+    sticky = "left",
+    class = "pl-group-end",
+    headerClass = "pl-group-end",
     filterable = TRUE,
     filterInput = .numeric_filter_hidden,
     filterMethod = .numeric_filter_method,
@@ -1609,6 +1664,22 @@ results_list_widget <- function(
       return (val / 1000).toFixed(2);
     }")
   )
+
+  # Ultima columna de cada grupo de metricas (excepto la ultima, que es borde externo)
+  metric_last_col <- tapply(sample_map$column, sample_map$metric, function(x) x[length(x)])
+  metric_last_col <- as.character(metric_last_col)
+  # excluir la ultima metrica presente (borde exterior no necesita separador)
+  present_metrics <- levels(droplevels(factor(
+    sample_map$metric,
+    levels = c("PG.NrOfPrecursorsIdentified",
+               "PG.NrOfStrippedSequencesIdentified",
+               "PG.Coverage",
+               "PG.Cscore.RunWise")
+  )))
+  if (length(present_metrics) > 0) {
+    last_metric <- present_metrics[length(present_metrics)]
+    metric_last_col <- setdiff(metric_last_col, sample_map$column[sample_map$metric == last_metric])
+  }
 
   for (i in seq_len(nrow(sample_map))) {
     col_id    <- sample_map$column[i]
@@ -1625,26 +1696,43 @@ results_list_widget <- function(
       "Math.round(val)"
     )
 
-    cell_js <- JS(sprintf("function(cellInfo) {
-      var val = cellInfo.value;
-      if (val == null || isNaN(val)) {
-        return '<div class=\"pl-bar-wrapper\"><span class=\"pl-bar-value pl-bar-empty\">–</span></div>';
-      }
-      var pct = Math.min(100, Math.max(0, val / %s * 100));
-      var formatted = %s;
-      return '<div class=\"pl-bar-wrapper\">' +
-        '<div class=\"pl-bar pl-cond-%s\" style=\"width:' + pct.toFixed(1) + '%%\"></div>' +
-        '<span class=\"pl-bar-value\">' + formatted + '</span>' +
-        '</div>';
-    }", max_val, fmt_js, cond))
+    is_coverage   <- metric == "PG.Coverage"
+    is_group_end  <- col_id %in% metric_last_col
+
+    if (is_coverage) {
+      cell_js <- JS(sprintf("function(cellInfo) {
+        var val = cellInfo.value;
+        if (val == null || isNaN(val)) {
+          return '<div class=\"pl-bar-wrapper\"><span class=\"pl-bar-value pl-bar-empty\">–</span></div>';
+        }
+        var pct = Math.min(100, Math.max(0, val / %s * 100));
+        var formatted = %s;
+        return '<div class=\"pl-bar-wrapper\">' +
+          '<div class=\"pl-bar pl-cond-%s\" style=\"width:' + pct.toFixed(1) + '%%\"></div>' +
+          '<span class=\"pl-bar-value\">' + formatted + '</span>' +
+          '</div>';
+      }", max_val, fmt_js, cond))
+    } else {
+      cell_js <- JS(sprintf("function(cellInfo) {
+        var val = cellInfo.value;
+        if (val == null || isNaN(val)) {
+          return '<span class=\"pl-bar-value pl-bar-empty\">–</span>';
+        }
+        var formatted = %s;
+        return '<span class=\"pl-bar-value\">' + formatted + '</span>';
+      }", fmt_js))
+    }
+
+    cell_class   <- if (is_group_end) "pl-sample-cell pl-group-end" else "pl-sample-cell"
+    header_class <- if (is_group_end) paste0("pl-hdr-", cond, " pl-group-end") else paste0("pl-hdr-", cond)
 
     cols[[col_id]] <- colDef(
       name = paste(cond, replicate, sep = "_"),
       width = 72,
       align = "center",
       html = TRUE,
-      class = "pl-sample-cell",
-      headerClass = paste0("pl-hdr-", cond),
+      class = cell_class,
+      headerClass = header_class,
       filterable = TRUE,
       filterInput = .numeric_filter_hidden,
       filterMethod = .numeric_filter_method,
@@ -1899,8 +1987,35 @@ protein_list_widget <- function(
   ordered_cols <- c(static_cols, sample_map$column)
   df <- df[, ordered_cols, drop = FALSE]
 
+  # --- Columnas sinteticas para filtros OR-por-grupo (ocultas) ---
+  # Valores NA_real_: el filterMethod ignora el valor local y usa las 16 cols reales
+  metric_group_map <- list(
+    ".plgrp_precursors" = "PG.NrOfPrecursorsIdentified",
+    ".plgrp_pepts"      = "PG.NrOfStrippedSequencesIdentified",
+    ".plgrp_coverage"   = "PG.Coverage",
+    ".plgrp_cscore"     = "PG.Cscore.RunWise"
+  )
+  group_filter_cols <- list()
+  for (syn_col in names(metric_group_map)) {
+    metric <- metric_group_map[[syn_col]]
+    real_cols <- sample_map$column[sample_map$metric == metric]
+    if (length(real_cols) == 0) next
+    df[[syn_col]] <- NA_real_
+    group_filter_cols[[syn_col]] <- real_cols
+  }
+
   cols   <- .pl_build_columns(sample_map, max_per_col)
   groups <- .pl_build_column_groups(sample_map, static_cols)
+
+  # Anadir colDefs ocultos para los filtros de grupo
+  for (syn_col in names(group_filter_cols)) {
+    cols[[syn_col]] <- colDef(
+      show = FALSE,
+      filterable = TRUE,
+      filterInput = .numeric_filter_hidden,
+      filterMethod = .pl_group_filter_method
+    )
+  }
 
   conditions <- unique(sample_map$condition)
   palette    <- .pl_condition_palette(conditions)
@@ -1909,6 +2024,8 @@ protein_list_widget <- function(
   if (!requireNamespace("jsonlite", quietly = TRUE)) {
     stop("El paquete 'jsonlite' es necesario para protein_list_widget().")
   }
+
+  group_filter_cols_json <- jsonlite::toJSON(group_filter_cols, auto_unbox = FALSE)
 
   cond_struct <- setNames(
     lapply(conditions, function(cc) sample_map$column[sample_map$condition == cc]),
@@ -1964,6 +2081,7 @@ protein_list_widget <- function(
     var plCondStruct = %s;
     var plGroupStruct = %s;
     var plPalette = %s;
+    window.plGroupCols = %s;
 
     function plToggleFilters() {
       var container = document.querySelector('.pl-filters-container');
@@ -2133,7 +2251,7 @@ protein_list_widget <- function(
         console.error('Error exportando:', e);
       }
     }
-  ", cond_struct_json, group_struct_json, palette_json,
+  ", cond_struct_json, group_struct_json, palette_json, group_filter_cols_json,
       element_id, element_id, element_id, element_id, element_id, element_id)))
 
   # --- Barra de busqueda + botones ---
@@ -2177,23 +2295,48 @@ protein_list_widget <- function(
     )
   })
 
+  # Filtros OR-por-grupo: una fila pasa si >=1 de las 16 cols cumple el operador
+  .make_group_filter <- function(label, column_id, placeholder) {
+    div(class = "rl-filter-item",
+      tags$label(class = "rl-filter-label", label),
+      tags$input(
+        type = "text",
+        class = "rl-numeric-input",
+        `data-column` = column_id,
+        placeholder = placeholder,
+        oninput = sprintf("plApplyNumericFilter('%s', this.value)", column_id)
+      ),
+      tags$span(class = "rl-filter-hint", "Fila pasa si ≥1 muestra cumple")
+    )
+  }
+
+  group_filter_items <- list()
+  if (".plgrp_precursors" %in% names(group_filter_cols)) {
+    group_filter_items[[length(group_filter_items) + 1]] <-
+      .make_group_filter("# PSMs (any sample)", ".plgrp_precursors", "≥ 2 ...")
+  }
+  if (".plgrp_pepts" %in% names(group_filter_cols)) {
+    group_filter_items[[length(group_filter_items) + 1]] <-
+      .make_group_filter("# Pepts (any sample)", ".plgrp_pepts", "≥ 2 ...")
+  }
+  if (".plgrp_coverage" %in% names(group_filter_cols)) {
+    group_filter_items[[length(group_filter_items) + 1]] <-
+      .make_group_filter("Coverage % (any sample)", ".plgrp_coverage", "≥ 30 ...")
+  }
+  if (".plgrp_cscore" %in% names(group_filter_cols)) {
+    group_filter_items[[length(group_filter_items) + 1]] <-
+      .make_group_filter("Cscore (any sample)", ".plgrp_cscore", "≥ 0.9 ...")
+  }
+
   filters_panel <- div(class = "rl-filters-container pl-filters-container",
     div(class = "rl-filters-row",
       div(class = "rl-filter-item", style = "flex: 2 1 300px;",
         tags$label(class = "rl-filter-label", "Conditions (click to hide/show 16 cols)"),
         div(class = "pl-cond-chips", cond_chips)
-      ),
-      div(class = "rl-filter-item",
-        tags$label(class = "rl-filter-label", "MW [Da]"),
-        tags$input(
-          type = "text",
-          class = "rl-numeric-input",
-          `data-column` = "PG.MolecularWeight",
-          placeholder = "≥ 25000, ≤ 150000 ...",
-          oninput = "plApplyNumericFilter('PG.MolecularWeight', this.value)"
-        ),
-        tags$span(class = "rl-filter-hint", "AND: >=25000, <=150000 · OR: <10000 | >150000")
       )
+    ),
+    div(class = "rl-filters-row", style = "margin-top: 0.75rem;",
+      group_filter_items
     )
   )
 
