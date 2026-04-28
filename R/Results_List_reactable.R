@@ -605,9 +605,9 @@ if (!exists("%||%", mode = "function")) {
       background-color: rgba(2, 144, 82, 0.08) !important;
     }
 
-    /* Celdas de muestra: padding igual que .rl-table para igualar altura de fila */
+    /* Celdas de muestra compactas (menos padding horizontal para 64 columnas) */
     .pl-table .rt-td.pl-sample-cell {
-      padding: 7px 8px !important;
+      padding: 4px 4px !important;
     }
 
     /* Contenedor de chips para ocultar condiciones */
@@ -1879,7 +1879,7 @@ protein_list_reactable <- function(
         alignItems  = "center",
         justifyContent = "center"
       ),
-      style = list(height = "40px", display = "flex", alignItems = "center")
+      style = list(height = "48px", display = "flex", alignItems = "center")
     ),
     columns      = cols,
     columnGroups = groups,
@@ -2296,7 +2296,7 @@ protein_list_widget <- function(
         alignItems  = "center",
         justifyContent = "center"
       ),
-      style = list(height = "40px", display = "flex", alignItems = "center")
+      style = list(height = "48px", display = "flex", alignItems = "center")
     ),
     columns      = cols,
     columnGroups = groups,
