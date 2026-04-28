@@ -2507,7 +2507,7 @@ protein_list_reactable <- function(
       headerStyle = list(
         background  = "rgba(31, 78, 120, 0.9)",
         color       = "#ffffff",
-        height      = "40px",
+        height      = "45px",
         display     = "flex",
         alignItems  = "center",
         justifyContent = "center"
@@ -2924,7 +2924,7 @@ protein_list_widget <- function(
       headerStyle = list(
         background  = "rgba(31, 78, 120, 0.9)",
         color       = "#ffffff",
-        height      = "40px",
+        height      = "45px",
         display     = "flex",
         alignItems  = "center",
         justifyContent = "center"
@@ -3373,7 +3373,7 @@ quant_list_widget <- function(
       headerStyle = list(
         background  = "rgba(102, 5, 5, 0.9)",
         color       = "#ffffff",
-        height      = "40px",
+        height      = "45px",
         display     = "flex",
         alignItems  = "center",
         justifyContent = "center"
@@ -3736,7 +3736,7 @@ summary_list_widget <- function(
       headerStyle = list(
         background     = "#1a1a1a",
         color          = "#ffffff",
-        height         = "40px",
+        height         = "45px",
         display        = "flex",
         alignItems     = "center",
         justifyContent = "center"
