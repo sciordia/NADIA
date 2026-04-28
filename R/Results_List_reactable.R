@@ -580,6 +580,10 @@ if (!exists("%||%", mode = "function")) {
     .pl-cond-F { background-color: #C0504D; }
     .pl-cond-G { background-color: #9F8A76; }
     .pl-cond-H { background-color: #646464; }
+    .pl-cond-I { background-color: #FFC000; }
+    .pl-cond-J { background-color: #E377C2; }
+    .pl-cond-K { background-color: #2E7D32; }
+    .pl-cond-L { background-color: #6A1B9A; }
 
     /* Header styling: primera fila (grupos) y segunda (muestras) */
     .pl-table .rt-thead {
@@ -608,6 +612,10 @@ if (!exists("%||%", mode = "function")) {
     .pl-hdr-F { background: rgba(192, 80, 77, 0.85)  !important; color: #ffffff !important; }
     .pl-hdr-G { background: rgba(159, 138, 118, 0.85) !important; color: #ffffff !important; }
     .pl-hdr-H { background: rgba(100, 100, 100, 0.85) !important; color: #ffffff !important; }
+    .pl-hdr-I { background: rgba(255, 192,   0, 0.85) !important; color: #ffffff !important; }
+    .pl-hdr-J { background: rgba(227, 119, 194, 0.85) !important; color: #ffffff !important; }
+    .pl-hdr-K { background: rgba( 46, 125,  50, 0.85) !important; color: #ffffff !important; }
+    .pl-hdr-L { background: rgba(106,  27, 154, 0.85) !important; color: #ffffff !important; }
 
     /* Sticky: sombra lateral para marcar separacion */
     .pl-table .rt-td-sticky,
@@ -1562,7 +1570,8 @@ results_list_widget <- function(
 .pl_condition_palette <- function(conditions) {
   defaults <- c(
     A = "#4F81BD", B = "#9BBB59", C = "#F79646", D = "#8064A2",
-    E = "#4BACC6", F = "#C0504D", G = "#9F8A76", H = "#646464"
+    E = "#4BACC6", F = "#C0504D", G = "#9F8A76", H = "#646464",
+    I = "#FFC000", J = "#E377C2", K = "#2E7D32", L = "#6A1B9A"
   )
   conditions <- unique(conditions)
   out <- setNames(rep(NA_character_, length(conditions)), conditions)
