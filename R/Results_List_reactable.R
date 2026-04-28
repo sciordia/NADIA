@@ -1812,6 +1812,345 @@ results_list_widget <- function(
 
 
 # =============================================================================
+# Helpers Protein_QUANT (quant_list_widget)
+# =============================================================================
+
+#' Cargar y validar archivo Protein_QUANT
+#' @param input Data frame o ruta a TSV/CSV/Parquet con formato Protein_QUANT
+#' @return Data frame validado
+#' @noRd
+.ql_load_quant <- function(input) {
+  if (is.character(input) && length(input) == 1) {
+    if (!file.exists(input)) stop("Archivo Protein_QUANT no encontrado: ", input)
+    ext <- tolower(tools::file_ext(input))
+    if (ext %in% c("tsv", "txt")) {
+      if (requireNamespace("readr", quietly = TRUE)) {
+        input <- readr::read_tsv(input, show_col_types = FALSE)
+      } else {
+        input <- utils::read.delim(input, sep = "\t", stringsAsFactors = FALSE)
+      }
+    } else if (ext == "csv") {
+      if (requireNamespace("readr", quietly = TRUE)) {
+        input <- readr::read_csv(input, show_col_types = FALSE)
+      } else {
+        input <- utils::read.csv(input, stringsAsFactors = FALSE)
+      }
+    } else if (ext == "parquet") {
+      if (!requireNamespace("arrow", quietly = TRUE)) {
+        stop("El paquete 'arrow' es necesario para leer archivos Parquet")
+      }
+      input <- arrow::read_parquet(input)
+    } else {
+      stop("Formato no soportado: ", ext, ". Usa TSV, CSV o Parquet.")
+    }
+  }
+
+  df <- as.data.frame(input)
+
+  if (!"PG.ProteinGroups" %in% names(df)) {
+    stop("Columna requerida 'PG.ProteinGroups' no encontrada. ",
+         "El archivo debe ser un Protein_QUANT exportado por preprocess_spectronaut().")
+  }
+  if (!any(grepl("^PG\\.NrOfPrecursorsUsedForQuantification_", names(df)))) {
+    stop("No se detectaron columnas de muestra (PG.NrOfPrecursorsUsedForQuantification_*). ",
+         "Verifica que el archivo sea un Protein_QUANT valido.")
+  }
+  df
+}
+
+
+#' Cargar matriz log2 normalizada/imputada
+#' @param input Data frame o ruta a TSV/CSV/Parquet con columna ProteinGroups + samples
+#' @return Data frame validado
+#' @noRd
+.ql_load_matrix <- function(input) {
+  if (is.character(input) && length(input) == 1) {
+    if (!file.exists(input)) stop("Archivo de matriz no encontrado: ", input)
+    ext <- tolower(tools::file_ext(input))
+    if (ext %in% c("tsv", "txt")) {
+      if (requireNamespace("readr", quietly = TRUE)) {
+        input <- readr::read_tsv(input, show_col_types = FALSE)
+      } else {
+        input <- utils::read.delim(input, sep = "\t", stringsAsFactors = FALSE)
+      }
+    } else if (ext == "csv") {
+      if (requireNamespace("readr", quietly = TRUE)) {
+        input <- readr::read_csv(input, show_col_types = FALSE)
+      } else {
+        input <- utils::read.csv(input, stringsAsFactors = FALSE)
+      }
+    } else if (ext == "parquet") {
+      if (!requireNamespace("arrow", quietly = TRUE)) {
+        stop("El paquete 'arrow' es necesario para leer archivos Parquet")
+      }
+      input <- arrow::read_parquet(input)
+    } else {
+      stop("Formato no soportado: ", ext, ". Usa TSV, CSV o Parquet.")
+    }
+  }
+
+  df <- as.data.frame(input)
+
+  if (!"ProteinGroups" %in% names(df)) {
+    stop("Columna requerida 'ProteinGroups' no encontrada en la matriz. ",
+         "Verifica que sea una matrix_log2_<...>.tsv valida.")
+  }
+
+  sample_cols <- setdiff(names(df), "ProteinGroups")
+  ok <- grepl("^[A-Za-z0-9]+_\\d+$", sample_cols)
+  if (!any(ok)) {
+    stop("La matriz no contiene columnas de muestra con patron <cond>_<rep>.")
+  }
+  df
+}
+
+
+#' Left-join de la matriz log2 sobre Protein_QUANT por Protein Groups
+#' @param quant_df Data frame Protein_QUANT
+#' @param matrix_df Data frame matriz log2
+#' @return quant_df con 16 columnas adicionales `NormImp.Log2_<cond>_<rep>`
+#' @noRd
+.ql_join_matrix <- function(quant_df, matrix_df) {
+  sample_cols <- setdiff(names(matrix_df), "ProteinGroups")
+  ok <- grepl("^[A-Za-z0-9]+_\\d+$", sample_cols)
+  sample_cols <- sample_cols[ok]
+
+  idx <- match(quant_df$PG.ProteinGroups, matrix_df$ProteinGroups)
+  for (sc in sample_cols) {
+    new_name <- paste0("NormImp.Log2_", sc)
+    quant_df[[new_name]] <- as.numeric(matrix_df[[sc]][idx])
+  }
+  quant_df
+}
+
+
+#' Parsear columnas Protein_QUANT en (metric, condition, replicate)
+#' @param colnames_vec Vector de nombres de columnas
+#' @return Data frame ordenado: column, metric, condition, replicate, coding
+#' @noRd
+.ql_parse_samples <- function(colnames_vec) {
+  metrics <- c(
+    "PG.NrOfPrecursorsUsedForQuantification",
+    "PG.NrOfStrippedSequencesUsedForQuantification",
+    "PG.Quantity",
+    "NormImp.Log2"
+  )
+
+  rows <- list()
+  for (m in metrics) {
+    pat <- paste0("^", gsub("\\.", "\\\\.", m), "_(.+?)_(\\d+)$")
+    hits <- regmatches(colnames_vec, regexec(pat, colnames_vec))
+    for (i in seq_along(hits)) {
+      h <- hits[[i]]
+      if (length(h) == 3) {
+        rows[[length(rows) + 1]] <- data.frame(
+          column = colnames_vec[i],
+          metric = m,
+          condition = h[2],
+          replicate = as.integer(h[3]),
+          coding = paste(h[2], h[3], sep = "_"),
+          stringsAsFactors = FALSE
+        )
+      }
+    }
+  }
+
+  if (length(rows) == 0) {
+    return(data.frame(column = character(0), metric = character(0),
+                      condition = character(0), replicate = integer(0),
+                      coding = character(0), stringsAsFactors = FALSE))
+  }
+
+  df <- do.call(rbind, rows)
+  df$metric <- factor(df$metric, levels = metrics)
+  df <- df[order(df$metric, df$condition, df$replicate), ]
+  df$metric <- as.character(df$metric)
+  rownames(df) <- NULL
+  df
+}
+
+
+#' Construir colDefs para tabla Protein_QUANT
+#' @param sample_map Salida de .ql_parse_samples()
+#' @param df Data frame final (para detectar columnas globales presentes)
+#' @return Lista de colDef indexada por nombre de columna
+#' @noRd
+.ql_build_columns <- function(sample_map, df) {
+  cols <- list()
+
+  cols$PG.ProteinGroups <- colDef(
+    name = "Protein Groups",
+    minWidth = 160,
+    sticky = "left",
+    html = TRUE,
+    cell = JS("function(cellInfo) {
+      var val = cellInfo.value || '';
+      var pids = val.split(';').map(function(s){return s.trim();}).filter(Boolean);
+      var first = pids[0] || val;
+      if (pids.length > 1) {
+        return '<strong>' + first + '</strong> <span class=\"protein-count\">+' + (pids.length - 1) + '</span>';
+      }
+      return '<strong>' + first + '</strong>';
+    }")
+  )
+
+  cols$PG.ProteinDescriptions <- colDef(
+    name = "Descriptions",
+    minWidth = 220,
+    sticky = "left"
+  )
+
+  cols$PG.Genes <- colDef(
+    name = "Gene Names",
+    minWidth = 120,
+    sticky = "left",
+    html = TRUE,
+    cell = JS("function(cellInfo) {
+      var val = cellInfo.value || '';
+      var genes = val.split(';').map(function(s){return s.trim();}).filter(Boolean);
+      var first = genes[0] || val;
+      if (genes.length > 1) {
+        return first + ' <span class=\"protein-count\">+' + (genes.length - 1) + '</span>';
+      }
+      return first;
+    }")
+  )
+
+  cols$PG.MolecularWeight <- colDef(
+    name = "MW [kDa]",
+    width = 95,
+    align = "right",
+    cell = JS("function(cellInfo) {
+      var val = cellInfo.value;
+      if (val == null || isNaN(val)) return '';
+      return (val / 1000).toFixed(2);
+    }")
+  )
+
+  # Globales (single-col, plain values con filtro individual)
+  global_specs <- list(
+    list(id = "PG.NrOfPrecursorsIdentified.Global",        name = "# PSMs",       fmt = "Math.round(val)"),
+    list(id = "PG.NrOfStrippedSequencesIdentified.Global", name = "# Uniq Pepts", fmt = "Math.round(val)"),
+    list(id = "PG.Coverage.Global",                        name = "Coverage [%]", fmt = "val.toFixed(1)"),
+    list(id = "PG.Cscore",                                 name = "Cscore",       fmt = "val.toFixed(2)")
+  )
+  for (gs in global_specs) {
+    if (!gs$id %in% names(df)) next
+    cell_js <- JS(sprintf("function(cellInfo) {
+      var val = cellInfo.value;
+      if (val == null || isNaN(val)) return '<span class=\"pl-plain-value pl-bar-empty\">-</span>';
+      return '<span class=\"pl-plain-value\">' + (%s) + '</span>';
+    }", gs$fmt))
+    cols[[gs$id]] <- colDef(
+      name = gs$name,
+      width = 95,
+      align = "center",
+      html = TRUE,
+      filterable = TRUE,
+      filterInput = .numeric_filter_hidden,
+      filterMethod = .numeric_filter_method,
+      cell = cell_js
+    )
+  }
+
+  # Samples: 4 metrics x 16 conditions/reps
+  first_cols_by_metric <- vapply(
+    split(sample_map$column, sample_map$metric),
+    function(x) x[1], character(1)
+  )
+
+  for (i in seq_len(nrow(sample_map))) {
+    col_id    <- sample_map$column[i]
+    cond      <- sample_map$condition[i]
+    replicate <- sample_map$replicate[i]
+    metric    <- sample_map$metric[i]
+
+    fmt_js <- switch(
+      metric,
+      "PG.Quantity"  = "val.toExponential(2)",
+      "NormImp.Log2" = "val.toFixed(2)",
+      "Math.round(val)"
+    )
+
+    cell_js <- JS(sprintf("function(cellInfo) {
+      var val = cellInfo.value;
+      if (val == null || isNaN(val)) return '<span class=\"pl-plain-value pl-bar-empty\">-</span>';
+      return '<span class=\"pl-plain-value\">' + (%s) + '</span>';
+    }", fmt_js))
+
+    is_anchor <- col_id %in% first_cols_by_metric
+    cell_class <- if (is_anchor) "pl-sample-cell pl-group-boundary" else "pl-sample-cell"
+    hdr_class  <- if (is_anchor) paste0("pl-hdr-", cond, " pl-group-boundary") else paste0("pl-hdr-", cond)
+    fm <- if (is_anchor) {
+      .pl_agg_filter_method(sample_map$column[sample_map$metric == metric])
+    } else {
+      .numeric_filter_method
+    }
+
+    col_width <- if (metric == "PG.Quantity") 88 else 72
+
+    cols[[col_id]] <- colDef(
+      name = paste(cond, replicate, sep = "_"),
+      width = col_width,
+      align = "center",
+      html = TRUE,
+      class = cell_class,
+      headerClass = hdr_class,
+      filterable = TRUE,
+      filterInput = .numeric_filter_hidden,
+      filterMethod = fm,
+      cell = cell_js
+    )
+  }
+
+  cols
+}
+
+
+#' Construir columnGroups para tabla Protein_QUANT
+#' @param sample_map Salida de .ql_parse_samples()
+#' @param static_cols Vector de columnas estaticas presentes
+#' @param global_cols Vector de columnas globales presentes
+#' @return Lista de colGroup
+#' @noRd
+.ql_build_column_groups <- function(sample_map, static_cols, global_cols) {
+  groups <- list()
+
+  if (length(static_cols) > 0) {
+    groups[[length(groups) + 1]] <- colGroup(
+      name = "PROTEIN ANNOTATION",
+      columns = static_cols,
+      sticky = "left"
+    )
+  }
+
+  if (length(global_cols) > 0) {
+    groups[[length(groups) + 1]] <- colGroup(
+      name = "GLOBAL IDENTIFICATION DATA",
+      columns = global_cols
+    )
+  }
+
+  metric_labels <- list(
+    "PG.NrOfPrecursorsUsedForQuantification"        = "# Uniq. PSMs Quantified",
+    "PG.NrOfStrippedSequencesUsedForQuantification" = "# Uniq. Pepts Quantified",
+    "PG.Quantity"                                   = "Raw Abundances",
+    "NormImp.Log2"                                  = "Normalized and Imputed Abundances (Log2)"
+  )
+  for (m in names(metric_labels)) {
+    cc <- sample_map$column[sample_map$metric == m]
+    if (length(cc) == 0) next
+    groups[[length(groups) + 1]] <- colGroup(
+      name = metric_labels[[m]],
+      columns = cc
+    )
+  }
+
+  groups
+}
+
+
+# =============================================================================
 # Funcion principal Protein_ID
 # =============================================================================
 
@@ -2304,6 +2643,455 @@ protein_list_widget <- function(
   )
 
   # --- Tabla ---
+  tbl <- reactable(
+    df,
+    elementId     = element_id,
+    defaultSorted = list(PG.ProteinGroups = "asc"),
+    defaultPageSize    = page_size,
+    showPageSizeOptions = TRUE,
+    pageSizeOptions = c(15, 30, 50, 100),
+    resizable   = TRUE,
+    selection   = selection,
+    onClick     = if (!is.null(selection)) "select" else NULL,
+    defaultColDef = colDef(
+      align = "left",
+      headerStyle = list(
+        background  = "rgba(31, 78, 120, 0.9)",
+        color       = "#ffffff",
+        height      = "40px",
+        display     = "flex",
+        alignItems  = "center",
+        justifyContent = "center"
+      ),
+      style = list(height = "48px", display = "flex", alignItems = "center")
+    ),
+    columns      = cols,
+    columnGroups = groups,
+    wrap         = FALSE,
+    class        = "rl-table pl-table",
+    rowStyle     = if (!is.null(selection)) list(cursor = "pointer") else NULL,
+    highlight    = TRUE,
+    searchable   = searchable,
+    height       = height,
+    striped      = TRUE,
+    theme        = .pl_theme(),
+    language     = .rl_lang(),
+    details      = .pl_detail_row()
+  )
+
+  browsable(tagList(
+    css,
+    cdn_scripts,
+    js_code,
+    search_actions,
+    filters_panel,
+    tbl
+  ))
+}
+
+
+# =============================================================================
+# Funcion principal Protein_QUANT (quant_list_widget)
+# =============================================================================
+
+#' Widget Completo para tabla Protein_QUANT con matriz log2 anexada
+#'
+#' Tabla reactable que reproduce el layout del Excel Protein-List_QUANT con
+#' cabeceras de 2 niveles, sticky cols, paleta azul, filtros agregados y export
+#' Excel. Anexa al Protein_QUANT las 16 columnas de la matriz normalizada/imputada
+#' log2, cruzando por Protein Groups.
+#'
+#' @param data Data frame o ruta a TSV/CSV/Parquet de Protein_QUANT.
+#' @param matrix_data Data frame o ruta a TSV/CSV/Parquet de la matriz log2
+#'   normalizada/imputada (con columna ProteinGroups + samples <cond>_<rep>).
+#' @param metadata Opcional: data frame de metadata con columna Coding para
+#'   fijar el orden de muestras.
+#' @param page_size Filas por pagina (default 15).
+#' @param height Altura de la tabla en px (default 720).
+#' @param element_id ID del elemento Reactable.
+#' @param selection "single" | "multiple" | NULL.
+#' @param searchable Habilitar busqueda (default TRUE).
+#'
+#' @return Objeto browsable.
+#'
+#' @examples
+#' \dontrun{
+#' quant_list_widget(
+#'   data        = "data/Protein_QUANT_20260423_142504.tsv",
+#'   matrix_data = "data/matrix_log2_cycloess_Impseq_min.tsv"
+#' )
+#' }
+quant_list_widget <- function(
+    data        = "data/Protein_QUANT_20260423_142504.tsv",
+    matrix_data = "data/matrix_log2_cycloess_Impseq_min.tsv",
+    metadata    = NULL,
+    page_size   = 15,
+    height      = 720,
+    element_id  = "quant_id_table",
+    selection   = NULL,
+    searchable  = TRUE
+) {
+
+  df_quant  <- .ql_load_quant(data)
+  df_matrix <- .ql_load_matrix(matrix_data)
+  df <- .ql_join_matrix(df_quant, df_matrix)
+
+  sample_map <- .ql_parse_samples(names(df))
+
+  if (nrow(sample_map) == 0) {
+    stop("No se encontraron columnas de muestra en el data frame combinado.")
+  }
+
+  if (!is.null(metadata) && is.data.frame(metadata) && "Coding" %in% names(metadata)) {
+    coding_order <- as.character(metadata$Coding)
+    sample_map$.idx <- match(sample_map$coding, coding_order)
+    metric_levels <- c("PG.NrOfPrecursorsUsedForQuantification",
+                       "PG.NrOfStrippedSequencesUsedForQuantification",
+                       "PG.Quantity",
+                       "NormImp.Log2")
+    sample_map <- sample_map[order(factor(sample_map$metric, levels = metric_levels),
+                                   sample_map$.idx), ]
+    sample_map$.idx <- NULL
+    rownames(sample_map) <- NULL
+  }
+
+  static_cols <- intersect(
+    c("PG.ProteinGroups", "PG.ProteinDescriptions", "PG.Genes", "PG.MolecularWeight"),
+    names(df)
+  )
+  global_cols <- intersect(
+    c("PG.NrOfPrecursorsIdentified.Global",
+      "PG.NrOfStrippedSequencesIdentified.Global",
+      "PG.Coverage.Global",
+      "PG.Cscore"),
+    names(df)
+  )
+
+  ordered_cols <- c(static_cols, global_cols, sample_map$column)
+  df <- df[, ordered_cols, drop = FALSE]
+
+  cols   <- .ql_build_columns(sample_map, df)
+  groups <- .ql_build_column_groups(sample_map, static_cols, global_cols)
+
+  conditions <- unique(sample_map$condition)
+  palette    <- .pl_condition_palette(conditions)
+
+  if (!requireNamespace("jsonlite", quietly = TRUE)) {
+    stop("El paquete 'jsonlite' es necesario para quant_list_widget().")
+  }
+
+  cond_struct <- setNames(
+    lapply(conditions, function(cc) sample_map$column[sample_map$condition == cc]),
+    conditions
+  )
+  cond_struct_json <- jsonlite::toJSON(cond_struct, auto_unbox = FALSE)
+
+  static_headers_map <- c(
+    PG.ProteinGroups       = "Protein Groups",
+    PG.ProteinDescriptions = "Descriptions",
+    PG.Genes               = "Gene Names",
+    PG.MolecularWeight     = "MW [kDa]"
+  )
+  global_headers_map <- c(
+    PG.NrOfPrecursorsIdentified.Global        = "# PSMs",
+    PG.NrOfStrippedSequencesIdentified.Global = "# Uniq Pepts",
+    PG.Coverage.Global                        = "Coverage [%]",
+    PG.Cscore                                 = "Cscore"
+  )
+
+  group_struct <- list()
+  if (length(static_cols) > 0) {
+    group_struct[[length(group_struct) + 1]] <- list(
+      name    = jsonlite::unbox("PROTEIN ANNOTATION"),
+      columns = static_cols,
+      headers = unname(static_headers_map[static_cols])
+    )
+  }
+  if (length(global_cols) > 0) {
+    group_struct[[length(group_struct) + 1]] <- list(
+      name    = jsonlite::unbox("GLOBAL IDENTIFICATION DATA"),
+      columns = global_cols,
+      headers = unname(global_headers_map[global_cols])
+    )
+  }
+  metric_labels <- c(
+    "PG.NrOfPrecursorsUsedForQuantification"        = "# Uniq. PSMs Quantified",
+    "PG.NrOfStrippedSequencesUsedForQuantification" = "# Uniq. Pepts Quantified",
+    "PG.Quantity"                                   = "Raw Abundances",
+    "NormImp.Log2"                                  = "Normalized and Imputed Abundances (Log2)"
+  )
+  for (m in names(metric_labels)) {
+    cc <- sample_map$column[sample_map$metric == m]
+    if (length(cc) == 0) next
+    hh <- sample_map$coding[sample_map$metric == m]
+    group_struct[[length(group_struct) + 1]] <- list(
+      name    = jsonlite::unbox(metric_labels[[m]]),
+      columns = cc,
+      headers = hh
+    )
+  }
+  group_struct_json <- jsonlite::toJSON(group_struct)
+
+  palette_json <- jsonlite::toJSON(as.list(palette), auto_unbox = TRUE)
+
+  css <- .rl_css()
+  cdn_scripts <- tagList(
+    tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"),
+    tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js")
+  )
+
+  js_code <- tags$script(HTML(sprintf("
+    var qlFiltersVisible = false;
+    var qlHiddenConditions = {};
+    var qlCondStruct = %s;
+    var qlGroupStruct = %s;
+    var qlPalette = %s;
+
+    function qlToggleFilters() {
+      var container = document.querySelector('.ql-filters-container');
+      var btn = document.querySelector('.ql-btn-toggle-filters');
+      if (qlFiltersVisible) {
+        container.style.maxHeight = '0';
+        container.style.opacity = '0';
+        container.style.marginBottom = '0';
+        container.style.padding = '0';
+        container.style.borderWidth = '0';
+        container.style.boxShadow = 'none';
+        container.style.overflow = 'hidden';
+        btn.classList.add('filters-hidden');
+      } else {
+        container.style.maxHeight = '500px';
+        container.style.opacity = '1';
+        container.style.marginBottom = '1rem';
+        container.style.padding = '1.5rem';
+        container.style.borderWidth = '1px';
+        container.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)';
+        container.style.overflow = 'visible';
+        btn.classList.remove('filters-hidden');
+      }
+      qlFiltersVisible = !qlFiltersVisible;
+    }
+
+    function qlApplyNumericFilter(columnId, value) {
+      Reactable.setFilter('%s', columnId, value || undefined);
+    }
+
+    function qlToggleCondition(cond) {
+      qlHiddenConditions[cond] = !qlHiddenConditions[cond];
+      var chip = document.querySelector('.ql-cond-chip[data-cond=\"' + cond + '\"]');
+      if (chip) chip.classList.toggle('off', qlHiddenConditions[cond]);
+      var hiddenCols = [];
+      Object.keys(qlHiddenConditions).forEach(function(c) {
+        if (qlHiddenConditions[c] && qlCondStruct[c]) {
+          hiddenCols = hiddenCols.concat(qlCondStruct[c]);
+        }
+      });
+      Reactable.setHiddenColumns('%s', hiddenCols);
+    }
+
+    function qlClearFilters() {
+      var numInputs = document.querySelectorAll('.ql-filters-container .rl-numeric-input');
+      numInputs.forEach(function(inp) {
+        inp.value = '';
+        var col = inp.getAttribute('data-column');
+        if (col) Reactable.setFilter('%s', col, undefined);
+      });
+      Object.keys(qlHiddenConditions).forEach(function(c) {
+        qlHiddenConditions[c] = false;
+        var chip = document.querySelector('.ql-cond-chip[data-cond=\"' + c + '\"]');
+        if (chip) chip.classList.remove('off');
+      });
+      Reactable.setHiddenColumns('%s', []);
+      var searchInput = document.querySelector('.ql-search-input');
+      if (searchInput) {
+        searchInput.value = '';
+        Reactable.setSearch('%s', '');
+      }
+    }
+
+    function qlHex2Argb(hex) {
+      var h = (hex || '').replace('#', '');
+      if (h.length !== 6) return 'FF808080';
+      return 'FF' + h.toUpperCase();
+    }
+
+    async function qlExportExcel() {
+      try {
+        var tsv = Reactable.getDataCSV('%s', { sep: '\\t' });
+        var parseResult = Papa.parse(tsv, { header: true, delimiter: '\\t', skipEmptyLines: true });
+        var rows = parseResult.data;
+
+        var wb = new ExcelJS.Workbook();
+        var ws = wb.addWorksheet('Protein-List_QUANT');
+
+        var flatCols = [];
+        var flatHeaders = [];
+        var colCondMap = {};
+        qlGroupStruct.forEach(function(g) {
+          g.columns.forEach(function(c, i) {
+            flatCols.push(c);
+            flatHeaders.push(g.headers[i]);
+            var mm = (g.headers[i] || '').match(/^([A-Za-z0-9]+)_[0-9]+$/);
+            if (mm) colCondMap[c] = mm[1];
+          });
+        });
+
+        flatCols.forEach(function(c, i) {
+          var width;
+          if (c === 'PG.ProteinGroups' || c === 'PG.Genes') width = 22;
+          else if (c === 'PG.ProteinDescriptions') width = 42;
+          else if (c === 'PG.MolecularWeight') width = 12;
+          else if (c.indexOf('.Global') !== -1 || c === 'PG.Cscore') width = 12;
+          else if (c.indexOf('PG.Quantity_') === 0) width = 14;
+          else width = 9;
+          ws.getColumn(i + 1).width = width;
+        });
+
+        // Row 1: group headers (merged) - blue
+        var colOffset = 1;
+        qlGroupStruct.forEach(function(g) {
+          if (!g.columns || g.columns.length === 0) return;
+          var startCol = colOffset;
+          var endCol = colOffset + g.columns.length - 1;
+          var cell = ws.getCell(1, startCol);
+          cell.value = g.name;
+          if (endCol > startCol) ws.mergeCells(1, startCol, 1, endCol);
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F5078' } };
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          colOffset = endCol + 1;
+        });
+        ws.getRow(1).height = 28;
+
+        // Row 2: per-column headers; condition tint for samples, plain for static + global
+        flatCols.forEach(function(c, i) {
+          var cell = ws.getCell(2, i + 1);
+          cell.value = flatHeaders[i];
+          var cond = colCondMap[c];
+          var fillColor = cond && qlPalette[cond] ? qlHex2Argb(qlPalette[cond]) : 'FF595959';
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        });
+        ws.getRow(2).height = 24;
+
+        // Data rows starting at 3
+        var nextRow = 3;
+        rows.forEach(function(row) {
+          var excelRow = ws.getRow(nextRow);
+          flatCols.forEach(function(c, i) {
+            var cell = excelRow.getCell(i + 1);
+            var v = row[c];
+            if (v != null && v !== '') {
+              var num = parseFloat(v);
+              cell.value = !isNaN(num) ? num : v;
+            }
+          });
+          excelRow.commit();
+          nextRow++;
+        });
+
+        // Thin borders
+        for (var r = 1; r < nextRow; r++) {
+          var row = ws.getRow(r);
+          for (var c = 1; c <= flatCols.length; c++) {
+            row.getCell(c).border = {
+              top: { style: 'thin' }, left: { style: 'thin' },
+              bottom: { style: 'thin' }, right: { style: 'thin' }
+            };
+          }
+        }
+
+        ws.views = [{ state: 'frozen', xSplit: Math.min(4, flatCols.length), ySplit: 2 }];
+
+        var buffer = await wb.xlsx.writeBuffer();
+        var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'Protein_List_QUANT_' + new Date().toISOString().split('T')[0] + '.xlsx';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } catch(e) {
+        console.error('Error exportando:', e);
+      }
+    }
+  ", cond_struct_json, group_struct_json, palette_json,
+      element_id, element_id, element_id, element_id, element_id, element_id)))
+
+  search_actions <- div(class = "rl-search-actions",
+    tags$input(
+      type = "search",
+      placeholder = "Search proteins, genes, descriptions...",
+      class = "rl-search-input ql-search-input",
+      oninput = sprintf("Reactable.setSearch('%s', this.value)", element_id)
+    ),
+    div(class = "rl-action-buttons",
+      tags$button(
+        class = "rl-btn-action ql-btn-toggle-filters filters-hidden",
+        onclick = "qlToggleFilters()",
+        title = "Show/Hide filters",
+        HTML('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>')
+      ),
+      tags$button(
+        class = "rl-btn-action",
+        onclick = "qlClearFilters()",
+        title = "Clear filters",
+        HTML('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><path d="M19 6l-1 14c0 1-1 2-2 2H8c-1 0-2-1-2-2L5 6"></path><line x1="1" y1="1" x2="23" y2="23" stroke="#E63946" stroke-width="2"></line></svg>')
+      ),
+      tags$button(
+        class = "rl-btn-action",
+        onclick = "qlExportExcel()",
+        title = "Export to Excel",
+        HTML('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>')
+      )
+    )
+  )
+
+  cond_chips <- lapply(conditions, function(cc) {
+    tags$span(
+      class = "pl-cond-chip ql-cond-chip",
+      `data-cond` = cc,
+      style = sprintf("background-color:%s;", palette[[cc]]),
+      onclick = sprintf("qlToggleCondition('%s')", cc),
+      cc
+    )
+  })
+
+  .first_of <- function(mm) {
+    cc <- sample_map$column[sample_map$metric == mm]
+    if (length(cc) == 0) NA_character_ else cc[1]
+  }
+  metric_filters <- list(
+    list(label = "# Uniq. PSMs Quantified",  anchor = .first_of("PG.NrOfPrecursorsUsedForQuantification"),        placeholder = ">= 2 ..."),
+    list(label = "# Uniq. Pepts Quantified", anchor = .first_of("PG.NrOfStrippedSequencesUsedForQuantification"), placeholder = ">= 2 ..."),
+    list(label = "Raw Abundance",            anchor = .first_of("PG.Quantity"),                                   placeholder = ">= 1e5 ..."),
+    list(label = "Norm. Imp. Log2",          anchor = .first_of("NormImp.Log2"),                                  placeholder = ">= 10 ...")
+  )
+  metric_filter_items <- lapply(Filter(function(f) !is.na(f$anchor), metric_filters), function(f) {
+    div(class = "rl-filter-item",
+      tags$label(class = "rl-filter-label", f$label),
+      tags$input(
+        type = "text",
+        class = "rl-numeric-input",
+        `data-column` = f$anchor,
+        placeholder = f$placeholder,
+        oninput = sprintf("qlApplyNumericFilter('%s', this.value)", f$anchor)
+      ),
+      tags$span(class = "rl-filter-hint", "OR entre las muestras del bloque")
+    )
+  })
+
+  filters_panel <- div(class = "rl-filters-container ql-filters-container pl-filters-container",
+    div(class = "rl-filters-row",
+      div(class = "rl-filter-item", style = "flex: 2 1 300px;",
+        tags$label(class = "rl-filter-label", "Conditions (click to hide/show 16 cols)"),
+        div(class = "pl-cond-chips", cond_chips)
+      ),
+      metric_filter_items
+    )
+  )
+
   tbl <- reactable(
     df,
     elementId     = element_id,
