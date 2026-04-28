@@ -2155,7 +2155,7 @@ protein_list_widget <- function(
           cell.value = g.name;
           if (endCol > startCol) ws.mergeCells(1, startCol, 1, endCol);
           cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0E6655' } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F5078' } };
           cell.alignment = { vertical: 'middle', horizontal: 'center' };
           colOffset = endCol + 1;
         });
