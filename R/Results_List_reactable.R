@@ -164,6 +164,23 @@ if (!exists("%||%", mode = "function")) {
 }
 
 
+#' Tema reactable estilo azul oscuro (Protein_ID widget)
+#' @return Objeto reactableTheme
+#' @noRd
+.pl_theme <- function() {
+  reactableTheme(
+    cellPadding = "8px 12px",
+    highlightColor = "rgba(31, 78, 120, 0.10)",
+    stripedColor = "rgba(180, 200, 230, 0.20)",
+    rowSelectedStyle = list(
+      backgroundColor = "rgba(31, 78, 120, 0.6)",
+      color = "#ffffff",
+      boxShadow = "inset 2px 0 0 0 #ffa62d"
+    )
+  )
+}
+
+
 #' CSS embebido para badges, barras, detalle, filtros y export
 #' @return Objeto tags$style
 #' @noRd
@@ -569,7 +586,7 @@ if (!exists("%||%", mode = "function")) {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     }
     .pl-table .rt-tr-groups .rt-th {
-      background: rgba(14, 102, 85, 0.9);
+      background: rgba(31, 78, 120, 0.9);
       color: #ffffff;
       font-weight: 600;
       border-right: 1px solid rgba(255,255,255,0.15);
@@ -581,7 +598,7 @@ if (!exists("%||%", mode = "function")) {
     /* Separador vertical entre bloques metricos */
     .pl-table .rt-td.pl-group-boundary,
     .pl-table .rt-th.pl-group-boundary {
-      border-left: 1px solid #0E6655 !important;
+      border-left: 1px solid #1F5078 !important;
     }
     .pl-hdr-A { background: rgba(79, 129, 189, 0.85) !important; color: #ffffff !important; }
     .pl-hdr-B { background: rgba(155, 187, 89, 0.85) !important; color: #ffffff !important; }
@@ -600,11 +617,11 @@ if (!exists("%||%", mode = "function")) {
     }
     .pl-table .rt-tr-striped .rt-td-sticky,
     .pl-table .rt-tr-striped-sticky {
-      background-color: #F0F8F6 !important;
+      background-color: #F0F4FA !important;
     }
     .pl-table .rt-tr:hover .rt-td-sticky,
     .pl-table .rt-tr-highlight-sticky:hover {
-      background-color: #E6F4EE !important;
+      background-color: #E8EDF2 !important;
     }
 
     /* Celdas de muestra compactas (menos padding horizontal para 64 columnas) */
@@ -1874,7 +1891,7 @@ protein_list_reactable <- function(
     defaultColDef = colDef(
       align = "left",
       headerStyle = list(
-        background  = "rgba(14, 102, 85, 0.9)",
+        background  = "rgba(31, 78, 120, 0.9)",
         color       = "#ffffff",
         height      = "40px",
         display     = "flex",
@@ -1892,7 +1909,7 @@ protein_list_reactable <- function(
     searchable   = searchable,
     height       = height,
     striped      = TRUE,
-    theme        = .rl_theme(),
+    theme        = .pl_theme(),
     language     = .rl_lang(),
     details      = .pl_detail_row()
   )
@@ -2291,7 +2308,7 @@ protein_list_widget <- function(
     defaultColDef = colDef(
       align = "left",
       headerStyle = list(
-        background  = "rgba(14, 102, 85, 0.9)",
+        background  = "rgba(31, 78, 120, 0.9)",
         color       = "#ffffff",
         height      = "40px",
         display     = "flex",
@@ -2309,7 +2326,7 @@ protein_list_widget <- function(
     searchable   = searchable,
     height       = height,
     striped      = TRUE,
-    theme        = .rl_theme(),
+    theme        = .pl_theme(),
     language     = .rl_lang(),
     details      = .pl_detail_row()
   )
