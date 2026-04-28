@@ -726,6 +726,17 @@ if (!exists("%||%", mode = "function")) {
       min-width: 32px;
       text-align: center;
     }
+    /* Header FileName: forzar centrado horizontal venciendo a .rt-align-left
+       sobre las capas internas (.rt-th-inner / .rt-sort-header) */
+    .sl-table .rt-th.sl-filename-header .rt-th-inner,
+    .sl-table .rt-th.sl-filename-header .rt-sort-header {
+      justify-content: center !important;
+      width: 100%;
+    }
+    .sl-table .rt-th.sl-filename-header .rt-text-content {
+      text-align: center !important;
+      width: 100%;
+    }
   "))
 }
 
@@ -2353,14 +2364,13 @@ results_list_widget <- function(
     minWidth = 360,
     align    = "left",
     vAlign   = "center",
+    headerClass = "sl-filename-header",
     headerStyle = list(
       background     = "#1a1a1a",
       color          = "#ffffff",
       height         = "45px",
       display        = "flex",
-      alignItems     = "center",
-      justifyContent = "center",
-      textAlign      = "center"
+      alignItems     = "center"
     ),
     style    = list(fontSize   = "14.5px",
                     fontWeight = "500",
