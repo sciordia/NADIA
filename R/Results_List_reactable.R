@@ -696,6 +696,36 @@ if (!exists("%||%", mode = "function")) {
       transform: translateY(-1px);
       box-shadow: 0 2px 4px rgba(0,0,0,0.15);
     }
+
+    /* ========================================================================
+       Variante Summary (header negro, filas tintadas por condicion)
+       ======================================================================== */
+    .sl-table .rt-th,
+    .sl-table .rt-tr-groups .rt-th {
+      background: #1a1a1a !important;
+      color: #ffffff !important;
+      border-bottom: 1px solid #000 !important;
+      font-weight: 600;
+    }
+    .sl-table .rt-tr-striped .rt-td {
+      background-color: transparent !important;
+    }
+    .sl-table .rt-td.rt-td-sticky,
+    .sl-table .rt-th.rt-th-sticky {
+      background-clip: padding-box;
+    }
+    /* Chip de Condition / Coding (color fuerte sobre la fila tintada) */
+    .sl-table .sl-chip {
+      display: inline-block;
+      padding: 3px 12px;
+      border-radius: 12px;
+      font-weight: 600;
+      color: #ffffff !important;
+      font-size: 0.85rem;
+      letter-spacing: 0.3px;
+      min-width: 32px;
+      text-align: center;
+    }
   "))
 }
 
@@ -2185,6 +2215,208 @@ results_list_widget <- function(
 
 
 # =============================================================================
+# Helpers Summary-List (Metadata) widget
+# =============================================================================
+
+#' Cargar y validar metadata de muestras
+#' @param input Data frame o ruta a archivo TSV/CSV
+#' @return Data frame validado con columnas display
+#' @noRd
+.sl_load_metadata <- function(input) {
+  if (is.character(input) && length(input) == 1) {
+    if (!file.exists(input)) stop("Archivo no encontrado: ", input)
+    ext <- tolower(tools::file_ext(input))
+    if (ext %in% c("tsv", "txt")) {
+      if (requireNamespace("readr", quietly = TRUE)) {
+        df <- as.data.frame(readr::read_tsv(input, show_col_types = FALSE))
+      } else {
+        df <- read.delim(input, stringsAsFactors = FALSE, check.names = FALSE)
+      }
+    } else if (ext == "csv") {
+      if (requireNamespace("readr", quietly = TRUE)) {
+        df <- as.data.frame(readr::read_csv(input, show_col_types = FALSE))
+      } else {
+        df <- read.csv(input, stringsAsFactors = FALSE, check.names = FALSE)
+      }
+    } else {
+      stop("Extension no soportada: ", ext)
+    }
+  } else if (is.data.frame(input)) {
+    df <- as.data.frame(input)
+  } else {
+    stop("Input debe ser data.frame o ruta a archivo")
+  }
+
+  required <- c("R.FileName", "R.Condition", "R.Replicate", "Coding",
+                "R.PrecursorsIdentified", "R.StrippedSequencesIdentified",
+                "R.ProteinGroupsIdentified")
+  missing_cols <- setdiff(required, names(df))
+  if (length(missing_cols) > 0) {
+    stop("Columnas faltantes en metadata: ", paste(missing_cols, collapse = ", "))
+  }
+
+  out <- data.frame(
+    FileName            = as.character(df$R.FileName),
+    Condition           = as.character(df$R.Condition),
+    Replicate           = as.integer(df$R.Replicate),
+    Coding              = as.character(df$Coding),
+    `# Unique PSMs`     = as.numeric(df$R.PrecursorsIdentified),
+    `# Unique Peptides` = as.numeric(df$R.StrippedSequencesIdentified),
+    `# Protein Groups`  = as.numeric(df$R.ProteinGroupsIdentified),
+    check.names         = FALSE,
+    stringsAsFactors    = FALSE
+  )
+  out <- out[order(out$Condition, out$Replicate), , drop = FALSE]
+  rownames(out) <- NULL
+  out
+}
+
+
+#' Tinta clara de un color hex (para tintar filas)
+#' @param hex Color hex base (ej: "#4F81BD")
+#' @param alpha Opacidad del color sobre fondo blanco (0-1). Defecto 0.18.
+#' @return String hex tintado "#RRGGBB"
+#' @noRd
+.sl_tint_color <- function(hex, alpha = 0.18) {
+  if (is.null(hex) || is.na(hex) || !nzchar(hex)) return("#FFFFFF")
+  h <- gsub("^#", "", hex)
+  if (nchar(h) != 6) return("#FFFFFF")
+  r <- strtoi(substr(h, 1, 2), 16L)
+  g <- strtoi(substr(h, 3, 4), 16L)
+  b <- strtoi(substr(h, 5, 6), 16L)
+  tr <- round(r * alpha + 255 * (1 - alpha))
+  tg <- round(g * alpha + 255 * (1 - alpha))
+  tb <- round(b * alpha + 255 * (1 - alpha))
+  sprintf("#%02X%02X%02X", tr, tg, tb)
+}
+
+
+#' Tema reactable estilo negro (Summary widget)
+#' @return Objeto reactableTheme
+#' @noRd
+.sl_theme <- function() {
+  reactableTheme(
+    cellPadding = "8px 12px",
+    highlightColor = "rgba(0, 0, 0, 0.06)",
+    stripedColor = "rgba(0, 0, 0, 0.0)",
+    rowSelectedStyle = list(
+      backgroundColor = "rgba(0, 0, 0, 0.55)",
+      color = "#ffffff",
+      boxShadow = "inset 2px 0 0 0 #ffa62d"
+    )
+  )
+}
+
+
+#' Construir colDefs para la tabla Summary
+#' @param df Data frame de metadata (output de .sl_load_metadata())
+#' @param palette Vector nombrado: condicion -> color hex fuerte
+#' @return Lista de colDef
+#' @noRd
+.sl_build_columns <- function(df, palette) {
+  palette_json <- jsonlite::toJSON(as.list(palette), auto_unbox = TRUE)
+
+  chip_render_condition <- reactable::JS(sprintf("
+    function(cellInfo) {
+      var pal = %s;
+      var cond = String(cellInfo.value);
+      var color = pal[cond] || '#6c757d';
+      return '<span class=\"sl-chip\" style=\"background-color:' + color + '\">' +
+             cond + '</span>';
+    }
+  ", palette_json))
+
+  chip_render_coding <- reactable::JS(sprintf("
+    function(cellInfo) {
+      var pal = %s;
+      var coding = String(cellInfo.value);
+      var cond = (coding.split('_')[0]) || coding;
+      var color = pal[cond] || '#6c757d';
+      return '<span class=\"sl-chip\" style=\"background-color:' + color + '\">' +
+             coding + '</span>';
+    }
+  ", palette_json))
+
+  number_render <- reactable::JS("
+    function(cellInfo) {
+      var v = cellInfo.value;
+      if (v == null || isNaN(v)) return '';
+      return Math.round(v).toLocaleString('en-US');
+    }
+  ")
+
+  cols <- list()
+
+  cols$FileName <- colDef(
+    name     = "FileName",
+    sticky   = "left",
+    minWidth = 340,
+    align    = "left",
+    style    = list(fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace",
+                    fontSize   = "12.5px"),
+    filterable = TRUE
+  )
+
+  cols$Condition <- colDef(
+    name     = "Condition",
+    minWidth = 105,
+    align    = "center",
+    html     = TRUE,
+    cell     = chip_render_condition,
+    filterable = FALSE
+  )
+
+  cols$Replicate <- colDef(
+    name     = "Replicate",
+    minWidth = 90,
+    align    = "center",
+    cell     = reactable::JS("function(c) { return (c.value == null) ? '' : String(c.value); }"),
+    filterable = FALSE
+  )
+
+  cols$Coding <- colDef(
+    name     = "Coding",
+    minWidth = 105,
+    align    = "center",
+    html     = TRUE,
+    cell     = chip_render_coding,
+    filterable = FALSE
+  )
+
+  for (nm in c("# Unique PSMs", "# Unique Peptides", "# Protein Groups")) {
+    cols[[nm]] <- colDef(
+      name        = nm,
+      minWidth    = 145,
+      align       = "right",
+      cell        = number_render,
+      filterable  = TRUE,
+      filterInput = .numeric_filter_hidden,
+      filterMethod = .numeric_filter_method
+    )
+  }
+
+  cols
+}
+
+
+#' rowStyle JS function que tinta filas por condicion
+#' @return Objeto JS para reactable::rowStyle
+#' @noRd
+.sl_build_row_style <- function() {
+  reactable::JS("
+    function(rowInfo) {
+      if (!rowInfo || !rowInfo.values) return null;
+      var cond = rowInfo.values['Condition'];
+      var pal = (typeof SL_TINT_PALETTE !== 'undefined') ? SL_TINT_PALETTE : null;
+      if (!pal) return null;
+      var t = pal[cond];
+      return t ? { backgroundColor: t } : null;
+    }
+  ")
+}
+
+
+# =============================================================================
 # Funcion principal Protein_ID
 # =============================================================================
 
@@ -3160,6 +3392,368 @@ quant_list_widget <- function(
     theme        = .ql_theme(),
     language     = .rl_lang(),
     details      = .pl_detail_row()
+  )
+
+  browsable(tagList(
+    css,
+    cdn_scripts,
+    js_code,
+    search_actions,
+    filters_panel,
+    tbl
+  ))
+}
+
+
+# =============================================================================
+# Funcion principal Summary (summary_list_widget)
+# =============================================================================
+
+#' Tabla Reactable Interactiva para Metadata de muestras
+#'
+#' Genera una tabla reactable que reproduce el layout del Excel de metadata
+#' (FileName, Condition, Replicate, Coding, # Unique PSMs, # Unique Peptides,
+#' # Protein Groups). Header negro, filas tintadas por condicion en tonos
+#' claros y celdas Condition/Coding con chip de color fuerte (mismo esquema
+#' usado por protein_list_widget() / quant_list_widget()).
+#'
+#' @param data Data frame o ruta a TSV/CSV de metadata. Debe tener las columnas
+#'   R.FileName, R.Condition, R.Replicate, Coding, R.PrecursorsIdentified,
+#'   R.StrippedSequencesIdentified, R.ProteinGroupsIdentified.
+#' @param page_size Tamano de pagina (defecto 16, todas las filas).
+#' @param height Altura en px del contenedor de tabla (defecto 540).
+#' @param element_id Id del widget en el DOM (defecto "summary_table").
+#' @param selection Tipo de seleccion ("multiple" o NULL).
+#' @param searchable Habilitar busqueda global (defecto FALSE).
+#'
+#' @return Objeto htmltools (tagList con browsable) listo para ser renderizado.
+#'
+#' @examples
+#' \dontrun{
+#' summary_list_widget("data/Metadata_20260423_142504.tsv")
+#' }
+summary_list_widget <- function(
+    data       = "data/Metadata_20260423_142504.tsv",
+    page_size  = 16,
+    height     = 540,
+    element_id = "summary_table",
+    selection  = NULL,
+    searchable = FALSE
+) {
+
+  df <- .sl_load_metadata(data)
+  conditions   <- sort(unique(df$Condition))
+  palette      <- .pl_condition_palette(conditions)
+  tint_palette <- setNames(
+    vapply(palette, .sl_tint_color, character(1), 0.18),
+    names(palette)
+  )
+
+  cols   <- .sl_build_columns(df, palette)
+  rstyle <- .sl_build_row_style()
+
+  if (!requireNamespace("jsonlite", quietly = TRUE)) {
+    stop("El paquete 'jsonlite' es necesario para summary_list_widget().")
+  }
+  palette_json      <- jsonlite::toJSON(as.list(palette), auto_unbox = TRUE)
+  tint_palette_json <- jsonlite::toJSON(as.list(tint_palette), auto_unbox = TRUE)
+  conditions_json   <- jsonlite::toJSON(as.list(conditions), auto_unbox = FALSE)
+
+  # --- CSS + scripts CDN ---
+  css <- .rl_css()
+  cdn_scripts <- tagList(
+    tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"),
+    tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js")
+  )
+
+  # --- JavaScript embebido (slToggleFilters / slToggleCondition / slClearFilters / slExportExcel) ---
+  js_code <- tags$script(HTML(sprintf("
+    var slFiltersVisible = false;
+    var slHiddenConditions = {};
+    var SL_PALETTE = %s;
+    var SL_TINT_PALETTE = %s;
+    var SL_CONDITIONS = %s;
+
+    function slToggleFilters() {
+      var container = document.querySelector('.sl-filters-container');
+      var btn = document.querySelector('.sl-btn-toggle-filters');
+      if (!container) return;
+      if (slFiltersVisible) {
+        container.style.maxHeight = '0';
+        container.style.opacity = '0';
+        container.style.marginBottom = '0';
+        container.style.padding = '0';
+        container.style.borderWidth = '0';
+        container.style.boxShadow = 'none';
+        container.style.overflow = 'hidden';
+        if (btn) btn.classList.add('filters-hidden');
+      } else {
+        container.style.maxHeight = '500px';
+        container.style.opacity = '1';
+        container.style.marginBottom = '1rem';
+        container.style.padding = '1.5rem';
+        container.style.borderWidth = '1px';
+        container.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)';
+        container.style.overflow = 'visible';
+        if (btn) btn.classList.remove('filters-hidden');
+      }
+      slFiltersVisible = !slFiltersVisible;
+    }
+
+    function slApplyNumericFilter(columnId, value) {
+      Reactable.setFilter('%s', columnId, value || undefined);
+    }
+
+    function slApplyConditionFilter() {
+      var hidden = [];
+      Object.keys(slHiddenConditions).forEach(function(c) {
+        if (slHiddenConditions[c]) hidden.push(c);
+      });
+      Reactable.setFilter('%s', 'Condition', hidden.length > 0 ? hidden.join(',') : undefined);
+    }
+
+    function slToggleCondition(cond) {
+      slHiddenConditions[cond] = !slHiddenConditions[cond];
+      var chip = document.querySelector('.sl-cond-chip[data-cond=\"' + cond + '\"]');
+      if (chip) chip.classList.toggle('off', slHiddenConditions[cond]);
+      slApplyConditionFilter();
+    }
+
+    function slClearFilters() {
+      var numInputs = document.querySelectorAll('.sl-filters-container .rl-numeric-input');
+      numInputs.forEach(function(inp) {
+        inp.value = '';
+        var col = inp.getAttribute('data-column');
+        if (col) Reactable.setFilter('%s', col, undefined);
+      });
+      Object.keys(slHiddenConditions).forEach(function(c) {
+        slHiddenConditions[c] = false;
+        var chip = document.querySelector('.sl-cond-chip[data-cond=\"' + c + '\"]');
+        if (chip) chip.classList.remove('off');
+      });
+      Reactable.setFilter('%s', 'Condition', undefined);
+      var searchInput = document.querySelector('.sl-search-input');
+      if (searchInput) {
+        searchInput.value = '';
+        Reactable.setSearch('%s', '');
+      }
+    }
+
+    function slHex2Argb(hex) {
+      var h = (hex || '').replace('#', '');
+      if (h.length !== 6) return 'FF808080';
+      return 'FF' + h.toUpperCase();
+    }
+
+    async function slExportExcel() {
+      try {
+        var tsv = Reactable.getDataCSV('%s', { sep: '\\t' });
+        var parseResult = Papa.parse(tsv, { header: true, delimiter: '\\t', skipEmptyLines: true });
+        var rows = parseResult.data;
+
+        var wb = new ExcelJS.Workbook();
+        var ws = wb.addWorksheet('Summary');
+
+        var flatCols = ['FileName','Condition','Replicate','Coding',
+                        '# Unique PSMs','# Unique Peptides','# Protein Groups'];
+        var colWidths = [45, 14, 12, 14, 18, 18, 18];
+        flatCols.forEach(function(c, i) { ws.getColumn(i + 1).width = colWidths[i]; });
+
+        // Row 1: header (negro / blanco bold)
+        flatCols.forEach(function(c, i) {
+          var cell = ws.getCell(1, i + 1);
+          cell.value = c;
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1A1A' } };
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        });
+        ws.getRow(1).height = 28;
+
+        // Data rows: tinte por fila + chip fuerte en Condition + Coding
+        var nextRow = 2;
+        rows.forEach(function(row) {
+          var cond = String(row['Condition'] || '');
+          var tintArgb = SL_TINT_PALETTE[cond] ? slHex2Argb(SL_TINT_PALETTE[cond]) : 'FFFFFFFF';
+          var strongArgb = SL_PALETTE[cond] ? slHex2Argb(SL_PALETTE[cond]) : 'FF808080';
+
+          var excelRow = ws.getRow(nextRow);
+          flatCols.forEach(function(c, i) {
+            var cell = excelRow.getCell(i + 1);
+            var v = row[c];
+            if (v != null && v !== '') {
+              if (i >= 4) { // numeric columns (5/6/7)
+                var num = parseFloat(v);
+                cell.value = !isNaN(num) ? num : v;
+                cell.numFmt = '#,##0';
+              } else {
+                cell.value = v;
+              }
+            }
+            // fondo tintado en toda la fila
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: tintArgb } };
+            cell.alignment = { vertical: 'middle',
+                               horizontal: (i === 0 ? 'left' : (i >= 4 ? 'right' : 'center')) };
+            // override en Condition + Coding (i = 1 o 3)
+            if (i === 1 || i === 3) {
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: strongArgb } };
+              cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+              cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            }
+          });
+          excelRow.commit();
+          nextRow++;
+        });
+
+        // Borders
+        for (var r = 1; r < nextRow; r++) {
+          var rr = ws.getRow(r);
+          for (var c = 1; c <= flatCols.length; c++) {
+            rr.getCell(c).border = {
+              top:    { style: 'thin', color: { argb: 'FFBFBFBF' } },
+              left:   { style: 'thin', color: { argb: 'FFBFBFBF' } },
+              bottom: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+              right:  { style: 'thin', color: { argb: 'FFBFBFBF' } }
+            };
+          }
+        }
+        ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 1 }];
+
+        var buffer = await wb.xlsx.writeBuffer();
+        var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'Summary_' + new Date().toISOString().split('T')[0] + '.xlsx';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } catch(e) {
+        console.error('Error exportando:', e);
+      }
+    }
+  ", palette_json, tint_palette_json, conditions_json,
+      element_id, element_id, element_id, element_id, element_id, element_id)))
+
+  # --- Barra de busqueda + botones ---
+  search_input <- if (isTRUE(searchable)) {
+    tags$input(
+      type = "search",
+      placeholder = "Search files, codings, conditions...",
+      class = "rl-search-input sl-search-input",
+      oninput = sprintf("Reactable.setSearch('%s', this.value)", element_id)
+    )
+  } else NULL
+
+  search_actions <- div(class = "rl-search-actions",
+    search_input,
+    div(class = "rl-action-buttons",
+      tags$button(
+        class = "rl-btn-action sl-btn-toggle-filters filters-hidden",
+        onclick = "slToggleFilters()",
+        title = "Show/Hide filters",
+        HTML('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>')
+      ),
+      tags$button(
+        class = "rl-btn-action",
+        onclick = "slClearFilters()",
+        title = "Clear filters",
+        HTML('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><path d="M19 6l-1 14c0 1-1 2-2 2H8c-1 0-2-1-2-2L5 6"></path><line x1="1" y1="1" x2="23" y2="23" stroke="#E63946" stroke-width="2"></line></svg>')
+      ),
+      tags$button(
+        class = "rl-btn-action",
+        onclick = "slExportExcel()",
+        title = "Export to Excel",
+        HTML('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>')
+      )
+    )
+  )
+
+  # --- Panel de filtros: chips de condicion + 3 inputs numericos ---
+  cond_chips <- lapply(conditions, function(cc) {
+    tags$span(
+      class = "pl-cond-chip sl-cond-chip",
+      `data-cond` = cc,
+      style = sprintf("background-color:%s;", palette[[cc]]),
+      onclick = sprintf("slToggleCondition('%s')", cc),
+      cc
+    )
+  })
+
+  numeric_filters <- list(
+    list(label = "# Unique PSMs",     col = "# Unique PSMs",     placeholder = ">= 120000 ..."),
+    list(label = "# Unique Peptides", col = "# Unique Peptides", placeholder = ">= 90000 ..."),
+    list(label = "# Protein Groups",  col = "# Protein Groups",  placeholder = ">= 9000 ...")
+  )
+  numeric_filter_items <- lapply(numeric_filters, function(f) {
+    div(class = "rl-filter-item",
+      tags$label(class = "rl-filter-label", f$label),
+      tags$input(
+        type = "text",
+        class = "rl-numeric-input",
+        `data-column` = f$col,
+        placeholder = f$placeholder,
+        oninput = sprintf("slApplyNumericFilter('%s', this.value)", f$col)
+      ),
+      tags$span(class = "rl-filter-hint", "Operadores: >=, <=, >, <, =, !=")
+    )
+  })
+
+  filters_panel <- div(class = "rl-filters-container sl-filters-container",
+    div(class = "rl-filters-row",
+      div(class = "rl-filter-item", style = "flex: 2 1 300px;",
+        tags$label(class = "rl-filter-label", "Conditions (click para mostrar/ocultar filas)"),
+        div(class = "pl-cond-chips sl-cond-chips", cond_chips)
+      ),
+      numeric_filter_items
+    )
+  )
+
+  # --- Filtro Condition (oculto): excluye filas cuya condicion este en la lista ---
+  cols$Condition$filterable   <- TRUE
+  cols$Condition$filterInput  <- .numeric_filter_hidden
+  cols$Condition$filterMethod <- reactable::JS("
+    function(rows, columnId, filterValue) {
+      if (!filterValue) return rows;
+      var exclude = String(filterValue).split(',').map(function(s){return s.trim();}).filter(Boolean);
+      if (exclude.length === 0) return rows;
+      return rows.filter(function(row) {
+        return exclude.indexOf(String(row.values[columnId])) === -1;
+      });
+    }
+  ")
+
+  # --- Tabla ---
+  tbl <- reactable(
+    df,
+    elementId           = element_id,
+    defaultPageSize     = page_size,
+    showPageSizeOptions = FALSE,
+    pagination          = nrow(df) > page_size,
+    resizable           = TRUE,
+    selection           = selection,
+    onClick             = if (!is.null(selection)) "select" else NULL,
+    defaultColDef = colDef(
+      align = "left",
+      headerStyle = list(
+        background     = "#1a1a1a",
+        color          = "#ffffff",
+        height         = "40px",
+        display        = "flex",
+        alignItems     = "center",
+        justifyContent = "center"
+      ),
+      style = list(height = "44px", display = "flex", alignItems = "center")
+    ),
+    columns      = cols,
+    columnGroups = NULL,
+    wrap         = FALSE,
+    class        = "rl-table sl-table",
+    rowStyle     = rstyle,
+    highlight    = TRUE,
+    searchable   = searchable,
+    height       = height,
+    striped      = FALSE,
+    theme        = .sl_theme(),
+    language     = .rl_lang()
   )
 
   browsable(tagList(
