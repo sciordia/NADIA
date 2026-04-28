@@ -599,10 +599,10 @@ if (!exists("%||%", mode = "function")) {
       box-shadow: 2px 0 6px -3px rgba(0, 0, 0, 0.2);
     }
     .pl-table .rt-tr-striped .rt-td-sticky {
-      background-color: #fafbfc !important;
+      background-color: #F0F8F6 !important;
     }
     .pl-table .rt-tr:hover .rt-td-sticky {
-      background-color: rgba(2, 144, 82, 0.08) !important;
+      background-color: #E6F4EE !important;
     }
 
     /* Celdas de muestra compactas (menos padding horizontal para 64 columnas) */
@@ -1636,7 +1636,7 @@ results_list_widget <- function(
     fmt_js <- switch(
       metric,
       "PG.Coverage"        = "val.toFixed(1)",
-      "PG.Cscore.RunWise"  = "val.toFixed(3)",
+      "PG.Cscore.RunWise"  = "val.toFixed(2)",
       "Math.round(val)"
     )
 
