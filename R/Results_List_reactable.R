@@ -188,7 +188,7 @@ if (!exists("%||%", mode = "function")) {
   reactableTheme(
     cellPadding = "8px 12px",
     highlightColor = "rgba(102, 5, 5, 0.10)",
-    stripedColor = "rgba(230, 180, 180, 0.20)",
+    stripedColor = "rgba(230, 180, 180, 0.12)",
     rowSelectedStyle = list(
       backgroundColor = "rgba(102, 5, 5, 0.6)",
       color = "#ffffff",
@@ -659,7 +659,7 @@ if (!exists("%||%", mode = "function")) {
     }
     .ql-table .rt-tr-striped .rt-td-sticky,
     .ql-table .rt-tr-striped-sticky {
-      background-color: #FAF0F0 !important;
+      background-color: #FCF6F6 !important;
     }
     .ql-table .rt-tr:hover .rt-td-sticky,
     .ql-table .rt-tr-highlight-sticky:hover {
