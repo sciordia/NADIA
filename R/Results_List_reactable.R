@@ -598,10 +598,12 @@ if (!exists("%||%", mode = "function")) {
       background-color: #ffffff !important;
       box-shadow: 2px 0 6px -3px rgba(0, 0, 0, 0.2);
     }
-    .pl-table .rt-tr-striped .rt-td-sticky {
+    .pl-table .rt-tr-striped .rt-td-sticky,
+    .pl-table .rt-tr-striped-sticky {
       background-color: #F0F8F6 !important;
     }
-    .pl-table .rt-tr:hover .rt-td-sticky {
+    .pl-table .rt-tr:hover .rt-td-sticky,
+    .pl-table .rt-tr-highlight-sticky:hover {
       background-color: #E6F4EE !important;
     }
 
