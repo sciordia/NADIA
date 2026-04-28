@@ -726,6 +726,34 @@ if (!exists("%||%", mode = "function")) {
       min-width: 32px;
       text-align: center;
     }
+    /* Tarjetas de totales debajo de la tabla */
+    .sl-totals {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+    .sl-stat {
+      flex: 1 1 200px;
+      background: #f5f5f5;
+      border-left: 4px solid #1a1a1a;
+      padding: 0.75rem 1rem;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .sl-stat-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #1a1a1a;
+      line-height: 1.2;
+    }
+    .sl-stat-label {
+      font-size: 0.8rem;
+      color: #6c757d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
   "))
 }
 
@@ -2274,10 +2302,10 @@ results_list_widget <- function(
 
 #' Tinta clara de un color hex (para tintar filas)
 #' @param hex Color hex base (ej: "#4F81BD")
-#' @param alpha Opacidad del color sobre fondo blanco (0-1). Defecto 0.18.
+#' @param alpha Opacidad del color sobre fondo blanco (0-1). Defecto 0.12.
 #' @return String hex tintado "#RRGGBB"
 #' @noRd
-.sl_tint_color <- function(hex, alpha = 0.18) {
+.sl_tint_color <- function(hex, alpha = 0.12) {
   if (is.null(hex) || is.na(hex) || !nzchar(hex)) return("#FFFFFF")
   h <- gsub("^#", "", hex)
   if (nchar(h) != 6) return("#FFFFFF")
@@ -2350,10 +2378,11 @@ results_list_widget <- function(
   cols$FileName <- colDef(
     name     = "FileName",
     sticky   = "left",
-    minWidth = 340,
+    minWidth = 360,
     align    = "left",
     style    = list(fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace",
-                    fontSize   = "12.5px"),
+                    fontSize   = "14.5px",
+                    fontWeight = "500"),
     filterable = TRUE
   )
 
@@ -3445,7 +3474,7 @@ summary_list_widget <- function(
   conditions   <- sort(unique(df$Condition))
   palette      <- .pl_condition_palette(conditions)
   tint_palette <- setNames(
-    vapply(palette, .sl_tint_color, character(1), 0.18),
+    vapply(palette, .sl_tint_color, character(1), 0.12),
     names(palette)
   )
 
@@ -3756,13 +3785,39 @@ summary_list_widget <- function(
     language     = .rl_lang()
   )
 
+  # --- Totales debajo de la tabla ---
+  n_samples     <- nrow(df)
+  n_conditions  <- length(conditions)
+  reps_per_cond <- as.integer(table(df$Condition)[conditions])
+  reps_label    <- if (length(unique(reps_per_cond)) == 1) {
+    as.character(reps_per_cond[1])
+  } else {
+    paste0(min(reps_per_cond), "-", max(reps_per_cond))
+  }
+
+  totals_panel <- div(class = "sl-totals",
+    div(class = "sl-stat",
+      div(class = "sl-stat-value", n_samples),
+      div(class = "sl-stat-label", "Total Samples")
+    ),
+    div(class = "sl-stat",
+      div(class = "sl-stat-value", n_conditions),
+      div(class = "sl-stat-label", "Total Conditions")
+    ),
+    div(class = "sl-stat",
+      div(class = "sl-stat-value", reps_label),
+      div(class = "sl-stat-label", "Total Replicates / Condition")
+    )
+  )
+
   browsable(tagList(
     css,
     cdn_scripts,
     js_code,
     search_actions,
     filters_panel,
-    tbl
+    tbl,
+    totals_panel
   ))
 }
 
