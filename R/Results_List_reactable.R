@@ -540,13 +540,13 @@ if (!exists("%||%", mode = "function")) {
       padding: 0 6px;
       font-variant-numeric: tabular-nums;
       font-size: 14px;
-      font-weight: 600;
+      font-weight: 400;
       color: #212529;
     }
     .pl-plain-value {
       font-variant-numeric: tabular-nums;
       font-size: 14px;
-      font-weight: 600;
+      font-weight: 400;
       color: #212529;
     }
     .pl-bar-empty {
@@ -581,7 +581,7 @@ if (!exists("%||%", mode = "function")) {
     /* Separador vertical entre bloques metricos */
     .pl-table .rt-td.pl-group-boundary,
     .pl-table .rt-th.pl-group-boundary {
-      border-left: 2px solid rgba(33, 37, 41, 0.35) !important;
+      border-left: 1px solid #0E6655 !important;
     }
     .pl-hdr-A { background: rgba(79, 129, 189, 0.85) !important; color: #ffffff !important; }
     .pl-hdr-B { background: rgba(155, 187, 89, 0.85) !important; color: #ffffff !important; }
@@ -1640,26 +1640,11 @@ results_list_widget <- function(
       "Math.round(val)"
     )
 
-    if (metric == "PG.Coverage") {
-      cell_js <- JS(sprintf("function(cellInfo) {
-        var val = cellInfo.value;
-        if (val == null || isNaN(val)) {
-          return '<div class=\"pl-bar-wrapper\"><span class=\"pl-bar-value pl-bar-empty\">–</span></div>';
-        }
-        var pct = Math.min(100, Math.max(0, val / %s * 100));
-        var formatted = %s;
-        return '<div class=\"pl-bar-wrapper\">' +
-          '<div class=\"pl-bar pl-cond-%s\" style=\"width:' + pct.toFixed(1) + '%%\"></div>' +
-          '<span class=\"pl-bar-value\">' + formatted + '</span>' +
-          '</div>';
-      }", max_val, fmt_js, cond))
-    } else {
-      cell_js <- JS(sprintf("function(cellInfo) {
-        var val = cellInfo.value;
-        if (val == null || isNaN(val)) return '<span class=\"pl-plain-value pl-bar-empty\">–</span>';
-        return '<span class=\"pl-plain-value\">' + (%s) + '</span>';
-      }", fmt_js))
-    }
+    cell_js <- JS(sprintf("function(cellInfo) {
+      var val = cellInfo.value;
+      if (val == null || isNaN(val)) return '<span class=\"pl-plain-value pl-bar-empty\">–</span>';
+      return '<span class=\"pl-plain-value\">' + (%s) + '</span>';
+    }", fmt_js))
 
     is_anchor <- col_id %in% first_cols_by_metric
     cell_class <- if (is_anchor) "pl-sample-cell pl-group-boundary" else "pl-sample-cell"
