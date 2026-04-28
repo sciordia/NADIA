@@ -605,9 +605,9 @@ if (!exists("%||%", mode = "function")) {
       background-color: rgba(2, 144, 82, 0.08) !important;
     }
 
-    /* Celdas de muestra compactas (menos padding) */
+    /* Celdas de muestra: padding igual que .rl-table para igualar altura de fila */
     .pl-table .rt-td.pl-sample-cell {
-      padding: 4px 4px !important;
+      padding: 7px 8px !important;
     }
 
     /* Contenedor de chips para ocultar condiciones */
