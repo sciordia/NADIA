@@ -2353,7 +2353,15 @@ results_list_widget <- function(
     minWidth = 360,
     align    = "left",
     vAlign   = "center",
-    headerStyle = list(justifyContent = "center", textAlign = "center"),
+    headerStyle = list(
+      background     = "#1a1a1a",
+      color          = "#ffffff",
+      height         = "45px",
+      display        = "flex",
+      alignItems     = "center",
+      justifyContent = "center",
+      textAlign      = "center"
+    ),
     style    = list(fontSize   = "14.5px",
                     fontWeight = "500",
                     display    = "flex",
