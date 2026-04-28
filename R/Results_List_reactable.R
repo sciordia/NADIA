@@ -181,6 +181,23 @@ if (!exists("%||%", mode = "function")) {
 }
 
 
+#' Tema reactable estilo rojo oscuro (Protein_QUANT widget)
+#' @return Objeto reactableTheme
+#' @noRd
+.ql_theme <- function() {
+  reactableTheme(
+    cellPadding = "8px 12px",
+    highlightColor = "rgba(102, 5, 5, 0.10)",
+    stripedColor = "rgba(230, 180, 180, 0.20)",
+    rowSelectedStyle = list(
+      backgroundColor = "rgba(102, 5, 5, 0.6)",
+      color = "#ffffff",
+      boxShadow = "inset 2px 0 0 0 #ffa62d"
+    )
+  )
+}
+
+
 #' CSS embebido para badges, barras, detalle, filtros y export
 #' @return Objeto tags$style
 #' @noRd
@@ -630,6 +647,23 @@ if (!exists("%||%", mode = "function")) {
     .pl-table .rt-tr:hover .rt-td-sticky,
     .pl-table .rt-tr-highlight-sticky:hover {
       background-color: #E8EDF2 !important;
+    }
+
+    /* Variante Protein_QUANT (rojo oscuro): override de paleta principal */
+    .ql-table .rt-tr-groups .rt-th {
+      background: rgba(102, 5, 5, 0.9) !important;
+    }
+    .ql-table .rt-td.pl-group-boundary,
+    .ql-table .rt-th.pl-group-boundary {
+      border-left: 1px solid #660505 !important;
+    }
+    .ql-table .rt-tr-striped .rt-td-sticky,
+    .ql-table .rt-tr-striped-sticky {
+      background-color: #FAF0F0 !important;
+    }
+    .ql-table .rt-tr:hover .rt-td-sticky,
+    .ql-table .rt-tr-highlight-sticky:hover {
+      background-color: #F0E6E6 !important;
     }
 
     /* Celdas de muestra compactas (menos padding horizontal para 64 columnas) */
@@ -2029,10 +2063,10 @@ results_list_widget <- function(
 
   # Globales (single-col, plain values con filtro individual)
   global_specs <- list(
-    list(id = "PG.NrOfPrecursorsIdentified.Global",        name = "# PSMs",       fmt = "Math.round(val)"),
-    list(id = "PG.NrOfStrippedSequencesIdentified.Global", name = "# Uniq Pepts", fmt = "Math.round(val)"),
-    list(id = "PG.Coverage.Global",                        name = "Coverage [%]", fmt = "val.toFixed(1)"),
-    list(id = "PG.Cscore",                                 name = "Cscore",       fmt = "val.toFixed(2)")
+    list(id = "PG.NrOfPrecursorsIdentified.Global",        name = "# PSMs",       fmt = "Math.round(val)", width = 95),
+    list(id = "PG.NrOfStrippedSequencesIdentified.Global", name = "# Uniq Pepts", fmt = "Math.round(val)", width = 115),
+    list(id = "PG.Coverage.Global",                        name = "Coverage [%]", fmt = "val.toFixed(1)",  width = 115),
+    list(id = "PG.Cscore",                                 name = "Cscore",       fmt = "val.toFixed(2)",  width = 95)
   )
   for (gs in global_specs) {
     if (!gs$id %in% names(df)) next
@@ -2043,7 +2077,7 @@ results_list_widget <- function(
     }", gs$fmt))
     cols[[gs$id]] <- colDef(
       name = gs$name,
-      width = 95,
+      width = gs$width,
       align = "center",
       html = TRUE,
       filterable = TRUE,
@@ -2957,7 +2991,7 @@ quant_list_widget <- function(
           cell.value = g.name;
           if (endCol > startCol) ws.mergeCells(1, startCol, 1, endCol);
           cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F5078' } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF660505' } };
           cell.alignment = { vertical: 'middle', horizontal: 'center' };
           colOffset = endCol + 1;
         });
@@ -3105,7 +3139,7 @@ quant_list_widget <- function(
     defaultColDef = colDef(
       align = "left",
       headerStyle = list(
-        background  = "rgba(31, 78, 120, 0.9)",
+        background  = "rgba(102, 5, 5, 0.9)",
         color       = "#ffffff",
         height      = "40px",
         display     = "flex",
@@ -3117,13 +3151,13 @@ quant_list_widget <- function(
     columns      = cols,
     columnGroups = groups,
     wrap         = FALSE,
-    class        = "rl-table pl-table",
+    class        = "rl-table pl-table ql-table",
     rowStyle     = if (!is.null(selection)) list(cursor = "pointer") else NULL,
     highlight    = TRUE,
     searchable   = searchable,
     height       = height,
     striped      = TRUE,
-    theme        = .pl_theme(),
+    theme        = .ql_theme(),
     language     = .rl_lang(),
     details      = .pl_detail_row()
   )
