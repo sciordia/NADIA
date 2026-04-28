@@ -2352,8 +2352,12 @@ results_list_widget <- function(
     sticky   = "left",
     minWidth = 360,
     align    = "left",
+    vAlign   = "center",
+    headerStyle = list(justifyContent = "center", textAlign = "center"),
     style    = list(fontSize   = "14.5px",
-                    fontWeight = "500"),
+                    fontWeight = "500",
+                    display    = "flex",
+                    alignItems = "center"),
     filterable = TRUE
   )
 
