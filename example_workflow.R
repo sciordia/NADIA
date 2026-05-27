@@ -20,6 +20,18 @@ preprocessing <- preprocess_spectronaut(
   export_dir = "./results"
 )
 
+# ----- Alternativa: datos TMT (Proteome Discoverer) -----
+# El resto del pipeline (Processing, Boxplot, Volcano, PCA, etc.) funciona
+# sin cambios al recibir el output de preprocess_tmt().
+#
+# source("R/Preprocessing_TMT.R")
+#
+# preprocessing <- preprocess_tmt(
+#   file_path = "data/20260527_Q25_TMTpro_TMT1y2_10Fr_Static_3engines_onlyRAW.tsv",
+#   condition_order = c("A", "B", "C", "D", "IS"),  # omite "IS" para descartar Internal Standards
+#   export_dir = "./results"
+# )
+
 # ===== 2. PROCESSING (coordinator) =====
 # Loads Normalization.R, Imputation.R, DEAnalysis.R automatically
 

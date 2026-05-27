@@ -29,13 +29,13 @@ if (!exists("%||%", mode = "function")) {
 # LINKER FUNCTIONS (internal)
 # =============================================================================
 
-#' Prepare metadata from spectronaut_data object
+#' Prepare metadata from proteomics_data object
 #'
-#' @param preprocessing spectronaut_data list
+#' @param preprocessing proteomics_data list (output of preprocess_spectronaut or preprocess_tmt)
 #' @return Data frame with columns: Column, Condition, Replicate
 #' @keywords internal
 .prepare_metadata <- function(preprocessing, covariate_df = NULL) {
-  stopifnot(inherits(preprocessing, "spectronaut_data"))
+  stopifnot(inherits(preprocessing, "proteomics_data"))
 
   md <- preprocessing$metadata
 
@@ -67,13 +67,13 @@ if (!exists("%||%", mode = "function")) {
   result
 }
 
-#' Prepare protein data from spectronaut_data object
+#' Prepare protein data from proteomics_data object
 #'
-#' @param preprocessing spectronaut_data list
+#' @param preprocessing proteomics_data list (output of preprocess_spectronaut or preprocess_tmt)
 #' @return Data frame with columns: ProteinGroups, GeneNames, UniqPepts, and intensity columns
 #' @keywords internal
 .prepare_protein_data <- function(preprocessing) {
-  stopifnot(inherits(preprocessing, "spectronaut_data"))
+  stopifnot(inherits(preprocessing, "proteomics_data"))
 
   pq <- preprocessing$protein_quant
 
@@ -330,7 +330,7 @@ if (!exists("%||%", mode = "function")) {
 #' and differential expression analysis. Coordinates sub-modules
 #' Normalization.R, Imputation.R, and DEAnalysis.R.
 #'
-#' @param preprocessing spectronaut_data list (result of preprocess_spectronaut)
+#' @param preprocessing proteomics_data list (result of preprocess_spectronaut or preprocess_tmt)
 #' @param export_dir Output directory for exported files (default: "./results")
 #' @param min_reps_filter Minimum replicates for filtering. If NULL, auto-computed
 #' @param min_groups_filter Minimum groups for filtering (default: 1)
@@ -457,8 +457,8 @@ process_proteomics <- function(
   # VALIDATIONS
   # =========================================================================
 
-  if (!inherits(preprocessing, "spectronaut_data")) {
-    stop("El argumento 'preprocessing' debe ser resultado de preprocess_spectronaut()")
+  if (!inherits(preprocessing, "proteomics_data")) {
+    stop("El argumento 'preprocessing' debe ser resultado de preprocess_spectronaut() o preprocess_tmt()")
   }
 
   if (!dir.exists(export_dir)) {

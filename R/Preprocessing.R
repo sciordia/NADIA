@@ -515,7 +515,7 @@ preprocess_spectronaut <- function(
     protein_quant = as.data.frame(protein_QUANT)
   )
 
-  class(result) <- c("spectronaut_data", "list")
+  class(result) <- c("spectronaut_data", "proteomics_data", "list")
   return(result)
 }
 

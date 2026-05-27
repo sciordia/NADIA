@@ -583,7 +583,7 @@ import_imp_matrices <- function(tsv_dir,
 
 #' Build a SummarizedExperiment for imputation benchmarking
 #'
-#' Convenience function that creates a SE from a `spectronaut_data` object and
+#' Convenience function that creates a SE from a `proteomics_data` object and
 #' applies the winning normalization method (from normalization benchmarking).
 #' The result is ready for `imputation_metrics()`.
 #'
@@ -591,7 +591,7 @@ import_imp_matrices <- function(tsv_dir,
 #' `"log2"`, then applies the chosen normalization via
 #' `.nm_dispatch_normalization()`.
 #'
-#' @param preprocessing `spectronaut_data` list from `preprocess_spectronaut()`.
+#' @param preprocessing `proteomics_data` list from `preprocess_spectronaut()` or `preprocess_tmt()`.
 #' @param norm_method Character scalar. Normalization method name (e.g.
 #'   `"cycloess"`). If provided, used directly. Default `NULL`.
 #' @param pc1_rank data.frame from `nm_rank_pc1()` or
@@ -635,9 +635,9 @@ im_prepare_se <- function(preprocessing,
                           verbose          = TRUE) {
 
   # --- Validate preprocessing ---
-  if (!inherits(preprocessing, "spectronaut_data"))
-    stop("'preprocessing' must be a spectronaut_data object ",
-         "(output of preprocess_spectronaut()).")
+  if (!inherits(preprocessing, "proteomics_data"))
+    stop("'preprocessing' must be a proteomics_data object ",
+         "(output of preprocess_spectronaut() or preprocess_tmt()).")
 
   # --- Resolve winner method ---
   if (is.null(norm_method) && is.null(pc1_rank))

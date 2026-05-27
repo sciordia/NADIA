@@ -473,18 +473,18 @@ if (!exists(".norm_log2norm", mode = "function")) {
   x_norm
 }
 
-#' Prepare a SummarizedExperiment from a spectronaut_data object
+#' Prepare a SummarizedExperiment from a proteomics_data object
 #'
 #' Convenience wrapper that extracts metadata and protein data from a
-#' `spectronaut_data` object (output of `preprocess_spectronaut()`), performs
-#' zero-to-NA conversion, protein filtering, and returns a SE with assays
-#' `"raw"` and `"log2"` — ready for `nm_run_normalizations()` or
-#' `normalization_metrics(..., methods = "all")`.
+#' `proteomics_data` object (output of `preprocess_spectronaut()` or
+#' `preprocess_tmt()`), performs zero-to-NA conversion, protein filtering,
+#' and returns a SE with assays `"raw"` and `"log2"` — ready for
+#' `nm_run_normalizations()` or `normalization_metrics(..., methods = "all")`.
 #'
 #' Internally calls `normalize_proteomics()` with `norm_method = "log2"`
 #' (no additional normalization).
 #'
-#' @param preprocessing `spectronaut_data` list from `preprocess_spectronaut()`.
+#' @param preprocessing `proteomics_data` list from `preprocess_spectronaut()` or `preprocess_tmt()`.
 #' @param min_reps Minimum replicates with non-NA values per group for protein
 #'   filtering. If NULL, auto-computed as half the smallest group. Default `NULL`.
 #' @param min_groups Minimum groups meeting `min_reps` (default: 1).
@@ -506,9 +506,9 @@ nm_prepare_se <- function(preprocessing,
                           covariate_df = NULL,
                           verbose      = TRUE) {
 
-  if (!inherits(preprocessing, "spectronaut_data"))
-    stop("'preprocessing' must be a spectronaut_data object ",
-         "(output of preprocess_spectronaut()).")
+  if (!inherits(preprocessing, "proteomics_data"))
+    stop("'preprocessing' must be a proteomics_data object ",
+         "(output of preprocess_spectronaut() or preprocess_tmt()).")
 
   # Source Processing.R for .prepare_metadata / .prepare_protein_data
   if (!exists(".prepare_metadata", mode = "function")) {
