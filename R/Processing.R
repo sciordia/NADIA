@@ -52,14 +52,24 @@ if (!exists("%||%", mode = "function")) {
     if (!"Column" %in% names(covariate_df)) {
       stop("covariate_df debe contener una columna 'Column'")
     }
-    result <- merge(result, covariate_df, by = "Column", all.x = TRUE)
-    # Check for unmatched samples
-    new_cols <- setdiff(names(covariate_df), "Column")
-    na_check <- sapply(new_cols, function(col) any(is.na(result[[col]])))
-    if (any(na_check)) {
-      missing_cols <- names(na_check)[na_check]
-      stop("covariate_df no cubre todas las muestras. NAs en: ",
-           paste(missing_cols, collapse = ", "))
+    # Ignorar columnas ya derivadas del preprocessing (Condition, Replicate, ...)
+    redundant <- setdiff(intersect(names(covariate_df), names(result)), "Column")
+    if (length(redundant) > 0) {
+      message("Ignorando columnas de covariate_df ya presentes en metadata: ",
+              paste(redundant, collapse = ", "))
+      covariate_df <- covariate_df[, setdiff(names(covariate_df), redundant),
+                                   drop = FALSE]
+    }
+    if (ncol(covariate_df) > 1) {
+      result <- merge(result, covariate_df, by = "Column", all.x = TRUE)
+      # Check for unmatched samples
+      new_cols <- setdiff(names(covariate_df), "Column")
+      na_check <- sapply(new_cols, function(col) any(is.na(result[[col]])))
+      if (any(na_check)) {
+        missing_cols <- names(na_check)[na_check]
+        stop("covariate_df no cubre todas las muestras. NAs en: ",
+             paste(missing_cols, collapse = ", "))
+      }
     }
   }
 
