@@ -1423,15 +1423,19 @@ benchmark_roc_gg <- function(
 
   # AUC / pAUC labels for legend
   if (zoom) {
-    # pAUC corregido (McClish) en la región FPR 0-10%
+    # pAUC corregido (McClish) en la región FPR 0-5%
     aucs <- vapply(roc_list, function(r) {
       tryCatch(
         as.numeric(pROC::auc(r,
-                              partial.auc = c(1, 0.9),
+                              partial.auc = c(1, 0.95),
                               partial.auc.correct = TRUE)),
         error = function(e) NA_real_
       )
     }, numeric(1))
+    # Ordenar la leyenda por pAUC decreciente
+    ord      <- order(aucs, decreasing = TRUE, na.last = TRUE)
+    roc_list <- roc_list[ord]
+    aucs     <- aucs[ord]
     labels <- paste0(names(roc_list), " (pAUC=", sprintf("%.3f", aucs), ")")
   } else {
     aucs <- vapply(roc_list, function(r) as.numeric(pROC::auc(r)), numeric(1))
@@ -1447,7 +1451,7 @@ benchmark_roc_gg <- function(
     ggplot2::labs(
       title = title,
       subtitle = if (zoom) {
-        "Zoom: low False Positive Rate region (0-10%)"
+        "Zoom: low FPR region (axis 0-10%) · legend pAUC at 5% FPR"
       } else {
         "Diagonal = random classifier"
       },

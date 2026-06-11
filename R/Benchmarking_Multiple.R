@@ -58,6 +58,25 @@ if (!exists("%||%", mode = "function")) `%||%` <- function(a, b) if (!is.null(a)
   }
 }
 
+#' Row-bind data.frames with heterogeneous columns
+#'
+#' Combines a list of data.frames by the union of their columns, filling
+#' missing columns with NA. Unlike \code{do.call(rbind, ...)}, this tolerates
+#' methods whose exported tables carry different column sets (e.g. an external
+#' tool like Proteome Discoverer whose classified table keeps its own de_res
+#' columns).
+#' @keywords internal
+.bm_rbind_fill <- function(df_list) {
+  df_list <- Filter(function(d) !is.null(d) && nrow(d) > 0, df_list)
+  if (length(df_list) == 0) return(NULL)
+  all_cols <- unique(unlist(lapply(df_list, colnames)))
+  df_list <- lapply(df_list, function(d) {
+    for (m in setdiff(all_cols, colnames(d))) d[[m]] <- NA
+    d[, all_cols, drop = FALSE]
+  })
+  do.call(rbind, df_list)
+}
+
 
 #' Validate combined opdea data.frame
 #' @param df data.frame to validate
@@ -294,7 +313,7 @@ import_opdea_results <- function(results_dir,
     df_list[[i]] <- df
   }
 
-  combined <- do.call(rbind, df_list)
+  combined <- .bm_rbind_fill(df_list)
   rownames(combined) <- NULL
 
   .bm_validate_opdea(combined)
@@ -349,7 +368,7 @@ import_confusion_results <- function(results_dir,
     df_list[[i]] <- df
   }
 
-  combined <- do.call(rbind, df_list)
+  combined <- .bm_rbind_fill(df_list)
   rownames(combined) <- NULL
 
   .bm_validate_confusion(combined)
@@ -402,7 +421,7 @@ import_classified_results <- function(results_dir,
     df_list[[i]] <- df
   }
 
-  combined <- do.call(rbind, df_list)
+  combined <- .bm_rbind_fill(df_list)
   rownames(combined) <- NULL
 
   n_methods <- length(unique(combined$Assay))
@@ -455,7 +474,7 @@ import_benchmark_metrics <- function(results_dir,
     df_list[[i]] <- df
   }
 
-  combined <- do.call(rbind, df_list)
+  combined <- .bm_rbind_fill(df_list)
   rownames(combined) <- NULL
 
   .bm_validate_bench_metrics(combined)
@@ -1402,14 +1421,19 @@ bm_plot_roc <- function(classified_combined,
 
   # AUC / pAUC labels
   if (zoom) {
+    # pAUC corregido (McClish) en la región FPR 0-5%
     aucs <- vapply(roc_list, function(r) {
       tryCatch(
         as.numeric(pROC::auc(r,
-                              partial.auc = c(1, 0.9),
+                              partial.auc = c(1, 0.95),
                               partial.auc.correct = TRUE)),
         error = function(e) NA_real_
       )
     }, numeric(1))
+    # Ordenar la leyenda por pAUC decreciente
+    ord      <- order(aucs, decreasing = TRUE, na.last = TRUE)
+    roc_list <- roc_list[ord]
+    aucs     <- aucs[ord]
     labels <- paste0(names(roc_list), " (pAUC=", sprintf("%.3f", aucs), ")")
   } else {
     aucs <- vapply(roc_list, function(r) as.numeric(pROC::auc(r)), numeric(1))
@@ -1431,7 +1455,7 @@ bm_plot_roc <- function(classified_combined,
     ggplot2::labs(
       title    = title_text,
       subtitle = if (zoom) {
-        "Low False Positive Rate region (0-10%)"
+        "Low FPR region (axis 0-10%) · legend pAUC at 5% FPR"
       } else {
         "Diagonal = random classifier"
       },
