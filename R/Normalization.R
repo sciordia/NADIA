@@ -203,6 +203,7 @@ if (!exists("%||%", mode = "function")) {
   # Create assays: raw and log2
   raw_assay <- intensity
   log2_assay <- log2(intensity)
+  log2_assay[is.infinite(log2_assay)] <- NA
 
   # Create SummarizedExperiment
   se <- SummarizedExperiment::SummarizedExperiment(
@@ -333,9 +334,11 @@ if (!exists("%||%", mode = "function")) {
   x <- x_log2
   for (j in seq_len(ncol(x_log2))) {
     col   <- x_log2[, j]
-    valid <- !is.na(col) & !is.na(row_medians)
+    valid <- is.finite(col) & is.finite(row_medians)
     if (sum(valid) < 2L) next
-    fit       <- MASS::rlm(col[valid] ~ row_medians[valid])
+    fit <- tryCatch(MASS::rlm(col[valid] ~ row_medians[valid]),
+                    error = function(e) NULL)
+    if (is.null(fit)) next
     intercept <- coef(fit)[1L]
     slope     <- coef(fit)[2L]
     if (is.na(slope) || abs(slope) < .Machine$double.eps) next
@@ -511,6 +514,9 @@ normalize_proteomics <- function(
 
   # Filter protein_data
   protein_data_filtered <- data[filtered$keep, , drop = FALSE]
+  # Propagate zero-to-NA conversion into the matrix that feeds the SE
+  # (intensity_mat already has zeros -> NA; aligned by position with filtered$keep)
+  protein_data_filtered[, intensity_cols] <- intensity_mat[filtered$keep, , drop = FALSE]
 
   # =========================================================================
   # 3. CREATE SUMMARIZEDEXPERIMENT

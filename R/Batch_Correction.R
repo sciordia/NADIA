@@ -746,6 +746,33 @@ pvca_analysis <- function(se,
 #' @param qualitycontrol Logical: compute ASW quality metrics
 #' @return Numeric matrix (proteins x samples), possibly fewer rows
 #' @keywords internal
+#' Identify features ComBat cannot fit
+#'
+#' Flags rows that, in any batch, have fewer than 2 finite observations or zero
+#' within-batch variance. ComBat's parametric empirical-Bayes estimation divides
+#' by the within-batch variance, so such features yield NaN and abort the whole
+#' correction (`while (change > conv)` receives NA). These features cannot be
+#' batch-corrected anyway (constant within a batch) and should pass through
+#' unadjusted.
+#'
+#' @param mat Numeric matrix (features x samples).
+#' @param batch_vec Batch assignment per column.
+#' @return Logical vector (length nrow(mat)); TRUE = unfittable by ComBat.
+#' @keywords internal
+.bc_combat_unfittable <- function(mat, batch_vec) {
+  bad <- logical(nrow(mat))
+  for (b in unique(batch_vec[!is.na(batch_vec)])) {
+    sub   <- mat[, batch_vec == b, drop = FALSE]
+    n_obs <- rowSums(is.finite(sub))
+    rvar  <- apply(sub, 1, function(z) {
+      z <- z[is.finite(z)]
+      if (length(z) < 2L) NA_real_ else stats::var(z)
+    })
+    bad <- bad | n_obs < 2L | is.na(rvar) | rvar == 0
+  }
+  bad
+}
+
 .bc_run_bert <- function(mat, batch_vec,
                          method         = "ComBat",
                          combatmode     = 1,
@@ -916,16 +943,36 @@ batch_correct_proteomics <- function(
     colnames(cov_df) <- paste0("Cov_", seq_along(covariates))
   }
 
+  # --- Apart features ComBat cannot fit (zero within-batch variance) ---
+  # ComBat (parametric EB) divides by within-batch variance; features that are
+  # constant within a batch produce NaN and abort the whole correction. Such
+  # features cannot be batch-corrected anyway, so set them aside and pass them
+  # through unadjusted.
+  combat_bad <- logical(nrow(mat))
+  if (algorithm == "ComBat") combat_bad <- .bc_combat_unfittable(mat, batch_vals)
+  if (any(combat_bad) && verbose)
+    cat("- Features no corregibles (varianza intra-batch nula):", sum(combat_bad),
+        "-> se mantienen sin ajustar\n")
+
   # --- Run BERT ---
   if (verbose) cat("- Running BERT ...\n")
-  corrected_mat <- .bc_run_bert(
-    mat            = mat,
+  corrected_fit <- .bc_run_bert(
+    mat            = mat[!combat_bad, , drop = FALSE],
     batch_vec      = batch_vals,
     method         = algorithm,
     combatmode     = ComBat_mode,
     covariates     = cov_df,
     qualitycontrol = qualitycontrol
   )
+
+  if (any(combat_bad)) {
+    passthrough <- mat[combat_bad, colnames(corrected_fit), drop = FALSE]
+    corrected_mat <- rbind(corrected_fit, passthrough)
+    corrected_mat <- corrected_mat[intersect(rownames(mat), rownames(corrected_mat)),
+                                   , drop = FALSE]
+  } else {
+    corrected_mat <- corrected_fit
+  }
 
   # --- Align output to SE ---
   n_features_out <- nrow(corrected_mat)
