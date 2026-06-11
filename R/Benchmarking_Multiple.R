@@ -1515,6 +1515,10 @@ bm_plot_roc <- function(classified_combined,
 #'   \code{"benchmark_opdea_metrics\\.tsv$"})
 #' @param method_names Optional Assay names for file import
 #' @param recursive Search subdirectories? (default: TRUE)
+#' @param strip_prefix Prefix removed from each \code{Assay} name (default
+#'   "benchmark_"), so folder-derived names in \code{results_dir} mode match the
+#'   in-memory ones (e.g. "benchmark_Rlr_none_BERT" -> "Rlr_none_BERT"). Set to
+#'   NULL or "" to keep the full folder name. Harmless when the prefix is absent.
 #' @param bench_metrics_combined Optional pre-built data.frame from
 #'   \code{import_benchmark_metrics()} with columns: Assay, Comparison,
 #'   Sensitivity, Specificity, Precision, NPV, F1, Accuracy, MCC, Performance.
@@ -1608,6 +1612,7 @@ benchmarking_multiple <- function(opdea_combined            = NULL,
                                   pattern                   = "benchmark_opdea_metrics\\.tsv$",
                                   method_names              = NULL,
                                   recursive                 = TRUE,
+                                  strip_prefix              = "benchmark_",
                                   metrics                   = .BM_METRICS,
                                   extended_metrics          = .BM_EXTENDED_METRICS,
                                   p_col                     = "adj.P.Val",
@@ -1710,6 +1715,21 @@ benchmarking_multiple <- function(opdea_combined            = NULL,
       warning("Invalid bench_metrics_combined (skipping): ", e$message)
       bench_metrics_combined <- NULL
     })
+  }
+
+  # --- Normalizar Assay: quitar prefijo de carpeta (p.ej. "benchmark_") ---
+  # En modo results_dir el Assay = nombre de carpeta (benchmark_<metodo>); esto
+  # lo deja igual que en modo in-memory. Inocuo si el Assay no lleva el prefijo.
+  if (!is.null(strip_prefix) && nzchar(strip_prefix)) {
+    .strip_assay <- function(df) {
+      if (!is.null(df) && "Assay" %in% names(df))
+        df$Assay <- sub(paste0("^", strip_prefix), "", df$Assay)
+      df
+    }
+    opdea_combined         <- .strip_assay(opdea_combined)
+    confusion_combined     <- .strip_assay(confusion_combined)
+    classified_combined    <- .strip_assay(classified_combined)
+    bench_metrics_combined <- .strip_assay(bench_metrics_combined)
   }
 
   n_methods <- length(unique(opdea_combined$Assay))
