@@ -32,6 +32,20 @@ preprocessing <- preprocess_spectronaut(
 #   export_dir = "./results"
 # )
 
+# ----- Alternativa: datos LFQ (Proteome Discoverer) -----
+# El diseño experimental (muestra -> condición) se toma del archivo _Annot
+# (columnas Column, Condition, Experiment). Las intensidades y métricas por
+# muestra se mapean POR NOMBRE. El resto del pipeline funciona sin cambios.
+#
+# source("R/Preprocessing_LFQ.R")
+#
+# preprocessing <- preprocess_lfq(
+#   file_path  = "data/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW.tsv",
+#   annot_path = "data/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW_Annot.tsv",
+#   condition_order = c("WT", "MUT"),  # opcional; si NULL se deriva del _Annot
+#   export_dir = "./results"
+# )
+
 # ===== 2. PROCESSING (coordinator) =====
 # Loads Normalization.R, Imputation.R, DEAnalysis.R automatically
 
