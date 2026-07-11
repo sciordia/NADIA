@@ -3,7 +3,7 @@
 # =============================================================================
 #
 # Functions for proteomics data imputation:
-#   - 18 imputation methods (combo + softHybrid + 16 individual)
+#   - 19 imputation methods (combo + softHybrid + 17 individual)
 #   - MNAR mask by condition (for combo mode)
 #   - Pre-filtering by MNAR rules (combo) or NA proportion (single/softHybrid)
 #   - Mixed combo imputation (configurable MAR + MNAR methods)
@@ -122,17 +122,28 @@ if (!exists("%||%", mode = "function")) {
 }
 
 #' PI: Perseus-style imputation (down-shifted normal distribution)
-#' @param args list with optional `width` (default 0.3) and `downshift` (default 1.8)
+#' @param args list with optional `width` (default 0.3), `downshift` (default 1.8)
+#'   and `seed` (default 1234, para reproducibilidad de rnorm).
 #' @keywords internal
 .imp_PI <- function(x, args = list()) {
   width     <- args$width     %||% 0.3
   downshift <- args$downshift %||% 1.8
+  seed      <- args$seed      %||% 1234
+  set.seed(seed)
   for (j in seq_len(ncol(x))) {
     na_idx <- which(is.na(x[, j]))
     if (length(na_idx) == 0L) next
     obs    <- x[!is.na(x[, j]), j]
-    obs_sd <- sd(obs)
-    obs_mu <- mean(obs)
+    # Con <2 observaciones sd(obs) es NA/0; usar la mediana global como
+    # centro y una SD global para no generar NAs.
+    if (length(obs) < 2L) {
+      obs_mu <- if (length(obs) == 1L) obs else median(x, na.rm = TRUE)
+      obs_sd <- mad(x, na.rm = TRUE)
+      if (!is.finite(obs_sd) || obs_sd == 0) obs_sd <- 1
+    } else {
+      obs_sd <- sd(obs)
+      obs_mu <- mean(obs)
+    }
     x[na_idx, j] <- rnorm(length(na_idx),
                            mean = obs_mu - downshift * obs_sd,
                            sd   = width * obs_sd)
@@ -203,7 +214,8 @@ if (!exists("%||%", mode = "function")) {
 }
 
 #' knn: k-nearest neighbors imputation (impute)
-#' @param args list with optional `k` (default 10)
+#' @param args list with optional `k` (default 10), `rowmax` (default 0.99),
+#'   `colmax` (default 0.99).
 #' @keywords internal
 .imp_knn <- function(x, args = list()) {
   if (!requireNamespace("impute", quietly = TRUE)) {
@@ -212,7 +224,12 @@ if (!exists("%||%", mode = "function")) {
   }
   k <- args$k %||% 10
   k <- min(k, nrow(x) - 1)
-  res <- impute::impute.knn(x, k = k)
+  # rowmax/colmax por defecto de impute.knn son 0.5/0.8: las filas/columnas que
+  # los superan se rellenan con la media (no KNN real) de forma silenciosa. Se
+  # elevan a 0.99 para hacer KNN efectivo hasta el umbral del prefiltro.
+  rowmax <- args$rowmax %||% 0.99
+  colmax <- args$colmax %||% 0.99
+  res <- impute::impute.knn(x, k = k, rowmax = rowmax, colmax = colmax)
   res$data
 }
 
@@ -579,9 +596,14 @@ if (!exists("%||%", mode = "function")) {
   }
 
   # ---- Stage 2: MNAR imputation ----
+  # La estimacion MNAR se calcula sobre `x` ORIGINAL (no x_stage1): los metodos
+  # distribucionales (QRILC, MinProb, PI, MinDet) estiman media/SD/cuantil por
+  # columna, y hacerlo sobre los valores ya imputados-MAR sesgaria la
+  # distribucion al alza, elevando los valores MNAR que deberian ser bajos.
+  # Solo se copian las celdas MNAR. Coincide con el comportamiento de softHybrid.
   x_final <- x_stage1
   if (mnar_method != "none" && any(mnar_mask)) {
-    x_imp_mnar <- .dispatch_imputation(x_stage1, mnar_method, method_args, with_value)
+    x_imp_mnar <- .dispatch_imputation(x, mnar_method, method_args, with_value)
     x_final[mnar_mask] <- x_imp_mnar[mnar_mask]
   }
 
@@ -673,9 +695,15 @@ if (!exists("%||%", mode = "function")) {
     }
   }
 
-  # Compute per-protein MNAR weight via sigmoid
+  # Compute per-protein MNAR weight via sigmoid.
+  # La intensidad se estandariza (z-score respecto a x0 y a su SD) antes del
+  # sigmoide para que la pendiente `b` sea relativa a la dispersion de los
+  # datos. En escala log2 cruda, con b=5 la transicion (~0.2 unidades) colapsaba
+  # a un escalon, anulando la mezcla continua en el eje de intensidad.
+  mi_sd <- stats::sd(mean_intensity[!all_na], na.rm = TRUE)
+  if (!is.finite(mi_sd) || mi_sd == 0) mi_sd <- 1
   sigmoid_r <- .sigmoid(missing_rate, k = a, x0 = r0)
-  sigmoid_x <- .sigmoid(mean_intensity, k = b, x0 = x0)
+  sigmoid_x <- .sigmoid((mean_intensity - x0) / mi_sd, k = b, x0 = 0)
   p_mnar <- sigmoid_r * (1 - lambda * sigmoid_x)
   w_mar  <- 1 - p_mnar
 
@@ -1103,6 +1131,25 @@ impute_proteomics <- function(
       cat("- NA inicial:", round(na_before * 100, 2), "%\n")
       cat("- NA final:", round(na_after * 100, 2), "%\n")
     }
+  }
+
+  # =========================================================================
+  # GUARD: no deben quedar NAs tras imputar (salvo imp_method = "none")
+  # =========================================================================
+  # Algunos metodos MAR (p.ej. knn con filas casi vacias) o filas que superan
+  # el prefiltro pueden dejar NAs residuales; tambien combo/softHybrid con una
+  # etapa "none". Se rellenan con el minimo de columna (fallback tipo MNAR)
+  # para no propagar NAs a PCA/tests DE aguas abajo.
+  if (imp_method != "none" && anyNA(x_imputed)) {
+    na_idx <- which(is.na(x_imputed), arr.ind = TRUE)
+    warning(sprintf(
+      "Quedaron %d NA tras la imputacion '%s'; se rellenan con el minimo de columna (fallback).",
+      nrow(na_idx), imp_method))
+    col_min <- apply(x_imputed, 2, function(col) {
+      mn <- suppressWarnings(min(col, na.rm = TRUE))
+      if (!is.finite(mn)) 0 else mn
+    })
+    x_imputed[na_idx] <- col_min[na_idx[, "col"]]
   }
 
   # =========================================================================
