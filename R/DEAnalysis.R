@@ -237,8 +237,11 @@ if (!exists("%||%", mode = "function")) {
     # Classify changes
     p_col <- if (p_adj) "adj.P.Val" else "P.Value"
     df$Change <- "No Change"
-    df$Change[df$logFC >= logFC_up & df[[p_col]] < alpha] <- "Up"
-    df$Change[df$logFC <= logFC_down & df[[p_col]] < alpha] <- "Down"
+    # Guarda por signo: con logFC_up = logFC_down = 0, una proteina con
+    # logFC == 0 cumpliria >= 0 y <= 0 (marcada Up y luego sobrescrita a Down).
+    # Exigir signo estricto la deja como "No Change" (sin direccion).
+    df$Change[df$logFC > 0 & df$logFC >= logFC_up   & df[[p_col]] < alpha] <- "Up"
+    df$Change[df$logFC < 0 & df$logFC <= logFC_down & df[[p_col]] < alpha] <- "Down"
     df$Change <- factor(df$Change, levels = c("Up", "Down", "No Change"))
 
     df$Comparison <- comp
@@ -308,6 +311,19 @@ if (!exists("%||%", mode = "function")) {
 
   condition_vec <- cd[[condition_column]]
 
+  # makeContrasts evalua las comparaciones como expresiones (p.ej. "Trt-Ctrl");
+  # si un nombre de condicion contiene '-', espacios u otros caracteres no
+  # sintacticos (o empieza por digito) el contraste se interpreta mal o falla.
+  # Validar temprano con un mensaje claro.
+  cond_levels <- unique(as.character(condition_vec))
+  bad_levels  <- cond_levels[cond_levels != make.names(cond_levels)]
+  if (length(bad_levels) > 0) {
+    stop("Nombres de condicion no validos para makeContrasts (contienen '-', ",
+         "espacios, u otros caracteres no sintacticos, o empiezan por digito): ",
+         paste(bad_levels, collapse = ", "),
+         ". Renombralos (p.ej. con make.names) antes del analisis diferencial.")
+  }
+
   # Covariate extraction (supports single or multiple columns)
   covariate <- NULL
   if (!is.null(covariate_column)) {
@@ -315,6 +331,14 @@ if (!exists("%||%", mode = "function")) {
     if (length(missing_cols) > 0) {
       stop("Columna(s) de covariable no encontrada(s) en colData del SE: ",
            paste(missing_cols, collapse = ", "))
+    }
+    # model.matrix hace na.omit por defecto: un NA en la covariable dejaria el
+    # design con menos filas que columnas tiene la matriz -> lmFit aborta con
+    # un error de dimension poco informativo. Validar explicitamente.
+    if (anyNA(cd[, covariate_column, drop = FALSE])) {
+      stop("La(s) covariable(s) '", paste(covariate_column, collapse = ", "),
+           "' contienen NA en colData. Elimina o imputa esos valores antes del ",
+           "analisis diferencial (model.matrix las descartaria y lmFit fallaria).")
     }
     if (length(covariate_column) == 1) {
       covariate <- factor(cd[[covariate_column]])
@@ -328,6 +352,9 @@ if (!exists("%||%", mode = "function")) {
   if (!is.null(bio_replicate_column)) {
     if (!bio_replicate_column %in% names(cd))
       stop("bio_replicate_column '", bio_replicate_column, "' not found in colData")
+    if (anyNA(cd[[bio_replicate_column]]))
+      stop("bio_replicate_column '", bio_replicate_column, "' contiene NA en ",
+           "colData; elimina o imputa esos valores antes del analisis diferencial.")
     block_vec <- cd[[bio_replicate_column]]
     if (length(unique(block_vec)) < length(block_vec)) {
       block <- factor(block_vec)
@@ -372,8 +399,10 @@ if (!exists("%||%", mode = "function")) {
   # Add gene information
   if ("Gene.Names" %in% names(rd)) {
     gene_map <- rd[, c("Protein.IDs", "Gene.Names"), drop = FALSE]
-    gene_map <- unique(gene_map)
     names(gene_map) <- c("Protein.IDs", "Gene.Names")
+    # Deduplicar por Protein.IDs (un mismo ID con dos Gene.Names distintos
+    # duplicaria filas del resultado de DE en el merge). Se conserva el primero.
+    gene_map <- gene_map[!duplicated(gene_map$Protein.IDs), , drop = FALSE]
     results <- merge(results, gene_map, by = "Protein.IDs", all.x = TRUE, sort = FALSE)
   }
 
@@ -441,8 +470,8 @@ de_analysis_proteomics <- function(
     logFC_threshold = 0,
     alpha = 0.05,
     p_adj = TRUE,
-    eBayes_trend = TRUE,
-    eBayes_robust = TRUE,
+    eBayes_trend = NULL,
+    eBayes_robust = NULL,
     de_method = "limma",
     covariate_column = NULL,
     bio_replicate_column = NULL,
@@ -455,11 +484,14 @@ de_analysis_proteomics <- function(
   # Validate de_method
   de_method <- match.arg(de_method, c("limma", "limpa"))
 
-  # Para limpa, defaults de eBayes son FALSE (vooma ya modela la tendencia)
-  if (de_method == "limpa") {
-    if (missing(eBayes_trend))  eBayes_trend  <- FALSE
-    if (missing(eBayes_robust)) eBayes_robust <- FALSE
-  }
+  # Defaults de eBayes segun de_method (NULL = sin fijar por el usuario):
+  # limpa usa trend/robust = FALSE (vooma ya modela la tendencia y
+  # voomaLmFitWithImputation maneja las proteinas imputadas); limma usa TRUE.
+  # Se resuelve aqui (no con missing()) para que funcione tambien cuando el
+  # pipeline pasa los argumentos explicitamente.
+  default_eb <- de_method != "limpa"
+  if (is.null(eBayes_trend))  eBayes_trend  <- default_eb
+  if (is.null(eBayes_robust)) eBayes_robust <- default_eb
 
   # Validate required packages
   if (!requireNamespace("limma", quietly = TRUE)) {

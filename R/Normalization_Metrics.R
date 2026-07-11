@@ -118,7 +118,10 @@ if (!exists(".norm_log2norm", mode = "function")) {
       100 * sd(x) / abs(m)
     })
   })
-  if (is.null(dim(cv_mat))) cv_mat else colMeans(cv_mat, na.rm = TRUE)
+  # sapply apila los resultados de apply(sub, 1, ...) por columnas, dando una
+  # matriz [proteinas x grupos]; hay que promediar por fila (rowMeans) para
+  # obtener un valor por proteina, no por grupo.
+  if (is.null(dim(cv_mat))) cv_mat else rowMeans(cv_mat, na.rm = TRUE)
 }
 
 #' Per-protein MAD averaged across groups (PRONE-style PMAD)
@@ -140,7 +143,8 @@ if (!exists(".norm_log2norm", mode = "function")) {
       median(abs(x - median(x)))
     })
   })
-  if (is.null(dim(mad_mat))) mad_mat else colMeans(mad_mat, na.rm = TRUE)
+  # Matriz [proteinas x grupos]: promedio por fila para un valor por proteina.
+  if (is.null(dim(mad_mat))) mad_mat else rowMeans(mad_mat, na.rm = TRUE)
 }
 
 #' Per-protein variance averaged across groups (PRONE-style PEV)
@@ -162,7 +166,8 @@ if (!exists(".norm_log2norm", mode = "function")) {
       var(x)
     })
   })
-  if (is.null(dim(var_mat))) var_mat else colMeans(var_mat, na.rm = TRUE)
+  # Matriz [proteinas x grupos]: promedio por fila para un valor por proteina.
+  if (is.null(dim(var_mat))) var_mat else rowMeans(var_mat, na.rm = TRUE)
 }
 
 #' Intra-group Pearson correlations
@@ -376,6 +381,10 @@ if (!exists(".norm_log2norm", mode = "function")) {
   if (n < 3 || ncol(x) < 1) return(NA_real_)
   m <- min(n_sample, n - 1L)
 
+  # Fijar la semilla ANTES de generar cualquier valor aleatorio (rand_pts e
+  # idx) para que el estadistico de Hopkins sea reproducible entre llamadas.
+  set.seed(42L)
+
   # Random reference points within data bounding box
   mins <- apply(x, 2, min)
   maxs <- apply(x, 2, max)
@@ -384,7 +393,6 @@ if (!exists(".norm_log2norm", mode = "function")) {
   if (is.null(dim(rand_pts))) rand_pts <- matrix(rand_pts, nrow = m)
 
   # Sample m real data points (without replacement)
-  set.seed(42L)
   idx <- sample.int(n, m)
   real_pts <- x[idx, , drop = FALSE]
 
@@ -544,7 +552,7 @@ nm_prepare_se <- function(preprocessing,
 #' @param se SummarizedExperiment with at least one log2-scale assay.
 #' @param assay_name Name of the baseline assay to normalize from.
 #'   Default `"log2"`.
-#' @param methods Character vector of method names, or `"all"` for all 14
+#' @param methods Character vector of method names, or `"all"` for all 12
 #'   benchmark methods. Default `"all"`.
 #' @param method_args Named list of per-method arguments. E.g.
 #'   `list(cycloess = list(method = "fast", span = 0.8))`.
@@ -1628,7 +1636,7 @@ nm_plot_pc1_ranking <- function(se, assay_names = NULL,
 #'
 #' @inheritParams nm_plot_boxplot
 #' @return A `data.frame` with columns `Method`, `MDS1_VarPct`, `Rank`,
-#'   ordered by `MDS1_VarPct` descending.
+#'   ordered by `MDS1_VarPct` ascending (lower = better; rank 1 = best).
 #'
 #' @examples
 #' \dontrun{
@@ -1803,29 +1811,49 @@ nm_rank_cor <- function(se, assay_names = NULL, condition_col = "Condition",
 # 15. Combined final ranking
 # --------------------------------------------------------------------------
 
-#' Compute a combined final ranking across PCV, PMAD, PEV, Correlation,
-#' PC1, and MDS1 rankings
+#' Compute a combined final ranking across PCV, PMAD, PEV, Correlation and
+#' group-separation (PC1 F-ratio)
 #'
-#' For each method, the final rank is the mean of the six individual ranks
-#' (pcv, pmad, pev, cor, pc1, mds1). Lower final rank = better overall
+#' For each method, the final rank is the mean of five individual ranks:
+#' four intragroup-precision metrics (pcv, pmad, pev, cor) plus a
+#' group-separation metric (`Rank_Sep`, the ANOVA F-ratio on PC1 scores,
+#' higher = better separation). Lower final rank = better overall
 #' normalization quality.
+#'
+#' Note: earlier versions averaged `Rank_PC1` (PC1 variance %, higher = better)
+#' and `Rank_MDS1` (MDS1 variance %, lower = better). Both capture the same
+#' dominant axis of variation but with opposite directions, so they partially
+#' cancelled within the mean. They are replaced here by a single, unambiguous
+#' group-separation rank based on the PC1 F-ratio. The standalone
+#' `nm_rank_pc1()` / `nm_rank_mds1()` functions are unchanged for individual
+#' inspection.
 #'
 #' @inheritParams nm_plot_boxplot
 #' @param cor_method Correlation method forwarded to `nm_rank_cor()`.
 #' @return A `data.frame` with columns: `Method`, `Rank_PCV`, `Rank_PMAD`,
-#'   `Rank_PEV`, `Rank_Cor`, `Rank_PC1`, `Rank_MDS1`, `Rank_Final`, ordered
-#'   by `Rank_Final` ascending (best first).
+#'   `Rank_PEV`, `Rank_Cor`, `Rank_Sep`, `Rank_Final`, ordered by `Rank_Final`
+#'   ascending (best first).
 #' @export
 nm_rank_final <- function(se, assay_names = NULL, condition_col = "Condition",
                           cor_method = "pearson", verbose = TRUE) {
   assay_names <- .nm_assay_names(se, assay_names)
+  condition   <- .nm_condition(se, condition_col)
 
   r_pcv  <- nm_rank_pcv(se,  assay_names, condition_col, verbose = FALSE)
   r_pmad <- nm_rank_pmad(se, assay_names, condition_col, verbose = FALSE)
   r_pev  <- nm_rank_pev(se,  assay_names, condition_col, verbose = FALSE)
   r_cor  <- nm_rank_cor(se,  assay_names, condition_col, cor_method, verbose = FALSE)
-  r_pc1  <- nm_rank_pc1(se,  assay_names, condition_col, verbose = FALSE)
-  r_mds1 <- nm_rank_mds1(se, assay_names, condition_col, verbose = FALSE)
+
+  # Group-separation metric: ANOVA F-ratio on PC1 scores (higher = better).
+  # Ranked descending so rank 1 = best separation, coherent with the other
+  # ranks where rank 1 = best.
+  fsep <- vapply(assay_names, function(nm) {
+    mat    <- SummarizedExperiment::assay(se, nm)
+    mat_ok <- mat[stats::complete.cases(mat), , drop = FALSE]
+    if (nrow(mat_ok) < 2) return(NA_real_)
+    tryCatch(.nm_pc1_f_ratio(mat_ok, condition), error = function(e) NA_real_)
+  }, numeric(1))
+  rank_sep <- rank(-fsep, ties.method = "min", na.last = "keep")
 
   # Merge all ranks by Method
   df <- data.frame(Method = assay_names, stringsAsFactors = FALSE)
@@ -1833,11 +1861,10 @@ nm_rank_final <- function(se, assay_names = NULL, condition_col = "Condition",
   df$Rank_PMAD <- r_pmad$Rank[match(df$Method, r_pmad$Method)]
   df$Rank_PEV  <- r_pev$Rank[match(df$Method,  r_pev$Method)]
   df$Rank_Cor  <- r_cor$Rank[match(df$Method,   r_cor$Method)]
-  df$Rank_PC1  <- r_pc1$Rank[match(df$Method,   r_pc1$Method)]
-  df$Rank_MDS1 <- r_mds1$Rank[match(df$Method,  r_mds1$Method)]
+  df$Rank_Sep  <- as.integer(rank_sep[match(df$Method, assay_names)])
 
   df$Rank_Final <- rowMeans(df[, c("Rank_PCV", "Rank_PMAD", "Rank_PEV",
-                                    "Rank_Cor", "Rank_PC1", "Rank_MDS1")],
+                                    "Rank_Cor", "Rank_Sep")],
                             na.rm = TRUE)
 
   df <- df[order(df$Rank_Final), ]
@@ -2340,8 +2367,8 @@ if (FALSE) {
   nm_rank_pev(se_nm)              # data.frame: Method, Median_PEV, Rank  (asc)
   nm_rank_cor(se_nm)              # data.frame: Method, Median_Cor, Rank  (desc)
 
-  # Combined final ranking (mean of 6 individual ranks)
-  nm_rank_final(se_nm)            # data.frame: Method, Rank_PCV..Rank_MDS1, Rank_Final
+  # Combined final ranking (mean of 5 individual ranks)
+  nm_rank_final(se_nm)            # data.frame: Method, Rank_PCV..Rank_Sep, Rank_Final
   nm_plot_final_ranking(se_nm)    # horizontal bar chart
 
   # Access rankings from orchestrator result

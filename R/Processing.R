@@ -288,11 +288,26 @@ if (!exists("%||%", mode = "function")) {
   cd <- as.data.frame(SummarizedExperiment::colData(se))
   cond_samples <- split(cd$Column, cd$Condition)
 
+  known <- names(cond_samples)
   comps <- unique(as.character(DEPs_results$Comparison))
   pct_list <- lapply(comps, function(comp) {
-    parts <- trimws(strsplit(comp, "-")[[1]])
-    cond1 <- parts[1]  # numerator (e.g. B in "B-A")
-    cond2 <- parts[2]  # denominator (e.g. A in "B-A")
+    # comp = "cond1-cond2" (numerador-denominador). Derivar cond1/cond2
+    # matcheando contra los nombres de condicion conocidos en vez de re-parsear
+    # a ciegas por "-" (robusto aunque un nombre contuviera un guion).
+    cond1 <- NA_character_
+    cond2 <- NA_character_
+    for (c1 in known) {
+      prefix <- paste0(c1, "-")
+      if (startsWith(comp, prefix)) {
+        rest <- substring(comp, nchar(prefix) + 1L)
+        if (rest %in% known) { cond1 <- c1; cond2 <- rest; break }
+      }
+    }
+    if (is.na(cond1)) {  # fallback: split simple por "-"
+      parts <- trimws(strsplit(comp, "-")[[1]])
+      cond1 <- parts[1]  # numerator (e.g. B in "B-A")
+      cond2 <- parts[2]  # denominator (e.g. A in "B-A")
+    }
 
     s1 <- intersect(cond_samples[[cond1]] %||% character(0), colnames(x_norm))
     s2 <- intersect(cond_samples[[cond2]] %||% character(0), colnames(x_norm))
@@ -372,8 +387,10 @@ if (!exists("%||%", mode = "function")) {
 #' @param control Control condition. If NULL, compares all
 #' @param logFC_threshold LogFC threshold for significance (default: 0)
 #' @param alpha Adjusted p-value threshold (default: 0.05)
-#' @param eBayes_trend Use trend estimation in eBayes (default: TRUE)
-#' @param eBayes_robust Use robust estimation in eBayes (default: TRUE)
+#' @param eBayes_trend Use trend estimation in eBayes. If NULL (default), se
+#'   resuelve segun de_method: TRUE para "limma", FALSE para "limpa".
+#' @param eBayes_robust Use robust estimation in eBayes. If NULL (default), se
+#'   resuelve segun de_method: TRUE para "limma", FALSE para "limpa".
 #' @param de_method DE method: "limma" (default) or "limpa" (probabilistic, requires imp_method="limpa")
 #' @param covariate_df Data frame with Column + covariate column(s) for paired/blocked design (default: NULL)
 #' @param covariate_column Name(s) of the covariate column(s) for the DE model.
@@ -449,8 +466,8 @@ process_proteomics <- function(
     control = NULL,
     logFC_threshold = 0,
     alpha = 0.05,
-    eBayes_trend = TRUE,
-    eBayes_robust = TRUE,
+    eBayes_trend = NULL,
+    eBayes_robust = NULL,
     de_method = "limma",
     covariate_df = NULL,
     covariate_column = NULL,

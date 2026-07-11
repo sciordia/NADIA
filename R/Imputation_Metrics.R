@@ -46,10 +46,11 @@ if (!exists(".dispatch_imputation", mode = "function")) {
   }
 }
 
-# --- Benchmark methods (14 individual methods, excludes combo/softHybrid/none) ---
+# --- Benchmark methods (15 individual methods, excludes combo/softHybrid/none) ---
+# "with" se excluye por defecto: requiere `with_value` y falla si no se provee.
 .IM_BENCH_METHODS <- c(
   "bpca", "knn", "mice", "missForest", "Impseq", "Impseqrob",
-  "QRILC", "MLE", "MinDet", "MinProb", "PI", "min", "zero", "nbavg", "with", "limpa"
+  "QRILC", "MLE", "MinDet", "MinProb", "PI", "min", "zero", "nbavg", "limpa"
 )
 
 # =============================================================================
@@ -155,32 +156,32 @@ if (!exists(".dispatch_imputation", mode = "function")) {
   res$ss
 }
 
-#' ACC_OI — Average Correlation Coefficient of Original and Imputed
+#' ACC_OI — Correlation of Original and Imputed at masked positions
 #'
-#' For each feature (row) with artificial NAs, computes Pearson correlation
-#' between the full true row and the full imputed row (all columns).
-#' Returns the mean across features. Higher is better.
+#' Pearson correlation between the true values and the imputed values,
+#' evaluated ONLY at the artificially masked cells (pooled across all
+#' features and columns). Higher is better.
+#'
+#' Nota: la version anterior correlacionaba la fila COMPLETA (verdadera vs
+#' imputada), que solo difiere en 1-2 celdas enmascaradas → correlacion ~1
+#' independientemente de la calidad de la imputacion, haciendo la metrica no
+#' discriminativa. Restringir a las celdas enmascaradas mide la accuracy real.
 #'
 #' @param true_mat Numeric matrix (ground truth)
 #' @param imp_mat  Numeric matrix (imputed)
 #' @param na_mask  Logical matrix
-#' @return Numeric scalar (mean Pearson correlation)
+#' @return Numeric scalar (Pearson correlation over masked cells)
 #' @keywords internal
 .im_acc_oi <- function(true_mat, imp_mat, na_mask) {
-  row_has_na <- which(rowSums(na_mask) > 0)
-  if (length(row_has_na) == 0) return(NA_real_)
-
-  cors <- vapply(row_has_na, function(i) {
-    true_row <- true_mat[i, ]
-    imp_row  <- imp_mat[i, ]
-    sd_true <- sd(true_row, na.rm = TRUE)
-    sd_imp  <- sd(imp_row, na.rm = TRUE)
-    if (is.na(sd_true) || is.na(sd_imp) || sd_true == 0 || sd_imp == 0)
-      return(NA_real_)
-    cor(true_row, imp_row, method = "pearson", use = "pairwise.complete.obs")
-  }, numeric(1))
-
-  mean(cors, na.rm = TRUE)
+  if (!any(na_mask)) return(NA_real_)
+  true_vals <- true_mat[na_mask]
+  imp_vals  <- imp_mat[na_mask]
+  ok <- is.finite(true_vals) & is.finite(imp_vals)
+  if (sum(ok) < 3L) return(NA_real_)
+  true_vals <- true_vals[ok]
+  imp_vals  <- imp_vals[ok]
+  if (sd(true_vals) == 0 || sd(imp_vals) == 0) return(NA_real_)
+  cor(true_vals, imp_vals, method = "pearson")
 }
 
 #' Order Method as factor (consistent with Normalization_Metrics.R pattern)
@@ -248,6 +249,14 @@ if (!exists(".dispatch_imputation", mode = "function")) {
   nc <- ncol(mat)
   na_mask <- matrix(FALSE, nrow = nr, ncol = nc,
                     dimnames = dimnames(mat))
+
+  # from_data requiere ref_mat; sin el, caer a 'random' en vez de devolver una
+  # mascara vacia silenciosamente (que dejaria todas las metricas en NA).
+  if (pattern == "from_data" && is.null(ref_mat)) {
+    warning(".im_introduce_na: pattern='from_data' requiere 'ref_mat'; ",
+            "usando patron 'random'.")
+    pattern <- "random"
+  }
 
   if (pattern == "from_data" && !is.null(ref_mat)) {
     # --- NAguideR strategy (faithful replication) ---
@@ -868,10 +877,16 @@ im_compute_metrics <- function(se,
     # Single method: all ranks = 1, SOR = number of features
     sor_vec <- setNames(nrow(rmse_matrix), successful_methods)
   } else {
+    n_m <- length(successful_methods)
     rank_per_feature <- t(apply(rmse_matrix, 1, function(row) {
-      rank(row, na.last = "keep", ties.method = "average")
+      r <- rank(row, na.last = "keep", ties.method = "average")
+      # Penalizar con el peor rango las features que un metodo no imputo
+      # (RMSE = NA); si no, colSums(na.rm=TRUE) las favoreceria al sumar
+      # sobre menos terminos.
+      r[is.na(r)] <- n_m
+      r
     }))
-    sor_vec <- colSums(rank_per_feature, na.rm = TRUE)
+    sor_vec <- colSums(rank_per_feature)
   }
 
   # Step 4: All four metrics

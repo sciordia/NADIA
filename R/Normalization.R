@@ -6,13 +6,13 @@
 #   - Zero-to-NA conversion
 #   - Protein filtering by group presence
 #   - SummarizedExperiment creation
-#   - 16 normalization methods (cycloess default)
+#   - 13 normalization methods (cycloess default)
 #
 # Dependencies (required):
 #   - SummarizedExperiment, S4Vectors
 #
 # Dependencies (optional, per method):
-#   - limma : cycloess
+#   - limma : cycloess, quantile
 #   - MASS  : Rlr
 #   - vsn   : vsn
 #
@@ -280,6 +280,14 @@ if (!exists("%||%", mode = "function")) {
   x
 }
 
+# NOTA: "GlobalMedian" (.norm_ginorm) y "GlobalMean" (.norm_globalmean)
+# normalizan por la SUMA de cada columna, escalada a la mediana / media de las
+# sumas. No usan la mediana/media de columna (ese es medianNorm/meanNorm). Ambos
+# metodos difieren unicamente en la constante global log2(median(S)) vs
+# log2(mean(S)); como toda metrica aguas abajo (varianza, correlacion, PCA/MDS
+# centrados, PCV/PMAD/PEV) es invariante a un desplazamiento global, producen
+# resultados practicamente identicos en el benchmark. Se mantienen ambos por
+# compatibilidad, pero se documenta la redundancia.
 .norm_ginorm <- function(x_raw) {
   col_sums <- colSums(x_raw, na.rm = TRUE)
   x <- log2(sweep(x_raw, 2, col_sums / median(col_sums), "/"))
@@ -316,11 +324,14 @@ if (!exists("%||%", mode = "function")) {
 # --- Grupo B: x_log2 → log2 ---
 
 .norm_quantile <- function(x_log2) {
-  if (!requireNamespace("preprocessCore", quietly = TRUE)) {
-    stop("Se requiere 'preprocessCore' para el metodo quantile. ",
-         "Instalalo con BiocManager::install('preprocessCore')")
+  # limma::normalizeQuantiles maneja NA de forma consistente (interpola los
+  # cuantiles por columna sobre una rejilla comun), a diferencia de
+  # preprocessCore::normalize.quantiles que propaga NaN con datos DIA.
+  if (!requireNamespace("limma", quietly = TRUE)) {
+    stop("Se requiere 'limma' para el metodo quantile. ",
+         "Instalalo con BiocManager::install('limma')")
   }
-  res <- preprocessCore::normalize.quantiles(x_log2, copy = TRUE)
+  res <- limma::normalizeQuantiles(x_log2)
   dimnames(res) <- dimnames(x_log2)
   res
 }
@@ -376,29 +387,38 @@ if (!exists("%||%", mode = "function")) {
 
 .norm_quantile_robust <- function(x_log2) {
   # Quantile normalization robusta — base R, sin dependencias externas.
-  # Identica a .norm_quantile() pero usa la mediana (en lugar de la media)
-  # de los valores ordenados como distribucion de referencia, haciendola
-  # robusta frente a muestras con valores extremos.
+  # Usa la mediana (en lugar de la media) de los valores ordenados como
+  # distribucion de referencia, haciendola robusta frente a muestras con
+  # valores extremos.
+  #
+  # Con NA, cada columna se interpola primero sobre una rejilla comun de n_row
+  # cuantiles [0,1] antes de tomar la mediana por fila; asi no se mezclan
+  # cuantiles distintos entre columnas con distinto numero de observaciones
+  # (el bug de sort(na.last=TRUE): la posicion i era el cuantil i/m, no i/n).
   n_row <- nrow(x_log2)
   n_col <- ncol(x_log2)
   x_norm <- x_log2
+  grid   <- if (n_row > 1L) (seq_len(n_row) - 1L) / (n_row - 1L) else 0
 
-  sorted <- apply(x_log2, 2, sort, na.last = TRUE)
-  ref    <- apply(sorted, 1, median, na.rm = TRUE)
+  # Referencia: mediana por posicion de cuantil sobre columnas interpoladas.
+  interp_cols <- vapply(seq_len(n_col), function(j) {
+    obs <- sort(x_log2[!is.na(x_log2[, j]), j])
+    m   <- length(obs)
+    if (m == 0L) return(rep(NA_real_, n_row))
+    if (m == 1L) return(rep(obs, n_row))
+    approx((seq_len(m) - 1L) / (m - 1L), obs, xout = grid, rule = 2L)$y
+  }, numeric(n_row))
+  ref <- apply(interp_cols, 1, median, na.rm = TRUE)
 
+  # Mapeo por columna: rango del valor -> posicion en la rejilla -> referencia.
   for (j in seq_len(n_col)) {
     col   <- x_log2[, j]
     valid <- !is.na(col)
     n_j   <- sum(valid)
     if (n_j == 0L) next
-    r <- rank(col[valid], ties.method = "average")
-    if (n_j == n_row) {
-      x_norm[valid, j] <- ref[round(r)]
-    } else {
-      ref_pos <- (r - 1) / max(n_j - 1L, 1L) * (n_row - 1L) + 1L
-      x_norm[valid, j] <- approx(seq_len(n_row), ref,
-                                  xout = ref_pos, rule = 2L)$y
-    }
+    r       <- rank(col[valid], ties.method = "average")
+    ref_pos <- if (n_j > 1L) (r - 1) / (n_j - 1L) else 0
+    x_norm[valid, j] <- approx(grid, ref, xout = ref_pos, rule = 2L)$y
   }
   x_norm
 }
@@ -579,11 +599,16 @@ normalize_proteomics <- function(
       "quantile"        = .norm_quantile(x_input),
       "Rlr"             = .norm_rlr(x_input),
       "MAD"             = .norm_mad(x_input),
-      "cycloess"        = limma::normalizeCyclicLoess(
-                            x_input,
-                            method     = cyclic_loess_method,
-                            iterations = cyclic_loess_iterations,
-                            span       = cyclic_loess_span),
+      "cycloess"        = {
+                            if (!requireNamespace("limma", quietly = TRUE))
+                              stop("Se requiere 'limma' para el metodo cycloess. ",
+                                   "Instalalo con BiocManager::install('limma')")
+                            limma::normalizeCyclicLoess(
+                              x_input,
+                              method     = cyclic_loess_method,
+                              iterations = cyclic_loess_iterations,
+                              span       = cyclic_loess_span)
+                          },
       "medianNorm"        = .norm_mediannorm(x_input),
       "meanNorm"          = .norm_meannorm(x_input),
       "vsn"               = .norm_vsn(x_input),

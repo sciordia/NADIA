@@ -193,17 +193,31 @@ if (!exists("%||%", mode = "function")) {
   # Initialize accumulator for weighted variance proportions
   varcomp_accum <- setNames(rep(0, length(all_terms) + 1),
                             c(all_terms, "resid"))
+  # Peso efectivo de los PCs realmente usados (para renormalizar si alguno se
+  # salta por fallo de lmer o varianza total nula; asi los pesos suman 1).
+  used_weight <- 0
 
   for (k in seq_len(n_pcs)) {
     fit_df$y <- pc_scores[, k]
     formula_str <- paste0("y ~ 1 + ", re_formula_str)
-    fm <- lme4::lmer(as.formula(formula_str), data = fit_df,
-                     REML = TRUE,
-                     control = lme4::lmerControl(
-                       check.nobs.vs.nlev  = "warning",
-                       check.nobs.vs.nRE   = "warning",
-                       check.nlev.gtr.1    = "warning"
-                     ))
+    # tryCatch: un fallo de convergencia en un solo PC no debe abortar toda la
+    # descomposicion de varianza; se salta ese PC y se sigue con el resto.
+    fm <- tryCatch(
+      lme4::lmer(as.formula(formula_str), data = fit_df,
+                 REML = TRUE,
+                 control = lme4::lmerControl(
+                   check.nobs.vs.nlev  = "warning",
+                   check.nobs.vs.nRE   = "warning",
+                   check.nlev.gtr.1    = "warning"
+                 )),
+      error = function(e) {
+        if (verbose)
+          message("  PVCA: lmer fallo en PC", k, " (", conditionMessage(e),
+                  "); se omite este PC.")
+        NULL
+      }
+    )
+    if (is.null(fm)) next
 
     # Extract variance components
     vc <- lme4::VarCorr(fm)
@@ -222,6 +236,13 @@ if (!exists("%||%", mode = "function")) {
         varcomp_accum[key] <- varcomp_accum[key] + prop * pc_weights[k]
       }
     }
+    used_weight <- used_weight + pc_weights[k]
+  }
+
+  # Renormalizar sobre el peso efectivo de los PCs usados para que los pesos
+  # sumen 1 aunque se hayan omitido PCs.
+  if (used_weight > 0 && used_weight < 1) {
+    varcomp_accum <- varcomp_accum / used_weight
   }
 
   # --- Build result data.frame ---
@@ -1033,7 +1054,7 @@ batch_correct_proteomics <- function(
 #' @param na_action Character: "complete" (remove rows with NAs) or "fill".
 #' @param fill_value Numeric. Replacement for NAs when na_action="fill".
 #' @param center Logical. Center variables before PCA (default TRUE).
-#' @param scale. Logical. Scale variables before PCA (default FALSE).
+#' @param scale. Logical. Scale variables before PCA (default TRUE).
 #' @param verbose Logical.
 #' @return List with: scores (data.frame PC1, PC2, Sample + colData),
 #'   pct_var (numeric vector of % variance per PC), n_proteins (integer).
@@ -1083,7 +1104,7 @@ batch_correct_proteomics <- function(
 #' @param na_action Character: "complete" (default) or "fill".
 #' @param fill_value Numeric. NA replacement when na_action="fill" (default -1).
 #' @param center Logical. Center before PCA (default TRUE).
-#' @param scale. Logical. Scale before PCA (default FALSE).
+#' @param scale. Logical. Scale before PCA (default TRUE).
 #' @param de_results Data.frame with differential expression results (e.g.,
 #'   result$DEPs_results). Must contain columns "Protein.IDs", "adj.P.Val", and
 #'   "Comparison". When provided, PCA is computed using only significant proteins.
