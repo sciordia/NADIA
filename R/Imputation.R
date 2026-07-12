@@ -632,21 +632,24 @@ if (!exists("%||%", mode = "function")) {
 #' Based on Shi et al. (bioRxiv 2026) softHybridImpute approach.
 #'
 #' @param x Numeric matrix (proteins x samples, log2) with NAs
-#' @param mar_method MAR imputation method (default: "missForest")
-#' @param mnar_method MNAR imputation method (default: "MinProb")
+#' @param mar_method MAR imputation method (default: "Impseqrob", determinista y
+#'   sin dependencias adicionales; el wrapper impute_proteomics pasa este valor).
+#'   Nota: si se elige un metodo MAR/MNAR estocastico (p.ej. "missForest"),
+#'   softHybrid no fija semilla propia — pasa una via method_args para reproducir.
+#' @param mnar_method MNAR imputation method (default: "min")
 #' @param method_args Named list of per-method argument lists
 #' @param with_value Constant value for method "with"
 #' @param a Steepness of sigmoid for missing rate (default: 10)
-#' @param b Steepness of sigmoid for mean intensity (default: 5)
-#' @param lambda Balance between missing rate and intensity signals (default: 0.5)
+#' @param b Steepness of sigmoid for mean intensity, en unidades de SD (default: 5)
+#' @param lambda Balance between missing rate and intensity signals (default: 0.5, en [0,1])
 #' @param r0 Elbow point for missing rate sigmoid (NULL = auto-detect)
 #' @param x0 Elbow point for intensity sigmoid (NULL = auto-detect)
 #' @return List with x_imputed, weights (w_mar per protein), elbow (r0, x0), summary
 #' @keywords internal
 .impute_softHybrid <- function(
     x,
-    mar_method  = "missForest",
-    mnar_method = "MinProb",
+    mar_method  = "Impseqrob",
+    mnar_method = "min",
     method_args = list(),
     with_value  = NA_real_,
     a           = 10,
@@ -705,6 +708,9 @@ if (!exists("%||%", mode = "function")) {
   sigmoid_r <- .sigmoid(missing_rate, k = a, x0 = r0)
   sigmoid_x <- .sigmoid((mean_intensity - x0) / mi_sd, k = b, x0 = 0)
   p_mnar <- sigmoid_r * (1 - lambda * sigmoid_x)
+  # Clamp a [0,1]: con lambda>1 el factor (1 - lambda*sigmoid_x) puede ser
+  # negativo -> p_mnar<0 / w_mar>1 -> extrapolacion fuera de [x_mnar, x_mar].
+  p_mnar <- pmin(pmax(p_mnar, 0), 1)
   w_mar  <- 1 - p_mnar
 
   # Combine: only replace original NA cells
@@ -1199,13 +1205,23 @@ impute_proteomics <- function(
   # Add imputed assay with the provided name
   SummarizedExperiment::assay(se_subset, imputed_assay_name) <- mat
 
-  # Guardar EList de limpa en metadata para downstream dpcDE
+  # Guardar EList de limpa en metadata para downstream dpcDE.
+  # El EList es posicionalmente 1:1 con x_imputed (limpa se ejecuto sobre esa
+  # matriz). En vez de depender del invariante IDs==rownames (intersect de
+  # nombres), se alinea POSICIONALMENTE a las filas que quedaron en `mat` y se
+  # re-etiqueta a rownames(mat), garantizando que los Protein.IDs del DE limpa
+  # coincidan con el resto del pipeline.
   limpa_elist <- attr(x_imputed, "limpa_elist")
   if (!is.null(limpa_elist)) {
-    common_rows <- intersect(rownames(mat), rownames(limpa_elist$E))
-    if (length(common_rows) > 0) {
-      limpa_elist_aligned <- limpa_elist[common_rows, ]
+    pos <- match(rownames(mat), rownames(x_imputed_ids))
+    if (anyNA(pos)) pos <- match(rownames(mat), rownames(x_imputed))
+    if (!anyNA(pos)) {
+      limpa_elist_aligned <- limpa_elist[pos, ]
+      rownames(limpa_elist_aligned$E) <- rownames(mat)
       S4Vectors::metadata(se_subset)$limpa_elist <- limpa_elist_aligned
+    } else {
+      warning("No se pudo alinear el EList de limpa con la matriz imputada; ",
+              "el DE con de_method='limpa' no estara disponible.", call. = FALSE)
     }
   }
 

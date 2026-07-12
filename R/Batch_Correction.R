@@ -744,7 +744,14 @@ pvca_analysis <- function(se,
          "' column is passed to process_proteomics().")
 
   batch_vals <- SummarizedExperiment::colData(se)[[batch_column]]
-  n_batch <- length(unique(batch_vals[!is.na(batch_vals)]))
+  n_na <- sum(is.na(batch_vals))
+  if (n_na > 0)
+    stop("Batch column '", batch_column, "' has ", n_na,
+         " sample(s) with NA batch. Assign a batch to every sample (or remove ",
+         "those samples) before batch correction — BERT/ComBat cannot handle ",
+         "NA batch labels.")
+
+  n_batch <- length(unique(batch_vals))
   if (n_batch < 2)
     stop("Batch column '", batch_column, "' has ", n_batch,
          " unique value(s). Batch correction requires at least 2 batches.")
@@ -801,7 +808,6 @@ pvca_analysis <- function(se,
                          qualitycontrol = FALSE) {
 
   orig_colnames <- colnames(mat)
-  orig_rownames <- rownames(mat)
   n_samples  <- ncol(mat)
   n_features <- nrow(mat)
 
@@ -813,6 +819,12 @@ pvca_analysis <- function(se,
 
   # Add covariate columns if provided (Cov_1, Cov_2, ...)
   if (!is.null(covariates)) {
+    # Realinear por nombre de muestra antes del cbind (defensivo: no depender
+    # de que el orden de filas de covariates coincida con colnames(mat)).
+    if (!is.null(rownames(covariates)) &&
+        all(orig_colnames %in% rownames(covariates))) {
+      covariates <- covariates[orig_colnames, , drop = FALSE]
+    }
     bert_input <- cbind(bert_input, covariates)
   }
 
@@ -824,8 +836,9 @@ pvca_analysis <- function(se,
                qualitycontrol = qualitycontrol)
   )
 
-  # Extract corrected matrix (remove Batch and Cov_* columns)
-  meta_cols <- c("Batch", grep("^Cov_", colnames(result), value = TRUE))
+  # Extract corrected matrix (remove Batch, Cov_* y nombres reservados de BERT)
+  meta_cols <- c("Batch", "Label", "Sample", "Reference", "Cov",
+                 grep("^Cov_", colnames(result), value = TRUE))
   corrected <- as.matrix(result[, !colnames(result) %in% meta_cols,
                                 drop = FALSE])
 
@@ -870,6 +883,10 @@ pvca_analysis <- function(se,
 #' @param covariates Character vector of column names from colData(se) to
 #'   use as categorical covariates for batch correction (default NULL).
 #'   These are mapped to BERT's Cov_1, Cov_2, ... format internally.
+#'   IMPORTANTE: para ComBat/limma, incluye aqui la variable biologica de
+#'   interes (p.ej. la condicion) para PRESERVARLA; de lo contrario ComBat
+#'   elimina toda la varianza del batch y puede borrar senal biologica si
+#'   condicion y batch estan confundidos. Deben ser covariables categoricas.
 #' @param qualitycontrol Logical. Compute ASW (Average Silhouette Width)
 #'   quality metrics for raw vs corrected data (default FALSE).
 #' @param verbose Logical (default TRUE).
@@ -962,6 +979,14 @@ batch_correct_proteomics <- function(
            paste(missing_covs, collapse = ", "))
     cov_df <- cd[, covariates, drop = FALSE]
     colnames(cov_df) <- paste0("Cov_", seq_along(covariates))
+    rownames(cov_df) <- colnames(mat)  # para el realineado por nombre en .bc_run_bert
+  } else if (algorithm %in% c("ComBat", "limma")) {
+    warning("batch_correct_proteomics: 'covariates = NULL' con algorithm='",
+            algorithm, "'. ComBat/limma eliminan TODA la varianza asociada al ",
+            "batch; si la condicion biologica esta (parcialmente) confundida con ",
+            "el batch, se perdera senal biologica real. Se recomienda pasar la ",
+            "variable de condicion en 'covariates' (batch_covariates) para ",
+            "preservarla.", call. = FALSE)
   }
 
   # --- Apart features ComBat cannot fit (zero within-batch variance) ---

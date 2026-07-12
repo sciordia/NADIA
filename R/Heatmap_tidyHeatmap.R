@@ -130,7 +130,9 @@ get_feature_ids <- function(data,
     if (!("sig_any" %in% names(feat))) {
       stop("La columna 'sig_any' es requerida para mode = 'any'")
     }
-    return(feat$FeatureID[feat$sig_any == TRUE])
+    # which() evita colar FeatureID NA cuando sig_any tiene NA (a diferencia de
+    # feat$sig_any == TRUE, que devolveria filas NA).
+    return(feat$FeatureID[which(feat$sig_any)])
   }
 
   # mode == "target"
@@ -475,10 +477,28 @@ prepare_heatmap_data <- function(data,
     mat <- as.matrix(mat_wide[, -1])
     rownames(mat) <- rownames_feat
 
+    # Escalado ignorando NA: scale() base NO admite na.rm, por lo que una sola
+    # celda NA convertiria toda la fila/columna en NA. Se centra/escala a mano.
     if (scale_data == "row") {
-      mat <- t(scale(t(mat)))
+      ctr <- rowMeans(mat, na.rm = TRUE)
+      sdv <- apply(mat, 1, sd, na.rm = TRUE)
+      # Features constantes (sd 0/NA) -> z-score indefinido y romperian el
+      # clustering de filas (fila all-NA). Se eliminan antes de escalar.
+      keep <- is.finite(sdv) & sdv > 0
+      if (any(!keep)) {
+        message(sprintf(
+          "Heatmap: %d features de varianza 0/NA eliminadas antes del z-score.",
+          sum(!keep)))
+        mat <- mat[keep, , drop = FALSE]; ctr <- ctr[keep]; sdv <- sdv[keep]
+      }
+      mat <- sweep(mat, 1, ctr, "-")
+      mat <- sweep(mat, 1, sdv, "/")
     } else if (scale_data == "column") {
-      mat <- scale(mat)
+      ctr <- colMeans(mat, na.rm = TRUE)
+      sdv <- apply(mat, 2, sd, na.rm = TRUE)
+      sdv[!is.finite(sdv) | sdv == 0] <- NA
+      mat <- sweep(mat, 2, ctr, "-")
+      mat <- sweep(mat, 2, sdv, "/")
     }
 
     # Reemplazar NaN por NA

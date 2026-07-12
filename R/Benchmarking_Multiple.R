@@ -683,6 +683,12 @@ bm_compute_ranking_by_comparison <- function(opdea_combined,
 #' then ranks methods in descending order (higher = better for all metrics).
 #' Final rank = mean of the 11 individual ranks.
 #'
+#' Nota: este ranking extendido puede desalinearse del ranking OpDEA canónico
+#' (`bm_compute_ranking`, basado en nMCC/G_mean/pAUC). `Performance` es colineal
+#' con F1 (por lo que F1 pesa doble), y `Accuracy`/`NPV` en spike-ins están
+#' dominadas por el fondo (TN >> ) → poco poder discriminativo. Úsese como vista
+#' complementaria, no como sustituto del ranking OpDEA.
+#'
 #' @param opdea_combined data.frame from import_opdea_results()
 #' @param bench_metrics_combined data.frame from import_benchmark_metrics()
 #' @param metrics Character vector of metrics to include (default:
@@ -1408,7 +1414,10 @@ bm_plot_roc <- function(classified_combined,
   roc_list <- lapply(assay_list, function(d) {
     if (length(unique(d$truth)) < 2 || nrow(d) < 10) return(NULL)
     tryCatch(
-      pROC::roc(response = d$truth, predictor = d$score, quiet = TRUE),
+      # direction="<": score alto (-log10 p) = caso; fija la dirección (no "auto")
+      # para consistencia con el pAUC tabulado.
+      pROC::roc(response = d$truth, predictor = d$score,
+                direction = "<", quiet = TRUE),
       error = function(e) NULL
     )
   })
