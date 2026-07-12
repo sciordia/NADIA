@@ -204,7 +204,11 @@ merge_significance_info <- function(feature_ids, DEPs_results, assay_name, alpha
 #' Filtrar features por significancia
 #'
 #' @param feature_info DataFrame con columnas de significancia
-#' @param filter_mode Modo: "all", "any", "specific"
+#' @param filter_mode Modo de selección:
+#'   - "any": features significativos en AL MENOS una comparación (usa sig_any).
+#'   - "all": TODOS los features, sin filtrar por significancia (no es "significativo
+#'            en todas las comparaciones").
+#'   - "specific": significativos en la comparación indicada por `comparison`.
 #' @param comparison Comparación específica (para mode="specific")
 #' @param alpha Umbral de significancia
 #'
@@ -376,6 +380,18 @@ standardize_eset <- function(eset) {
   # Estandarizar por filas (z-score)
   eset_std <- Mfuzz::standardise(eset_filled)
 
+  # Descartar features constantes: sd = 0 produce (x - media)/0 = NaN tras
+  # standardise, y esas filas romperian o degenerarian mfuzz. Se detectan por
+  # filas no finitas en la matriz estandarizada.
+  X_std <- Biobase::exprs(eset_std)
+  finite_rows <- apply(X_std, 1, function(r) all(is.finite(r)))
+  n_const <- sum(!finite_rows)
+  if (n_const > 0) {
+    message(sprintf("Eliminadas %d features constantes (sd = 0) tras estandarizar",
+                    n_const))
+    eset_std <- eset_std[finite_rows, ]
+  }
+
   eset_std
 }
 
@@ -458,10 +474,12 @@ evaluate_cluster_range <- function(eset_std,
   for (c in c_range) {
     if (verbose) message(sprintf("Evaluando c = %d...", c))
 
-    xb_vals <- numeric(length(seeds))
-    fpc_vals <- numeric(length(seeds))
-    amm_vals <- numeric(length(seeds))
-    dmin_vals <- numeric(length(seeds))
+    # NA (no 0): una semilla que falla no debe contar como 0 en la media,
+    # porque XB se minimiza y un 0 espurio sesgaria la seleccion de c.
+    xb_vals <- rep(NA_real_, length(seeds))
+    fpc_vals <- rep(NA_real_, length(seeds))
+    amm_vals <- rep(NA_real_, length(seeds))
+    dmin_vals <- rep(NA_real_, length(seeds))
 
     for (s in seq_along(seeds)) {
       set.seed(seeds[s])
@@ -650,7 +668,9 @@ build_long_output <- function(cl, eset_std, conditions, min_membership) {
 #' @param se_proc SummarizedExperiment con datos de intensidad
 #' @param DEPs_results DataFrame con resultados de expresión diferencial (debe tener columna 'Assay')
 #' @param assay_name Nombre del assay a usar (default: "LoessCyc"). Se usa para filtrar DEPs_results también.
-#' @param filter_mode Modo de filtrado: "any", "all", "specific"
+#' @param filter_mode Modo de filtrado: "any" (signif. en alguna comparación),
+#'   "all" (TODOS los features, sin filtrar por significancia), "specific"
+#'   (signif. en la comparación de `comparison`)
 #' @param alpha Umbral de significancia (default: 0.05)
 #' @param comparison Comparación específica (para filter_mode="specific")
 #' @param condition_order Orden de condiciones para los perfiles

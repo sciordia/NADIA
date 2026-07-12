@@ -2258,25 +2258,34 @@ results_list_widget <- function(
     stop("Input debe ser data.frame o ruta a archivo")
   }
 
-  required <- c("R.FileName", "R.Condition", "R.Replicate", "Coding",
-                "R.PrecursorsIdentified", "R.StrippedSequencesIdentified",
-                "R.ProteinGroupsIdentified")
+  # Obligatorias: presentes en cualquier fuente (Spectronaut, LFQ, TMT).
+  required <- c("R.FileName", "R.Condition", "R.Replicate", "Coding")
   missing_cols <- setdiff(required, names(df))
   if (length(missing_cols) > 0) {
     stop("Columnas faltantes en metadata: ", paste(missing_cols, collapse = ", "))
   }
 
   out <- data.frame(
-    FileName            = as.character(df$R.FileName),
-    Condition           = as.character(df$R.Condition),
-    Replicate           = as.integer(df$R.Replicate),
-    Coding              = as.character(df$Coding),
-    `# Unique PSMs`     = as.numeric(df$R.PrecursorsIdentified),
-    `# Unique Peptides` = as.numeric(df$R.StrippedSequencesIdentified),
-    `# Protein Groups`  = as.numeric(df$R.ProteinGroupsIdentified),
-    check.names         = FALSE,
-    stringsAsFactors    = FALSE
+    FileName         = as.character(df$R.FileName),
+    Condition        = as.character(df$R.Condition),
+    Replicate        = as.integer(df$R.Replicate),
+    Coding           = as.character(df$Coding),
+    check.names      = FALSE,
+    stringsAsFactors = FALSE
   )
+
+  # Columnas de conteo opcionales: solo existen en metadata de Spectronaut. Para
+  # LFQ/TMT no estan y el widget se degrada mostrando solo las columnas base.
+  count_map <- list(
+    `# Unique PSMs`     = "R.PrecursorsIdentified",
+    `# Unique Peptides` = "R.StrippedSequencesIdentified",
+    `# Protein Groups`  = "R.ProteinGroupsIdentified"
+  )
+  for (disp in names(count_map)) {
+    src <- count_map[[disp]]
+    if (src %in% names(df)) out[[disp]] <- as.numeric(df[[src]])
+  }
+
   out <- out[order(out$Condition, out$Replicate), , drop = FALSE]
   rownames(out) <- NULL
   out
@@ -2405,7 +2414,9 @@ results_list_widget <- function(
     filterable = FALSE
   )
 
-  for (nm in c("# Unique PSMs", "# Unique Peptides", "# Protein Groups")) {
+  # Solo las columnas de conteo presentes (ausentes en metadata LFQ/TMT)
+  for (nm in intersect(c("# Unique PSMs", "# Unique Peptides", "# Protein Groups"),
+                       names(df))) {
     cols[[nm]] <- colDef(
       name        = nm,
       minWidth    = 145,
@@ -3481,6 +3492,16 @@ summary_list_widget <- function(
   tint_palette_json <- jsonlite::toJSON(as.list(tint_palette), auto_unbox = TRUE)
   conditions_json   <- jsonlite::toJSON(as.list(conditions), auto_unbox = FALSE)
 
+  # Columnas a exportar (solo las presentes; LFQ/TMT no traen las de conteo)
+  sl_width_map <- c(FileName = 45, Condition = 14, Replicate = 12, Coding = 14,
+                    `# Unique PSMs` = 18, `# Unique Peptides` = 18,
+                    `# Protein Groups` = 18)
+  sl_export_cols    <- names(df)
+  sl_export_widths  <- unname(sl_width_map[sl_export_cols])
+  sl_export_widths[is.na(sl_export_widths)] <- 16
+  export_cols_json   <- jsonlite::toJSON(sl_export_cols)
+  export_widths_json <- jsonlite::toJSON(sl_export_widths)
+
   # --- CSS + scripts CDN ---
   css <- .rl_css()
   cdn_scripts <- tagList(
@@ -3495,6 +3516,8 @@ summary_list_widget <- function(
     var SL_PALETTE = %s;
     var SL_TINT_PALETTE = %s;
     var SL_CONDITIONS = %s;
+    var SL_EXPORT_COLS = %s;
+    var SL_EXPORT_WIDTHS = %s;
 
     function slToggleFilters() {
       var container = document.querySelector('.sl-filters-container');
@@ -3576,9 +3599,8 @@ summary_list_widget <- function(
         var wb = new ExcelJS.Workbook();
         var ws = wb.addWorksheet('Summary');
 
-        var flatCols = ['FileName','Condition','Replicate','Coding',
-                        '# Unique PSMs','# Unique Peptides','# Protein Groups'];
-        var colWidths = [45, 14, 12, 14, 18, 18, 18];
+        var flatCols = SL_EXPORT_COLS;
+        var colWidths = SL_EXPORT_WIDTHS;
         flatCols.forEach(function(c, i) { ws.getColumn(i + 1).width = colWidths[i]; });
 
         // Row 1: header (negro / blanco bold)
@@ -3653,6 +3675,7 @@ summary_list_widget <- function(
       }
     }
   ", palette_json, tint_palette_json, conditions_json,
+      export_cols_json, export_widths_json,
       element_id, element_id, element_id, element_id, element_id, element_id)))
 
   # --- Barra de busqueda + botones ---
@@ -3705,6 +3728,8 @@ summary_list_widget <- function(
     list(label = "# Unique Peptides", col = "# Unique Peptides", placeholder = ">= 90000 ..."),
     list(label = "# Protein Groups",  col = "# Protein Groups",  placeholder = ">= 9000 ...")
   )
+  # Solo filtros para columnas de conteo presentes (ausentes en LFQ/TMT)
+  numeric_filters <- Filter(function(f) f$col %in% names(df), numeric_filters)
   numeric_filter_items <- lapply(numeric_filters, function(f) {
     div(class = "rl-filter-item",
       tags$label(class = "rl-filter-label", f$label),

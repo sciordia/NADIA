@@ -92,7 +92,13 @@ configure_cluster_palette <- function(n_clusters, palette = NULL) {
   )
 
   if (is.null(palette)) {
-    colors <- default_colors[seq_len(min(n_clusters, length(default_colors)))]
+    # Si se piden mas clusters que colores base, interpolar en vez de reciclar
+    # (evita el desajuste de longitud al asignar names() mas abajo).
+    if (n_clusters > length(default_colors)) {
+      colors <- colorRampPalette(default_colors)(n_clusters)
+    } else {
+      colors <- default_colors[seq_len(n_clusters)]
+    }
 
   } else if (grepl("^ggsci::", palette)) {
     # Paletas de ggsci via paletteer
