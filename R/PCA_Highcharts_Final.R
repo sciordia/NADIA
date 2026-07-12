@@ -208,6 +208,16 @@ build_pca_scores <- function(pca_input,
   v <- apply(Xt, 2, var, na.rm = TRUE)
   Xt <- Xt[, is.finite(v) & v > 0, drop = FALSE]
 
+  # prcomp no admite NA: tapply deja NA en combinaciones muestra x feature
+  # ausentes. Conservar solo features completas (sin NA en ninguna muestra).
+  complete_feats <- colSums(is.na(Xt)) == 0
+  n_dropped <- sum(!complete_feats)
+  if (n_dropped > 0) {
+    warning(sprintf("PCA '%s': %d features con NA descartadas antes de prcomp.",
+                    subset_label, n_dropped))
+    Xt <- Xt[, complete_feats, drop = FALSE]
+  }
+
   if (ncol(Xt) < 2) {
     stop("Demasiado pocas proteínas con varianza > 0 para PCA en '", subset_label, "'.")
   }
@@ -718,7 +728,7 @@ pca_highchart <- function(scores_df,
       hc <- hc |>
         hc_add_series(
           data = pts,
-          type = "area",
+          type = "polygon",
           name = as.character(g),
           linkedTo = group_id,
           color = rgba_color,

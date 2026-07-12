@@ -287,11 +287,15 @@ if (!exists("%||%", mode = "function")) {
 
 #' Classify proteins for a single comparison
 #'
-#' Assigns truth labels and predicted labels based on expected values.
-#' - Species in expected_values -> truth = 1 (expected change)
-#' - Species NOT in expected_values -> truth = 0 (no expected change)
-#' - predicted = 1 if significant AND direction matches expected_logFC sign
-#' - For negative species: predicted = 1 if significant (any direction = FP)
+#' Assigns truth labels (immutable, biological identity) and predicted labels.
+#' - Species in expected_values -> truth = 1 (spike-in / expected change)
+#' - Species NOT in expected_values -> truth = 0 (background)
+#' - Positive species: predicted = 1 only if significant AND direction matches
+#'   expected_logFC sign (TP); significant with wrong sign stays predicted = 0
+#'   (FN, a detection failure — NOT relabelled as a false positive).
+#' - Negative species: predicted = 1 if significant (any direction -> FP)
+#' `truth` is never modified by the prediction, so .compute_auc/.compute_pauc
+#' receive the biological ground truth (uncontaminated) for pROC.
 #'
 #' @param de_res_comp DE results for one comparison
 #' @param ev_comp Expected values for one comparison
@@ -305,10 +309,8 @@ if (!exists("%||%", mode = "function")) {
   positive_species <- ev_comp$Species
   expected_lfc <- setNames(ev_comp$expected_logFC, ev_comp$Species)
 
-  # All species in data
-  all_species <- unique(de_res_comp$Species)
-
-  # Assign truth: 1 = expected change, 0 = no expected change
+  # Assign truth: 1 = expected change (spike-in), 0 = background. INMUTABLE:
+  # refleja la identidad biologica, no la prediccion del test.
   de_res_comp$truth <- ifelse(de_res_comp$Species %in% positive_species, 1L, 0L)
 
   # Assign predicted
@@ -327,13 +329,14 @@ if (!exists("%||%", mode = "function")) {
   negative_mask <- !(de_res_comp$Species %in% positive_species)
 
   de_res_comp$predicted <- 0L
-  # Positive species: significant AND correct direction
+  # Positive species: significant AND correct direction -> predicted 1 (TP)
   pos_mask <- de_res_comp$Species %in% positive_species
   de_res_comp$predicted[pos_mask & is_significant & correct_direction] <- 1L
-  # Positive species: significant BUT wrong direction → FP (not FN)
-  wrong_dir_mask <- pos_mask & is_significant & !correct_direction
-  de_res_comp$truth[wrong_dir_mask] <- 0L
-  de_res_comp$predicted[wrong_dir_mask] <- 1L
+  # Positive species significant but WRONG direction: se deja predicted = 0 ->
+  # cuenta como FN (fallo de deteccion), NO como FP. NO se toca `truth`: un
+  # spike-in es un positivo por construccion (identidad de especie), y `truth`
+  # debe permanecer inmutable para que .compute_auc/.compute_pauc reciban la
+  # verdad biologica (no contaminada por la prediccion) en pROC.
   # Negative species: any significant = predicted positive (potential FP)
   de_res_comp$predicted[negative_mask & is_significant] <- 1L
 
@@ -404,10 +407,10 @@ if (!exists("%||%", mode = "function")) {
     NA_real_
   }
 
-  # Matthews Correlation Coefficient
+  # Matthews Correlation Coefficient (convencion: denominador 0 -> MCC = 0)
   mcc_num <- (tp * tn) - (fp * fn)
   mcc_den <- sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
-  mcc <- if (mcc_den > 0) mcc_num / mcc_den else NA_real_
+  mcc <- if (mcc_den > 0) mcc_num / mcc_den else 0
 
   c(
     TP          = tp,
@@ -754,10 +757,6 @@ compute_dispersion_metrics <- function(de_res, ev,
 
   # Get expected species info
   comps <- unique(ev$Comparison)
-  expected_lfc_map <- setNames(
-    paste(ev$Species, ev$Comparison, sep = "||"),
-    ev$expected_logFC
-  )
 
   result_list <- lapply(comps, function(comp) {
     ev_comp <- ev[ev$Comparison == comp, , drop = FALSE]
@@ -1409,7 +1408,10 @@ benchmark_roc_gg <- function(
   roc_list <- lapply(comp_list, function(d) {
     if (length(unique(d$truth)) < 2 || nrow(d) < 10) return(NULL)
     tryCatch(
-      pROC::roc(response = d$truth, predictor = d$score, quiet = TRUE),
+      # direction="<": score alto (-log10 p) = caso; fija la dirección para que
+      # el ROC del gráfico sea consistente con el pAUC tabulado (no "auto").
+      pROC::roc(response = d$truth, predictor = d$score,
+                direction = "<", quiet = TRUE),
       error = function(e) NULL
     )
   })

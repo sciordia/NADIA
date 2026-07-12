@@ -373,6 +373,24 @@ if (!exists("%||%", mode = "function")) {
       stop("de_method='limpa' requiere imp_method='limpa'. ",
            "No se encontro limpa_elist en metadata del SE.")
     }
+    # limpa DE corre sobre el EList guardado en metadata, NO sobre 'assay_name'
+    # (que solo etiqueta el resultado). Avisar si el assay elegido no coincide
+    # con la imputacion limpa (p.ej. tras una transformacion posterior que creo
+    # un nuevo assay), para que la etiqueta results$Assay no sea enganosa.
+    limpa_mismatch <- tryCatch({
+      a <- as.matrix(SummarizedExperiment::assay(se, assay_name))
+      common <- intersect(rownames(elist$E), rownames(a))
+      length(common) == 0 ||
+        !isTRUE(all.equal(unname(a[common, colnames(elist$E), drop = FALSE]),
+                          unname(elist$E[common, , drop = FALSE]),
+                          check.attributes = FALSE))
+    }, error = function(e) TRUE)
+    if (isTRUE(limpa_mismatch)) {
+      warning("de_method='limpa': el DE usa el EList de limpa (metadata), no el ",
+              "assay '", assay_name, "'; el resultado se etiquetara con ese nombre ",
+              "aunque no se haya usado. Selecciona el assay de limpa para evitar ",
+              "ambiguedad.", call. = FALSE)
+    }
     fit <- .perform_limpa_de(elist, condition_vec, comparisons, covariate = covariate,
                               block = block,
                               eBayes_trend = eBayes_trend, eBayes_robust = eBayes_robust)

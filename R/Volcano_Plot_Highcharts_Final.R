@@ -6,6 +6,11 @@ library(readr)
 library(highcharter)
 library(paletteer)
 
+# --- Operador %||% (definido con guarda; no garantizado por los paquetes) ---
+if (!exists("%||%", mode = "function")) {
+  `%||%` <- function(a, b) if (is.null(a)) b else a
+}
+
 
 #' Volcano Plot Interactivo con Highcharter
 #'
@@ -113,12 +118,18 @@ volcano_highchart_list <- function(
     
     dt <- de_res[de_res$Comparison == comp, , drop = FALSE]
     if (nrow(dt) == 0) return(NULL)
-    
+
+    # Filtrar filas con p-valor NA (colocarlas arriba del volcano por el
+    # reemplazo -log10(NA) seria enganoso). Se conserva p=0 (Inf -> tope real).
+    dt <- dt[!is.na(suppressWarnings(as.numeric(dt[[p_col]]))), , drop = FALSE]
+    if (nrow(dt) == 0) return(NULL)
+
     dt <- assign_change(dt)
     dt$minusLog10P <- -log10(as.numeric(dt[[p_col]]))
     dt$pval_fmt <- sprintf("%.3g", as.numeric(dt[[p_col]]))
-    
-    max_finite <- max(dt$minusLog10P[is.finite(dt$minusLog10P)], na.rm = TRUE)
+
+    finite_ml <- dt$minusLog10P[is.finite(dt$minusLog10P)]
+    max_finite <- if (length(finite_ml) > 0) max(finite_ml) else 1
     dt$minusLog10P[!is.finite(dt$minusLog10P)] <- max_finite * 1.1
     
     # --- Identificar genes a destacar ---
