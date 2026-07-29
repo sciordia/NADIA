@@ -49,6 +49,5 @@ po/*~
 rsconnect/
 .DS_Store
 
-# Claude files
-CLAUDE.md
+# Claude files (CLAUDE.md sí se versiona: documenta la arquitectura del proyecto)
 .claude/
