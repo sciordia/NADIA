@@ -28,9 +28,18 @@
 # License: MIT
 # =============================================================================
 
-# --- Null coalescing operator ---
-if (!exists("%||%", mode = "function")) {
-  `%||%` <- function(a, b) if (is.null(a)) b else a
+# --- Utilidades compartidas (helpers de RNG en R/utils.R) --------------------
+# Si no se encuentran, se degrada a no-op: el comportamiento es el de antes
+# (set.seed altera el RNG de la sesión) en lugar de fallar.
+if (!exists(".rng_state", mode = "function")) {
+  .nadia_utils <- c("R/utils.R", "utils.R")
+  .nadia_utils <- .nadia_utils[file.exists(.nadia_utils)]
+  if (length(.nadia_utils) > 0) {
+    source(.nadia_utils[1], local = FALSE)
+  } else {
+    .rng_state   <- function() NULL
+    .rng_restore <- function(state) invisible(NULL)
+  }
 }
 
 # --- Self-dir sourcing for Imputation.R ---
@@ -245,6 +254,12 @@ if (!exists(".dispatch_imputation", mode = "function")) {
 #' @keywords internal
 .im_introduce_na <- function(mat, na_prop = 0.20, seed = 42L,
                              pattern = "random", ref_mat = NULL) {
+  # Esta función fija la semilla varias veces (global, por columna y por celda)
+  # para reproducir la estrategia de NAguideR; el RNG del usuario se restaura al
+  # salir para no afectar al código que se ejecute después.
+  old_rng <- .rng_state()
+  on.exit(.rng_restore(old_rng), add = TRUE)
+
   nr <- nrow(mat)
   nc <- ncol(mat)
   na_mask <- matrix(FALSE, nrow = nr, ncol = nc,
@@ -1368,7 +1383,8 @@ imputation_metrics <- function(se,
   # --- Always include metrics_table ---
   result[["metrics_table"]] <- metrics_df
 
-  n_ok   <- sum(!sapply(result[setdiff(names(result), "metrics_table")], is.null))
+  n_ok   <- sum(!vapply(result[setdiff(names(result), "metrics_table")],
+                        is.null, logical(1)))
   n_fail <- length(selected) - n_ok
   if (verbose) {
     message("imputation_metrics: ", n_ok, " plot(s) generated",

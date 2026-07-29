@@ -3,11 +3,6 @@
 library(reactable)
 library(htmltools)
 
-# Operador null-coalesce
-if (!exists("%||%", mode = "function")) {
-  `%||%` <- function(a, b) if (is.null(a)) b else a
-}
-
 
 # =============================================================================
 # Helpers internos

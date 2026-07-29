@@ -6,11 +6,6 @@ library(readr)
 library(highcharter)
 library(paletteer)
 
-# --- Operador %||% (definido con guarda; no garantizado por los paquetes) ---
-if (!exists("%||%", mode = "function")) {
-  `%||%` <- function(a, b) if (is.null(a)) b else a
-}
-
 
 #' Volcano Plot Interactivo con Highcharter
 #'
@@ -287,11 +282,11 @@ volcano_highchart_list <- function(
     if (nrow(dt_highlighted) > 0) {
       
       # Determinar color del borde según el tipo de cambio
-      dt_highlighted$borderColor <- sapply(dt_highlighted$Change, function(ch) {
+      dt_highlighted$borderColor <- vapply(dt_highlighted$Change, function(ch) {
         if (ch == "Up") colors$up
         else if (ch == "Down") colors$down
         else colors$ns
-      })
+      }, character(1))
       
       # Crear lista de puntos con formato individual
       highlighted_points <- lapply(seq_len(nrow(dt_highlighted)), function(i) {

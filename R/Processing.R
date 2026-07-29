@@ -20,11 +20,6 @@ source(file.path(.self_dir, "Normalization.R"))
 source(file.path(.self_dir, "Imputation.R"))
 source(file.path(.self_dir, "DEAnalysis.R"))
 
-# --- Null coalescing operator ---
-if (!exists("%||%", mode = "function")) {
-  `%||%` <- function(a, b) if (is.null(a)) b else a
-}
-
 # =============================================================================
 # LINKER FUNCTIONS (internal)
 # =============================================================================
@@ -64,7 +59,8 @@ if (!exists("%||%", mode = "function")) {
       result <- merge(result, covariate_df, by = "Column", all.x = TRUE)
       # Check for unmatched samples
       new_cols <- setdiff(names(covariate_df), "Column")
-      na_check <- sapply(new_cols, function(col) any(is.na(result[[col]])))
+      na_check <- vapply(new_cols, function(col) any(is.na(result[[col]])),
+                         logical(1))
       if (any(na_check)) {
         missing_cols <- names(na_check)[na_check]
         stop("covariate_df no cubre todas las muestras. NAs en: ",
@@ -356,7 +352,10 @@ if (!exists("%||%", mode = "function")) {
 #' Normalization.R, Imputation.R, and DEAnalysis.R.
 #'
 #' @param preprocessing proteomics_data list (result of preprocess_spectronaut or preprocess_tmt)
-#' @param export_dir Output directory for exported files (default: "./results")
+#' @param export_dir Output directory for exported files. Defaults to `NULL`,
+#'   which writes nothing to disk; pass a path to enable the exports controlled
+#'   by `export_normalized`, `export_imputed`, `export_volcano`,
+#'   `export_boxplot` and `export_pca`.
 #' @param min_reps_filter Minimum replicates for filtering. If NULL, auto-computed
 #' @param min_groups_filter Minimum groups for filtering (default: 1)
 #' @param norm_method Normalization method passed to normalize_proteomics()
@@ -439,7 +438,7 @@ if (!exists("%||%", mode = "function")) {
 #' @export
 process_proteomics <- function(
     preprocessing,
-    export_dir = "./results",
+    export_dir = NULL,
     min_reps_filter = NULL,
     min_groups_filter = 1,
     norm_method = "cycloess",
@@ -488,7 +487,17 @@ process_proteomics <- function(
     stop("El argumento 'preprocessing' debe ser resultado de preprocess_spectronaut() o preprocess_tmt()")
   }
 
-  if (!dir.exists(export_dir)) {
+  # Sin export_dir no se escribe nada en disco. La función no debe crear
+  # archivos ni directorios en el espacio de trabajo del usuario a menos que se
+  # le indique explícitamente dónde (requisito de Bioconductor). Desactivar aquí
+  # los flags basta para cubrir todos los bloques de exportación posteriores.
+  if (is.null(export_dir)) {
+    export_normalized <- FALSE
+    export_imputed    <- FALSE
+    export_volcano    <- FALSE
+    export_boxplot    <- FALSE
+    export_pca        <- FALSE
+  } else if (!dir.exists(export_dir)) {
     dir.create(export_dir, recursive = TRUE)
   }
 
@@ -814,7 +823,8 @@ print.proteomics_result <- function(x, ...) {
   }
   cat("  - Alpha:", x$parameters$alpha, "\n")
   cat("  - logFC threshold:", x$parameters$logFC_threshold, "\n")
-  cat("  - Directorio salida:", x$parameters$export_dir, "\n")
+  cat("  - Directorio salida:",
+      x$parameters$export_dir %||% "(sin exportación)", "\n")
 
   invisible(x)
 }

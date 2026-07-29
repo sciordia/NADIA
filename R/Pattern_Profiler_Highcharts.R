@@ -24,9 +24,6 @@ library(highcharter)
 library(dplyr)
 library(arrow)
 
-# Operador null-coalesce
-`%||%` <- function(a, b) if (is.null(a)) b else a
-
 
 # =============================================================================
 # FUNCIONES AUXILIARES DE COLOR

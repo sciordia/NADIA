@@ -27,9 +27,18 @@
 # License: MIT
 # =============================================================================
 
-# --- Null coalescing operator ---
-if (!exists("%||%", mode = "function")) {
-  `%||%` <- function(a, b) if (is.null(a)) b else a
+# --- Utilidades compartidas (helpers de RNG en R/utils.R) --------------------
+# Si no se encuentran, se degrada a no-op: el comportamiento es el de antes
+# (set.seed altera el RNG de la sesión) en lugar de fallar.
+if (!exists(".rng_state", mode = "function")) {
+  .nadia_utils <- c("R/utils.R", "utils.R")
+  .nadia_utils <- .nadia_utils[file.exists(.nadia_utils)]
+  if (length(.nadia_utils) > 0) {
+    source(.nadia_utils[1], local = FALSE)
+  } else {
+    .rng_state   <- function() NULL
+    .rng_restore <- function(state) invisible(NULL)
+  }
 }
 
 # =============================================================================
@@ -129,6 +138,10 @@ if (!exists("%||%", mode = "function")) {
   width     <- args$width     %||% 0.3
   downshift <- args$downshift %||% 1.8
   seed      <- args$seed      %||% 1234
+  # Restaurar el RNG del usuario al salir: fijar la semilla es necesario para
+  # reproducir los rnorm(), pero no debe alterar la sesión de quien llama.
+  old_rng <- .rng_state()
+  on.exit(.rng_restore(old_rng), add = TRUE)
   set.seed(seed)
   for (j in seq_len(ncol(x))) {
     na_idx <- which(is.na(x[, j]))
@@ -774,14 +787,14 @@ if (!exists("%||%", mode = "function")) {
 
   # 2) Presence by condition
   levs <- levels(cond)
-  present_ok_mat <- sapply(levs, function(g) {
+  present_ok_mat <- vapply(levs, function(g) {
     jg <- which(cond == g)
     if (length(jg) == 0) return(rep(FALSE, nrow(x)))
     frac_present_g <- rowMeans(!is.na(x[, jg, drop = FALSE]))
     count_present_g <- rowSums(!is.na(x[, jg, drop = FALSE]))
     (frac_present_g >= prop_present_in_other_condition) &
       (count_present_g >= min_present_in_other_condition)
-  })
+  }, logical(nrow(x)))
   if (!is.matrix(present_ok_mat)) present_ok_mat <- cbind(present_ok_mat)
 
   n_conditions_with_presence <- rowSums(present_ok_mat)

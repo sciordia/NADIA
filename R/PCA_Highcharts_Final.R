@@ -7,13 +7,6 @@ library(dplyr)
 
 
 # -----------------------------------------------------------------------------
-# Operador null-coalesce
-# -----------------------------------------------------------------------------
-
-`%||%` <- function(a, b) if (!is.null(a) && length(a) && !is.na(a[1])) a else b
-
-
-# -----------------------------------------------------------------------------
 # Función para normalizar color hex (eliminar canal alpha si existe)
 # -----------------------------------------------------------------------------
 
@@ -485,7 +478,7 @@ pca_highchart <- function(scores_df,
     pal <- tryCatch({
       raw_pal <- as.character(paletteer::paletteer_d(palette))
       # Normalizar colores (eliminar canal alpha si existe)
-      sapply(raw_pal, normalize_hex, USE.NAMES = FALSE)
+      vapply(raw_pal, normalize_hex, character(1), USE.NAMES = FALSE)
     }, error = function(e) {
       stop("Error al cargar paleta '", palette, "': ", e$message)
     })
@@ -503,7 +496,7 @@ pca_highchart <- function(scores_df,
       maxc <- RColorBrewer::brewer.pal.info[nm, "maxcolors"]
       raw_pal <- RColorBrewer::brewer.pal(maxc, nm)
       # Normalizar colores por consistencia
-      sapply(raw_pal, normalize_hex, USE.NAMES = FALSE)
+      vapply(raw_pal, normalize_hex, character(1), USE.NAMES = FALSE)
     }, error = function(e) {
       stop("Error al cargar paleta brewer '", nm, "': ", e$message)
     })
@@ -532,7 +525,14 @@ pca_highchart <- function(scores_df,
   # ---------------------------------------------------------------------------
   # 5) Título del gráfico
   # ---------------------------------------------------------------------------
-  chart_title <- title %||% unique(scores_df$Subset)[1]
+  # Se recurre al subset como título no solo si `title` es NULL, sino también si
+  # viene vacío o NA. Antes lo cubría una variante local de `%||%`; ahora que el
+  # operador es el canónico (solo NULL), la comprobación se hace explícita.
+  chart_title <- if (!is.null(title) && length(title) && !is.na(title[1])) {
+    title
+  } else {
+    unique(scores_df$Subset)[1]
+  }
 
   # ---------------------------------------------------------------------------
   # 6) Construir highchart base

@@ -27,8 +27,20 @@ library(dplyr)
 library(tidyr)
 library(arrow)
 
-# Operador null-coalesce
-`%||%` <- function(a, b) if (is.null(a)) b else a
+
+# --- Utilidades compartidas (helpers de RNG en R/utils.R) --------------------
+# Si no se encuentran, se degrada a no-op: el comportamiento es el de antes
+# (set.seed altera el RNG de la sesión) en lugar de fallar.
+if (!exists(".rng_state", mode = "function")) {
+  .nadia_utils <- c("R/utils.R", "utils.R")
+  .nadia_utils <- .nadia_utils[file.exists(.nadia_utils)]
+  if (length(.nadia_utils) > 0) {
+    source(.nadia_utils[1], local = FALSE)
+  } else {
+    .rng_state   <- function() NULL
+    .rng_restore <- function(state) invisible(NULL)
+  }
+}
 
 
 # =============================================================================
@@ -471,6 +483,11 @@ evaluate_cluster_range <- function(eset_std,
   X <- Biobase::exprs(eset_std)
   results <- list()
 
+  # Se fija una semilla por réplica dentro del bucle; el RNG del usuario se
+  # restaura al salir de la función.
+  old_rng <- .rng_state()
+  on.exit(.rng_restore(old_rng), add = TRUE)
+
   for (c in c_range) {
     if (verbose) message(sprintf("Evaluando c = %d...", c))
 
@@ -583,6 +600,10 @@ select_optimal_clusters <- function(eset_std,
 #' @return Objeto de clustering Mfuzz
 run_mfuzz_clustering <- function(eset_std, c, m, seed = 42) {
 
+  # El RNG del usuario se restaura al salir (mfuzz depende de la semilla).
+  old_rng <- .rng_state()
+  on.exit(.rng_restore(old_rng), add = TRUE)
+
   set.seed(seed)
   cl <- Mfuzz::mfuzz(eset_std, c = c, m = m)
 
@@ -680,10 +701,15 @@ build_long_output <- function(cl, eset_std, conditions, min_membership) {
 #' @param c Número fijo de clusters (si auto_select_c=FALSE)
 #' @param selection_method Método de selección: "xb", "consensus", "elbow"
 #' @param min_membership Umbral mínimo de membership para incluir en salida
-#' @param output_file Ruta del archivo parquet de salida
+#' @param output_file Ruta del archivo parquet de salida. Por defecto `NULL`,
+#'   que no escribe nada en disco; los datos en formato largo se devuelven
+#'   igualmente en el elemento `long_output` del resultado.
 #' @param verbose Mostrar mensajes de progreso
 #'
-#' @return Lista con resultados del clustering (invisible)
+#' @return Lista (invisible) con los resultados del clustering: `optimal_c`, `m`,
+#'   `conditions`, recuentos de features, `selection_metrics`, `cluster_counts`,
+#'   el objeto `cl` de Mfuzz, el `eset_std` estandarizado y `long_output`, el
+#'   data.frame en formato largo que se escribe cuando se indica `output_file`.
 #'
 #' @examples
 #' \dontrun{
@@ -709,7 +735,7 @@ pattern_profiler_analysis <- function(se_proc,
                                        c = NULL,
                                        selection_method = c("xb", "consensus", "elbow"),
                                        min_membership = 0.25,
-                                       output_file = "Pattern_Profiler_Input.parquet",
+                                       output_file = NULL,
                                        verbose = TRUE) {
 
   filter_mode <- match.arg(filter_mode)
@@ -868,18 +894,23 @@ pattern_profiler_analysis <- function(se_proc,
   }
 
   # -------------------------------------------------------------------------
-  # 9) Guardar archivo parquet
+  # 9) Guardar archivo parquet (solo si se ha indicado una ruta)
   # -------------------------------------------------------------------------
-  if (verbose) message(sprintf("\n9. Guardando archivo: %s", output_file))
+  # Con output_file = NULL no se escribe nada: la función no debe crear archivos
+  # en el espacio de trabajo del usuario sin que este indique dónde. El
+  # data.frame en formato largo se devuelve igualmente en el resultado.
+  if (is.null(output_file)) {
+    if (verbose) message("\n9. Sin output_file: no se guarda ningún archivo")
+  } else {
+    if (verbose) message(sprintf("\n9. Guardando archivo: %s", output_file))
 
-  # Crear directorio si no existe
+    output_dir <- dirname(output_file)
+    if (output_dir != "." && !dir.exists(output_dir)) {
+      dir.create(output_dir, recursive = TRUE)
+    }
 
-  output_dir <- dirname(output_file)
-  if (output_dir != "." && !dir.exists(output_dir)) {
-    dir.create(output_dir, recursive = TRUE)
+    arrow::write_parquet(long_output, output_file)
   }
-
-  arrow::write_parquet(long_output, output_file)
 
   if (verbose) message("\n=== Análisis completado ===")
 
@@ -897,6 +928,7 @@ pattern_profiler_analysis <- function(se_proc,
     selection_metrics = selection_metrics,
     cluster_counts = as.data.frame(cluster_counts),
     output_file = output_file,
+    long_output = long_output,
     cl = cl,
     eset_std = eset_std
   )

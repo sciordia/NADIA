@@ -19,11 +19,6 @@ suppressPackageStartupMessages({
   library(readr)
 })
 
-# --- Operador %||% ---
-if (!exists("%||%", mode = "function")) {
-  `%||%` <- function(x, y) if (is.null(x)) y else x
-}
-
 # =============================================================================
 # Funciones Auxiliares Internas
 # =============================================================================

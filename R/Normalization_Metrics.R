@@ -30,9 +30,18 @@
 # License: MIT
 # =============================================================================
 
-# --- Null coalescing operator ---
-if (!exists("%||%", mode = "function")) {
-  `%||%` <- function(a, b) if (is.null(a)) b else a
+# --- Utilidades compartidas (helpers de RNG en R/utils.R) --------------------
+# Si no se encuentran, se degrada a no-op: el comportamiento es el de antes
+# (set.seed altera el RNG de la sesión) en lugar de fallar.
+if (!exists(".rng_state", mode = "function")) {
+  .nadia_utils <- c("R/utils.R", "utils.R")
+  .nadia_utils <- .nadia_utils[file.exists(.nadia_utils)]
+  if (length(.nadia_utils) > 0) {
+    source(.nadia_utils[1], local = FALSE)
+  } else {
+    .rng_state   <- function() NULL
+    .rng_restore <- function(state) invisible(NULL)
+  }
 }
 
 # --- Self-dir sourcing for Normalization.R ---
@@ -108,7 +117,7 @@ if (!exists(".norm_log2norm", mode = "function")) {
 #' @keywords internal
 .nm_pcv <- function(mat, groups) {
   groups <- as.factor(groups)
-  cv_mat <- sapply(levels(groups), function(g) {
+  cv_mat <- vapply(levels(groups), function(g) {
     sub <- mat[, groups == g, drop = FALSE]
     apply(sub, 1, function(x) {
       x <- x[!is.na(x)]
@@ -117,7 +126,7 @@ if (!exists(".norm_log2norm", mode = "function")) {
       if (abs(m) < 1e-10) return(NA_real_)
       100 * sd(x) / abs(m)
     })
-  })
+  }, numeric(nrow(mat)))
   # sapply apila los resultados de apply(sub, 1, ...) por columnas, dando una
   # matriz [proteinas x grupos]; hay que promediar por fila (rowMeans) para
   # obtener un valor por proteina, no por grupo.
@@ -135,14 +144,14 @@ if (!exists(".norm_log2norm", mode = "function")) {
 #' @keywords internal
 .nm_pmad <- function(mat, groups) {
   groups <- as.factor(groups)
-  mad_mat <- sapply(levels(groups), function(g) {
+  mad_mat <- vapply(levels(groups), function(g) {
     sub <- mat[, groups == g, drop = FALSE]
     apply(sub, 1, function(x) {
       x <- x[!is.na(x)]
       if (length(x) < 2) return(NA_real_)
       median(abs(x - median(x)))
     })
-  })
+  }, numeric(nrow(mat)))
   # Matriz [proteinas x grupos]: promedio por fila para un valor por proteina.
   if (is.null(dim(mad_mat))) mad_mat else rowMeans(mad_mat, na.rm = TRUE)
 }
@@ -158,14 +167,14 @@ if (!exists(".norm_log2norm", mode = "function")) {
 #' @keywords internal
 .nm_pev <- function(mat, groups) {
   groups <- as.factor(groups)
-  var_mat <- sapply(levels(groups), function(g) {
+  var_mat <- vapply(levels(groups), function(g) {
     sub <- mat[, groups == g, drop = FALSE]
     apply(sub, 1, function(x) {
       x <- x[!is.na(x)]
       if (length(x) < 2) return(NA_real_)
       var(x)
     })
-  })
+  }, numeric(nrow(mat)))
   # Matriz [proteinas x grupos]: promedio por fila para un valor por proteina.
   if (is.null(dim(var_mat))) var_mat else rowMeans(var_mat, na.rm = TRUE)
 }
@@ -373,17 +382,23 @@ if (!exists(".norm_log2norm", mode = "function")) {
 #' @param mat Numeric matrix (proteins x samples), no NAs.
 #' @param n_sample Integer. Number of points to sample (default 10, capped at
 #'   ncol - 1).
+#' @param seed Integer. Seed used for the random reference points, so the
+#'   statistic is reproducible across calls. The caller's RNG state is restored
+#'   on exit.
 #' @return Numeric scalar (0-1).
 #' @keywords internal
-.nm_hopkins <- function(mat, n_sample = 10L) {
+.nm_hopkins <- function(mat, n_sample = 10L, seed = 42L) {
   x <- t(mat)                          # samples as rows
   n <- nrow(x)
   if (n < 3 || ncol(x) < 1) return(NA_real_)
   m <- min(n_sample, n - 1L)
 
   # Fijar la semilla ANTES de generar cualquier valor aleatorio (rand_pts e
-  # idx) para que el estadistico de Hopkins sea reproducible entre llamadas.
-  set.seed(42L)
+  # idx) para que el estadistico de Hopkins sea reproducible entre llamadas,
+  # restaurando despues el RNG del usuario.
+  old_rng <- .rng_state()
+  on.exit(.rng_restore(old_rng), add = TRUE)
+  set.seed(seed)
 
   # Random reference points within data bounding box
   mins <- apply(x, 2, min)
@@ -2248,7 +2263,8 @@ normalization_metrics <- function(se,
 
   non_plot <- c("metrics_table", "pc1_rank", "mds1_rank",
                 "pcv_rank", "pmad_rank", "pev_rank", "cor_rank", "final_rank")
-  n_ok   <- sum(!sapply(result[setdiff(names(result), non_plot)], is.null))
+  n_ok   <- sum(!vapply(result[setdiff(names(result), non_plot)],
+                        is.null, logical(1)))
   n_fail <- length(selected) - n_ok
   if (verbose) {
     message("normalization_metrics: ", n_ok, " plot(s) generated",

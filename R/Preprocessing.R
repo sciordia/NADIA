@@ -18,9 +18,6 @@ suppressPackageStartupMessages({
   library(readr)
 })
 
-# --- Operador %||% ---
-`%||%` <- function(x, y) if (is.null(x)) y else x
-
 # =============================================================================
 # Funciones Auxiliares Internas
 # =============================================================================

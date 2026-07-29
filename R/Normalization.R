@@ -20,11 +20,6 @@
 # License: MIT
 # =============================================================================
 
-# --- Null coalescing operator ---
-if (!exists("%||%", mode = "function")) {
-  `%||%` <- function(a, b) if (is.null(a)) b else a
-}
-
 # =============================================================================
 # INTERNAL HELPER FUNCTIONS
 # =============================================================================
@@ -39,7 +34,7 @@ if (!exists("%||%", mode = "function")) {
 #' @keywords internal
 .zero_to_missing <- function(data) {
   if (is.data.frame(data)) {
-    numeric_cols <- sapply(data, is.numeric)
+    numeric_cols <- vapply(data, is.numeric, logical(1))
     data[numeric_cols] <- lapply(data[numeric_cols], function(x) {
       x[x == 0] <- NA
       x
@@ -101,11 +96,11 @@ if (!exists("%||%", mode = "function")) {
   }
 
   # Compute non-NA counts per group for each protein
-  n_present_per_group <- sapply(group_levels, function(g) {
+  n_present_per_group <- vapply(group_levels, function(g) {
     cols <- which(groups == g)
     if (length(cols) == 0) return(rep(0, nrow(data)))
     rowSums(!is.na(data[, cols, drop = FALSE]))
-  })
+  }, numeric(nrow(data)))
 
   if (!is.matrix(n_present_per_group)) {
     n_present_per_group <- matrix(n_present_per_group, ncol = 1)

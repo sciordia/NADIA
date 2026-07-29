@@ -9,13 +9,6 @@ library(tibble)
 
 
 # -----------------------------------------------------------------------------
-# Operador null-coalesce
-# -----------------------------------------------------------------------------
-
-`%||%` <- function(a, b) if (!is.null(a) && length(a) && !is.na(a[1])) a else b
-
-
-# -----------------------------------------------------------------------------
 # Wrapper y método print para heatmaps con título personalizado
 # -----------------------------------------------------------------------------
 
@@ -185,12 +178,12 @@ get_heatmap_palette <- function(palette = NULL,
     # Intentar como paleta discreta primero
     colors <- tryCatch({
       raw_pal <- as.character(paletteer::paletteer_d(palette, n = n))
-      sapply(raw_pal, normalize_hex, USE.NAMES = FALSE)
+      vapply(raw_pal, normalize_hex, character(1), USE.NAMES = FALSE)
     }, error = function(e) {
       # Intentar como paleta continua
       tryCatch({
         raw_pal <- as.character(paletteer::paletteer_c(palette, n = n))
-        sapply(raw_pal, normalize_hex, USE.NAMES = FALSE)
+        vapply(raw_pal, normalize_hex, character(1), USE.NAMES = FALSE)
       }, error = function(e2) {
         stop("Error al cargar paleta '", palette, "': ", e2$message)
       })
@@ -272,7 +265,7 @@ get_annotation_palette <- function(levels, palette = NULL) {
     }
     colors <- tryCatch({
       raw_pal <- as.character(paletteer::paletteer_d(palette))
-      sapply(raw_pal, normalize_hex, USE.NAMES = FALSE)
+      vapply(raw_pal, normalize_hex, character(1), USE.NAMES = FALSE)
     }, error = function(e) {
       stop("Error al cargar paleta '", palette, "': ", e$message)
     })
@@ -1201,7 +1194,8 @@ proteomics_heatmap <- function(data,
               }, error = function(e2) NULL)
             })
             if (!is.null(raw_pal) && length(raw_pal) >= 3) {
-              adjp_colors <- sapply(raw_pal[1:3], normalize_hex, USE.NAMES = FALSE)
+              adjp_colors <- vapply(raw_pal[seq_len(3)], normalize_hex,
+                                    character(1), USE.NAMES = FALSE)
             }
           }
         } else if (startsWith(palette_adjp, "brewer:")) {

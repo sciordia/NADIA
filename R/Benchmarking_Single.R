@@ -21,11 +21,6 @@
 # License: MIT
 # =============================================================================
 
-# --- Null coalescing operator ---
-if (!exists("%||%", mode = "function")) {
-  `%||%` <- function(a, b) if (is.null(a)) b else a
-}
-
 
 # =============================================================================
 # INTERNAL HELPER FUNCTIONS
