@@ -428,8 +428,12 @@
 #' by group presence, SummarizedExperiment creation, and normalization with
 #' the selected method. Output is always in log2 scale.
 #'
-#' @param data Data frame with ProteinGroups, GeneNames, UniqPepts + intensity columns
-#' @param metadata Data frame with Column, Condition, Replicate
+#' @param data Either a `proteomics_data` object -- the output of
+#'   [preprocess_spectronaut()], [preprocess_tmt()] or [preprocess_lfq()] -- in
+#'   which case `metadata` is derived from it and must be left `NULL`, or a data
+#'   frame with ProteinGroups, GeneNames, UniqPepts and the intensity columns.
+#' @param metadata Data frame with Column, Condition, Replicate. Only needed when
+#'   `data` is a data frame.
 #' @param min_reps Minimum replicates for filtering. NULL = auto: floor(min_group_size / 2)
 #' @param min_groups Minimum groups meeting min_reps (default: 1)
 #' @param norm_method Normalization method (default: "cycloess"). One of:
@@ -471,7 +475,7 @@
 #' @export
 normalize_proteomics <- function(
     data,
-    metadata,
+    metadata                = NULL,
     min_reps                = NULL,
     min_groups              = 1,
     norm_method             = "cycloess",
@@ -480,6 +484,23 @@ normalize_proteomics <- function(
     cyclic_loess_span       = 0.7,
     verbose                 = TRUE
 ) {
+  # Accept the object returned by preprocess_spectronaut()/_tmt()/_lfq() directly.
+  # Otherwise the function would be unusable on its own, since the two tables it
+  # expects are only produced by internal helpers.
+  if (inherits(data, "proteomics_data")) {
+    if (!is.null(metadata)) {
+      stop("When 'data' is a proteomics_data object, 'metadata' must not be ",
+           "supplied: it is taken from the object itself.")
+    }
+    preprocessing <- data
+    metadata      <- .prepare_metadata(preprocessing)
+    data          <- .prepare_protein_data(preprocessing)
+  } else if (is.null(metadata)) {
+    stop("'metadata' is required when 'data' is a data frame. Pass the object ",
+         "returned by preprocess_spectronaut(), preprocess_tmt() or ",
+         "preprocess_lfq() to have both derived automatically.")
+  }
+
   # Match cycloess sub-parameters
   cyclic_loess_method <- match.arg(cyclic_loess_method)
 

@@ -405,9 +405,20 @@
 #'   \itemize{
 #'     \item se_proc: Processed SummarizedExperiment with all assays
 #'     \item DEPs_results: Data frame with differential expression results
+#'     \item BoxPlot_Input: Long-format data frame with one row per protein,
+#'       sample and assay (columns Column, Assay, Intensity, Condition,
+#'       Replicate, Protein.IDs). Feed it to [boxplot_highchart_list()].
+#'     \item PCA_Input: Long-format data frame with the imputed intensities plus
+#'       one adjP_* column per comparison and a sig_any flag. Feed it to
+#'       [pca_highchart_list()], [proteomics_heatmap()] or
+#'       [proteomics_heatmap_list()].
 #'     \item comparisons: Comparisons performed
 #'     \item parameters: Parameters used
 #'   }
+#'
+#'   `BoxPlot_Input` and `PCA_Input` are always returned, whether or not
+#'   `export_dir` is given: the plotting layer needs them, and requiring a round
+#'   trip through disk to obtain them would be gratuitous.
 #'
 #' @examples
 #' \dontrun{
@@ -681,8 +692,16 @@ process_proteomics <- function(
   )
 
   # =========================================================================
-  # 5. EXPORT VISUALIZATION FILES
+  # 5. BUILD THE VISUALIZATION INPUTS (and export them if asked to)
   # =========================================================================
+
+  # These two tables are what the plotting layer consumes. They are built
+  # unconditionally and returned, so that a caller can pipe straight into
+  # boxplot_highchart_list(), pca_highchart_list() or proteomics_heatmap()
+  # without having to write anything to disk. Building them is cheap (well under
+  # a tenth of a second on a typical dataset).
+  boxplot_data <- .se_to_long(se_proc, assay_names = c("log2", assay_label))
+  pca_data     <- .prepare_pca_input(se_proc, DEPs_results, assay_label, alpha)
 
   if (export_volcano || export_boxplot || export_pca) {
     if (verbose) cat("\n=== EXPORTING FILES FOR VISUALIZATION ===\n")
@@ -703,7 +722,6 @@ process_proteomics <- function(
 
     # 5.2 BoxPlot_Input (SE -> long format)
     if (export_boxplot) {
-      boxplot_data <- .se_to_long(se_proc, assay_names = c("log2", assay_label))
       boxplot_file <- file.path(export_dir, paste0("BoxPlot_Input", viz_suffix))
       .export_data(boxplot_data, boxplot_file, export_format)
       if (verbose) cat("- BoxPlot_Input exported\n")
@@ -711,7 +729,6 @@ process_proteomics <- function(
 
     # 5.3 PCA_Input (SE + DE in long format)
     if (export_pca) {
-      pca_data <- .prepare_pca_input(se_proc, DEPs_results, assay_label, alpha)
       pca_file <- file.path(export_dir, paste0("PCA_Input", viz_suffix))
       .export_data(pca_data, pca_file, export_format)
       if (verbose) cat("- PCA_Input exported\n")
@@ -725,6 +742,8 @@ process_proteomics <- function(
   result <- list(
     se_proc = se_proc,
     DEPs_results = DEPs_results,
+    BoxPlot_Input = boxplot_data,
+    PCA_Input = pca_data,
     comparisons = comparisons,
     parameters = list(
       min_reps_filter = norm_result$filter_summary$min_reps,

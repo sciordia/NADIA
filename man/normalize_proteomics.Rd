@@ -6,7 +6,7 @@
 \usage{
 normalize_proteomics(
   data,
-  metadata,
+  metadata = NULL,
   min_reps = NULL,
   min_groups = 1,
   norm_method = "cycloess",
@@ -17,9 +17,13 @@ normalize_proteomics(
 )
 }
 \arguments{
-\item{data}{Data frame with ProteinGroups, GeneNames, UniqPepts + intensity columns}
+\item{data}{Either a \code{proteomics_data} object -- the output of
+\code{\link[=preprocess_spectronaut]{preprocess_spectronaut()}}, \code{\link[=preprocess_tmt]{preprocess_tmt()}} or \code{\link[=preprocess_lfq]{preprocess_lfq()}} -- in
+which case \code{metadata} is derived from it and must be left \code{NULL}, or a data
+frame with ProteinGroups, GeneNames, UniqPepts and the intensity columns.}
 
-\item{metadata}{Data frame with Column, Condition, Replicate}
+\item{metadata}{Data frame with Column, Condition, Replicate. Only needed when
+\code{data} is a data frame.}
 
 \item{min_reps}{Minimum replicates for filtering. NULL = auto: floor(min_group_size / 2)}
 

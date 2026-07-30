@@ -148,9 +148,20 @@ List of class proteomics_result with:
 \itemize{
 \item se_proc: Processed SummarizedExperiment with all assays
 \item DEPs_results: Data frame with differential expression results
+\item BoxPlot_Input: Long-format data frame with one row per protein,
+sample and assay (columns Column, Assay, Intensity, Condition,
+Replicate, Protein.IDs). Feed it to \code{\link[=boxplot_highchart_list]{boxplot_highchart_list()}}.
+\item PCA_Input: Long-format data frame with the imputed intensities plus
+one adjP_* column per comparison and a sig_any flag. Feed it to
+\code{\link[=pca_highchart_list]{pca_highchart_list()}}, \code{\link[=proteomics_heatmap]{proteomics_heatmap()}} or
+\code{\link[=proteomics_heatmap_list]{proteomics_heatmap_list()}}.
 \item comparisons: Comparisons performed
 \item parameters: Parameters used
 }
+
+\code{BoxPlot_Input} and \code{PCA_Input} are always returned, whether or not
+\code{export_dir} is given: the plotting layer needs them, and requiring a round
+trip through disk to obtain them would be gratuitous.
 }
 \description{
 Complete processing pipeline: filtering, normalization, imputation

@@ -31,11 +31,19 @@
 #' experiment has 16 injections of the same digest split across four conditions
 #' (A-D) of four replicates each, and 10,437 protein groups.
 #'
-#' So that the package examples run quickly, three conditions (A, B and D) and
-#' the 2,000 proteins with the most quantified values are kept. Three and not
-#' two conditions are retained because the soft-clustering in
-#' [pattern_profiler_analysis()] groups profiles across conditions, and with
-#' only two points per profile there is no pattern left to cluster.
+#' So that the package examples run quickly, three conditions (A, B and D) and a
+#' random sample of 2,000 protein groups are kept. Three and not two conditions
+#' are retained because the soft-clustering in [pattern_profiler_analysis()]
+#' groups profiles across conditions, and with only two points per profile there
+#' is no pattern left to cluster.
+#'
+#' The sample is drawn at random, with a fixed seed, rather than picking the
+#' best-covered proteins. That matters: **8.1 % of the intensities are missing
+#' and 72.2 % of the proteins are complete**, closely matching the 7.9 % and
+#' 72.1 % of the full experiment. Selecting the most-quantified proteins instead
+#' would yield a dataset with no missing values at all, in which every imputation
+#' method returns the input unchanged, and in which 87 % of the proteins come out
+#' differentially expressed instead of the 31 % of the full data.
 #'
 #' The full recipe is in `system.file("scripts", "make_extdata.R", package =
 #' "NADIA")`. The trimmed report this object is derived from is also
@@ -55,4 +63,11 @@
 #' # Proteins and intensity columns
 #' dim(nadia_dia$protein_quant)
 #' grep("^PG.Quantity_", colnames(nadia_dia$protein_quant), value = TRUE)
+#'
+#' # Missing values, which is what the package is about. Spectronaut writes
+#' # zeros where a protein was not quantified.
+#' quant <- as.matrix(nadia_dia$protein_quant[
+#'   grep("^PG.Quantity_", colnames(nadia_dia$protein_quant))])
+#' quant[quant == 0] <- NA
+#' round(100 * mean(is.na(quant)), 1)
 "nadia_dia"

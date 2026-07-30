@@ -30,15 +30,33 @@
 # ----------------
 # The goal is to keep `R CMD check` well under the 10-minute limit with more than
 # a hundred examples running, not to save space: the full DIA report would
-# already fit within the size limit. Three of the four conditions are kept (A, B
-# and D) because with only two the soft clustering in the Pattern Profiler
-# becomes degenerate -- it groups profiles across conditions, and with two points
-# per profile there is no pattern left to group -- along with the 2,000 proteins
-# with the most quantified values out of the original 10,437.
+# already fit within the size limit.
+#
+# Three of the four conditions are kept (A, B and D) because with only two the
+# soft clustering in the Pattern Profiler becomes degenerate -- it groups profiles
+# across conditions, and with two points per profile there is no pattern left to
+# group.
+#
+# The 2,000 proteins are drawn as a RANDOM SAMPLE with a fixed seed, and that
+# choice matters. An earlier version took "the 2,000 proteins with the most
+# quantified values", which sounds harmless but selects precisely the complete,
+# high-abundance ones and destroys the two structures the package exists to deal
+# with. Measured on this dataset:
+#
+#                        missing   Up     Down   No Change
+#   full (10,437)          7.9 %   15.5 %  15.3 %   69.2 %
+#   most-quantified        0.0 %   35.6 %  51.1 %   13.3 %   <- unrepresentative
+#   random sample          8.1 %   16.4 %  15.6 %   67.9 %   <- faithful
+#
+# With 0 % missing values every imputation method returns the input matrix
+# unchanged, so the imputation examples would demonstrate nothing -- in a package
+# named after missing values. A random sample reproduces both the missingness rate
+# and the differential-expression balance at the same size and speed.
 # =============================================================================
 
 CONDITIONS <- c("A", "B", "D")
 N_PROTEINS <- 2000L
+SEED       <- 42L
 
 RAW      <- "data-raw"
 EXTDATA  <- "inst/extdata"
@@ -61,10 +79,11 @@ dia <- utils::read.delim(file.path(RAW, "Curso_Q24_DIA_Spectronaut_v20_Report.ts
                          stringsAsFactors = FALSE)
 dia <- dia[dia$R.Condition %in% CONDITIONS, , drop = FALSE]
 
-# The 2,000 proteins with the most quantified values in those conditions
-quantified <- table(dia$PG.ProteinGroups[!is.na(dia$PG.Quantity) &
-                                           dia$PG.Quantity > 0])
-selected <- names(sort(quantified, decreasing = TRUE))[seq_len(N_PROTEINS)]
+# A random sample of protein groups, so that the missingness rate and the
+# differential-expression balance of the full dataset are preserved (see the
+# header for the numbers). The seed is fixed so the file is reproducible.
+set.seed(SEED)
+selected <- sample(unique(dia$PG.ProteinGroups), N_PROTEINS)
 dia <- dia[dia$PG.ProteinGroups %in% selected, , drop = FALSE]
 gz(dia, file.path(EXTDATA, "nadia_dia_report.tsv.gz"))
 
@@ -109,3 +128,12 @@ message(sprintf("  protein_quant: %d x %d | %d samples | %d conditions",
                 nrow(nadia_dia$protein_quant), ncol(nadia_dia$protein_quant),
                 nrow(nadia_dia$metadata),
                 length(unique(nadia_dia$metadata$R.Condition))))
+
+# Report the missingness rate: it is the property that makes this dataset useful
+# as an example, so a regression in the sampling should be visible here.
+quant_cols <- grep("^PG.Quantity_", colnames(nadia_dia$protein_quant), value = TRUE)
+mat <- as.matrix(nadia_dia$protein_quant[, quant_cols])
+mat[mat == 0] <- NA
+message(sprintf("  missing values: %.1f %% | complete proteins: %.1f %%",
+                100 * mean(is.na(mat)),
+                100 * mean(rowSums(is.na(mat)) == 0)))

@@ -50,7 +50,9 @@ install_nadia_deps(optional = FALSE)     # only the essentials
 ```r
 library(NADIA)
 
-# Preprocessed example dataset: 3 conditions x 4 replicates, 2,000 proteins
+# Preprocessed example dataset: 3 conditions x 4 replicates, 2,000 proteins,
+# 8 % missing values (a random sample of the full experiment, so the missingness
+# and the differential-expression balance are representative)
 data(nadia_dia)
 
 res <- process_proteomics(nadia_dia,
