@@ -28,9 +28,18 @@
 #
 # Trimming applied
 # ----------------
-# The goal is to keep `R CMD check` well under the 10-minute limit with more than
-# a hundred examples running, not to save space: the full DIA report would
-# already fit within the size limit.
+# Every report is cut down to 2,000 protein groups, drawn at random with a fixed
+# seed. Two reasons, in this order:
+#
+# 1. The source experiments are unpublished. Shipping a report whole would
+#    distribute the entire private dataset through a public package, which is not
+#    what an example needs. A random subset illustrates the format and the
+#    pipeline just as well.
+# 2. It keeps `R CMD check` well under the 10-minute limit with more than a
+#    hundred examples running.
+#
+# The species map is likewise restricted to the protein groups that survive in
+# the DIA example, since nothing downstream looks up the rest.
 #
 # Three of the four conditions are kept (A, B and D) because with only two the
 # soft clustering in the Pattern Profiler becomes degenerate -- it groups profiles
@@ -88,17 +97,25 @@ dia <- dia[dia$PG.ProteinGroups %in% selected, , drop = FALSE]
 gz(dia, file.path(EXTDATA, "nadia_dia_report.tsv.gz"))
 
 # --- 2. DIA report with species (spike-in, for benchmarking) -----------------
+# Restricted to the protein groups kept above: the benchmarking examples only
+# ever look up the 2,000 that are in the example dataset, so shipping the
+# species of the whole experiment would expose data for no purpose.
 message("2. nadia_dia_spikein.tsv.gz")
 spk <- utils::read.delim(
   file.path(RAW, "Curso_Q24_DIA_Spectronaut_v20_Report_Species.tsv"),
   sep = "\t", header = TRUE, check.names = FALSE, stringsAsFactors = FALSE)
+spk <- spk[spk$PG.ProteinGroups %in% selected, , drop = FALSE]
 gz(spk, file.path(EXTDATA, "nadia_dia_spikein.tsv.gz"))
 
 # --- 3. Proteome Discoverer TMT report --------------------------------------
+# TMT and LFQ come in wide format, one row per protein, so the sample is drawn
+# straight from the rows. Same criterion as the DIA report: random, fixed seed.
 message("3. nadia_tmt_report.tsv.gz")
 tmt <- utils::read.delim(
   file.path(RAW, "20260527_Q25_TMTpro_TMT1y2_10Fr_Static_3engines_onlyRAW.tsv"),
   sep = "\t", header = TRUE, check.names = FALSE, stringsAsFactors = FALSE)
+set.seed(SEED)
+tmt <- tmt[sort(sample(nrow(tmt), min(N_PROTEINS, nrow(tmt)))), , drop = FALSE]
 gz(tmt, file.path(EXTDATA, "nadia_tmt_report.tsv.gz"))
 
 # --- 4. Proteome Discoverer LFQ report and its annotation -------------------
@@ -106,6 +123,8 @@ message("4. nadia_lfq_report.tsv.gz + nadia_lfq_annotation.tsv")
 lfq <- utils::read.delim(
   file.path(RAW, "20260710_AIturrate_2659_LFQ_QUANT_onlyRAW.tsv"),
   sep = "\t", header = TRUE, check.names = FALSE, stringsAsFactors = FALSE)
+set.seed(SEED)
+lfq <- lfq[sort(sample(nrow(lfq), min(N_PROTEINS, nrow(lfq)))), , drop = FALSE]
 gz(lfq, file.path(EXTDATA, "nadia_lfq_report.tsv.gz"))
 
 file.copy(file.path(RAW, "20260710_AIturrate_2659_LFQ_QUANT_onlyRAW_Annot.tsv"),
