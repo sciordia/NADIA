@@ -1,10 +1,5 @@
 
 # Cargar las librerias
-library(ggplot2)
-library(ggrepel)
-library(readr)
-library(highcharter)
-library(paletteer)
 
 
 #' Volcano Plot Interactivo con Highcharter
@@ -24,6 +19,7 @@ library(paletteer)
 #'   Usa \code{\{comparison\}} como placeholder (ej: "Volcano Plot: \{comparison\}" -> "Volcano Plot: B-A")
 #'
 #' @return Lista de objetos highchart
+#' @export
 volcano_highchart_list <- function(
     de_res,
     ain = NULL,

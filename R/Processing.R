@@ -13,12 +13,8 @@
 # Licencia: MIT
 # =============================================================================
 
-# --- Source sub-modules ---
-.self_dir <- if (sys.nframe() > 0) dirname(sys.frame(1)$ofile) else "R"
-.self_dir <- if (is.null(.self_dir) || .self_dir == "") "R" else .self_dir
-source(file.path(.self_dir, "Normalization.R"))
-source(file.path(.self_dir, "Imputation.R"))
-source(file.path(.self_dir, "DEAnalysis.R"))
+# Normalization.R, Imputation.R, DEAnalysis.R y Batch_Correction.R comparten
+# namespace con este archivo, así que no hace falta cargarlos.
 
 # =============================================================================
 # LINKER FUNCTIONS (internal)
@@ -558,8 +554,6 @@ process_proteomics <- function(
   input_to_imputation <- norm_method
 
   if (batch_correct) {
-    source(file.path(.self_dir, "Batch_Correction.R"))
-
     if (!batch_column %in% colnames(SummarizedExperiment::colData(se))) {
       stop("batch_correct=TRUE but batch column '", batch_column,
            "' not found in colData(se).\n",

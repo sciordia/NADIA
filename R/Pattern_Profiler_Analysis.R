@@ -20,27 +20,8 @@
 # DEPENDENCIAS
 # -----------------------------------------------------------------------------
 
-library(SummarizedExperiment)
-library(Biobase)
-library(Mfuzz)
-library(dplyr)
-library(tidyr)
-library(arrow)
 
 
-# --- Utilidades compartidas (helpers de RNG en R/utils.R) --------------------
-# Si no se encuentran, se degrada a no-op: el comportamiento es el de antes
-# (set.seed altera el RNG de la sesión) en lugar de fallar.
-if (!exists(".rng_state", mode = "function")) {
-  .nadia_utils <- c("R/utils.R", "utils.R")
-  .nadia_utils <- .nadia_utils[file.exists(.nadia_utils)]
-  if (length(.nadia_utils) > 0) {
-    source(.nadia_utils[1], local = FALSE)
-  } else {
-    .rng_state   <- function() NULL
-    .rng_restore <- function(state) invisible(NULL)
-  }
-}
 
 
 # =============================================================================
@@ -722,6 +703,7 @@ build_long_output <- function(cl, eset_std, conditions, min_membership) {
 #'   output_file = "data/Pattern_Profiler_Input.parquet"
 #' )
 #' }
+#' @export
 pattern_profiler_analysis <- function(se_proc,
                                        DEPs_results,
                                        assay_name = "LoessCyc",
@@ -741,6 +723,12 @@ pattern_profiler_analysis <- function(se_proc,
   filter_mode <- match.arg(filter_mode)
   aggregate <- match.arg(aggregate)
   selection_method <- match.arg(selection_method)
+
+  # Mfuzz llama a exprs() y cmeans() sin cualificar, así que necesita Biobase y
+  # e1071 adjuntados en la ruta de búsqueda. Se adjuntan aquí y se sueltan al
+  # salir, de modo que la sesión del usuario queda como estaba.
+  .pp_adjuntados <- .mfuzz_deps_attach()
+  on.exit(.mfuzz_deps_detach(.pp_adjuntados), add = TRUE)
 
   if (verbose) message("=== Pattern Profiler Analysis ===\n")
 

@@ -1,7 +1,5 @@
 
 # Cargar las librerias
-library(reactable)
-library(htmltools)
 
 
 # =============================================================================
@@ -1063,6 +1061,7 @@ library(htmltools)
 #' # output$tabla <- renderReactable({
 #' #   results_list_reactable(data(), protein_quant = pq, element_id = "tabla")
 #' # })
+#' @export
 results_list_reactable <- function(
     data,
     protein_quant = NULL,
@@ -1186,6 +1185,7 @@ results_list_reactable <- function(
 #'
 #' # Con protein_quant
 #' results_list_widget(de_res, protein_quant = preprocessing$protein_quant)
+#' @export
 results_list_widget <- function(
     data,
     protein_quant = NULL,
@@ -2474,6 +2474,7 @@ results_list_widget <- function(
 #' )
 #' protein_list_reactable(res$protein_id, metadata = res$metadata)
 #' }
+#' @export
 protein_list_reactable <- function(
     data,
     metadata = NULL,
@@ -2567,7 +2568,7 @@ protein_list_reactable <- function(
 #' Envuelve \code{protein_list_reactable()} con:
 #'  - Barra de busqueda y botones (toggle filtros, limpiar, export a Excel).
 #'  - Chips por condicion que ocultan/muestran los 16 columnas asociadas.
-#'  - Filtro numerico sobre MW [Da] con operadores AND/OR.
+#'  - Filtro numerico sobre MW en Da con operadores AND/OR.
 #'  - Export a Excel con cabeceras de 2 niveles (grupos mergeados + sub-labels)
 #'    y tinte por condicion, reproduciendo el formato manual.
 #'
@@ -2580,6 +2581,7 @@ protein_list_reactable <- function(
 #' \dontrun{
 #' protein_list_widget("data/Protein_ID_20260423_142504.tsv")
 #' }
+#' @export
 protein_list_widget <- function(
     data,
     metadata = NULL,
@@ -3015,6 +3017,7 @@ protein_list_widget <- function(
 #'   matrix_data = "data/matrix_log2_cycloess_Impseq_min.tsv"
 #' )
 #' }
+#' @export
 quant_list_widget <- function(
     data        = "data/Protein_QUANT_20260423_142504.tsv",
     matrix_data = "data/matrix_log2_cycloess_Impseq_min.tsv",
@@ -3460,6 +3463,7 @@ quant_list_widget <- function(
 #' \dontrun{
 #' summary_list_widget("data/Metadata_20260423_142504.tsv")
 #' }
+#' @export
 summary_list_widget <- function(
     data       = "data/Metadata_20260423_142504.tsv",
     page_size  = 16,
@@ -3806,26 +3810,4 @@ summary_list_widget <- function(
     filters_panel,
     tbl
   ))
-}
-
-
-# =============================================================================
-# Ejemplos de Uso (no ejecutar)
-# =============================================================================
-if (FALSE) {
-  source("R/Preprocessing.R")
-  source("R/Results_List_reactable.R")
-
-  # Desde TSV directo
-  protein_list_widget("data/Protein_ID_20260423_142504.tsv")
-
-  # Desde el resultado de preprocess_spectronaut()
-  res <- preprocess_spectronaut(
-    file_path = "data/Curso_Q24_DIA_Spectronaut_v20_Report.tsv",
-    condition_order = c("A", "B", "C", "D")
-  )
-  protein_list_widget(res$protein_id, metadata = res$metadata)
-
-  # Version sin filtros (Shiny puede envolverla)
-  protein_list_reactable(res$protein_id, element_id = "tabla_id")
 }

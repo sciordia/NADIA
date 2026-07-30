@@ -2,8 +2,6 @@
 # PCA Plot Interactivo con Highcharts para Datos de Proteómica
 # =============================================================================
 
-library(highcharter)
-library(dplyr)
 
 
 # -----------------------------------------------------------------------------
@@ -298,6 +296,7 @@ compute_confidence_ellipse <- function(scores_df,
 #' @param label_size Tamaño de fuente de las etiquetas en px (default: 10)
 #'
 #' @return Objeto highchart
+#' @export
 pca_highchart <- function(scores_df,
                           color_by = "Condition",
                           group_order = NULL,
@@ -705,6 +704,7 @@ pca_highchart <- function(scores_df,
 #' # Visualizar
 #' hc_pcas[["all"]]
 #' }
+#' @export
 pca_highchart_list <- function(pca_input,
                                modes = c("all", "any"),
                                alpha = 0.05,

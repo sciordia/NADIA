@@ -28,32 +28,7 @@
 # License: MIT
 # =============================================================================
 
-# --- Utilidades compartidas (helpers de RNG en R/utils.R) --------------------
-# Si no se encuentran, se degrada a no-op: el comportamiento es el de antes
-# (set.seed altera el RNG de la sesión) en lugar de fallar.
-if (!exists(".rng_state", mode = "function")) {
-  .nadia_utils <- c("R/utils.R", "utils.R")
-  .nadia_utils <- .nadia_utils[file.exists(.nadia_utils)]
-  if (length(.nadia_utils) > 0) {
-    source(.nadia_utils[1], local = FALSE)
-  } else {
-    .rng_state   <- function() NULL
-    .rng_restore <- function(state) invisible(NULL)
-  }
-}
 
-# --- Self-dir sourcing for Imputation.R ---
-.self_dir <- if (sys.nframe() > 0) dirname(sys.frame(1)$ofile) else "R"
-
-if (!exists(".dispatch_imputation", mode = "function")) {
-  .imp_source_path <- file.path(.self_dir, "Imputation.R")
-  if (file.exists(.imp_source_path)) {
-    source(.imp_source_path, local = FALSE)
-  } else {
-    warning("Imputation.R not found at '", .imp_source_path,
-            "'. Re-imputation will not be available.")
-  }
-}
 
 # --- Benchmark methods (15 individual methods, excludes combo/softHybrid/none) ---
 # "with" se excluye por defecto: requiere `with_value` y falla si no se provee.
@@ -677,17 +652,8 @@ im_prepare_se <- function(preprocessing,
       message("im_prepare_se: winner from pc1_rank -> '", norm_method, "'")
   }
 
-  # --- Lazy-source Normalization_Metrics.R ---
-  if (!exists("nm_prepare_se", mode = "function") ||
-      !exists(".nm_dispatch_normalization", mode = "function")) {
-    nm_source_path <- file.path(.self_dir, "Normalization_Metrics.R")
-    if (file.exists(nm_source_path)) {
-      source(nm_source_path, local = FALSE)
-    } else {
-      stop("Normalization_Metrics.R not found at '", nm_source_path,
-           "'. Required for im_prepare_se().")
-    }
-  }
+  # nm_prepare_se() y .nm_dispatch_normalization() están en
+  # Normalization_Metrics.R, que comparte namespace con este archivo.
 
   # --- Build baseline SE with assay "log2" ---
   if (verbose) message("im_prepare_se: building baseline SE ...")
@@ -1396,140 +1362,4 @@ imputation_metrics <- function(se,
                      plot_width, plot_height, plot_dpi, verbose)
 
   result
-}
-
-# =============================================================================
-# SECTION 8: EXAMPLE WORKFLOW
-# =============================================================================
-#
-# Assumes:
-#   - ./results/ contains normalized matrix TSV files (matrix_log2_*.tsv)
-#   - ./data/metadata.tsv has at least: Column, Condition
-#   - Imputation.R is accessible in ./R/
-#
-# Run with:
-#   source("R/Imputation_Metrics.R")
-# -----------------------------------------------------------------------------
-
-if (FALSE) {
-
-  # ---- 1. Load normalized matrices into a SummarizedExperiment ---------------
-
-  se_nm <- import_norm_matrices(
-    tsv_dir       = "./results",
-    metadata_path = "./data/metadata.tsv",
-    pattern       = "matrix_log2_.*\\.tsv$"
-  )
-
-  SummarizedExperiment::assayNames(se_nm)
-  dim(se_nm)
-
-
-  # ---- 2. Generate all 6 plots + metrics table (full benchmark) --------------
-
-  res <- imputation_metrics(se_nm, assay_name = "cycloess")
-
-  names(res)  # nrmse sor pss acc_oi ranking metrics metrics_table
-
-
-  # ---- 3. Inspect individual plots -------------------------------------------
-
-  res$nrmse           # NRMSE bar chart (lower = better)
-  res$sor             # SOR bar chart (lower = better)
-  res$pss             # PSS bar chart (lower = better, requires vegan)
-  res$acc_oi          # ACC_OI bar chart (higher = better)
-  res$ranking         # Heatmap of ranks per metric
-  res$metrics         # Faceted bar chart of all 4 metrics
-
-  # Metrics table (data.frame, always present)
-  res$metrics_table
-
-
-  # ---- 4. Subset of methods (faster) -----------------------------------------
-
-  res_fast <- imputation_metrics(
-    se_nm,
-    assay_name = "cycloess",
-    methods    = c("knn", "Impseqrob", "QRILC", "min", "zero")
-  )
-  res_fast$metrics_table
-  res_fast$ranking
-
-
-  # ---- 5. Standalone metrics computation (no plots) --------------------------
-
-  metrics_df <- im_compute_metrics(
-    se_nm,
-    assay_name = "cycloess",
-    methods    = c("knn", "min", "MinDet", "zero"),
-    verbose    = TRUE
-  )
-  print(metrics_df)
-
-
-  # ---- 6. Individual plot functions ------------------------------------------
-
-  im_plot_nrmse(metrics_df)
-  im_plot_ranking(metrics_df)
-
-
-  # ---- 7. Combo and softHybrid methods ---------------------------------------
-
-  # Compare individual methods alongside combo (MAR+MNAR) strategies
-  res_combo <- imputation_metrics(
-    se_nm,
-    assay_name = "cycloess",
-    methods    = c("knn", "min", "MinDet"),
-    combo_methods = list(
-      "Impseq+min"      = list(mar_method = "Impseq", mnar_method = "min"),
-      "Impseqrob+min"   = list(mar_method = "Impseqrob", mnar_method = "min"),
-      "bpca+MinProb"    = list(mar_method = "bpca", mnar_method = "MinProb"),
-      "sH_knn+QRILC"    = list(mode = "softHybrid",
-                                mar_method = "knn", mnar_method = "QRILC")
-    )
-  )
-  res_combo$metrics_table
-  res_combo$ranking
-
-  # Only combo methods (no individual)
-  res_combo_only <- imputation_metrics(
-    se_nm,
-    assay_name = "cycloess",
-    methods    = NULL,
-    combo_methods = list(
-      "Impseq+min"    = list(mar_method = "Impseq", mnar_method = "min"),
-      "Impseqrob+min" = list(mar_method = "Impseqrob", mnar_method = "min")
-    )
-  )
-
-
-  # ---- 8. From_data NA pattern (mimics real NA distribution) -----------------
-
-  res_fd <- imputation_metrics(
-    se_nm,
-    assay_name = "cycloess",
-    pattern    = "from_data",
-    methods    = c("knn", "Impseqrob", "min", "QRILC")
-  )
-
-
-  # ---- 9. Auto-export plots and tables ----------------------------------------
-
-  # Export all plots (PNG) and tables (TSV) to a directory
-  res <- imputation_metrics(se_nm, assay_name = "cycloess",
-                            output_dir = "./results/imputation_metrics")
-
-  # Only tables (no plots)
-  res <- imputation_metrics(se_nm, assay_name = "cycloess",
-                            output_dir    = "./results/imputation_metrics",
-                            export_plots  = FALSE)
-
-  # Only plots (no tables), custom dimensions
-  res <- imputation_metrics(se_nm, assay_name = "cycloess",
-                            output_dir    = "./results/imputation_metrics",
-                            export_tables = FALSE,
-                            plot_width    = 16,
-                            plot_height   = 10,
-                            plot_dpi      = 300)
-
 }

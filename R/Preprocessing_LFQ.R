@@ -23,13 +23,6 @@
 # =============================================================================
 
 # --- Dependencias ---
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(tidyr)
-  library(stringr)
-  library(tibble)
-  library(readr)
-})
 
 # =============================================================================
 # Funciones Auxiliares Internas
@@ -418,25 +411,4 @@ print.lfq_data <- function(x, ...) {
       paste(levels(x$metadata$R.Condition) %||%
               unique(x$metadata$R.Condition), collapse = ", "), "\n")
   invisible(x)
-}
-
-# =============================================================================
-# Ejemplos de Uso (no ejecutar)
-# =============================================================================
-if (FALSE) {
-  result <- preprocess_lfq(
-    file_path  = "data/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW.tsv",
-    annot_path = "data/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW_Annot.tsv",
-    export_dir = "./results"
-  )
-  print(result)
-
-  source("R/Processing.R")
-  res <- process_proteomics(
-    preprocessing = result,
-    norm_method   = "cycloess",
-    imp_method    = "combo",
-    control       = "WT",
-    export_dir    = "./results_lfq"
-  )
 }

@@ -30,32 +30,7 @@
 # License: MIT
 # =============================================================================
 
-# --- Utilidades compartidas (helpers de RNG en R/utils.R) --------------------
-# Si no se encuentran, se degrada a no-op: el comportamiento es el de antes
-# (set.seed altera el RNG de la sesión) en lugar de fallar.
-if (!exists(".rng_state", mode = "function")) {
-  .nadia_utils <- c("R/utils.R", "utils.R")
-  .nadia_utils <- .nadia_utils[file.exists(.nadia_utils)]
-  if (length(.nadia_utils) > 0) {
-    source(.nadia_utils[1], local = FALSE)
-  } else {
-    .rng_state   <- function() NULL
-    .rng_restore <- function(state) invisible(NULL)
-  }
-}
 
-# --- Self-dir sourcing for Normalization.R ---
-.self_dir <- if (sys.nframe() > 0) dirname(sys.frame(1)$ofile) else "R"
-
-if (!exists(".norm_log2norm", mode = "function")) {
-  .norm_source_path <- file.path(.self_dir, "Normalization.R")
-  if (file.exists(.norm_source_path)) {
-    source(.norm_source_path, local = FALSE)
-  } else {
-    warning("Normalization.R not found at '", .norm_source_path,
-            "'. Auto-normalization will not be available.")
-  }
-}
 
 # --- Benchmark methods (12, excludes "log2" which is the baseline) ---
 .NM_BENCH_METHODS <- c(
@@ -285,7 +260,7 @@ if (!exists(".norm_log2norm", mode = "function")) {
 
 #' MDS goodness-of-fit
 #'
-#' GOF[1] from `cmdscale()` with `eig = TRUE`: proportion of variance
+#' GOF\[1\] from `cmdscale()` with `eig = TRUE`: proportion of variance
 #' retained in the 2D MDS projection. Uses scaled data (consistent with
 #' `nm_plot_mds`).
 #'
@@ -533,17 +508,8 @@ nm_prepare_se <- function(preprocessing,
     stop("'preprocessing' must be a proteomics_data object ",
          "(output of preprocess_spectronaut() or preprocess_tmt()).")
 
-  # Source Processing.R for .prepare_metadata / .prepare_protein_data
-  if (!exists(".prepare_metadata", mode = "function")) {
-    proc_path <- file.path(.self_dir, "Processing.R")
-    if (file.exists(proc_path)) {
-      source(proc_path, local = FALSE)
-    } else {
-      stop("Processing.R not found at '", proc_path,
-           "'. Required for nm_prepare_se().")
-    }
-  }
-
+  # .prepare_metadata() y .prepare_protein_data() están en Processing.R, que
+  # comparte namespace con este archivo.
   metadata     <- .prepare_metadata(preprocessing, covariate_df = covariate_df)
   protein_data <- .prepare_protein_data(preprocessing)
 
@@ -2276,171 +2242,4 @@ normalization_metrics <- function(se,
                      plot_width, plot_height, plot_dpi, verbose)
 
   result
-}
-
-# =============================================================================
-# EXAMPLE WORKFLOW
-# =============================================================================
-#
-# Assumes:
-#   - ./results/ contains files like:
-#       matrix_log2_cycloess.tsv
-#       matrix_log2_Quantile.tsv
-#       matrix_log2_vsn.tsv
-#   - ./data/metadata.tsv has at least two columns: Column, Condition
-#
-# Run with:
-#   source("R/Normalization_Metrics.R")
-# -----------------------------------------------------------------------------
-
-if (FALSE) {
-
-  # ---- 1. Load all normalized matrices into a SummarizedExperiment ----------
-
-  se_nm <- import_norm_matrices(
-    tsv_dir       = "./results",
-    metadata_path = "./data/metadata.tsv",   # columns: Column, Condition
-    pattern       = "matrix_log2_.*\\.tsv$"
-  )
-
-  # Check loaded assays and dimensions
-  SummarizedExperiment::assayNames(se_nm)  # e.g. "cycloess", "Quantile", "vsn"
-  dim(se_nm)                               # proteins x samples
-
-
-  # ---- 2. Generate all 11 quality plots at once ------------------------------
-
-  plots <- normalization_metrics(se_nm)
-
-  # Names of available plots + metrics_table + pc1_rank
-  names(plots)  # boxplot density pcv pmad pev pca correlation mds scatter qq metrics pc1_ranking metrics_table pc1_rank
-
-
-  # ---- 3. Inspect individual plots -------------------------------------------
-
-  plots$boxplot     # intensity distribution per sample
-  plots$density     # KDE curves per sample
-  plots$pcv         # mean CV per condition and method
-  plots$pmad        # mean MAD per condition and method
-  plots$pev         # mean variance per condition and method
-  plots$pca         # PC1 vs PC2, colored by condition
-  plots$correlation # intra-group Pearson correlation violin
-  plots$mds         # MDS 2D scatter
-  plots$scatter     # sample-vs-sample scatter with R²
-  plots$qq          # Q-Q normality plot for first sample
-  plots$metrics     # group-separation metrics bar chart
-
-  # Metrics table (data.frame, always present)
-  plots$metrics_table
-
-  # PC1 ranking (data.frame, always present)
-  plots$pc1_rank                # Method, PC1_VarPct, Rank — sorted desc
-  plots$pc1_ranking             # horizontal bar chart of PC1 variance
-
-
-  # ---- 4. Single assay, single plot ------------------------------------------
-
-  nm_plot_density(se_nm, assay_names = "cycloess")
-
-  # Scatter between specific samples
-  nm_plot_scatter(se_nm, sample1 = "A_1", sample2 = "A_2")
-
-  # Q-Q for a specific sample
-  nm_plot_qq(se_nm, which_sample = "B_1")
-
-
-  # ---- 5. Selective execution via orchestrator --------------------------------
-
-  # Only scatter, Q-Q and PCA for two methods
-  subset_plots <- normalization_metrics(
-    se_nm,
-    assay_names = c("cycloess", "Quantile"),
-    plots       = c("scatter", "qq", "pca")
-  )
-  subset_plots$scatter
-
-
-  # ---- 6. Standalone group-separation metrics ---------------------------------
-
-  # Compute metrics table directly (without generating plots)
-  metrics_df <- nm_compute_metrics(se_nm)
-  print(metrics_df)
-
-  # Plot metrics as a faceted bar chart
-  nm_plot_metrics(se_nm)
-
-  # PC1 variance ranking
-  nm_rank_pc1(se_nm)              # data.frame: Method, PC1_VarPct, Rank
-  nm_plot_pc1_ranking(se_nm)      # horizontal bar chart
-
-  # MDS1 variance ranking
-  nm_rank_mds1(se_nm)             # data.frame: Method, MDS1_VarPct, Rank
-  nm_plot_mds1_ranking(se_nm)     # horizontal bar chart
-
-  # Metric-based rankings (median per method)
-  nm_rank_pcv(se_nm)              # data.frame: Method, Median_PCV, Rank  (asc)
-  nm_rank_pmad(se_nm)             # data.frame: Method, Median_PMAD, Rank (asc)
-  nm_rank_pev(se_nm)              # data.frame: Method, Median_PEV, Rank  (asc)
-  nm_rank_cor(se_nm)              # data.frame: Method, Median_Cor, Rank  (desc)
-
-  # Combined final ranking (mean of 5 individual ranks)
-  nm_rank_final(se_nm)            # data.frame: Method, Rank_PCV..Rank_Sep, Rank_Final
-  nm_plot_final_ranking(se_nm)    # horizontal bar chart
-
-  # Access rankings from orchestrator result
-  plots$pc1_rank                  # data.frame
-  plots$mds1_rank                 # data.frame
-  plots$pcv_rank                  # data.frame
-  plots$pmad_rank                 # data.frame
-  plots$pev_rank                  # data.frame
-  plots$cor_rank                  # data.frame
-  plots$final_rank                # data.frame (combined)
-  plots$final_ranking             # ggplot object (bar chart)
-
-
-  # ---- 7. Auto-export plots and tables ----------------------------------------
-
-  # Export all plots (PNG) and tables (TSV) to a directory
-  plots <- normalization_metrics(se_nm,
-                                 output_dir = "./results/normalization_metrics")
-
-  # Only tables (no plots)
-  plots <- normalization_metrics(se_nm,
-                                 output_dir    = "./results/normalization_metrics",
-                                 export_plots  = FALSE)
-
-  # Only plots (no tables), custom dimensions
-  plots <- normalization_metrics(se_nm,
-                                 output_dir    = "./results/normalization_metrics",
-                                 export_tables = FALSE,
-                                 plot_width    = 16,
-                                 plot_height   = 10,
-                                 plot_dpi      = 300)
-
-
-  # ---- 8. Auto-benchmark from preprocessing (no process_proteomics needed) ----
-
-  # Prepare SE with raw + log2 assays directly from preprocessing
-  se <- nm_prepare_se(preprocessing, min_reps = 3)
-  SummarizedExperiment::assayNames(se)  # "raw", "log2"
-
-  # Auto-run all 13 normalization methods + compute metrics + plots
-  plots_auto <- normalization_metrics(se, methods = "all", base_assay = "log2")
-
-  # Or only specific methods
-  plots_sub <- normalization_metrics(se,
-                                      methods = c("cycloess", "vsn", "MAD",
-                                                  "quantile.robust"))
-
-  # With custom cycloess parameters
-  plots_custom <- normalization_metrics(se,
-                                         methods     = "all",
-                                         method_args = list(
-                                           cycloess = list(method = "fast",
-                                                           span   = 0.8)))
-
-  # Standalone: get only the multi-assay SE (no plots)
-  se_bench <- nm_run_normalizations(se, methods = "all")
-  SummarizedExperiment::assayNames(se_bench)
-
 }

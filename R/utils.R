@@ -22,17 +22,16 @@
 #' Devuelve `a` salvo que sea `NULL`, en cuyo caso devuelve `b`. Misma semántica
 #' que `base::\%||\%` (disponible desde R 4.4) y que `rlang::\%||\%`.
 #'
-#' La definición solo se aplica en R < 4.4; a partir de esa versión el operador
-#' está en `base` y se usa directamente.
+#' Se define aquí en lugar de importarlo de `base` para que el paquete siga
+#' funcionando bajo el `Depends: R (>= 4.4)` declarado sin depender de que el
+#' operador esté exportado en esa versión concreta. La definición es idéntica.
 #'
 #' @param a Valor a comprobar.
 #' @param b Valor alternativo si `a` es `NULL`.
 #' @return `a` si no es `NULL`; en caso contrario `b`.
 #' @keywords internal
 #' @noRd
-if (!exists("%||%", mode = "function")) {
-  `%||%` <- function(a, b) if (is.null(a)) b else a
-}
+`%||%` <- function(a, b) if (is.null(a)) b else a
 
 
 #' Capturar el estado del generador de números aleatorios
@@ -219,6 +218,59 @@ if (!exists("%||%", mode = "function")) {
   }
 
   feat$FeatureID[which(feat[[col]] <= alpha)]
+}
+
+
+# =============================================================================
+# Dependencias de Mfuzz que exigen estar adjuntadas
+# =============================================================================
+#
+# `Mfuzz` declara `Depends: Biobase, e1071` y llama a `exprs()` y `cmeans()` sin
+# cualificar, así que sus funciones solo resuelven esos nombres si ambos paquetes
+# están en la ruta de búsqueda. `requireNamespace()` no basta: carga el namespace
+# pero no lo adjunta. Antes lo conseguía el `library(Mfuzz)` de la cabecera del
+# módulo, que arrastraba sus Depends; un paquete no puede hacer eso.
+#
+# La solución es adjuntarlos solo mientras se ejecuta el Pattern Profiler y
+# dejar la ruta de búsqueda como estaba, para no alterar la sesión del usuario.
+
+#' Adjuntar las dependencias que Mfuzz necesita en la ruta de búsqueda
+#'
+#' @return Vector con los paquetes que esta llamada ha adjuntado (posiblemente
+#'   vacío si ya lo estaban). Debe pasarse a `.mfuzz_deps_detach()`.
+#' @keywords internal
+#' @noRd
+.mfuzz_deps_attach <- function() {
+  necesarios <- c("Mfuzz", "Biobase", "e1071")
+  faltan <- necesarios[!vapply(necesarios, requireNamespace, logical(1),
+                               quietly = TRUE)]
+  if (length(faltan) > 0) {
+    stop("El Pattern Profiler necesita ", paste(faltan, collapse = ", "),
+         ". Instálalos con BiocManager::install(c(",
+         paste(sprintf('"%s"', faltan), collapse = ", "), ")).",
+         call. = FALSE)
+  }
+  # Solo Biobase y e1071 hacen falta adjuntados; Mfuzz se usa con Mfuzz::
+  adjuntables <- c("Biobase", "e1071")
+  ya_estaban <- paste0("package:", adjuntables) %in% search()
+  for (p in adjuntables[!ya_estaban]) attachNamespace(asNamespace(p))
+  adjuntables[!ya_estaban]
+}
+
+#' Deshacer lo que hizo `.mfuzz_deps_attach()`
+#'
+#' @param pkgs Vector devuelto por `.mfuzz_deps_attach()`.
+#' @return `NULL`, de forma invisible. Se llama por su efecto secundario.
+#' @keywords internal
+#' @noRd
+.mfuzz_deps_detach <- function(pkgs) {
+  for (p in pkgs) {
+    nombre <- paste0("package:", p)
+    if (nombre %in% search()) {
+      detach(nombre, character.only = TRUE, unload = FALSE)
+    }
+  }
+  invisible(NULL)
 }
 
 

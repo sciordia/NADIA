@@ -20,9 +20,6 @@
 # DEPENDENCIAS
 # -----------------------------------------------------------------------------
 
-library(highcharter)
-library(dplyr)
-library(arrow)
 
 
 # =============================================================================
@@ -119,6 +116,7 @@ configure_cluster_palette <- function(n_clusters, palette = NULL) {
 #' data <- read_pattern_profiler_data("data/Pattern_Profiler_Input.parquet",
 #'                                     min_membership = 0.5)
 #' }
+#' @export
 read_pattern_profiler_data <- function(file_path, min_membership = NULL) {
 
   if (!file.exists(file_path)) {
@@ -199,6 +197,7 @@ detect_condition_columns <- function(data) {
 #' hc <- cluster_profile_highchart(data, cluster = 1, conditions = conditions)
 #' hc
 #' }
+#' @export
 cluster_profile_highchart <- function(data,
                                        cluster,
                                        conditions = NULL,
@@ -495,6 +494,7 @@ cluster_profile_highchart <- function(data,
 #' hc_profiles[["Cluster_1"]]
 #' hc_profiles[["Cluster_2"]]
 #' }
+#' @export
 cluster_profile_highchart_list <- function(data,
                                             conditions = NULL,
                                             clusters = NULL,
@@ -578,6 +578,7 @@ cluster_profile_highchart_list <- function(data,
 #' hc_centroids <- cluster_centroids_highchart(data, conditions)
 #' hc_centroids
 #' }
+#' @export
 cluster_centroids_highchart <- function(data,
                                          conditions = NULL,
                                          clusters = NULL,
@@ -783,6 +784,7 @@ cluster_centroids_highchart <- function(data,
 #'
 #' @param data DataFrame de Pattern Profiler
 #' @return Lista con estadísticas resumidas
+#' @export
 summarize_pattern_profiler <- function(data) {
 
   conditions <- detect_condition_columns(data)

@@ -1,0 +1,90 @@
+Package: NADIA
+Type: Package
+Title: Missing Value-Aware Differential Expression Analysis of DIA Proteomics Data
+Version: 0.99.0
+Authors@R: person(
+    given = "Sergio",
+    family = "Ciordia",
+    email = "sciordia@cnb.csic.es",
+    role = c("aut", "cre"))
+Description: Provides a complete workflow for the differential expression
+    analysis of protein quantification data, with particular attention to the
+    missing values that dominate data-independent acquisition (DIA) experiments.
+    Raw reports from Spectronaut, DIA-NN and Proteome Discoverer (both TMT and
+    label-free) are parsed into a common structure and then normalised,
+    optionally batch-corrected, imputed and tested for differential abundance
+    with limma or limpa. Thirteen normalisation methods and nineteen imputation
+    methods are available, including two-stage hybrids that treat values missing
+    at random and missing not at random separately. Benchmarking functions score
+    and rank method combinations using ground-truth simulation and spike-in
+    datasets, so that a choice of pipeline can be justified on the data at hand
+    rather than by convention. Results are summarised as interactive Highcharts
+    figures, static ggplot2 and ComplexHeatmap graphics, and sortable tables.
+License: MIT + file LICENSE
+Encoding: UTF-8
+URL: https://github.com/sciordia/NADIA
+BugReports: https://github.com/sciordia/NADIA/issues
+biocViews: Software, Proteomics, MassSpectrometry, DifferentialExpression,
+    Normalization, QualityControl
+Depends:
+    R (>= 4.4)
+Imports:
+    dplyr,
+    ggplot2,
+    grDevices,
+    grid,
+    highcharter,
+    htmltools,
+    htmlwidgets,
+    jsonlite,
+    magrittr,
+    methods,
+    paletteer,
+    RColorBrewer,
+    reactable,
+    readr,
+    rlang,
+    S4Vectors,
+    stats,
+    stringr,
+    SummarizedExperiment,
+    tibble,
+    tidyr,
+    tidyselect,
+    tools,
+    utils
+Suggests:
+    arrow,
+    BERT,
+    Biobase,
+    BiocStyle,
+    circlize,
+    cluster,
+    ComplexHeatmap,
+    crosstalk,
+    e1071,
+    ggsci,
+    impute,
+    imputeLCMD,
+    knitr,
+    limma,
+    limpa,
+    lme4,
+    MASS,
+    Mfuzz,
+    mice,
+    missForest,
+    norm,
+    pcaMethods,
+    pROC,
+    rmarkdown,
+    rrcovNA,
+    scales,
+    testthat (>= 3.0.0),
+    tidyHeatmap,
+    vegan,
+    viridis,
+    vsn
+VignetteBuilder: knitr
+RoxygenNote: 8.0.0
+Roxygen: list(markdown = TRUE)

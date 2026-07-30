@@ -2,10 +2,6 @@
 # Heatmap con tidyHeatmap para Datos de Proteómica
 # =============================================================================
 
-library(tidyHeatmap)
-library(dplyr)
-library(tidyr)
-library(tibble)
 
 
 # -----------------------------------------------------------------------------
@@ -595,6 +591,7 @@ prepare_heatmap_data <- function(data,
 #'   scale_data = "row"
 #' )
 #' }
+#' @export
 proteomics_heatmap <- function(data,
                                mode = c("all", "any", "target"),
                                alpha = 0.05,
@@ -1058,7 +1055,7 @@ proteomics_heatmap <- function(data,
   # Añadir anotación de Condition como barra de color si se solicita
   if (show_annotation) {
     hm <- hm %>%
-      annotation_tile(
+      tidyHeatmap::annotation_tile(
         Condition,
         palette = annotation_colors,
         show_legend = show_annotation_legend
@@ -1090,7 +1087,7 @@ proteomics_heatmap <- function(data,
       use_size <- if (i == n_cols) annot_size else NULL
 
       hm <- hm %>%
-        annotation_tile(
+        tidyHeatmap::annotation_tile(
           !!rlang::sym(col),
           palette = row_annot_colors[[col]],
           size = use_size,
@@ -1148,7 +1145,7 @@ proteomics_heatmap <- function(data,
     )
 
     hm <- hm %>%
-      annotation_tile(
+      tidyHeatmap::annotation_tile(
         adjP,
         palette = adjp_palette,
         show_legend = show_annotation_legend
@@ -1355,6 +1352,7 @@ proteomics_heatmap <- function(data,
 #'   palette_annotation = "brewer:Set1"
 #' )
 #' }
+#' @export
 proteomics_heatmap_list <- function(data,
                                     modes = c("all", "any"),
                                     alpha = 0.05,

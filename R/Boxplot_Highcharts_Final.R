@@ -2,10 +2,6 @@
 # Boxplot Interactivo con Highcharts para Datos de Proteómica
 # =============================================================================
 
-library(highcharter)
-library(dplyr)
-library(tidyr)
-library(RColorBrewer)
 
 # -----------------------------------------------------------------------------
 # Función para calcular estadísticas del boxplot
@@ -65,6 +61,7 @@ calc_boxplot_stats <- function(x, coef = 1.5) {
 #'
 #' @return Lista de objetos highchart (uno por assay)
 #'
+#' @export
 boxplot_highchart_list <- function(
     data,
     assays = NULL,

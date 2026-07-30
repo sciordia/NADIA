@@ -11,13 +11,6 @@
 # =============================================================================
 
 # --- Dependencias ---
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(tidyr)
-  library(stringr)
-  library(tibble)
-  library(readr)
-})
 
 # =============================================================================
 # Funciones Auxiliares Internas
@@ -411,33 +404,4 @@ print.tmt_data <- function(x, ...) {
               unique(x$metadata$R.Condition), collapse = ", "),
       "\n")
   invisible(x)
-}
-
-# =============================================================================
-# Ejemplos de Uso (no ejecutar)
-# =============================================================================
-if (FALSE) {
-  # Ejemplo 1: incluyendo canales IS como condición separada
-  result <- preprocess_tmt(
-    file_path = "data/20260527_Q25_TMTpro_TMT1y2_10Fr_Static_3engines_onlyRAW.tsv",
-    condition_order = c("A", "B", "C", "D", "IS")
-  )
-  print(result)
-
-  # Ejemplo 2: descartando canales IS y exportando
-  result <- preprocess_tmt(
-    file_path = "data/20260527_Q25_TMTpro_TMT1y2_10Fr_Static_3engines_onlyRAW.tsv",
-    condition_order = c("A", "B", "C", "D"),
-    export_dir = "./results",
-    timestamp_suffix = TRUE
-  )
-
-  # Encadenar con el pipeline downstream sin cambios
-  source("R/Processing.R")
-  res <- process_proteomics(
-    preprocessing = result,
-    norm_method   = "cycloess",
-    imp_method    = "combo",
-    export_dir    = "./results_tmt"
-  )
 }

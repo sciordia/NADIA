@@ -754,21 +754,6 @@ pvca_analysis <- function(se,
   invisible(TRUE)
 }
 
-#' Run BERT batch correction
-#'
-#' Core wrapper around BERT::BERT() with error handling.
-#' BERT uses hierarchical tree decomposition: pairwise batch corrections
-#' are organized in a binary tree, enabling robust handling of missing values
-#' and multiple batches.
-#'
-#' @param mat Numeric matrix (proteins x samples)
-#' @param batch_vec Factor or character vector of batch assignments per sample
-#' @param method Character: "ComBat" (default), "limma", or "ref"
-#' @param combatmode Integer 1-4 (only used when method = "ComBat")
-#' @param covariates data.frame with columns Cov_1, Cov_2, ... or NULL
-#' @param qualitycontrol Logical: compute ASW quality metrics
-#' @return Numeric matrix (proteins x samples), possibly fewer rows
-#' @keywords internal
 #' Identify features ComBat cannot fit
 #'
 #' Flags rows that, in any batch, have fewer than 2 finite observations or zero
@@ -796,6 +781,22 @@ pvca_analysis <- function(se,
   bad
 }
 
+#' Run BERT batch correction
+#'
+#' Core wrapper around BERT::BERT() with error handling.
+#' BERT uses hierarchical tree decomposition: pairwise batch corrections
+#' are organized in a binary tree, enabling robust handling of missing values
+#' and multiple batches.
+#'
+#' @param mat Numeric matrix (proteins x samples)
+#' @param batch_vec Factor or character vector of batch assignments per sample
+#' @param method Character: "ComBat" (default), "limma", or "ref"
+#' @param combatmode Integer 1-4 (only used when method = "ComBat")
+#' @param covariates data.frame with columns Cov_1, Cov_2, ... or NULL
+#' @param qualitycontrol Logical: compute ASW quality metrics
+#' @return Numeric matrix (proteins x samples), possibly fewer rows
+#' @keywords internal
+#' @noRd
 .bc_run_bert <- function(mat, batch_vec,
                          method         = "ComBat",
                          combatmode     = 1,

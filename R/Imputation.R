@@ -27,19 +27,6 @@
 # License: MIT
 # =============================================================================
 
-# --- Utilidades compartidas (helpers de RNG en R/utils.R) --------------------
-# Si no se encuentran, se degrada a no-op: el comportamiento es el de antes
-# (set.seed altera el RNG de la sesión) en lugar de fallar.
-if (!exists(".rng_state", mode = "function")) {
-  .nadia_utils <- c("R/utils.R", "utils.R")
-  .nadia_utils <- .nadia_utils[file.exists(.nadia_utils)]
-  if (length(.nadia_utils) > 0) {
-    source(.nadia_utils[1], local = FALSE)
-  } else {
-    .rng_state   <- function() NULL
-    .rng_restore <- function(state) invisible(NULL)
-  }
-}
 
 # =============================================================================
 # METHOD CLASSIFICATION CONSTANTS
@@ -654,7 +641,7 @@ if (!exists(".rng_state", mode = "function")) {
 #' @param with_value Constant value for method "with"
 #' @param a Steepness of sigmoid for missing rate (default: 10)
 #' @param b Steepness of sigmoid for mean intensity, en unidades de SD (default: 5)
-#' @param lambda Balance between missing rate and intensity signals (default: 0.5, en [0,1])
+#' @param lambda Balance between missing rate and intensity signals (default: 0.5, en el rango 0-1)
 #' @param r0 Elbow point for missing rate sigmoid (NULL = auto-detect)
 #' @param x0 Elbow point for intensity sigmoid (NULL = auto-detect)
 #' @return List with x_imputed, weights (w_mar per protein), elbow (r0, x0), summary
