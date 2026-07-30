@@ -85,31 +85,18 @@ generates up to 6 diagnostic plots. Each plot is wrapped in \code{tryCatch()}
 so that a failure in one does not abort all.
 }
 \examples{
-\dontrun{
-# ---- 1. From pipeline SE ----
-res <- imputation_metrics(se, assay_name = "cycloess",
-  methods = c("knn", "min"),
-  combo_methods = list(
-    "Impseq+min" = list(mar_method = "Impseq", mnar_method = "min")
-  ))
+data(nadia_dia)
+se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+
+# The default sweeps 15 methods; a handful is enough to illustrate it
+res <- imputation_metrics(se, methods = c("min", "zero", "knn"),
+                          plots = "ranking", verbose = FALSE)
 res$metrics_table
-res$ranking
 
-# ---- 1b. From preprocessing + best normalization (via im_prepare_se) ----
-
-# Option A: known method
-se_imp <- im_prepare_se(preprocessing, norm_method = "cycloess")
-
-# Option B: auto-pick from pc1_rank
-# (after running normalization_metrics() in Normalization_Metrics.R)
-se_imp <- im_prepare_se(preprocessing, pc1_rank = nm_res$pc1_rank)
-
-SummarizedExperiment::assayNames(se_imp)  # "log2", "cycloess"
-res <- imputation_metrics(se_imp, assay_name = "cycloess")
-
-# ---- With auto-export ----
-res <- imputation_metrics(se_imp, assay_name = "cycloess",
-  output_dir = "output/imp_metrics")
-# Creates output/imp_metrics/ with im_*.tsv and im_*.png
-}
+# Two-stage combos can be compared alongside the individual methods
+res2 <- imputation_metrics(se, methods = c("min", "knn"),
+  combo_methods = list(
+    "Impseq+min" = list(mar_method = "Impseq", mnar_method = "min")),
+  plots = "ranking", verbose = FALSE)
+res2$metrics_table$Method
 }

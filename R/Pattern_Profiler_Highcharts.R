@@ -112,11 +112,24 @@ configure_cluster_palette <- function(n_clusters, palette = NULL) {
 #' @return DataFrame with the clustering data
 #'
 #' @examples
-#' \dontrun{
-#' data <- read_pattern_profiler_data("data-raw/Pattern_Profiler_Input.parquet")
-#' data <- read_pattern_profiler_data("data-raw/Pattern_Profiler_Input.parquet",
-#'                                     min_membership = 0.5)
+#' if (requireNamespace("arrow", quietly = TRUE) &&
+#'     requireNamespace("Mfuzz", quietly = TRUE) &&
+#'     requireNamespace("e1071", quietly = TRUE)) {
+#'   data(nadia_dia)
+#'   res <- process_proteomics(nadia_dia, verbose = FALSE)
+#'
+#'   # Write the clustering to parquet, then read it back
+#'   f <- file.path(tempdir(), "pattern_profiler.parquet")
+#'   pattern_profiler_analysis(res$se_proc, res$DEPs_results,
+#'                             assay_name = "Impseqrob_min",
+#'                             auto_select_c = FALSE, c = 3,
+#'                             output_file = f, verbose = FALSE)
+#'
+#'   pp_data <- read_pattern_profiler_data(f, min_membership = 0.5)
+#'   unlink(f)
+#'   print(head(pp_data))
 #' }
+#'
 #' @export
 read_pattern_profiler_data <- function(file_path, min_membership = NULL) {
 
@@ -191,13 +204,20 @@ detect_condition_columns <- function(data) {
 #' @return highchart object
 #'
 #' @examples
-#' \dontrun{
-#' data <- read_pattern_profiler_data("Pattern_Profiler_Input.parquet")
-#' conditions <- c("A", "B", "C", "D")
+#' if (requireNamespace("Mfuzz", quietly = TRUE) &&
+#'     requireNamespace("e1071", quietly = TRUE)) {
+#'   data(nadia_dia)
+#'   res <- process_proteomics(nadia_dia, verbose = FALSE)
+#'   pp <- pattern_profiler_analysis(res$se_proc, res$DEPs_results,
+#'                                   assay_name = "Impseqrob_min",
+#'                                   auto_select_c = FALSE, c = 3,
+#'                                   verbose = FALSE)
 #'
-#' hc <- cluster_profile_highchart(data, cluster = 1, conditions = conditions)
-#' hc
+#'   hc <- cluster_profile_highchart(pp$long_output, cluster = 1,
+#'                                   conditions = c("A", "B", "D"))
+#'   print(class(hc))
 #' }
+#'
 #' @export
 cluster_profile_highchart <- function(data,
                                        cluster,
@@ -487,14 +507,20 @@ cluster_profile_highchart <- function(data,
 #' @return Named list of highchart objects
 #'
 #' @examples
-#' \dontrun{
-#' data <- read_pattern_profiler_data("Pattern_Profiler_Input.parquet")
-#' conditions <- c("A", "B", "C", "D")
+#' if (requireNamespace("Mfuzz", quietly = TRUE) &&
+#'     requireNamespace("e1071", quietly = TRUE)) {
+#'   data(nadia_dia)
+#'   res <- process_proteomics(nadia_dia, verbose = FALSE)
+#'   pp <- pattern_profiler_analysis(res$se_proc, res$DEPs_results,
+#'                                   assay_name = "Impseqrob_min",
+#'                                   auto_select_c = FALSE, c = 3,
+#'                                   verbose = FALSE)
 #'
-#' hc_profiles <- cluster_profile_highchart_list(data, conditions)
-#' hc_profiles[["Cluster_1"]]
-#' hc_profiles[["Cluster_2"]]
+#'   hc_profiles <- cluster_profile_highchart_list(pp$long_output,
+#'                                                 conditions = c("A", "B", "D"))
+#'   print(names(hc_profiles))
 #' }
+#'
 #' @export
 cluster_profile_highchart_list <- function(data,
                                             conditions = NULL,
@@ -572,13 +598,22 @@ cluster_profile_highchart_list <- function(data,
 #' @return highchart object
 #'
 #' @examples
-#' \dontrun{
-#' data <- read_pattern_profiler_data("Pattern_Profiler_Input.parquet")
-#' conditions <- c("A", "B", "C", "D")
+#' if (requireNamespace("Mfuzz", quietly = TRUE) &&
+#'     requireNamespace("e1071", quietly = TRUE)) {
+#'   data(nadia_dia)
+#'   res <- process_proteomics(nadia_dia, verbose = FALSE)
+#'   pp <- pattern_profiler_analysis(res$se_proc, res$DEPs_results,
+#'                                   assay_name = "Impseqrob_min",
+#'                                   auto_select_c = FALSE, c = 3,
+#'                                   verbose = FALSE)
 #'
-#' hc_centroids <- cluster_centroids_highchart(data, conditions)
-#' hc_centroids
+#'   # All the cluster centroids on one chart
+#'   hc <- cluster_centroids_highchart(pp$long_output,
+#'                                     conditions = c("A", "B", "D"),
+#'                                     centroid_summary = "median")
+#'   print(class(hc))
 #' }
+#'
 #' @export
 cluster_centroids_highchart <- function(data,
                                          conditions = NULL,
@@ -785,6 +820,21 @@ cluster_centroids_highchart <- function(data,
 #'
 #' @param data Pattern Profiler DataFrame
 #' @return List with summary statistics
+#'
+#' @examples
+#' if (requireNamespace("Mfuzz", quietly = TRUE) &&
+#'     requireNamespace("e1071", quietly = TRUE)) {
+#'   data(nadia_dia)
+#'   res <- process_proteomics(nadia_dia, verbose = FALSE)
+#'   pp <- pattern_profiler_analysis(res$se_proc, res$DEPs_results,
+#'                                   assay_name = "Impseqrob_min",
+#'                                   auto_select_c = FALSE, c = 3,
+#'                                   verbose = FALSE)
+#'
+#'   info <- summarize_pattern_profiler(pp$long_output)
+#'   print(info$cluster_summary)
+#' }
+#'
 #' @export
 summarize_pattern_profiler <- function(data) {
 

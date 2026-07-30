@@ -45,11 +45,20 @@ highchart object
 Builds a comparative plot with the centroids of all the clusters.
 }
 \examples{
-\dontrun{
-data <- read_pattern_profiler_data("Pattern_Profiler_Input.parquet")
-conditions <- c("A", "B", "C", "D")
+if (requireNamespace("Mfuzz", quietly = TRUE) &&
+    requireNamespace("e1071", quietly = TRUE)) {
+  data(nadia_dia)
+  res <- process_proteomics(nadia_dia, verbose = FALSE)
+  pp <- pattern_profiler_analysis(res$se_proc, res$DEPs_results,
+                                  assay_name = "Impseqrob_min",
+                                  auto_select_c = FALSE, c = 3,
+                                  verbose = FALSE)
 
-hc_centroids <- cluster_centroids_highchart(data, conditions)
-hc_centroids
+  # All the cluster centroids on one chart
+  hc <- cluster_centroids_highchart(pp$long_output,
+                                    conditions = c("A", "B", "D"),
+                                    centroid_summary = "median")
+  print(class(hc))
 }
+
 }

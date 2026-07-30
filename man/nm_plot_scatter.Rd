@@ -36,3 +36,12 @@ Plots log2-intensity of one sample against another, one point per protein,
 for each normalization method. A linear fit and the adjusted R^2 are overlaid.
 Default comparison uses the first two columns of the SE (as NormalyzerDE does).
 }
+\examples{
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                            verbose = FALSE)
+
+nm_plot_scatter(se, sample1 = "A_1", sample2 = "A_2")
+
+}

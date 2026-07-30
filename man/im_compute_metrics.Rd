@@ -63,16 +63,12 @@ re-imputes with each method, and computes four quality metrics plus
 a combined ranking.
 }
 \examples{
-\dontrun{
-# Individual methods only
-metrics <- im_compute_metrics(se, assay_name = "cycloess",
-                               methods = c("knn", "min", "zero"))
+data(nadia_dia)
+se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
 
-# Combo + individual
-metrics <- im_compute_metrics(se, assay_name = "cycloess",
-  methods = c("knn", "min"),
-  combo_methods = list(
-    "Impseq+min" = list(mar_method = "Impseq", mnar_method = "min")
-  ))
-}
+# Ground-truth simulation: complete rows are masked and re-imputed, so the
+# error of each method can be measured against the values it did not see
+metrics <- im_compute_metrics(se, methods = c("min", "zero", "knn"),
+                              verbose = FALSE)
+metrics[, c("Method", "NRMSE", "SOR", "Rank_Mean")]
 }

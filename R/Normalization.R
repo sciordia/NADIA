@@ -458,19 +458,20 @@
 #'   }
 #'
 #' @examples
-#' \dontrun{
-#' norm_result <- normalize_proteomics(
-#'   data = protein_data,
-#'   metadata = metadata,
-#'   norm_method = "cycloess",
-#'   cyclic_loess_method = "fast"
-#' )
-#' norm_result2 <- normalize_proteomics(
-#'   data = protein_data,
-#'   metadata = metadata,
-#'   norm_method = "GlobalMedian"
-#' )
-#' }
+#' data(nadia_dia)
+#'
+#' # The object returned by preprocess_*() is accepted directly
+#' norm <- normalize_proteomics(nadia_dia, norm_method = "cycloess",
+#'                              verbose = FALSE)
+#' SummarizedExperiment::assayNames(norm$se)
+#'
+#' # Zeros become NA and low-coverage proteins are filtered out
+#' norm$filter_summary
+#'
+#' # Any of the 13 methods can be used
+#' norm2 <- normalize_proteomics(nadia_dia, norm_method = "quantile",
+#'                               verbose = FALSE)
+#' SummarizedExperiment::assayNames(norm2$se)
 #'
 #' @export
 normalize_proteomics <- function(

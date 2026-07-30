@@ -39,8 +39,10 @@ Takes a SummarizedExperiment with a log2-scale assay and applies each
 requested normalization method, returning a new SE with one assay per method.
 }
 \examples{
-\dontrun{
-se_bench <- nm_run_normalizations(se, assay_name = "log2", methods = "all")
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se_bench <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                                  verbose = FALSE)
 SummarizedExperiment::assayNames(se_bench)
-}
+
 }

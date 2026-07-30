@@ -51,13 +51,15 @@ The global PD identification metrics (\verb{# PSMs}, \verb{# Peptides},
 to fit the wide Spectronaut contract.
 }
 \examples{
-\dontrun{
-result <- preprocess_tmt(
-  file_path = "data-raw/20260527_Q25_TMTpro_TMT1y2_10Fr_Static_3engines_onlyRAW.tsv",
-  condition_order = c("A", "B", "C", "D", "IS"),
-  export_dir = "./results"
-)
-print(result)
-}
+# A trimmed Proteome Discoverer TMTpro report ships with the package
+report <- system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA")
+
+# condition_order is required, and doubles as a filter: the report also holds
+# an "IS" channel (internal standards) that is left out by not listing it
+tmt <- preprocess_tmt(report,
+                      condition_order = c("A", "B", "C", "D"),
+                      verbose = FALSE)
+tmt
+table(tmt$metadata$R.Condition)
 
 }

@@ -61,3 +61,23 @@ A highchart object
 Builds a PCA scatter plot with the option of showing per-group ellipses or
 convex hulls, similar to factoextra::fviz_pca_ind.
 }
+\examples{
+# The scores are normally built internally by pca_highchart_list();
+# this is the layout the function expects (one row per sample).
+scores <- data.frame(
+  SampleID  = paste(rep(c("A", "B", "D"), each = 4), 1:4, sep = "_"),
+  Condition = rep(c("A", "B", "D"), each = 4),
+  Replicate = rep(1:4, times = 3),
+  PC1 = c(-5.1, -4.6, -5.4, -4.9, 0.4, 0.9, 0.2, 0.7, 4.8, 5.2, 4.5, 5.0),
+  PC2 = c(1.2, 0.7, -0.9, -1.1, 2.4, 1.8, -1.6, -2.2, 0.9, 0.4, -0.8, -1.3),
+  PC1_Perc = 62.4,
+  PC2_Perc = 18.7,
+  Subset = "All proteins",
+  stringsAsFactors = FALSE
+)
+
+hc <- pca_highchart(scores, group_order = c("A", "B", "D"),
+                    ellipse_type = "confidence", show_labels = TRUE)
+class(hc)
+
+}

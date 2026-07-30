@@ -49,13 +49,14 @@ metrics (\verb{# PSMs (by Search Engine)}, \verb{# Peptides (by Search Engine)},
 \verb{Score Mascot}) are mapped BY SAMPLE NAME.
 }
 \examples{
-\dontrun{
-result <- preprocess_lfq(
-  file_path  = "data-raw/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW.tsv",
-  annot_path = "data-raw/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW_Annot.tsv",
-  export_dir = "./results"
-)
-print(result)
-}
+# A trimmed Proteome Discoverer LFQ report ships with the package. Unlike TMT,
+# the sample-to-condition design comes from a separate annotation file rather
+# than from the column suffixes.
+report <- system.file("extdata", "nadia_lfq_report.tsv.gz", package = "NADIA")
+annot  <- system.file("extdata", "nadia_lfq_annotation.tsv", package = "NADIA")
+
+lfq <- preprocess_lfq(report, annot_path = annot, verbose = FALSE)
+lfq
+lfq$metadata[, c("Coding", "R.Condition", "R.Replicate")]
 
 }

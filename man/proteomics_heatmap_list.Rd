@@ -158,43 +158,20 @@ Named list of tidyHeatmap objects
 Automatically builds heatmaps for "all", "any" and/or specific comparisons.
 }
 \examples{
-\dontrun{
-# Load the data
-hm_input <- arrow::read_parquet("PCA_Input.parquet")
+if (requireNamespace("ComplexHeatmap", quietly = TRUE) &&
+    requireNamespace("tidyHeatmap", quietly = TRUE)) {
+  data(nadia_dia)
+  res <- process_proteomics(nadia_dia, verbose = FALSE)
 
-# Build heatmaps for all and any
-hm_list <- proteomics_heatmap_list(
-  data = hm_input,
-  modes = c("all", "any"),
-  sample_order = "condition",
-  condition_order = c("A", "B", "C", "D")
-)
-
-# Display them
-hm_list[["all"]]
-hm_list[["any"]]
-
-# Build heatmaps including specific comparisons
-hm_list <- proteomics_heatmap_list(
-  data = hm_input,
-  modes = c("all", "any", "B-A", "C-A"),
-  sample_order = "clustering"
-)
-hm_list[["B-A"]]
-
-# With a custom paletteer palette
-hm_list <- proteomics_heatmap_list(
-  data = hm_input,
-  modes = c("all"),
-  palette_value = "viridis::viridis"
-)
-
-# With an RColorBrewer palette
-hm_list <- proteomics_heatmap_list(
-  data = hm_input,
-  modes = c("all"),
-  palette_value = "brewer:RdYlBu",
-  palette_annotation = "brewer:Set1"
-)
+  # "any" plus one heatmap per named comparison
+  hm_list <- proteomics_heatmap_list(
+    res$PCA_Input,
+    modes           = c("any", "B-A"),
+    sample_order    = "condition",
+    condition_order = c("A", "B", "D"),
+    palette_value   = "brewer:RdYlBu"
+  )
+  print(names(hm_list))   # print(hm_list[["B-A"]]) draws one of them
 }
+
 }

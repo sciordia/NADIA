@@ -45,3 +45,12 @@ group-separation rank based on the PC1 F-ratio. The standalone
 \code{nm_rank_pc1()} / \code{nm_rank_mds1()} functions are unchanged for individual
 inspection.
 }
+\examples{
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                            verbose = FALSE)
+
+nm_rank_final(se, verbose = FALSE)
+
+}

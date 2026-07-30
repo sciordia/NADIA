@@ -18,9 +18,22 @@ DataFrame with the clustering data
 Read Pattern Profiler data from a parquet file
 }
 \examples{
-\dontrun{
-data <- read_pattern_profiler_data("data-raw/Pattern_Profiler_Input.parquet")
-data <- read_pattern_profiler_data("data-raw/Pattern_Profiler_Input.parquet",
-                                    min_membership = 0.5)
+if (requireNamespace("arrow", quietly = TRUE) &&
+    requireNamespace("Mfuzz", quietly = TRUE) &&
+    requireNamespace("e1071", quietly = TRUE)) {
+  data(nadia_dia)
+  res <- process_proteomics(nadia_dia, verbose = FALSE)
+
+  # Write the clustering to parquet, then read it back
+  f <- file.path(tempdir(), "pattern_profiler.parquet")
+  pattern_profiler_analysis(res$se_proc, res$DEPs_results,
+                            assay_name = "Impseqrob_min",
+                            auto_select_c = FALSE, c = 3,
+                            output_file = f, verbose = FALSE)
+
+  pp_data <- read_pattern_profiler_data(f, min_membership = 0.5)
+  unlink(f)
+  print(head(pp_data))
 }
+
 }

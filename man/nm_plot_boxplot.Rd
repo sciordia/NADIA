@@ -22,3 +22,12 @@ ggplot object.
 Displays distribution of protein intensities for each sample,
 faceted by normalization method.
 }
+\examples{
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                            verbose = FALSE)
+
+nm_plot_boxplot(se)
+
+}

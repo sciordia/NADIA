@@ -84,17 +84,20 @@ Runs the full PVCA workflow: compute variance components, generate plot,
 and optionally export results.
 }
 \examples{
-\dontrun{
-source("R/Batch_Correction.R")
-pvca_res <- pvca_analysis(
-  se = result$se_proc,
-  assay_name = "cycloess",
-  technical_factors = c("Injection", "Digestion"),
-  biological_factors = c("Condition", "Gender", "Age", "Obesity",
-                         "IMC", "Patient"),
-  output_dir = "./results/my_analysis/"
-)
-pvca_res$variance_components
-pvca_res$plot
-}
+data(nadia_dia)
+
+# nadia_dia has no batch information, so the example builds a plausible one:
+# two digestion batches crossed with the three conditions.
+cov <- data.frame(Column = nadia_dia$metadata$Coding,
+                  Batch = rep(c("b1", "b2"),
+                              length.out = nrow(nadia_dia$metadata)),
+                  stringsAsFactors = FALSE)
+res <- process_proteomics(nadia_dia, covariate_df = cov, verbose = FALSE)
+
+# Variance decomposition: how much of the signal each factor explains
+pv <- pvca_analysis(res$se_proc, assay_name = "Impseqrob_min",
+                    technical_factors = "Batch",
+                    biological_factors = "Condition",
+                    verbose = FALSE)
+pv$pvca_table
 }

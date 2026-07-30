@@ -39,11 +39,25 @@ Each TSV must have column 1 named \code{ProteinGroups} and remaining columns as
 sample names matching the \code{sample_col} in the metadata file.
 }
 \examples{
-\dontrun{
-se_nm <- import_norm_matrices(
-  tsv_dir       = "./results",
-  metadata_path = "./data-raw/metadata.tsv"
-)
-SummarizedExperiment::assayNames(se_nm)
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "MAD"), verbose = FALSE)
+
+# Write the normalized assays as TSVs, then read them back into a new SE
+tsv_dir <- file.path(tempdir(), "nm_matrices")
+dir.create(tsv_dir, showWarnings = FALSE)
+for (a in c("cycloess", "MAD")) {
+  m <- SummarizedExperiment::assay(se, a)
+  utils::write.table(
+    data.frame(ProteinGroups = rownames(m), m, check.names = FALSE),
+    file.path(tsv_dir, paste0("matrix_log2_", a, ".tsv")),
+    sep = "\t", row.names = FALSE, quote = FALSE)
 }
+meta_path <- file.path(tsv_dir, "metadata.tsv")
+utils::write.table(as.data.frame(SummarizedExperiment::colData(se)), meta_path,
+                   sep = "\t", row.names = FALSE, quote = FALSE)
+
+se_nm <- import_norm_matrices(tsv_dir, meta_path)
+SummarizedExperiment::assayNames(se_nm)
+
 }

@@ -21,3 +21,12 @@ ggplot object.
 \description{
 KDE curves for each sample's intensity distribution, faceted by method.
 }
+\examples{
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                            verbose = FALSE)
+
+nm_plot_density(se)
+
+}

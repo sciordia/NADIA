@@ -421,26 +421,23 @@
 #'   trip through disk to obtain them would be gratuitous.
 #'
 #' @examples
-#' \dontrun{
-#' # 1. Preprocess Spectronaut data
-#' preprocessing <- preprocess_spectronaut(
-#'   file_path = "data-raw/Spectronaut_Report.tsv",
-#'   condition_order = c("A", "B", "C", "D")
-#' )
+#' data(nadia_dia)
 #'
-#' # 2. Process (normalization, imputation, DE)
-#' result <- process_proteomics(
-#'   preprocessing = preprocessing,
-#'   export_dir = "./results",
-#'   cyclic_loess_method = "fast",
-#'   cyclic_loess_iterations = 3,
-#'   alpha = 0.05
-#' )
+#' # Normalization, imputation and differential expression in one call
+#' res <- process_proteomics(nadia_dia, verbose = FALSE)
+#' res
 #'
-#' # 3. Access results
-#' result$se_proc        # Processed SummarizedExperiment
-#' result$DEPs_results   # Differential results
-#' }
+#' SummarizedExperiment::assayNames(res$se_proc)
+#' table(res$DEPs_results$Comparison, res$DEPs_results$Change)
+#'
+#' # The plotting layer is fed straight from the result, no files involved
+#' names(res$BoxPlot_Input)
+#' names(res$PCA_Input)
+#'
+#' # Another combination: quantile normalization and a single imputation method
+#' res2 <- process_proteomics(nadia_dia, norm_method = "quantile",
+#'                            imp_method = "QRILC", verbose = FALSE)
+#' SummarizedExperiment::assayNames(res2$se_proc)
 #'
 #' @export
 process_proteomics <- function(
@@ -794,6 +791,15 @@ process_proteomics <- function(
 #'
 #' @param x proteomics_result object
 #' @param ... Additional arguments (ignored)
+#' @return `x`, invisibly. Called for the summary it prints: the assays of the
+#'   SummarizedExperiment, the comparisons performed, the number of differential
+#'   proteins and the parameters used.
+#'
+#' @examples
+#' data(nadia_dia)
+#' res <- process_proteomics(nadia_dia, verbose = FALSE)
+#' print(res)
+#'
 #' @export
 print.proteomics_result <- function(x, ...) {
   cat("=== Proteomics Processing Result ===\n\n")

@@ -18,3 +18,10 @@ ggplot object.
 Bar chart of Average Correlation Coefficient (ACC_OI), ordered descending
 (higher is better).
 }
+\examples{
+data(nadia_dia)
+se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+metrics <- im_compute_metrics(se, methods = c("min", "zero", "knn"),
+                              verbose = FALSE)
+im_plot_acc_oi(metrics)
+}

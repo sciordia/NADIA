@@ -23,8 +23,11 @@ Calls \code{nm_compute_metrics()} internally and produces a faceted bar chart
 (one facet per metric, free y-scales) with labeled values.
 }
 \examples{
-\dontrun{
-se_nm <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
-nm_plot_metrics(se_nm)
-}
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                            verbose = FALSE)
+
+nm_plot_metrics(se)
+
 }

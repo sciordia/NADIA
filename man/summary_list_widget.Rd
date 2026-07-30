@@ -39,7 +39,13 @@ shades and Condition/Coding cells with a strong colour chip (the same scheme
 used by protein_list_widget() / quant_list_widget()).
 }
 \examples{
-\dontrun{
-summary_list_widget("data-raw/Metadata_20260423_142504.tsv")
+if (requireNamespace("jsonlite", quietly = TRUE)) {
+  data(nadia_dia)
+
+  # LFQ/TMT metadata lack the identification counts; the widget then shows
+  # only FileName/Condition/Replicate/Coding
+  w <- summary_list_widget(nadia_dia$metadata)
+  print(class(w))
 }
+
 }

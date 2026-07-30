@@ -99,25 +99,13 @@ methods from the \code{base_assay}, then computes metrics and generates plots on
 the resulting multi-assay SE.
 }
 \examples{
-\dontrun{
-# --- Classic workflow (from pre-computed TSVs) ---
-se_nm  <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
-plots  <- normalization_metrics(se_nm)
-plots$scatter
-plots$pca
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
 
-# --- Auto-benchmark: all methods from a single SE ---
-plots <- normalization_metrics(se, methods = "all", base_assay = "log2")
+# Auto-benchmark: normalize from the "log2" baseline, then score the methods
+res <- normalization_metrics(se, methods = c("cycloess", "quantile", "MAD"),
+                             plots = c("pcv", "final_ranking"), verbose = FALSE)
+res$final_rank
+res$pcv
 
-# --- Auto-benchmark: specific methods ---
-plots <- normalization_metrics(se, methods = c("cycloess", "MAD", "vsn"))
-
-# --- With custom parameters ---
-plots <- normalization_metrics(se, methods = "all",
-  method_args = list(cycloess = list(method = "fast", span = 0.8)))
-
-# --- With auto-export ---
-plots <- normalization_metrics(se_nm, output_dir = "output/norm_metrics")
-# Creates output/norm_metrics/ with nm_*.tsv and nm_*.png
-}
 }

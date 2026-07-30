@@ -59,22 +59,26 @@ missing values, making it suitable for pre-imputation batch correction on
 protein-level proteomics data.
 }
 \examples{
-\dontrun{
-source("R/Batch_Correction.R")
-se_corrected <- batch_correct_proteomics(
-  se         = result$se_proc,
-  assay_name = "cycloess",
-  batch_column = "Batch"
-)
-SummarizedExperiment::assayNames(se_corrected)
-# [1] "raw" "log2" "cycloess" "BERT"
+data(nadia_dia)
 
-# With covariates
-se_corrected <- batch_correct_proteomics(
-  se         = result$se_proc,
-  assay_name = "cycloess",
-  batch_column = "Batch",
-  covariates = c("Gender", "Age")
-)
-}
+# nadia_dia has no batch information, so the example builds a plausible one:
+# two digestion batches crossed with the three conditions.
+cov <- data.frame(Column = nadia_dia$metadata$Coding,
+                  Batch = rep(c("b1", "b2"),
+                              length.out = nrow(nadia_dia$metadata)),
+                  stringsAsFactors = FALSE)
+res <- process_proteomics(nadia_dia, covariate_df = cov, verbose = FALSE)
+
+# BERT removes the batch effect and adds a "BERT" assay, leaving the
+# original one untouched
+se <- batch_correct_proteomics(res$se_proc, assay_name = "Impseqrob_min",
+                               batch_column = "Batch", verbose = FALSE)
+SummarizedExperiment::assayNames(se)
+
+# On a real experiment you would normally pass the biological variable of
+# interest in `covariates`, so that ComBat preserves it instead of removing
+# it along with the batch effect. It is left out here on purpose: with 12
+# samples in 2 batches and 3 conditions there are only 2 samples per cell,
+# and the model becomes singular. Protecting a covariate needs enough
+# replicates within every batch-by-condition combination.
 }

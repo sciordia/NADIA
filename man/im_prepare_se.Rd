@@ -56,17 +56,19 @@ Internally calls \code{nm_prepare_se()} to build the baseline SE with assay
 \code{.nm_dispatch_normalization()}.
 }
 \examples{
-\dontrun{
-source("R/Imputation_Metrics.R")
+data(nadia_dia)
 
-# ---- Option A: known method ----
-se_imp <- im_prepare_se(preprocessing, norm_method = "cycloess")
+# Option A: name the normalization to benchmark imputation on
+se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+SummarizedExperiment::assayNames(se)
 
-# ---- Option B: auto-pick from pc1_rank ----
-# (after running normalization_metrics() in Normalization_Metrics.R)
-se_imp <- im_prepare_se(preprocessing, pc1_rank = nm_res$pc1_rank)
-
-SummarizedExperiment::assayNames(se_imp)  # "log2", "cycloess"
-res <- imputation_metrics(se_imp, assay_name = "cycloess")
-}
+# Option B: let the winner of normalization_metrics() decide. That function
+# takes a SummarizedExperiment, so the baseline is built first.
+se_base <- nm_prepare_se(nadia_dia, verbose = FALSE)
+nm <- normalization_metrics(se_base,
+                            methods = c("cycloess", "quantile", "MAD"),
+                            plots = "pc1_ranking", verbose = FALSE)
+nm$pc1_rank
+se2 <- im_prepare_se(nadia_dia, pc1_rank = nm$pc1_rank, verbose = FALSE)
+SummarizedExperiment::assayNames(se2)
 }

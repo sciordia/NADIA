@@ -130,24 +130,21 @@ Orchestrator that imports, ranks, visualizes, and exports results from
 multiple normalization/imputation method combinations.
 }
 \examples{
-\dontrun{
-# --- Option A: From files ---
-result <- benchmarking_multiple(
-  results_dir = "results",
-  output_dir  = "results/bm_multiple"
-)
-
-# --- Option B: In-memory ---
-opdea_all <- do.call(rbind, list(
-  cbind(bench1$opdea_metrics, Assay = "cycloess_Impseq_min"),
-  cbind(bench2$opdea_metrics, Assay = "quantile_knn_min")
-))
-result <- benchmarking_multiple(
-  opdea_combined = opdea_all,
-  output_dir     = "results/bm_multiple"
-)
-
-result$mean_ranking
-result$gg_ranking_heatmap_mean
+data(nadia_dia)
+sp <- utils::read.delim(system.file("extdata", "nadia_dia_spikein.tsv.gz",
+                                    package = "NADIA"))
+ev <- data.frame(Comparison = rep(c("B-A", "D-A"), each = 2),
+                 Species = c("ECOLI", "YEAST"),
+                 expected_logFC = c(1, -0.58, 2, -3.3))
+root <- file.path(tempdir(), "nadia_bench")
+for (nm in c("cycloess", "quantile")) {
+  de <- process_proteomics(nadia_dia, norm_method = nm,
+                           verbose = FALSE)$DEPs_results
+  de$Species <- sp$PG.OrganismId[match(de$Protein.IDs, sp$PG.ProteinGroups)]
+  benchmarking_proteomics(de, ev, output_dir = file.path(root, nm),
+                          verbose = FALSE)
 }
+result <- benchmarking_multiple(results_dir = root, verbose = FALSE)
+result$mean_ranking
+result$gg_ranking_bars_mean
 }

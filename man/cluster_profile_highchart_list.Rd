@@ -48,12 +48,18 @@ Named list of highchart objects
 Builds a list of interactive plots for all the clusters.
 }
 \examples{
-\dontrun{
-data <- read_pattern_profiler_data("Pattern_Profiler_Input.parquet")
-conditions <- c("A", "B", "C", "D")
+if (requireNamespace("Mfuzz", quietly = TRUE) &&
+    requireNamespace("e1071", quietly = TRUE)) {
+  data(nadia_dia)
+  res <- process_proteomics(nadia_dia, verbose = FALSE)
+  pp <- pattern_profiler_analysis(res$se_proc, res$DEPs_results,
+                                  assay_name = "Impseqrob_min",
+                                  auto_select_c = FALSE, c = 3,
+                                  verbose = FALSE)
 
-hc_profiles <- cluster_profile_highchart_list(data, conditions)
-hc_profiles[["Cluster_1"]]
-hc_profiles[["Cluster_2"]]
+  hc_profiles <- cluster_profile_highchart_list(pp$long_output,
+                                                conditions = c("A", "B", "D"))
+  print(names(hc_profiles))
 }
+
 }

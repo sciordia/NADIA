@@ -44,9 +44,18 @@ attributed to each factor, colored by category (technical, biological,
 interaction, residual).
 }
 \examples{
-\dontrun{
-vc <- pvca_compute(se, factors = c("Condition", "Gender", "Injection"))
-pvca_plot(vc, technical_factors = "Injection",
-          biological_factors = c("Condition", "Gender"))
-}
+data(nadia_dia)
+
+# nadia_dia has no batch information, so the example builds a plausible one:
+# two digestion batches crossed with the three conditions.
+cov <- data.frame(Column = nadia_dia$metadata$Coding,
+                  Batch = rep(c("b1", "b2"),
+                              length.out = nrow(nadia_dia$metadata)),
+                  stringsAsFactors = FALSE)
+res <- process_proteomics(nadia_dia, covariate_df = cov, verbose = FALSE)
+
+vc <- pvca_compute(res$se_proc, assay_name = "Impseqrob_min",
+                   factors = c("Condition", "Batch"), verbose = FALSE)
+pvca_plot(vc, technical_factors = "Batch",
+          biological_factors = "Condition")
 }

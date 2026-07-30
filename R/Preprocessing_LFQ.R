@@ -129,14 +129,15 @@
 #'   containing `metadata`, `protein_id` and `protein_quant`.
 #'
 #' @examples
-#' \dontrun{
-#' result <- preprocess_lfq(
-#'   file_path  = "data-raw/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW.tsv",
-#'   annot_path = "data-raw/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW_Annot.tsv",
-#'   export_dir = "./results"
-#' )
-#' print(result)
-#' }
+#' # A trimmed Proteome Discoverer LFQ report ships with the package. Unlike TMT,
+#' # the sample-to-condition design comes from a separate annotation file rather
+#' # than from the column suffixes.
+#' report <- system.file("extdata", "nadia_lfq_report.tsv.gz", package = "NADIA")
+#' annot  <- system.file("extdata", "nadia_lfq_annotation.tsv", package = "NADIA")
+#'
+#' lfq <- preprocess_lfq(report, annot_path = annot, verbose = FALSE)
+#' lfq
+#' lfq$metadata[, c("Coding", "R.Condition", "R.Replicate")]
 #'
 #' @export
 preprocess_lfq <- function(
@@ -401,6 +402,23 @@ preprocess_lfq <- function(
 # Methods for the lfq_data class
 # =============================================================================
 
+#' Print a summary of an LFQ preprocessing result
+#'
+#' Reports the number of samples, protein groups and conditions, so that the
+#' shape of the experiment can be checked at a glance before processing it.
+#'
+#' @param x An `lfq_data` object, as returned by [preprocess_lfq()].
+#' @param ... Ignored, present for compatibility with the `print` generic.
+#' @return `x`, invisibly. Called for the summary it prints.
+#'
+#' @examples
+#' lfq <- preprocess_lfq(
+#'   system.file("extdata", "nadia_lfq_report.tsv.gz", package = "NADIA"),
+#'   annot_path = system.file("extdata", "nadia_lfq_annotation.tsv",
+#'                            package = "NADIA"),
+#'   verbose = FALSE)
+#' print(lfq)
+#'
 #' @export
 print.lfq_data <- function(x, ...) {
   cat("Preprocessed LFQ (Proteome Discoverer) data\n")

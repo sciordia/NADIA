@@ -446,13 +446,19 @@
 #'   and rowData containing `Protein.IDs`.
 #'
 #' @examples
-#' \dontrun{
-#' se_imp <- import_imp_matrices(
-#'   tsv_dir       = "./results",
-#'   metadata_path = "./data-raw/metadata.tsv"
-#' )
-#' SummarizedExperiment::assayNames(se_imp)
-#' }
+#' # Round trip: write the imputed matrices out, then read them back in
+#' data(nadia_dia)
+#' res <- process_proteomics(nadia_dia, export_dir = tempdir(),
+#'                           export_format = "tsv", verbose = FALSE)
+#'
+#' meta <- file.path(tempdir(), "metadata.tsv")
+#' utils::write.table(
+#'   data.frame(Column = res$se_proc$Column, Condition = res$se_proc$Condition,
+#'              Replicate = res$se_proc$Replicate),
+#'   meta, sep = "\t", row.names = FALSE, quote = FALSE)
+#'
+#' se <- import_imp_matrices(tsv_dir = tempdir(), metadata_path = meta)
+#' SummarizedExperiment::assayNames(se)
 #' @export
 import_imp_matrices <- function(tsv_dir,
                                 metadata_path,
@@ -609,19 +615,21 @@ import_imp_matrices <- function(tsv_dir,
 #' @return SummarizedExperiment with assays `"log2"` (optional) + winner method.
 #'
 #' @examples
-#' \dontrun{
-#' source("R/Imputation_Metrics.R")
+#' data(nadia_dia)
 #'
-#' # ---- Option A: known method ----
-#' se_imp <- im_prepare_se(preprocessing, norm_method = "cycloess")
+#' # Option A: name the normalization to benchmark imputation on
+#' se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+#' SummarizedExperiment::assayNames(se)
 #'
-#' # ---- Option B: auto-pick from pc1_rank ----
-#' # (after running normalization_metrics() in Normalization_Metrics.R)
-#' se_imp <- im_prepare_se(preprocessing, pc1_rank = nm_res$pc1_rank)
-#'
-#' SummarizedExperiment::assayNames(se_imp)  # "log2", "cycloess"
-#' res <- imputation_metrics(se_imp, assay_name = "cycloess")
-#' }
+#' # Option B: let the winner of normalization_metrics() decide. That function
+#' # takes a SummarizedExperiment, so the baseline is built first.
+#' se_base <- nm_prepare_se(nadia_dia, verbose = FALSE)
+#' nm <- normalization_metrics(se_base,
+#'                             methods = c("cycloess", "quantile", "MAD"),
+#'                             plots = "pc1_ranking", verbose = FALSE)
+#' nm$pc1_rank
+#' se2 <- im_prepare_se(nadia_dia, pc1_rank = nm$pc1_rank, verbose = FALSE)
+#' SummarizedExperiment::assayNames(se2)
 #' @export
 im_prepare_se <- function(preprocessing,
                           norm_method      = NULL,
@@ -731,18 +739,14 @@ im_prepare_se <- function(preprocessing,
 #'   Ordered by Rank_Mean (best first).
 #'
 #' @examples
-#' \dontrun{
-#' # Individual methods only
-#' metrics <- im_compute_metrics(se, assay_name = "cycloess",
-#'                                methods = c("knn", "min", "zero"))
+#' data(nadia_dia)
+#' se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
 #'
-#' # Combo + individual
-#' metrics <- im_compute_metrics(se, assay_name = "cycloess",
-#'   methods = c("knn", "min"),
-#'   combo_methods = list(
-#'     "Impseq+min" = list(mar_method = "Impseq", mnar_method = "min")
-#'   ))
-#' }
+#' # Ground-truth simulation: complete rows are masked and re-imputed, so the
+#' # error of each method can be measured against the values it did not see
+#' metrics <- im_compute_metrics(se, methods = c("min", "zero", "knn"),
+#'                               verbose = FALSE)
+#' metrics[, c("Method", "NRMSE", "SOR", "Rank_Mean")]
 #' @export
 im_compute_metrics <- function(se,
                                assay_name    = NULL,
@@ -932,6 +936,12 @@ im_compute_metrics <- function(se,
 #' @param metrics_df data.frame from `im_compute_metrics()`.
 #' @param ... Additional arguments (unused).
 #' @return ggplot object.
+#' @examples
+#' data(nadia_dia)
+#' se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+#' metrics <- im_compute_metrics(se, methods = c("min", "zero", "knn"),
+#'                               verbose = FALSE)
+#' im_plot_nrmse(metrics)
 #' @export
 im_plot_nrmse <- function(metrics_df, ...) {
   df <- metrics_df[order(metrics_df$NRMSE), ]
@@ -965,6 +975,12 @@ im_plot_nrmse <- function(metrics_df, ...) {
 #'
 #' @inheritParams im_plot_nrmse
 #' @return ggplot object.
+#' @examples
+#' data(nadia_dia)
+#' se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+#' metrics <- im_compute_metrics(se, methods = c("min", "zero", "knn"),
+#'                               verbose = FALSE)
+#' im_plot_sor(metrics)
 #' @export
 im_plot_sor <- function(metrics_df, ...) {
   df <- metrics_df[order(metrics_df$SOR), ]
@@ -999,6 +1015,12 @@ im_plot_sor <- function(metrics_df, ...) {
 #'
 #' @inheritParams im_plot_nrmse
 #' @return ggplot object.
+#' @examples
+#' data(nadia_dia)
+#' se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+#' metrics <- im_compute_metrics(se, methods = c("min", "zero", "knn"),
+#'                               verbose = FALSE)
+#' im_plot_pss(metrics)
 #' @export
 im_plot_pss <- function(metrics_df, ...) {
   df <- metrics_df[order(metrics_df$PSS), ]
@@ -1034,6 +1056,12 @@ im_plot_pss <- function(metrics_df, ...) {
 #'
 #' @inheritParams im_plot_nrmse
 #' @return ggplot object.
+#' @examples
+#' data(nadia_dia)
+#' se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+#' metrics <- im_compute_metrics(se, methods = c("min", "zero", "knn"),
+#'                               verbose = FALSE)
+#' im_plot_acc_oi(metrics)
 #' @export
 im_plot_acc_oi <- function(metrics_df, ...) {
   df <- metrics_df[order(-metrics_df$ACC_OI), ]
@@ -1069,6 +1097,12 @@ im_plot_acc_oi <- function(metrics_df, ...) {
 #'
 #' @inheritParams im_plot_nrmse
 #' @return ggplot object.
+#' @examples
+#' data(nadia_dia)
+#' se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+#' metrics <- im_compute_metrics(se, methods = c("min", "zero", "knn"),
+#'                               verbose = FALSE)
+#' im_plot_ranking(metrics)
 #' @export
 im_plot_ranking <- function(metrics_df, ...) {
   # Order by Rank_Mean
@@ -1125,6 +1159,12 @@ im_plot_ranking <- function(metrics_df, ...) {
 #'
 #' @inheritParams im_plot_nrmse
 #' @return ggplot object.
+#' @examples
+#' data(nadia_dia)
+#' se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+#' metrics <- im_compute_metrics(se, methods = c("min", "zero", "knn"),
+#'                               verbose = FALSE)
+#' im_plot_metrics(metrics)
 #' @export
 im_plot_metrics <- function(metrics_df, ...) {
   value_cols <- c("NRMSE", "SOR", "PSS", "ACC_OI")
@@ -1239,33 +1279,20 @@ im_plot_metrics <- function(metrics_df, ...) {
 #'   `metrics_table`: a data.frame from `im_compute_metrics()`.
 #'
 #' @examples
-#' \dontrun{
-#' # ---- 1. From pipeline SE ----
-#' res <- imputation_metrics(se, assay_name = "cycloess",
-#'   methods = c("knn", "min"),
-#'   combo_methods = list(
-#'     "Impseq+min" = list(mar_method = "Impseq", mnar_method = "min")
-#'   ))
+#' data(nadia_dia)
+#' se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+#'
+#' # The default sweeps 15 methods; a handful is enough to illustrate it
+#' res <- imputation_metrics(se, methods = c("min", "zero", "knn"),
+#'                           plots = "ranking", verbose = FALSE)
 #' res$metrics_table
-#' res$ranking
 #'
-#' # ---- 1b. From preprocessing + best normalization (via im_prepare_se) ----
-#'
-#' # Option A: known method
-#' se_imp <- im_prepare_se(preprocessing, norm_method = "cycloess")
-#'
-#' # Option B: auto-pick from pc1_rank
-#' # (after running normalization_metrics() in Normalization_Metrics.R)
-#' se_imp <- im_prepare_se(preprocessing, pc1_rank = nm_res$pc1_rank)
-#'
-#' SummarizedExperiment::assayNames(se_imp)  # "log2", "cycloess"
-#' res <- imputation_metrics(se_imp, assay_name = "cycloess")
-#'
-#' # ---- With auto-export ----
-#' res <- imputation_metrics(se_imp, assay_name = "cycloess",
-#'   output_dir = "output/imp_metrics")
-#' # Creates output/imp_metrics/ with im_*.tsv and im_*.png
-#' }
+#' # Two-stage combos can be compared alongside the individual methods
+#' res2 <- imputation_metrics(se, methods = c("min", "knn"),
+#'   combo_methods = list(
+#'     "Impseq+min" = list(mar_method = "Impseq", mnar_method = "min")),
+#'   plots = "ranking", verbose = FALSE)
+#' res2$metrics_table$Method
 #' @export
 imputation_metrics <- function(se,
                                assay_name    = NULL,

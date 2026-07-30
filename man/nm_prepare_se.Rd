@@ -40,9 +40,9 @@ Internally calls \code{normalize_proteomics()} with \code{norm_method = "log2"}
 (no additional normalization).
 }
 \examples{
-\dontrun{
-source("R/Normalization_Metrics.R")
-se <- nm_prepare_se(preprocessing, min_reps = 3)
-plots <- normalization_metrics(se, methods = "all")
-}
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+dim(se)
+SummarizedExperiment::assayNames(se)
+
 }

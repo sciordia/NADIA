@@ -18,3 +18,10 @@ ggplot object.
 Heatmap (geom_tile + geom_text) showing per-metric ranks and the
 combined Rank_Mean. Rows = methods (ordered by Rank_Mean), columns = metrics.
 }
+\examples{
+data(nadia_dia)
+se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+metrics <- im_compute_metrics(se, methods = c("min", "zero", "knn"),
+                              verbose = FALSE)
+im_plot_ranking(metrics)
+}

@@ -49,9 +49,12 @@ High values indicate multicollinearity or numerical instability.
 }
 }
 \examples{
-\dontrun{
-se_nm <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
-metrics_df <- nm_compute_metrics(se_nm)
-print(metrics_df)
-}
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                            verbose = FALSE)
+
+metrics_df <- nm_compute_metrics(se)
+metrics_df[, c("Method", "PC1_VarPct", "PC1_F_ratio", "Silhouette_mean")]
+
 }

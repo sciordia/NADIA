@@ -58,11 +58,14 @@ embedded CSS. The result is browsable: printing it at the console opens it
 automatically in the RStudio Viewer or in the browser.
 }
 \examples{
-\dontrun{
-# Standalone use
-results_list_widget("results/VolcanoPlot_Input_cycloess_Impseq_min.tsv")
+if (requireNamespace("crosstalk", quietly = TRUE)) {
+  data(nadia_dia)
+  res <- process_proteomics(nadia_dia, verbose = FALSE)
 
-# With protein_quant
-results_list_widget(de_res, protein_quant = preprocessing$protein_quant)
+  # Printing the widget opens it in the Viewer / browser
+  w <- results_list_widget(res$DEPs_results,
+                           protein_quant = nadia_dia$protein_quant)
+  print(class(w))
 }
+
 }

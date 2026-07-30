@@ -51,3 +51,18 @@ List of highchart objects
 \description{
 Interactive Volcano Plot with Highcharter
 }
+\examples{
+data(nadia_dia)
+res <- process_proteomics(nadia_dia, verbose = FALSE)
+
+# One volcano per comparison, labelling the 10 most significant proteins
+hc_list <- volcano_highchart_list(
+  res$DEPs_results,
+  comparisons     = c("B-A", "D-A"),
+  lfc_thr         = 1,
+  alpha           = 0.05,
+  show_top_genes  = 10
+)
+names(hc_list)
+
+}

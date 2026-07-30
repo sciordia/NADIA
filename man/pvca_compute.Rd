@@ -58,8 +58,18 @@ exceeds the number of observations (e.g., Condition:Patient in paired
 designs with one observation per patient-condition combination).
 }
 \examples{
-\dontrun{
-vc <- pvca_compute(se, assay_name = "cycloess",
-                   factors = c("Condition", "Gender", "Patient", "Injection"))
-}
+data(nadia_dia)
+
+# nadia_dia has no batch information, so the example builds a plausible one:
+# two digestion batches crossed with the three conditions.
+cov <- data.frame(Column = nadia_dia$metadata$Coding,
+                  Batch = rep(c("b1", "b2"),
+                              length.out = nrow(nadia_dia$metadata)),
+                  stringsAsFactors = FALSE)
+res <- process_proteomics(nadia_dia, covariate_df = cov, verbose = FALSE)
+
+# Weight of each factor, and of their interaction, on the total variance
+vc <- pvca_compute(res$se_proc, assay_name = "Impseqrob_min",
+                   factors = c("Condition", "Batch"), verbose = FALSE)
+vc
 }

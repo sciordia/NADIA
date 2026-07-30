@@ -31,11 +31,20 @@ Reads \code{benchmark_opdea_metrics.tsv} files from subdirectories,
 adding an \code{Assay} column derived from the folder name.
 }
 \examples{
-\dontrun{
-# Folder structure:
-#   results/benchmark_cycloess_Impseq_min/benchmark_opdea_metrics.tsv
-#   results/benchmark_quantile_knn_min/benchmark_opdea_metrics.tsv
-
-opdea_all <- import_opdea_results("results")
+data(nadia_dia)
+sp <- utils::read.delim(system.file("extdata", "nadia_dia_spikein.tsv.gz",
+                                    package = "NADIA"))
+ev <- data.frame(Comparison = rep(c("B-A", "D-A"), each = 2),
+                 Species = c("ECOLI", "YEAST"),
+                 expected_logFC = c(1, -0.58, 2, -3.3))
+root <- file.path(tempdir(), "nadia_bench")
+for (nm in c("cycloess", "quantile")) {
+  de <- process_proteomics(nadia_dia, norm_method = nm,
+                           verbose = FALSE)$DEPs_results
+  de$Species <- sp$PG.OrganismId[match(de$Protein.IDs, sp$PG.ProteinGroups)]
+  benchmarking_proteomics(de, ev, output_dir = file.path(root, nm),
+                          verbose = FALSE)
 }
+opdea_all <- import_opdea_results(root)
+head(opdea_all)
 }

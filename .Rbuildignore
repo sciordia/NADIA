@@ -13,6 +13,7 @@
 ^LICENSE\.md$
 ^NADIA\.Rcheck$
 \.Rcheck$
+\.BiocCheck$
 \.tar\.gz$
 # Copias de conflicto que crea iCloud Drive durante el build: "fichero 2.R",
 # "NADIA_0.99.0 2.tar.gz", ... Cualquier nombre con un espacio antes de la

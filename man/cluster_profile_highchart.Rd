@@ -52,11 +52,18 @@ Builds an interactive plot showing the expression profiles of the proteins in
 a given cluster.
 }
 \examples{
-\dontrun{
-data <- read_pattern_profiler_data("Pattern_Profiler_Input.parquet")
-conditions <- c("A", "B", "C", "D")
+if (requireNamespace("Mfuzz", quietly = TRUE) &&
+    requireNamespace("e1071", quietly = TRUE)) {
+  data(nadia_dia)
+  res <- process_proteomics(nadia_dia, verbose = FALSE)
+  pp <- pattern_profiler_analysis(res$se_proc, res$DEPs_results,
+                                  assay_name = "Impseqrob_min",
+                                  auto_select_c = FALSE, c = 3,
+                                  verbose = FALSE)
 
-hc <- cluster_profile_highchart(data, cluster = 1, conditions = conditions)
-hc
+  hc <- cluster_profile_highchart(pp$long_output, cluster = 1,
+                                  conditions = c("A", "B", "D"))
+  print(class(hc))
 }
+
 }

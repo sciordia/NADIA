@@ -56,25 +56,19 @@ Converts a Spectronaut report (long TSV format) into three structured tables:
 run metadata, protein identification and protein quantification.
 }
 \examples{
-\dontrun{
-# Basic usage
-result <- preprocess_spectronaut(
-  file_path = "data-raw/Spectronaut_Report.tsv",
-  condition_order = c("Control", "Treatment")
-)
+# A trimmed Spectronaut report ships with the package
+report <- system.file("extdata", "nadia_dia_report.tsv.gz", package = "NADIA")
 
-# Access the components
-head(result$metadata)
-head(result$protein_quant)
+prep <- preprocess_spectronaut(report,
+                               condition_order = c("A", "B", "D"),
+                               verbose = FALSE)
+prep
+dim(prep$protein_quant)
 
-# With export
-result <- preprocess_spectronaut(
-  file_path = "data-raw/Spectronaut_Report.tsv",
-  condition_order = c("A", "B", "C", "D"),
-  export_dir = "./results",
-  agg_coverage_run = "mean",
-  verbose = TRUE
-)
-}
+# Nothing is written to disk unless export_dir is given
+prep <- preprocess_spectronaut(report,
+                               condition_order = c("A", "B", "D"),
+                               export_dir = tempdir(),
+                               verbose = FALSE)
 
 }

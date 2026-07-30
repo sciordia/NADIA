@@ -80,47 +80,21 @@ Complete imputation pipeline with 18 methods. Four pathways:
 }
 }
 \examples{
-\dontrun{
-# Combo mode (default, backward compatible)
-imp_result <- impute_proteomics(
-  se = norm_result$se,
-  normalized_assay_name = "cycloess"
-)
+data(nadia_dia)
+norm <- normalize_proteomics(nadia_dia, norm_method = "cycloess",
+                             verbose = FALSE)
 
-# Single method
-imp_result <- impute_proteomics(
-  se = norm_result$se,
-  imp_method = "knn",
-  method_args = list(knn = list(k = 15))
-)
+# Default: two-stage combo, Impseqrob for MAR and min for MNAR
+imp <- impute_proteomics(norm$se, normalized_assay_name = "cycloess",
+                         verbose = FALSE)
+SummarizedExperiment::assayNames(imp$se)
+sum(is.na(SummarizedExperiment::assay(imp$se, "Impseqrob_min")))
 
-# Combo with custom MAR/MNAR
-imp_result <- impute_proteomics(
-  se = norm_result$se,
-  imp_method = "combo",
-  mar_method = "knn",
-  mnar_method = "MinProb"
-)
-
-# softHybrid with defaults (sigmoid-weighted blend)
-imp_result <- impute_proteomics(
-  se = norm_result$se,
-  imp_method = "softHybrid",
-  mar_method = "missForest",
-  mnar_method = "MinProb"
-)
-
-# softHybrid with custom sigmoid parameters
-imp_result <- impute_proteomics(
-  se = norm_result$se,
-  imp_method = "softHybrid",
-  mar_method = "knn",
-  mnar_method = "QRILC",
-  method_args = list(
-    knn = list(k = 15),
-    softHybrid = list(a = 12, lambda = 0.3)
-  )
-)
-}
+# Any single method works too, and per-method options go in method_args
+imp2 <- impute_proteomics(norm$se, normalized_assay_name = "cycloess",
+                          imp_method = "knn",
+                          method_args = list(knn = list(k = 15)),
+                          verbose = FALSE)
+SummarizedExperiment::assayNames(imp2$se)
 
 }

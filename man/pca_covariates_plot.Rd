@@ -83,14 +83,18 @@ Categorical covariates use a discrete color scale; numeric covariates
 use a continuous viridis gradient.
 }
 \examples{
-\dontrun{
-source("R/Batch_Correction.R")
-pca_cov <- pca_covariates_plot(
-  se = result$se_proc,
-  assay_name = "BERT",
-  covariates = c("Injection", "Digestion", "Condition", "Gender")
-)
-pca_cov$grid              # faceted grid
-pca_cov$plots$Injection   # individual plot
-}
+data(nadia_dia)
+
+# nadia_dia has no batch information, so the example builds a plausible one:
+# two digestion batches crossed with the three conditions.
+cov <- data.frame(Column = nadia_dia$metadata$Coding,
+                  Batch = rep(c("b1", "b2"),
+                              length.out = nrow(nadia_dia$metadata)),
+                  stringsAsFactors = FALSE)
+res <- process_proteomics(nadia_dia, covariate_df = cov, verbose = FALSE)
+
+# How the samples lay out in PCA space against each covariate
+p <- pca_covariates_plot(res$se_proc, assay_name = "Impseqrob_min",
+                         covariates = c("Condition", "Batch"))
+names(p)
 }

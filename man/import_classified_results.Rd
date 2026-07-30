@@ -27,3 +27,21 @@ data.frame with columns from classified_df plus Assay
 Reads \code{benchmark_classified.tsv} files from subdirectories,
 adding an \code{Assay} column derived from the folder name.
 }
+\examples{
+data(nadia_dia)
+sp <- utils::read.delim(system.file("extdata", "nadia_dia_spikein.tsv.gz",
+                                    package = "NADIA"))
+ev <- data.frame(Comparison = rep(c("B-A", "D-A"), each = 2),
+                 Species = c("ECOLI", "YEAST"),
+                 expected_logFC = c(1, -0.58, 2, -3.3))
+root <- file.path(tempdir(), "nadia_bench")
+for (nm in c("cycloess", "quantile")) {
+  de <- process_proteomics(nadia_dia, norm_method = nm,
+                           verbose = FALSE)$DEPs_results
+  de$Species <- sp$PG.OrganismId[match(de$Protein.IDs, sp$PG.ProteinGroups)]
+  benchmarking_proteomics(de, ev, output_dir = file.path(root, nm),
+                          verbose = FALSE)
+}
+classified_all <- import_classified_results(root)
+table(classified_all$Assay, classified_all$classification)
+}

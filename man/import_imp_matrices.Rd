@@ -39,11 +39,17 @@ Each TSV must have column 1 as protein identifier and remaining columns as
 sample names matching the \code{sample_col} in the metadata file.
 }
 \examples{
-\dontrun{
-se_imp <- import_imp_matrices(
-  tsv_dir       = "./results",
-  metadata_path = "./data-raw/metadata.tsv"
-)
-SummarizedExperiment::assayNames(se_imp)
-}
+# Round trip: write the imputed matrices out, then read them back in
+data(nadia_dia)
+res <- process_proteomics(nadia_dia, export_dir = tempdir(),
+                          export_format = "tsv", verbose = FALSE)
+
+meta <- file.path(tempdir(), "metadata.tsv")
+utils::write.table(
+  data.frame(Column = res$se_proc$Column, Condition = res$se_proc$Condition,
+             Replicate = res$se_proc$Replicate),
+  meta, sep = "\t", row.names = FALSE, quote = FALSE)
+
+se <- import_imp_matrices(tsv_dir = tempdir(), metadata_path = meta)
+SummarizedExperiment::assayNames(se)
 }

@@ -465,14 +465,21 @@
 #'   }
 #'
 #' @examples
-#' \dontrun{
-#' de_result <- de_analysis_proteomics(
-#'   se = imp_result$se,
-#'   assay_name = "ImpSeqRob_Min",
-#'   control = "A",
-#'   alpha = 0.05
-#' )
-#' }
+#' data(nadia_dia)
+#' norm <- normalize_proteomics(nadia_dia, norm_method = "cycloess",
+#'                              verbose = FALSE)
+#' imp  <- impute_proteomics(norm$se, normalized_assay_name = "cycloess",
+#'                           verbose = FALSE)
+#'
+#' # All pairwise comparisons
+#' de <- de_analysis_proteomics(imp$se, assay_name = "Impseqrob_min",
+#'                              verbose = FALSE)
+#' head(de$DEPs_results[, c("Protein.IDs", "Comparison", "logFC", "adj.P.Val")])
+#'
+#' # Or every condition against a single control
+#' de2 <- de_analysis_proteomics(imp$se, assay_name = "Impseqrob_min",
+#'                               control = "A", verbose = FALSE)
+#' unique(de2$DEPs_results$Comparison)
 #'
 #' @export
 de_analysis_proteomics <- function(

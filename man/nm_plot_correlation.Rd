@@ -31,3 +31,12 @@ ggplot object.
 Pairwise within-group correlations for each method shown as boxplots
 with error bars. Higher and less variable values indicate better normalization.
 }
+\examples{
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                            verbose = FALSE)
+
+nm_plot_correlation(se, cor_method = "pearson")
+
+}

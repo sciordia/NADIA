@@ -24,8 +24,11 @@ descending PC1 variance percentage. Uses the same PRONE-style palette
 as other \verb{nm_plot_*()} functions.
 }
 \examples{
-\dontrun{
-se_nm <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
-nm_plot_pc1_ranking(se_nm)
-}
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                            verbose = FALSE)
+
+nm_plot_pc1_ranking(se)
+
 }

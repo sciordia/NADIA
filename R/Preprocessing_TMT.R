@@ -115,14 +115,16 @@
 #'   }
 #'
 #' @examples
-#' \dontrun{
-#' result <- preprocess_tmt(
-#'   file_path = "data-raw/20260527_Q25_TMTpro_TMT1y2_10Fr_Static_3engines_onlyRAW.tsv",
-#'   condition_order = c("A", "B", "C", "D", "IS"),
-#'   export_dir = "./results"
-#' )
-#' print(result)
-#' }
+#' # A trimmed Proteome Discoverer TMTpro report ships with the package
+#' report <- system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA")
+#'
+#' # condition_order is required, and doubles as a filter: the report also holds
+#' # an "IS" channel (internal standards) that is left out by not listing it
+#' tmt <- preprocess_tmt(report,
+#'                       condition_order = c("A", "B", "C", "D"),
+#'                       verbose = FALSE)
+#' tmt
+#' table(tmt$metadata$R.Condition)
 #'
 #' @export
 preprocess_tmt <- function(
@@ -392,6 +394,22 @@ preprocess_tmt <- function(
 # Methods for the tmt_data class
 # =============================================================================
 
+#' Print a summary of a TMT preprocessing result
+#'
+#' Reports the number of channels, protein groups and conditions, so that the
+#' shape of the experiment can be checked at a glance before processing it.
+#'
+#' @param x A `tmt_data` object, as returned by [preprocess_tmt()].
+#' @param ... Ignored, present for compatibility with the `print` generic.
+#' @return `x`, invisibly. Called for the summary it prints.
+#'
+#' @examples
+#' tmt <- preprocess_tmt(
+#'   system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA"),
+#'   condition_order = c("A", "B", "C", "D"),
+#'   verbose = FALSE)
+#' print(tmt)
+#'
 #' @export
 print.tmt_data <- function(x, ...) {
   cat("Preprocessed TMT (Proteome Discoverer) data\n")

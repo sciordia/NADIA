@@ -30,8 +30,11 @@ first MDS dimension (using only positive eigenvalues from classical MDS) and
 returns a ranking ordered by ascending MDS1 variance (lower = better).
 }
 \examples{
-\dontrun{
-se_nm <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
-nm_rank_mds1(se_nm)
-}
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                            verbose = FALSE)
+
+nm_rank_mds1(se, verbose = FALSE)
+
 }

@@ -70,22 +70,17 @@ classification metrics, dispersion statistics, and generates
 visualizations.
 }
 \examples{
-\dontrun{
-expected <- data.frame(
-  Comparison   = c("B/A", "B/A", "C/A", "C/A"),
-  Species      = c("ECOLI", "YEAST", "ECOLI", "YEAST"),
-  expected_logFC = c(1.0, -0.58, 1.58, -1.60)
-)
-
-result <- benchmarking_proteomics(
-  de_res = DEPs_results_with_species,
-  expected_values = expected,
-  alpha = 0.05,
-  output_dir = "data-raw/benchmark"
-)
-
-result$gg_heatmap
-result$hc_volcano_list[["B/A"]]
-}
-
+data(nadia_dia)
+de <- process_proteomics(nadia_dia, verbose = FALSE)$DEPs_results
+sp <- utils::read.delim(system.file("extdata", "nadia_dia_spikein.tsv.gz",
+                                    package = "NADIA"))
+species_df <- data.frame(Protein.IDs = sp$PG.ProteinGroups,
+                         Species = sp$PG.OrganismId)
+ev <- data.frame(Comparison = rep(c("B-A", "D-A"), each = 2),
+                 Species = c("ECOLI", "YEAST"),
+                 expected_logFC = c(1, -0.58, 2, -3.3))
+bench <- benchmarking_proteomics(de, ev, species_df = species_df,
+                                 verbose = FALSE)
+bench$metrics_table
+bench$gg_heatmap
 }

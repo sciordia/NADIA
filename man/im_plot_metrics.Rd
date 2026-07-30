@@ -18,3 +18,10 @@ ggplot object.
 Similar to \code{nm_plot_metrics()}: one facet per metric with free y-scales,
 labeled values on bars.
 }
+\examples{
+data(nadia_dia)
+se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+metrics <- im_compute_metrics(se, methods = c("min", "zero", "knn"),
+                              verbose = FALSE)
+im_plot_metrics(metrics)
+}

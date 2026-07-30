@@ -204,41 +204,21 @@ tidyHeatmap/ComplexHeatmap object
 Create a tidyHeatmap Heatmap for Proteomics
 }
 \examples{
-\dontrun{
-# Load the data
-hm_input <- arrow::read_parquet("PCA_Input.parquet")
+if (requireNamespace("ComplexHeatmap", quietly = TRUE) &&
+    requireNamespace("tidyHeatmap", quietly = TRUE)) {
+  data(nadia_dia)
+  res <- process_proteomics(nadia_dia, verbose = FALSE)
 
-# Heatmap of every protein
-hm_all <- proteomics_heatmap(
-  data = hm_input,
-  mode = "all",
-  scale_data = "row",
-  sample_order = "condition",
-  condition_order = c("A", "B", "C", "D")
-)
-
-# Heatmap split by condition
-hm_split <- proteomics_heatmap(
-  data = hm_input,
-  mode = "any",
-  scale_data = "row",
-  split_by_condition = TRUE,
-  condition_order = c("A", "B", "C", "D")
-)
-
-# Heatmap of the significant proteins (any)
-hm_any <- proteomics_heatmap(
-  data = hm_input,
-  mode = "any",
-  scale_data = "row"
-)
-
-# Heatmap of the proteins significant in a specific comparison
-hm_target <- proteomics_heatmap(
-  data = hm_input,
-  mode = "target",
-  comparison = "B-A",
-  scale_data = "row"
-)
+  # Proteins significant in the B-A comparison, samples grouped by condition
+  hm <- proteomics_heatmap(
+    res$PCA_Input,
+    mode            = "target",
+    comparison      = "B-A",
+    scale_data      = "row",
+    sample_order    = "condition",
+    condition_order = c("A", "B", "D")
+  )
+  print(class(hm))   # print(hm) itself draws it on the current device
 }
+
 }

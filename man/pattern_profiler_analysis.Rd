@@ -68,14 +68,24 @@ Complete clustering pipeline starting from a SummarizedExperiment.
 Writes a parquet file in LONG format for visualisation.
 }
 \examples{
-\dontrun{
-result <- pattern_profiler_analysis(
-  se_proc = se_proc,
-  DEPs_results = DEPs_results,
-  filter_mode = "any",
-  condition_order = c("A", "B", "C", "D"),
-  min_membership = 0.25,
-  output_file = "data-raw/Pattern_Profiler_Input.parquet"
-)
+if (requireNamespace("Mfuzz", quietly = TRUE) &&
+    requireNamespace("e1071", quietly = TRUE)) {
+  data(nadia_dia)
+  res <- process_proteomics(nadia_dia, verbose = FALSE)
+
+  # auto_select_c = TRUE would cluster once per value of c_range
+  pp <- pattern_profiler_analysis(
+    res$se_proc,
+    DEPs_results    = res$DEPs_results,
+    assay_name      = "Impseqrob_min",
+    filter_mode     = "any",
+    condition_order = c("A", "B", "D"),
+    auto_select_c   = FALSE,
+    c               = 3,
+    verbose         = FALSE
+  )
+  print(pp$cluster_counts)
+  print(head(pp$long_output))
 }
+
 }

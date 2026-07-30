@@ -524,18 +524,17 @@
 #' @return A reactable object
 #'
 #' @examples
-#' \dontrun{
-#' # From a file
-#' tbl <- results_list_reactable("results/VolcanoPlot_Input_cycloess_Impseq_min.tsv")
+#' data(nadia_dia)
+#' res <- process_proteomics(nadia_dia, verbose = FALSE)
 #'
-#' # With protein_quant for Description and Quant_Pepts
-#' tbl <- results_list_reactable(de_res, protein_quant = preprocessing$protein_quant)
+#' # protein_quant adds the Description and Quant_Pepts columns
+#' tbl <- results_list_reactable(
+#'   res$DEPs_results,
+#'   protein_quant = nadia_dia$protein_quant,
+#'   comparisons   = "B-A"
+#' )
+#' class(tbl)
 #'
-#' # In Shiny
-#' # output$tabla <- renderReactable({
-#' #   results_list_reactable(data(), protein_quant = pq, element_id = "tabla")
-#' # })
-#' }
 #' @export
 results_list_reactable <- function(
     data,
@@ -655,13 +654,16 @@ results_list_reactable <- function(
 #' @return A browsable htmltools object
 #'
 #' @examples
-#' \dontrun{
-#' # Standalone use
-#' results_list_widget("results/VolcanoPlot_Input_cycloess_Impseq_min.tsv")
+#' if (requireNamespace("crosstalk", quietly = TRUE)) {
+#'   data(nadia_dia)
+#'   res <- process_proteomics(nadia_dia, verbose = FALSE)
 #'
-#' # With protein_quant
-#' results_list_widget(de_res, protein_quant = preprocessing$protein_quant)
+#'   # Printing the widget opens it in the Viewer / browser
+#'   w <- results_list_widget(res$DEPs_results,
+#'                            protein_quant = nadia_dia$protein_quant)
+#'   print(class(w))
 #' }
+#'
 #' @export
 results_list_widget <- function(
     data,
@@ -1944,13 +1946,13 @@ results_list_widget <- function(
 #' @return A reactable object.
 #'
 #' @examples
-#' \dontrun{
-#' res <- preprocess_spectronaut(
-#'   file_path = "data-raw/Curso_Q24_DIA_Spectronaut_v20_Report.tsv",
-#'   condition_order = c("A","B","C","D")
-#' )
-#' protein_list_reactable(res$protein_id, metadata = res$metadata)
-#' }
+#' data(nadia_dia)
+#'
+#' # metadata$Coding fixes the order of the sample columns
+#' tbl <- protein_list_reactable(nadia_dia$protein_id,
+#'                               metadata = nadia_dia$metadata)
+#' class(tbl)
+#'
 #' @export
 protein_list_reactable <- function(
     data,
@@ -2055,9 +2057,14 @@ protein_list_reactable <- function(
 #' @return A browsable htmltools object.
 #'
 #' @examples
-#' \dontrun{
-#' protein_list_widget("data-raw/Protein_ID_20260423_142504.tsv")
+#' if (requireNamespace("jsonlite", quietly = TRUE)) {
+#'   data(nadia_dia)
+#'
+#'   w <- protein_list_widget(nadia_dia$protein_id,
+#'                            metadata = nadia_dia$metadata)
+#'   print(class(w))   # print(w) itself opens it in the Viewer / browser
 #' }
+#'
 #' @export
 protein_list_widget <- function(
     data,
@@ -2488,12 +2495,20 @@ protein_list_widget <- function(
 #' @return A browsable object.
 #'
 #' @examples
-#' \dontrun{
-#' quant_list_widget(
-#'   data        = "data-raw/Protein_QUANT_20260423_142504.tsv",
-#'   matrix_data = "data-raw/matrix_log2_cycloess_Impseq_min.tsv"
-#' )
+#' if (requireNamespace("jsonlite", quietly = TRUE)) {
+#'   data(nadia_dia)
+#'   res <- process_proteomics(nadia_dia, verbose = FALSE)
+#'
+#'   # The log2 matrix: a ProteinGroups column plus one column per sample
+#'   mat <- SummarizedExperiment::assay(res$se_proc, "Impseqrob_min")
+#'   mat_df <- data.frame(ProteinGroups = rownames(mat), mat,
+#'                        check.names = FALSE)
+#'
+#'   w <- quant_list_widget(nadia_dia$protein_quant, matrix_data = mat_df,
+#'                          metadata = nadia_dia$metadata)
+#'   print(class(w))
 #' }
+#'
 #' @export
 quant_list_widget <- function(
     data        = "data-raw/Protein_QUANT_20260423_142504.tsv",
@@ -2937,9 +2952,15 @@ quant_list_widget <- function(
 #' @return An htmltools object (browsable tagList) ready to be rendered.
 #'
 #' @examples
-#' \dontrun{
-#' summary_list_widget("data-raw/Metadata_20260423_142504.tsv")
+#' if (requireNamespace("jsonlite", quietly = TRUE)) {
+#'   data(nadia_dia)
+#'
+#'   # LFQ/TMT metadata lack the identification counts; the widget then shows
+#'   # only FileName/Condition/Replicate/Coding
+#'   w <- summary_list_widget(nadia_dia$metadata)
+#'   print(class(w))
 #' }
+#'
 #' @export
 summary_list_widget <- function(
     data       = "data-raw/Metadata_20260423_142504.tsv",

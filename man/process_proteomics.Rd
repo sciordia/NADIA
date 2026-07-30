@@ -169,25 +169,22 @@ and differential expression analysis. Coordinates sub-modules
 Normalization.R, Imputation.R, and DEAnalysis.R.
 }
 \examples{
-\dontrun{
-# 1. Preprocess Spectronaut data
-preprocessing <- preprocess_spectronaut(
-  file_path = "data-raw/Spectronaut_Report.tsv",
-  condition_order = c("A", "B", "C", "D")
-)
+data(nadia_dia)
 
-# 2. Process (normalization, imputation, DE)
-result <- process_proteomics(
-  preprocessing = preprocessing,
-  export_dir = "./results",
-  cyclic_loess_method = "fast",
-  cyclic_loess_iterations = 3,
-  alpha = 0.05
-)
+# Normalization, imputation and differential expression in one call
+res <- process_proteomics(nadia_dia, verbose = FALSE)
+res
 
-# 3. Access results
-result$se_proc        # Processed SummarizedExperiment
-result$DEPs_results   # Differential results
-}
+SummarizedExperiment::assayNames(res$se_proc)
+table(res$DEPs_results$Comparison, res$DEPs_results$Change)
+
+# The plotting layer is fed straight from the result, no files involved
+names(res$BoxPlot_Input)
+names(res$PCA_Input)
+
+# Another combination: quantile normalization and a single imputation method
+res2 <- process_proteomics(nadia_dia, norm_method = "quantile",
+                           imp_method = "QRILC", verbose = FALSE)
+SummarizedExperiment::assayNames(res2$se_proc)
 
 }

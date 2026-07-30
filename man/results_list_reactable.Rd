@@ -57,16 +57,15 @@ differential expression results. Works both in Shiny (it returns a reactable
 object) and standalone via \code{results_list_widget()}.
 }
 \examples{
-\dontrun{
-# From a file
-tbl <- results_list_reactable("results/VolcanoPlot_Input_cycloess_Impseq_min.tsv")
+data(nadia_dia)
+res <- process_proteomics(nadia_dia, verbose = FALSE)
 
-# With protein_quant for Description and Quant_Pepts
-tbl <- results_list_reactable(de_res, protein_quant = preprocessing$protein_quant)
+# protein_quant adds the Description and Quant_Pepts columns
+tbl <- results_list_reactable(
+  res$DEPs_results,
+  protein_quant = nadia_dia$protein_quant,
+  comparisons   = "B-A"
+)
+class(tbl)
 
-# In Shiny
-# output$tabla <- renderReactable({
-#   results_list_reactable(data(), protein_quant = pq, element_id = "tabla")
-# })
-}
 }

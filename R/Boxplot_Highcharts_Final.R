@@ -61,6 +61,19 @@ calc_boxplot_stats <- function(x, coef = 1.5) {
 #'
 #' @return List of highchart objects (one per assay)
 #'
+#' @examples
+#' data(nadia_dia)
+#' res <- process_proteomics(nadia_dia, verbose = FALSE)
+#'
+#' # One boxplot per assay; keep only the imputed one
+#' hc_list <- boxplot_highchart_list(
+#'   res$BoxPlot_Input,
+#'   assays      = "Impseqrob_min",
+#'   group_order = c("A", "B", "D"),
+#'   title       = "Boxplot: {assay}"
+#' )
+#' names(hc_list)
+#'
 #' @export
 boxplot_highchart_list <- function(
     data,

@@ -173,26 +173,20 @@
 #'   }
 #'
 #' @examples
-#' \dontrun{
-#' # Basic usage
-#' result <- preprocess_spectronaut(
-#'   file_path = "data-raw/Spectronaut_Report.tsv",
-#'   condition_order = c("Control", "Treatment")
-#' )
+#' # A trimmed Spectronaut report ships with the package
+#' report <- system.file("extdata", "nadia_dia_report.tsv.gz", package = "NADIA")
 #'
-#' # Access the components
-#' head(result$metadata)
-#' head(result$protein_quant)
+#' prep <- preprocess_spectronaut(report,
+#'                                condition_order = c("A", "B", "D"),
+#'                                verbose = FALSE)
+#' prep
+#' dim(prep$protein_quant)
 #'
-#' # With export
-#' result <- preprocess_spectronaut(
-#'   file_path = "data-raw/Spectronaut_Report.tsv",
-#'   condition_order = c("A", "B", "C", "D"),
-#'   export_dir = "./results",
-#'   agg_coverage_run = "mean",
-#'   verbose = TRUE
-#' )
-#' }
+#' # Nothing is written to disk unless export_dir is given
+#' prep <- preprocess_spectronaut(report,
+#'                                condition_order = c("A", "B", "D"),
+#'                                export_dir = tempdir(),
+#'                                verbose = FALSE)
 #'
 #' @export
 preprocess_spectronaut <- function(
@@ -515,6 +509,20 @@ preprocess_spectronaut <- function(
 # Methods for the spectronaut_data class
 # =============================================================================
 
+#' Print a summary of a Spectronaut preprocessing result
+#'
+#' Reports the number of runs, protein groups and conditions, so that the shape
+#' of the experiment can be checked at a glance before processing it.
+#'
+#' @param x A `spectronaut_data` object, as returned by
+#'   [preprocess_spectronaut()].
+#' @param ... Ignored, present for compatibility with the `print` generic.
+#' @return `x`, invisibly. Called for the summary it prints.
+#'
+#' @examples
+#' data(nadia_dia)
+#' print(nadia_dia)
+#'
 #' @export
 print.spectronaut_data <- function(x, ...) {
   cat("Preprocessed Spectronaut data\n")

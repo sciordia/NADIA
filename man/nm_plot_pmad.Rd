@@ -36,3 +36,12 @@ One boxplot per normalization method showing the per-protein MAD distribution
 within-group consistency.
 With \code{diff = TRUE}, shows \% reduction vs \code{baseline} as a bar chart.
 }
+\examples{
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                            verbose = FALSE)
+
+nm_plot_pmad(se)
+
+}

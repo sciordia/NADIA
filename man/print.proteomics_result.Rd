@@ -11,6 +11,17 @@
 
 \item{...}{Additional arguments (ignored)}
 }
+\value{
+\code{x}, invisibly. Called for the summary it prints: the assays of the
+SummarizedExperiment, the comparisons performed, the number of differential
+proteins and the parameters used.
+}
 \description{
 Print method for proteomics_result
+}
+\examples{
+data(nadia_dia)
+res <- process_proteomics(nadia_dia, verbose = FALSE)
+print(res)
+
 }

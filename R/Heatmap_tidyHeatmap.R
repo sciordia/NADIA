@@ -29,6 +29,31 @@ wrap_heatmap_with_title <- function(hm, title, title_size = 14, title_face = "bo
   )
 }
 
+#' Draw a proteomics heatmap
+#'
+#' Renders the object built by [proteomics_heatmap()] on the current graphics
+#' device, adding the title stored in the object. Printing is what actually draws
+#' the heatmap: building it does not.
+#'
+#' @param x A `proteomics_heatmap` object, as returned by [proteomics_heatmap()].
+#' @param ... Further arguments passed to `ComplexHeatmap::draw()`.
+#' @return The drawn `HeatmapList`, invisibly. Called for its side effect.
+#'
+#' @examples
+#' if (requireNamespace("ComplexHeatmap", quietly = TRUE) &&
+#'     requireNamespace("tidyHeatmap", quietly = TRUE)) {
+#'   data(nadia_dia)
+#'   res <- process_proteomics(nadia_dia, verbose = FALSE)
+#'   hm <- proteomics_heatmap(res$PCA_Input, mode = "any")
+#'
+#'   # Drawing needs a graphics device; send it to a temporary file
+#'   f <- tempfile(fileext = ".png")
+#'   grDevices::png(f)
+#'   print(hm)
+#'   grDevices::dev.off()
+#'   file.remove(f)
+#' }
+#'
 #' @export
 print.proteomics_heatmap <- function(x, ...) {
   hm <- x$heatmap
@@ -554,43 +579,23 @@ prepare_heatmap_data <- function(data,
 #' @return tidyHeatmap/ComplexHeatmap object
 #'
 #' @examples
-#' \dontrun{
-#' # Load the data
-#' hm_input <- arrow::read_parquet("PCA_Input.parquet")
+#' if (requireNamespace("ComplexHeatmap", quietly = TRUE) &&
+#'     requireNamespace("tidyHeatmap", quietly = TRUE)) {
+#'   data(nadia_dia)
+#'   res <- process_proteomics(nadia_dia, verbose = FALSE)
 #'
-#' # Heatmap of every protein
-#' hm_all <- proteomics_heatmap(
-#'   data = hm_input,
-#'   mode = "all",
-#'   scale_data = "row",
-#'   sample_order = "condition",
-#'   condition_order = c("A", "B", "C", "D")
-#' )
-#'
-#' # Heatmap split by condition
-#' hm_split <- proteomics_heatmap(
-#'   data = hm_input,
-#'   mode = "any",
-#'   scale_data = "row",
-#'   split_by_condition = TRUE,
-#'   condition_order = c("A", "B", "C", "D")
-#' )
-#'
-#' # Heatmap of the significant proteins (any)
-#' hm_any <- proteomics_heatmap(
-#'   data = hm_input,
-#'   mode = "any",
-#'   scale_data = "row"
-#' )
-#'
-#' # Heatmap of the proteins significant in a specific comparison
-#' hm_target <- proteomics_heatmap(
-#'   data = hm_input,
-#'   mode = "target",
-#'   comparison = "B-A",
-#'   scale_data = "row"
-#' )
+#'   # Proteins significant in the B-A comparison, samples grouped by condition
+#'   hm <- proteomics_heatmap(
+#'     res$PCA_Input,
+#'     mode            = "target",
+#'     comparison      = "B-A",
+#'     scale_data      = "row",
+#'     sample_order    = "condition",
+#'     condition_order = c("A", "B", "D")
+#'   )
+#'   print(class(hm))   # print(hm) itself draws it on the current device
 #' }
+#'
 #' @export
 proteomics_heatmap <- function(data,
                                mode = c("all", "any", "target"),
@@ -1313,45 +1318,22 @@ proteomics_heatmap <- function(data,
 #' @return Named list of tidyHeatmap objects
 #'
 #' @examples
-#' \dontrun{
-#' # Load the data
-#' hm_input <- arrow::read_parquet("PCA_Input.parquet")
+#' if (requireNamespace("ComplexHeatmap", quietly = TRUE) &&
+#'     requireNamespace("tidyHeatmap", quietly = TRUE)) {
+#'   data(nadia_dia)
+#'   res <- process_proteomics(nadia_dia, verbose = FALSE)
 #'
-#' # Build heatmaps for all and any
-#' hm_list <- proteomics_heatmap_list(
-#'   data = hm_input,
-#'   modes = c("all", "any"),
-#'   sample_order = "condition",
-#'   condition_order = c("A", "B", "C", "D")
-#' )
-#'
-#' # Display them
-#' hm_list[["all"]]
-#' hm_list[["any"]]
-#'
-#' # Build heatmaps including specific comparisons
-#' hm_list <- proteomics_heatmap_list(
-#'   data = hm_input,
-#'   modes = c("all", "any", "B-A", "C-A"),
-#'   sample_order = "clustering"
-#' )
-#' hm_list[["B-A"]]
-#'
-#' # With a custom paletteer palette
-#' hm_list <- proteomics_heatmap_list(
-#'   data = hm_input,
-#'   modes = c("all"),
-#'   palette_value = "viridis::viridis"
-#' )
-#'
-#' # With an RColorBrewer palette
-#' hm_list <- proteomics_heatmap_list(
-#'   data = hm_input,
-#'   modes = c("all"),
-#'   palette_value = "brewer:RdYlBu",
-#'   palette_annotation = "brewer:Set1"
-#' )
+#'   # "any" plus one heatmap per named comparison
+#'   hm_list <- proteomics_heatmap_list(
+#'     res$PCA_Input,
+#'     modes           = c("any", "B-A"),
+#'     sample_order    = "condition",
+#'     condition_order = c("A", "B", "D"),
+#'     palette_value   = "brewer:RdYlBu"
+#'   )
+#'   print(names(hm_list))   # print(hm_list[["B-A"]]) draws one of them
 #' }
+#'
 #' @export
 proteomics_heatmap_list <- function(data,
                                     modes = c("all", "any"),

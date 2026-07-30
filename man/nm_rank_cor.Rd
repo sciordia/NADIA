@@ -31,3 +31,12 @@ A \code{data.frame} with columns \code{Method}, \code{Median_Cor}, \code{Rank}.
 Rank normalization methods by median intragroup correlation
 (descending -- higher is better)
 }
+\examples{
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                            verbose = FALSE)
+
+nm_rank_cor(se, cor_method = "pearson", verbose = FALSE)
+
+}

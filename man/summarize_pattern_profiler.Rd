@@ -15,3 +15,18 @@ List with summary statistics
 \description{
 Summary of the Pattern Profiler data
 }
+\examples{
+if (requireNamespace("Mfuzz", quietly = TRUE) &&
+    requireNamespace("e1071", quietly = TRUE)) {
+  data(nadia_dia)
+  res <- process_proteomics(nadia_dia, verbose = FALSE)
+  pp <- pattern_profiler_analysis(res$se_proc, res$DEPs_results,
+                                  assay_name = "Impseqrob_min",
+                                  auto_select_c = FALSE, c = 3,
+                                  verbose = FALSE)
+
+  info <- summarize_pattern_profiler(pp$long_output)
+  print(info$cluster_summary)
+}
+
+}

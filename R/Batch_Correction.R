@@ -337,10 +337,20 @@
 #'   }
 #'
 #' @examples
-#' \dontrun{
-#' vc <- pvca_compute(se, assay_name = "cycloess",
-#'                    factors = c("Condition", "Gender", "Patient", "Injection"))
-#' }
+#' data(nadia_dia)
+#'
+#' # nadia_dia has no batch information, so the example builds a plausible one:
+#' # two digestion batches crossed with the three conditions.
+#' cov <- data.frame(Column = nadia_dia$metadata$Coding,
+#'                   Batch = rep(c("b1", "b2"),
+#'                               length.out = nrow(nadia_dia$metadata)),
+#'                   stringsAsFactors = FALSE)
+#' res <- process_proteomics(nadia_dia, covariate_df = cov, verbose = FALSE)
+#'
+#' # Weight of each factor, and of their interaction, on the total variance
+#' vc <- pvca_compute(res$se_proc, assay_name = "Impseqrob_min",
+#'                    factors = c("Condition", "Batch"), verbose = FALSE)
+#' vc
 #' @export
 pvca_compute <- function(se,
                          assay_name          = NULL,
@@ -427,11 +437,20 @@ pvca_compute <- function(se,
 #' @return ggplot2 object
 #'
 #' @examples
-#' \dontrun{
-#' vc <- pvca_compute(se, factors = c("Condition", "Gender", "Injection"))
-#' pvca_plot(vc, technical_factors = "Injection",
-#'           biological_factors = c("Condition", "Gender"))
-#' }
+#' data(nadia_dia)
+#'
+#' # nadia_dia has no batch information, so the example builds a plausible one:
+#' # two digestion batches crossed with the three conditions.
+#' cov <- data.frame(Column = nadia_dia$metadata$Coding,
+#'                   Batch = rep(c("b1", "b2"),
+#'                               length.out = nrow(nadia_dia$metadata)),
+#'                   stringsAsFactors = FALSE)
+#' res <- process_proteomics(nadia_dia, covariate_df = cov, verbose = FALSE)
+#'
+#' vc <- pvca_compute(res$se_proc, assay_name = "Impseqrob_min",
+#'                    factors = c("Condition", "Batch"), verbose = FALSE)
+#' pvca_plot(vc, technical_factors = "Batch",
+#'           biological_factors = "Condition")
 #' @export
 pvca_plot <- function(pvca_res,
                       technical_factors   = NULL,
@@ -550,19 +569,22 @@ pvca_plot <- function(pvca_res,
 #'   }
 #'
 #' @examples
-#' \dontrun{
-#' source("R/Batch_Correction.R")
-#' pvca_res <- pvca_analysis(
-#'   se = result$se_proc,
-#'   assay_name = "cycloess",
-#'   technical_factors = c("Injection", "Digestion"),
-#'   biological_factors = c("Condition", "Gender", "Age", "Obesity",
-#'                          "IMC", "Patient"),
-#'   output_dir = "./results/my_analysis/"
-#' )
-#' pvca_res$variance_components
-#' pvca_res$plot
-#' }
+#' data(nadia_dia)
+#'
+#' # nadia_dia has no batch information, so the example builds a plausible one:
+#' # two digestion batches crossed with the three conditions.
+#' cov <- data.frame(Column = nadia_dia$metadata$Coding,
+#'                   Batch = rep(c("b1", "b2"),
+#'                               length.out = nrow(nadia_dia$metadata)),
+#'                   stringsAsFactors = FALSE)
+#' res <- process_proteomics(nadia_dia, covariate_df = cov, verbose = FALSE)
+#'
+#' # Variance decomposition: how much of the signal each factor explains
+#' pv <- pvca_analysis(res$se_proc, assay_name = "Impseqrob_min",
+#'                     technical_factors = "Batch",
+#'                     biological_factors = "Condition",
+#'                     verbose = FALSE)
+#' pv$pvca_table
 #' @export
 pvca_analysis <- function(se,
                           assay_name          = NULL,
@@ -625,7 +647,7 @@ pvca_analysis <- function(se,
   if (verbose) message("  Generating PVCA plot ...")
   gg <- tryCatch(
     pvca_plot(pvca_df, colors = colors,
-              title = paste0("PVCA \u2014 ", used_assay, " (", n_proteins,
+              title = paste0("PVCA - ", used_assay, " (", n_proteins,
                              " proteins)"),
               base_size = 15),
     error = function(e) {
@@ -893,24 +915,28 @@ pvca_analysis <- function(se,
 #'   to match and a warning is issued.
 #'
 #' @examples
-#' \dontrun{
-#' source("R/Batch_Correction.R")
-#' se_corrected <- batch_correct_proteomics(
-#'   se         = result$se_proc,
-#'   assay_name = "cycloess",
-#'   batch_column = "Batch"
-#' )
-#' SummarizedExperiment::assayNames(se_corrected)
-#' # [1] "raw" "log2" "cycloess" "BERT"
+#' data(nadia_dia)
 #'
-#' # With covariates
-#' se_corrected <- batch_correct_proteomics(
-#'   se         = result$se_proc,
-#'   assay_name = "cycloess",
-#'   batch_column = "Batch",
-#'   covariates = c("Gender", "Age")
-#' )
-#' }
+#' # nadia_dia has no batch information, so the example builds a plausible one:
+#' # two digestion batches crossed with the three conditions.
+#' cov <- data.frame(Column = nadia_dia$metadata$Coding,
+#'                   Batch = rep(c("b1", "b2"),
+#'                               length.out = nrow(nadia_dia$metadata)),
+#'                   stringsAsFactors = FALSE)
+#' res <- process_proteomics(nadia_dia, covariate_df = cov, verbose = FALSE)
+#'
+#' # BERT removes the batch effect and adds a "BERT" assay, leaving the
+#' # original one untouched
+#' se <- batch_correct_proteomics(res$se_proc, assay_name = "Impseqrob_min",
+#'                                batch_column = "Batch", verbose = FALSE)
+#' SummarizedExperiment::assayNames(se)
+#'
+#' # On a real experiment you would normally pass the biological variable of
+#' # interest in `covariates`, so that ComBat preserves it instead of removing
+#' # it along with the batch effect. It is left out here on purpose: with 12
+#' # samples in 2 batches and 3 conditions there are only 2 samples per cell,
+#' # and the model becomes singular. Protecting a covariate needs enough
+#' # replicates within every batch-by-condition combination.
 #' @export
 batch_correct_proteomics <- function(
     se,
@@ -1156,16 +1182,20 @@ batch_correct_proteomics <- function(
 #'   }
 #'
 #' @examples
-#' \dontrun{
-#' source("R/Batch_Correction.R")
-#' pca_cov <- pca_covariates_plot(
-#'   se = result$se_proc,
-#'   assay_name = "BERT",
-#'   covariates = c("Injection", "Digestion", "Condition", "Gender")
-#' )
-#' pca_cov$grid              # faceted grid
-#' pca_cov$plots$Injection   # individual plot
-#' }
+#' data(nadia_dia)
+#'
+#' # nadia_dia has no batch information, so the example builds a plausible one:
+#' # two digestion batches crossed with the three conditions.
+#' cov <- data.frame(Column = nadia_dia$metadata$Coding,
+#'                   Batch = rep(c("b1", "b2"),
+#'                               length.out = nrow(nadia_dia$metadata)),
+#'                   stringsAsFactors = FALSE)
+#' res <- process_proteomics(nadia_dia, covariate_df = cov, verbose = FALSE)
+#'
+#' # How the samples lay out in PCA space against each covariate
+#' p <- pca_covariates_plot(res$se_proc, assay_name = "Impseqrob_min",
+#'                          covariates = c("Condition", "Batch"))
+#' names(p)
 #' @export
 pca_covariates_plot <- function(
     se,
@@ -1327,7 +1357,7 @@ pca_covariates_plot <- function(
       ref_lines +
       ggplot2::geom_point(size = point_size, alpha = 0.85) +
       ggplot2::labs(
-        title    = paste0("PCA \u2014 ", assay_name),
+        title    = paste0("PCA - ", assay_name),
         subtitle = paste0(n_proteins, " ", protein_label, " | colored by ", cov),
         x = x_lab, y = y_lab, color = cov
       ) +
@@ -1372,7 +1402,7 @@ pca_covariates_plot <- function(
     ggplot2::scale_color_manual(
       values = .pca_cov_palette(length(unique(long_df$Value)))) +
     ggplot2::labs(
-      title    = paste0("PCA \u2014 ", assay_name,
+      title    = paste0("PCA - ", assay_name,
                          " (", n_proteins, " ", protein_label, ")"),
       x = x_lab, y = y_lab, color = "Value"
     ) +

@@ -43,3 +43,15 @@ Data frame with dispersion metrics
 Calculates MED, SD, CV, MAD, RCV, IQR, trimmed SD/CV for significant
 proteins with correct direction.
 }
+\examples{
+data(nadia_dia)
+de <- process_proteomics(nadia_dia, verbose = FALSE)$DEPs_results
+sp <- utils::read.delim(system.file("extdata", "nadia_dia_spikein.tsv.gz",
+                                    package = "NADIA"))
+de$Species <- sp$PG.OrganismId[match(de$Protein.IDs, sp$PG.ProteinGroups)]
+ev <- data.frame(Comparison = rep(c("B-A", "D-A"), each = 2),
+                 Species = c("ECOLI", "YEAST"),
+                 expected_logFC = c(1, -0.58, 2, -3.3))
+disp <- compute_dispersion_metrics(de, ev)
+disp[, c("Comparison", "Species", "expected_logFC", "MED", "MAD", "RCV")]
+}

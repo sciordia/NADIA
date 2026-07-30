@@ -18,3 +18,10 @@ ggplot object.
 Bar chart of Procrustes Statistical Shape (PSS), ordered ascending
 (lower is better). Requires vegan; NA values shown as 0-height bars.
 }
+\examples{
+data(nadia_dia)
+se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+metrics <- im_compute_metrics(se, methods = c("min", "zero", "knn"),
+                              verbose = FALSE)
+im_plot_pss(metrics)
+}

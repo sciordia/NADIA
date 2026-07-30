@@ -30,8 +30,11 @@ in a SummarizedExperiment and returns a data.frame sorted in descending
 order. Higher PC1 variance generally indicates stronger group separation.
 }
 \examples{
-\dontrun{
-se_nm <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
-nm_rank_pc1(se_nm)
-}
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                            verbose = FALSE)
+
+nm_rank_pc1(se, verbose = FALSE)
+
 }

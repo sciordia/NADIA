@@ -45,7 +45,12 @@ per-condition tint, reproducing the manual layout.
 }
 }
 \examples{
-\dontrun{
-protein_list_widget("data-raw/Protein_ID_20260423_142504.tsv")
+if (requireNamespace("jsonlite", quietly = TRUE)) {
+  data(nadia_dia)
+
+  w <- protein_list_widget(nadia_dia$protein_id,
+                           metadata = nadia_dia$metadata)
+  print(class(w))   # print(w) itself opens it in the Viewer / browser
 }
+
 }

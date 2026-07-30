@@ -31,3 +31,12 @@ ggplot object.
 PC1 vs PC2 scatter, colored by condition, faceted by method.
 Percentage of variance explained shown on each axis.
 }
+\examples{
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                            verbose = FALSE)
+
+nm_plot_pca(se, pca_scales = "fixed")
+
+}

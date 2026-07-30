@@ -44,10 +44,18 @@ filters and Excel export. It appends to Protein_QUANT the 16 columns of the
 normalized/imputed log2 matrix, matching by Protein Groups.
 }
 \examples{
-\dontrun{
-quant_list_widget(
-  data        = "data-raw/Protein_QUANT_20260423_142504.tsv",
-  matrix_data = "data-raw/matrix_log2_cycloess_Impseq_min.tsv"
-)
+if (requireNamespace("jsonlite", quietly = TRUE)) {
+  data(nadia_dia)
+  res <- process_proteomics(nadia_dia, verbose = FALSE)
+
+  # The log2 matrix: a ProteinGroups column plus one column per sample
+  mat <- SummarizedExperiment::assay(res$se_proc, "Impseqrob_min")
+  mat_df <- data.frame(ProteinGroups = rownames(mat), mat,
+                       check.names = FALSE)
+
+  w <- quant_list_widget(nadia_dia$protein_quant, matrix_data = mat_df,
+                         metadata = nadia_dia$metadata)
+  print(class(w))
 }
+
 }

@@ -40,11 +40,11 @@ Builds a reactable table with 2-level grouped headers, static columns pinned
 cell. It reproduces the usual Excel layout and improves on it.
 }
 \examples{
-\dontrun{
-res <- preprocess_spectronaut(
-  file_path = "data-raw/Curso_Q24_DIA_Spectronaut_v20_Report.tsv",
-  condition_order = c("A","B","C","D")
-)
-protein_list_reactable(res$protein_id, metadata = res$metadata)
-}
+data(nadia_dia)
+
+# metadata$Coding fixes the order of the sample columns
+tbl <- protein_list_reactable(nadia_dia$protein_id,
+                              metadata = nadia_dia$metadata)
+class(tbl)
+
 }

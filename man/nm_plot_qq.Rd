@@ -32,3 +32,12 @@ Quantile-quantile plot against a normal distribution for a single sample,
 one facet per normalization method. Default uses the first column (as
 NormalyzerDE does).
 }
+\examples{
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                            verbose = FALSE)
+
+nm_plot_qq(se, which_sample = "A_1")
+
+}

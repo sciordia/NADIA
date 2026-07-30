@@ -31,3 +31,12 @@ Produces a horizontal bar chart with normalization methods ordered by
 ascending final rank (best at top). Uses the same PRONE-style palette
 as other \verb{nm_plot_*()} functions.
 }
+\examples{
+data(nadia_dia)
+se <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se <- nm_run_normalizations(se, methods = c("cycloess", "quantile", "MAD"),
+                            verbose = FALSE)
+
+nm_plot_final_ranking(se)
+
+}
