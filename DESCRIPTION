@@ -5,7 +5,7 @@ Version: 0.99.0
 Authors@R: person(
     given = "Sergio",
     family = "Ciordia",
-    email = "sciordia@cnb.csic.es",
+    email = "sciordia@gmail.com",
     role = c("aut", "cre"))
 Description: Provides a complete workflow for the differential expression
     analysis of protein quantification data, with particular attention to the

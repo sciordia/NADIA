@@ -41,11 +41,11 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Sergio Ciordia \email{sciordia@cnb.csic.es}
+\strong{Maintainer}: Sergio Ciordia \email{sciordia@gmail.com}
 
 Authors:
 \itemize{
-  \item Sergio Ciordia \email{sciordia@cnb.csic.es}
+  \item Sergio Ciordia \email{sciordia@gmail.com}
 }
 
 }
