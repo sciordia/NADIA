@@ -227,9 +227,9 @@ counts
 ```
 
 Same data, same test, same threshold, and the answer changes shape entirely. The
-count of down-regulated proteins runs from 197 to 2,825 across these four
-pipelines — a factor of fourteen — and the total called differentially abundant
-from about 1,100 to 3,700.
+count of down-regulated proteins runs from 179 to 2,825 across these four
+pipelines — a factor of sixteen — and the total called differentially abundant
+from about 1,050 to 3,700.
 
 That spread is the argument for measuring the choice rather than inheriting it.
 It is also the argument for stating in any publication which normalisation and
