@@ -8,7 +8,6 @@
 ^CODE_REVIEW_.*\.md$
 ^install_dependencies\.R$
 ^[0-9].*\.R$
-^example_workflow\.R$
 ^\.github$
 ^LICENSE\.md$
 ^NADIA\.Rcheck$

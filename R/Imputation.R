@@ -807,17 +807,22 @@
   )
 }
 
-#' Pre-filter proteins by NA proportion (for single methods)
+#' Pre-filter proteins by NA proportion
 #'
-#' Removes proteins with more than max_na_prop fraction of NAs.
+#' Removes proteins with more than `max_na_prop` fraction of NAs. With
+#' `max_na_prop = NULL` (the default) nothing is removed, so every imputation
+#' method sees the same set of proteins: `combo` never applied this filter, and
+#' having the single methods apply it made the same argument mean different
+#' things depending on `imp_method`.
 #'
 #' @param x Numeric matrix
-#' @param max_na_prop Maximum NA proportion (default: 0.8)
+#' @param max_na_prop Maximum NA proportion, or `NULL` to disable the filter
+#'   (default).
 #' @return List with keep (logical vector), summary
 #' @keywords internal
-.prefilter_by_na_prop <- function(x, max_na_prop = 0.8) {
+.prefilter_by_na_prop <- function(x, max_na_prop = NULL) {
   na_frac <- rowMeans(is.na(x))
-  keep <- na_frac <= max_na_prop
+  keep <- if (is.null(max_na_prop)) rep(TRUE, nrow(x)) else na_frac <= max_na_prop
 
   list(
     keep = keep,
@@ -825,7 +830,7 @@
       n_total = nrow(x),
       n_keep = sum(keep),
       n_drop = sum(!keep),
-      max_na_prop = max_na_prop
+      max_na_prop = max_na_prop %||% NA_real_
     )
   )
 }
@@ -884,7 +889,9 @@
 #' @param prop_present_mar Present proportion for MAR (default: 0.5)
 #' @param min_present_mar Minimum present values for MAR (default: 1)
 #' @param require_n_conditions Number of conditions required with presence (default: 1)
-#' @param max_na_prop Maximum NA proportion for single-method pre-filtering (default: 0.8)
+#' @param max_na_prop Maximum NA proportion above which a protein is removed
+#'   before imputation. `NULL` (the default) disables the filter, so every
+#'   method receives the same proteins.
 #' @param method_args Named list of per-method argument lists (e.g.,
 #'   list(knn = list(k = 10), bpca = list(nPcs = 3)))
 #' @param with_value Constant value for imp_method="with" (default: NA_real_)
@@ -930,7 +937,7 @@ impute_proteomics <- function(
     prop_present_mar      = 0.5,
     min_present_mar       = 1,
     require_n_conditions  = 1,
-    max_na_prop           = 0.8,
+    max_na_prop           = NULL,
     method_args           = list(),
     with_value            = NA_real_,
     verbose               = TRUE
@@ -1039,7 +1046,8 @@ impute_proteomics <- function(
   # =========================================================================
 
   } else if (imp_method == "softHybrid") {
-    if (verbose) cat("\n=== PRE-FILTERING BY NA PROPORTION (max:", max_na_prop, ") ===\n")
+    if (verbose) cat("\n=== PRE-FILTERING BY NA PROPORTION (max:",
+                     max_na_prop %||% "disabled", ") ===\n")
 
     pf <- .prefilter_by_na_prop(x_norm, max_na_prop = max_na_prop)
 
@@ -1086,7 +1094,8 @@ impute_proteomics <- function(
   # =========================================================================
 
   } else {
-    if (verbose) cat("\n=== PRE-FILTERING BY NA PROPORTION (max:", max_na_prop, ") ===\n")
+    if (verbose) cat("\n=== PRE-FILTERING BY NA PROPORTION (max:",
+                     max_na_prop %||% "disabled", ") ===\n")
 
     pf <- .prefilter_by_na_prop(x_norm, max_na_prop = max_na_prop)
 

@@ -1,0 +1,241 @@
+---
+title: "Choosing a normalisation and an imputation method"
+author: "Sergio Ciordia"
+package: NADIA
+output:
+  BiocStyle::html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{Choosing a normalisation and an imputation method}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
+```
+
+# Introduction
+
+Thirteen normalisation methods and nineteen imputation methods make 247
+pipelines, all of which run without complaint and none of which announces itself
+as the right one. The choice is usually made by convention, and convention is a
+poor guide here: the methods differ in their assumptions, and your data either
+satisfy those assumptions or they do not.
+
+This vignette measures the alternatives instead. It uses **no ground truth** —
+that is the hard case, and the ordinary one. If your experiment includes a
+spike-in, you have real answers to score against and
+`vignette("benchmarking")` is the better tool.
+
+Without ground truth the question has to be rephrased into something answerable:
+
+- **Normalisation** — which method leaves replicates most alike and conditions
+  most distinct? That is measurable directly.
+- **Imputation** — hide values you *do* have, impute them, and see who
+  reconstructs them best. That is measurable by simulation.
+
+Both are proxies. The final section is about where they stop working.
+
+# Installation
+
+```{r install, eval = FALSE}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("NADIA")
+```
+
+```{r library, message = FALSE}
+library(NADIA)
+data(nadia_dia)
+```
+
+# Normalisation
+
+`nm_prepare_se()` builds the object and `nm_run_normalizations()` fills it with
+one assay per method. A handful is enough to show the shape of the answer; drop
+the `methods` argument for all twelve benchmark methods.
+
+```{r nm-run, message = FALSE}
+se_norm <- nm_prepare_se(nadia_dia, verbose = FALSE)
+se_norm <- nm_run_normalizations(
+    se_norm,
+    methods = c("log2Norm", "cycloess", "Rlr", "quantile"),
+    verbose = FALSE)
+
+SummarizedExperiment::assayNames(se_norm)
+```
+
+`normalization_metrics()` then scores them. Setting `output_dir = NULL` keeps it
+from writing anything to disk:
+
+```{r nm-metrics, message = FALSE, warning = FALSE}
+nm <- normalization_metrics(se_norm, output_dir = NULL, verbose = FALSE)
+nm$final_rank
+```
+
+## Reading that table
+
+Five criteria, combined by averaging their ranks. Rank 1 is best throughout.
+
+The first four ask whether replicates agree, computed **per protein** and then
+summarised:
+
+- `Rank_PCV` — pooled coefficient of variation within condition.
+- `Rank_PMAD` — pooled median absolute deviation, the robust version.
+- `Rank_PEV` — pooled estimate of variance.
+- `Rank_Cor` — intragroup correlation, which should be high.
+
+Alone they would be misleading, and dangerously so: a method that flattened every
+sample onto the same values would take first place in all four. So the fifth
+criterion pulls the other way.
+
+- `Rank_Sep` — separation between conditions, as an F-ratio on PC1.
+
+A method wins by tightening replicates *and* keeping conditions apart. Here
+`cycloess` does both and takes the top spot, with `Rlr` close behind. Plain
+`log2` is last, which is the expected result: it is the baseline, no
+normalisation at all.
+
+The individual rankings are available if the summary hides something:
+
+```{r nm-detail}
+nm$pcv_rank
+nm$pc1_rank
+```
+
+Every diagnostic plot is in the same object — `nm$boxplot`, `nm$density`,
+`nm$pca`, `nm$correlation`, `nm$mds`, `nm$qq` and the ranking charts:
+
+```{r nm-plot, fig.width = 7, fig.height = 4.5, fig.alt = "Final ranking of the normalisation methods"}
+nm$final_ranking
+```
+
+# Imputation
+
+Here a simulation supplies the missing ground truth. `imputation_metrics()`
+takes the proteins with no missing values at all, blanks a fraction of them
+(`na_prop`, 0.2), re-imputes, and compares against what it hid.
+
+```{r im-metrics, message = FALSE, warning = FALSE}
+se_imp <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+
+im <- imputation_metrics(
+    se_imp,
+    assay_name = "cycloess",
+    methods    = c("Impseqrob", "knn", "MinDet", "QRILC", "min"),
+    combo_methods = list(
+        Impseqrob_min = list(mar_method = "Impseqrob", mnar_method = "min")),
+    output_dir = NULL,
+    verbose    = FALSE)
+
+im$metrics_table
+```
+
+Four metrics, from the NAguideR framework:
+
+- **NRMSE** — normalised root mean squared error. Lower is better.
+- **SOR** — sum of ranks, which penalises features left unimputed.
+- **PSS** — Procrustes sum of squares, on the overall structure of the data.
+- **ACC_OI** — correlation between imputed and true values, computed **only on
+  the masked cells**. Computed over whole rows it would sit near 1 for every
+  method, since most of each row was never touched, and would distinguish
+  nothing.
+
+`ACC_OI` is `NA` for `min`, and that is informative rather than broken: `min`
+writes the same constant into every gap in a protein, and the correlation between
+a constant and anything is undefined. A method that cannot vary its answer cannot
+be scored on how well it varies.
+
+## An important caveat
+
+Read that table again with its construction in mind. The simulation can only hide
+values it can see, so the blanks it creates are **missing at random by
+definition** — and the ranking that follows measures how well each method handles
+random gaps.
+
+That is precisely the case MNAR methods are not built for. `min` comes last by a
+wide margin here, but its job is to fill values that dropped below the detection
+limit, and this benchmark contains none of those. The same holds with
+`pattern = "from_data"`, which copies the observed per-row missingness rates but
+still masks observed values.
+
+So the table answers a real question — *if a value is missing at random, who
+reconstructs it best?* — and it answers it honestly. It just is not the question
+of whether `min` is a good MNAR method, and nothing computed on complete rows can
+be. That question needs `vignette("benchmarking")`, or a defensible assumption.
+
+Note where the two-stage `combo` lands: mid-table. It is worse than pure
+`Impseqrob` at reconstructing random gaps, because half its values come from the
+MNAR method by design. On a benchmark composed entirely of MAR gaps, that is
+exactly what should happen.
+
+# Chaining the two decisions
+
+The imputation benchmark runs on a normalised matrix, so the normalisation
+choice comes first and feeds the second — and `im_prepare_se()` accepts the
+ranking directly, rather than making you copy the winner across by hand:
+
+```{r chain, message = FALSE, warning = FALSE}
+se_chained <- im_prepare_se(nadia_dia, pc1_rank = nm$pc1_rank, verbose = FALSE)
+SummarizedExperiment::assayNames(se_chained)
+```
+
+The assay named after the winner is the one the imputation benchmark then scores,
+so the two decisions stay consistent.
+
+# Putting the choice to work
+
+Whatever the tables recommend, it reaches the analysis as two arguments:
+
+```{r apply, message = FALSE}
+res <- process_proteomics(nadia_dia,
+                          norm_method = "cycloess",
+                          imp_method  = "combo",
+                          mar_method  = "Impseqrob",
+                          mnar_method = "min",
+                          verbose     = FALSE)
+
+table(res$DEPs_results$Change)
+```
+
+# How much does it matter?
+
+Enough to be worth the ten seconds:
+
+```{r sensitivity, message = FALSE, warning = FALSE}
+variants <- list(
+    "cycloess + combo" = list(norm_method = "cycloess", imp_method = "combo"),
+    "cycloess + knn"   = list(norm_method = "cycloess", imp_method = "knn"),
+    "quantile + combo" = list(norm_method = "quantile", imp_method = "combo"),
+    "log2 + min"       = list(norm_method = "log2",     imp_method = "min"))
+
+# Some imputation methods print progress on stdout; capture.output keeps it out.
+invisible(capture.output(
+    counts <- do.call(rbind, lapply(names(variants), function(v) {
+        r <- do.call(process_proteomics,
+                     c(list(nadia_dia, verbose = FALSE), variants[[v]]))
+        tab <- table(factor(r$DEPs_results$Change,
+                            levels = c("Up", "Down", "No Change")))
+        data.frame(pipeline = v, Up = tab[["Up"]], Down = tab[["Down"]],
+                   No_Change = tab[["No Change"]])
+    }))))
+
+counts
+```
+
+Same data, same test, same threshold, and the answer changes shape entirely. The
+count of down-regulated proteins runs from 197 to 2,825 across these four
+pipelines — a factor of fourteen — and the total called differentially abundant
+from about 1,100 to 3,700.
+
+That spread is the argument for measuring the choice rather than inheriting it.
+It is also the argument for stating in any publication which normalisation and
+imputation produced the table, since without that the numbers are not
+reproducible even from the same raw data.
+
+```{r session}
+sessionInfo()
+```

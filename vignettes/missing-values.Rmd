@@ -1,0 +1,370 @@
+---
+title: "Missing values: what they mean and how to fill them"
+author: "Sergio Ciordia"
+package: NADIA
+output:
+  BiocStyle::html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{Missing values: what they mean and how to fill them}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
+```
+
+# Introduction
+
+A blank in a proteomics matrix can mean two very different things, and the whole
+of this vignette follows from the difference.
+
+Sometimes a protein is present and the instrument simply failed to measure it —
+a bad chromatographic moment, an interfered precursor, a missed match. The blank
+carries no information about the protein's abundance, and something close to a
+neighbouring value would be a fair guess. This is **missing at random** (MAR).
+
+Sometimes a protein is absent, or below the detection limit. The blank is
+*caused* by the abundance being low, so it is highly informative, and filling it
+with a neighbouring value destroys exactly the signal you were looking for. This
+is **missing not at random** (MNAR), and in a DIA experiment it is the common
+case.
+
+No single imputation method handles both well, which is why NADIA's default is a
+two-stage hybrid rather than one of the nineteen individual methods.
+
+# Installation
+
+```{r install, eval = FALSE}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("NADIA")
+```
+
+```{r library, message = FALSE}
+library(NADIA)
+data(nadia_dia)
+```
+
+# Looking at the missingness
+
+The example dataset was deliberately built to keep the missingness of the full
+experiment — about 8 % of intensities, roughly a quarter of proteins affected.
+That was not free: an earlier version selected the 2,000 best-quantified proteins
+and ended up with **no missing values at all**, a dataset on which every
+imputation method returns its input unchanged.
+
+```{r pattern}
+quant <- as.matrix(nadia_dia$protein_quant[
+    grep("^PG.Quantity_", colnames(nadia_dia$protein_quant))])
+quant[quant == 0] <- NA
+
+round(100 * mean(is.na(quant)), 1)
+table(missing_per_protein = rowSums(is.na(quant)))
+```
+
+The shape of that table is the diagnostic, and this one is unusually legible.
+Counts fall away from zero as you would expect — 70 proteins with one gap, 67
+with two, 99 with three — and then jump to **243 proteins missing exactly four
+values**. Four is the group size. That spike is not a coincidence and it is not
+random: it is proteins that vanish from one entire condition, which is the
+signature of missing *not* at random.
+
+The relationship with intensity settles it:
+
+```{r intensity-vs-missing, fig.width = 6, fig.height = 4, fig.alt = "Mean log2 intensity against number of missing values"}
+n_missing  <- rowSums(is.na(quant))
+mean_log2  <- rowMeans(log2(quant), na.rm = TRUE)
+
+boxplot(mean_log2 ~ n_missing,
+        xlab = "missing values in the protein",
+        ylab = "mean log2 intensity of the values present",
+        main = "Missingness is concentrated at low abundance")
+```
+
+The downward trend is the whole argument. If missingness were random, this plot
+would be flat: proteins with gaps would be no dimmer than proteins without. It is
+not flat, so the gaps are not random, and an imputation method that assumes they
+are will be wrong in a predictable direction.
+
+# The methods on offer
+
+Nineteen in total. They divide by the assumption they make:
+
+```{r methods}
+mar  <- get(".IMP_METHODS_MAR",  envir = asNamespace("NADIA"))
+mnar <- get(".IMP_METHODS_MNAR", envir = asNamespace("NADIA"))
+
+setdiff(mar,  "none")   # assume the value is unrelated to the blank
+setdiff(mnar, "none")   # assume the blank means "low"
+```
+
+MAR methods reconstruct a value from the structure of the data — nearest
+neighbours (`knn`), principal components (`bpca`), sequential regression
+(`Impseq`, `Impseqrob`), a random forest (`missForest`), chained equations
+(`mice`). They are the right tool for a scattered gap.
+
+MNAR methods draw from the low end instead: the protein's minimum (`min`), a
+deterministic fraction of it (`MinDet`), a truncated distribution (`QRILC`,
+`MinProb`), a down-shifted normal (`PI`, the Perseus recipe). They are the right
+tool for a protein that dropped out.
+
+Applied to the wrong kind of blank, each fails in its own direction. A MAR method
+on a dropout invents a mid-range value and erases a real difference; an MNAR
+method on a random gap invents a low value and manufactures one.
+
+# No single method serves both
+
+That claim is worth testing rather than asserting, and the test is short. Take
+the proteins with no gaps at all, so the true values are known, and hide some of
+them in two different ways:
+
+- **MAR-like** — three values per protein, chosen at random.
+- **MNAR-like** — the three *lowest* values of each protein, which is what a
+  dropout looks like.
+
+Then impute, and compare against the values that were hidden. The measure that
+matters is not the error but the **bias** — whether a method's guesses are
+systematically too high or too low:
+
+```{r mar-vs-mnar, message = FALSE}
+se_c  <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
+full  <- SummarizedExperiment::assay(se_c, "cycloess")
+full  <- full[complete.cases(full), , drop = FALSE]
+
+set.seed(42)
+rows <- sample(nrow(full), round(0.25 * nrow(full)))
+
+hide <- function(kind) {
+    idx <- integer(0)
+    for (i in rows) {
+        j <- if (kind == "MNAR") order(full[i, ])[1:3] else sample(ncol(full), 3)
+        idx <- c(idx, (j - 1) * nrow(full) + i)
+    }
+    idx
+}
+
+refill <- function(mat, method) {
+    s <- SummarizedExperiment::SummarizedExperiment(
+        assays  = list(cycloess = mat),
+        colData = SummarizedExperiment::colData(se_c)[colnames(mat), , drop = FALSE])
+    r <- impute_proteomics(s, "cycloess", imp_method = method, verbose = FALSE)
+    SummarizedExperiment::assay(r$se, method)
+}
+
+invisible(capture.output(
+  scores <- do.call(rbind, lapply(c("MAR", "MNAR"), function(kind) {
+    idx <- hide(kind)
+    holed <- full; holed[idx] <- NA
+    do.call(rbind, lapply(c("Impseqrob", "min"), function(m) {
+        est <- refill(holed, m)
+        data.frame(hidden = kind, method = m,
+                   bias = mean(est[idx] - full[idx]))
+    }))
+  }))))
+
+reshape(scores, idvar = "method", timevar = "hidden", direction = "wide")
+```
+
+Read the two columns.
+
+`Impseqrob`, a MAR method, is **essentially unbiased on random gaps** — its guesses
+are off by about 0.002 on a log2 scale, which is nothing. Move the gaps to the
+bottom of each protein and the same method comes out **systematically too high**.
+It reconstructs a value from the protein's other measurements, and when those
+measurements are the ones that did *not* drop out, the answer is always too
+optimistic. That is how an on/off signal gets erased.
+
+`min` has the opposite problem, and a far larger one. It is off by about seven
+log2 units on random gaps — a factor of a hundred — because it answers "very low"
+to a question whose answer was "about average". It improves on the MNAR gaps, but
+it is never a safe default for a value that is merely unmeasured.
+
+So neither method is wrong; each is wrong *in the wrong place*. And since a real
+experiment contains both kinds of blank at once — thinly spread gaps and whole
+groups dropping out, as the table above showed — **no single imputation method can
+be the right choice for a whole matrix.**
+
+One honest caveat on this demonstration. Even the MNAR-like masking here hides
+values that were actually measured, so a MAR method can still interpolate them
+tolerably and its bias comes out modest. A genuine dropout is a value that was
+never observable at all, and no simulation built from complete data can reproduce
+that. The bias in the table is therefore a *lower bound* on the real thing.
+
+That limitation is structural, and it is the reason the default is what it is.
+
+# The default: `combo`, and why it is the default
+
+If no single method can serve a whole matrix, the way out is not to pick the
+least-bad one. It is to **stop treating the matrix as one thing**: decide, blank
+by blank, which kind of missingness you are looking at, and send each to the
+method built for it. That is `combo`, and it is why it rather than any individual
+method is the default.
+
+The classification is per protein and per group, governed by three arguments:
+
+- `prop_na_mnar` (0.51) — a group missing more than this share of its values has
+  probably dropped out, so its blanks go to the **MNAR** method.
+- `prop_present_mar` (0.5) and `min_present_mar` (1) — how much evidence a group
+  must retain for reconstruction to be worth attempting, sending its blanks to
+  the **MAR** method.
+
+A group that keeps most of its measurements has scattered gaps; a group that has
+lost most of them has dropped out. The threshold is a judgement, not a
+measurement, and 0.51 simply says "more than half".
+
+```{r combo}
+res <- process_proteomics(nadia_dia, verbose = FALSE)
+SummarizedExperiment::assayNames(res$se_proc)
+```
+
+You can see the split it made — the two stages are reported separately:
+
+```{r combo-split, message = FALSE}
+imp <- impute_proteomics(res$se_proc, "cycloess", verbose = FALSE)
+c(MAR_values  = sum(imp$mar_mask,  na.rm = TRUE),
+  MNAR_values = sum(imp$mnar_mask, na.rm = TRUE))
+```
+
+Both kinds are present, and dropouts outnumber scattered gaps by roughly four to
+one — which is what a DIA experiment should look like, and exactly the situation
+in which handing the whole matrix to a single MAR method would do the most damage.
+A dataset with only one kind of blank would not need `combo`; real data are not
+like that.
+
+The assay name records the decision rather than hiding it — `Impseqrob` for the
+MAR values, `min` for the MNAR ones — so a result carries its own provenance.
+Change either and the name follows:
+
+`impute_proteomics()` returns a list, of which `$se` is the
+`SummarizedExperiment` with the new assay added:
+
+```{r combo-variants}
+imp_qrilc <- impute_proteomics(res$se_proc,
+                               normalized_assay_name = "cycloess",
+                               mar_method = "knn", mnar_method = "QRILC",
+                               verbose = FALSE)
+setdiff(SummarizedExperiment::assayNames(imp_qrilc$se),
+        SummarizedExperiment::assayNames(res$se_proc))
+```
+
+There is a subtlety in `combo` worth stating, because getting it wrong biases
+every result downstream. The MNAR parameters — the minimum, the quantiles of the
+low tail — are estimated on the **original** matrix, not on the one the MAR stage
+has already filled. Estimating them after the MAR stage would let reconstructed
+mid-range values raise the estimate of where the low end is, and every MNAR value
+would come out too high.
+
+# `softHybrid`: a weight instead of a rule
+
+`combo` makes a hard decision per group. `softHybrid` refuses to: it computes
+both imputations and blends them, weighted by how MNAR-like each value looks.
+
+Two sigmoids set the weight. One reads the missingness rate of the group, the
+other the intensity of the values present, since a low-intensity protein with
+gaps is more likely to be dropping out than a bright one with the same gaps. The
+intensity sigmoid is z-scored, so its steepness `b` means the same thing whatever
+the dynamic range of your data.
+
+```{r softhybrid}
+imp_soft <- impute_proteomics(
+    res$se_proc,
+    normalized_assay_name = "cycloess",
+    imp_method  = "softHybrid",
+    mar_method  = "Impseqrob",
+    mnar_method = "min",
+    method_args = list(softHybrid = list(a = 8, b = 2, lambda = 0.5)),
+    verbose     = FALSE)
+
+grep("softHybrid", SummarizedExperiment::assayNames(imp_soft$se), value = TRUE)
+```
+
+Whether the softer boundary is worth it is an empirical question, and
+`vignette("choosing-methods")` is how to answer it on your own data.
+
+# `limpa`: not imputing at all
+
+`limpa` belongs in a different category. Rather than filling a value and then
+pretending it was measured, it models the detection process and carries the
+resulting uncertainty forward as **precision weights**: a protein reconstructed
+from little evidence contributes less to the test than one measured cleanly.
+
+That only works if the weights survive to the testing step, so they travel with
+the data:
+
+```{r limpa, eval = requireNamespace("limpa", quietly = TRUE)}
+res_limpa <- process_proteomics(nadia_dia,
+                                imp_method = "limpa",
+                                de_method  = "limpa",
+                                verbose    = FALSE)
+
+class(S4Vectors::metadata(res_limpa$se_proc)$limpa_elist)
+table(res_limpa$DEPs_results$Change)
+```
+
+Pairing `imp_method = "limpa"` with `de_method = "limpa"` is the point. Using the
+limpa imputation with an ordinary limma test throws the weights away, which
+forfeits the only reason to use it.
+
+# Comparing two methods on the same data
+
+Method choice is not cosmetic. Two methods on the same normalised matrix:
+
+```{r compare, message = FALSE}
+imp_min <- impute_proteomics(res$se_proc, "cycloess", imp_method = "min",
+                             verbose = FALSE)
+imp_knn <- impute_proteomics(res$se_proc, "cycloess", imp_method = "knn",
+                             verbose = FALSE)
+
+m_min <- SummarizedExperiment::assay(imp_min$se, "min")
+m_knn <- SummarizedExperiment::assay(imp_knn$se, "knn")
+was_na <- is.na(SummarizedExperiment::assay(res$se_proc, "cycloess"))
+
+data.frame(
+    method       = c("min (MNAR)", "knn (MAR)"),
+    mean_imputed = c(mean(m_min[was_na]), mean(m_knn[was_na])),
+    mean_observed = mean(m_min[!was_na]))
+```
+
+The MNAR method fills from the bottom of the distribution and the MAR method
+fills near the middle — several log2 units apart, on the same blanks. Everything
+downstream inherits that gap.
+
+# A guard you should know about
+
+Some methods leave values behind — a protein too sparse for `knn` to find
+neighbours, a column a model would not converge on. Rather than let `NA`s
+propagate into limma, where they would silently reduce the residual degrees of
+freedom, the pipeline fills any residual with the column minimum:
+
+```{r guard}
+anyNA(SummarizedExperiment::assay(res$se_proc, "Impseqrob_min"))
+```
+
+The exception is `imp_method = "none"`, which is meant to leave the matrix alone.
+The guard is a safety net, not a strategy: a method that trips it frequently is
+telling you it is not suited to your data, and `imputation_metrics()` will say so
+more precisely.
+
+There is also a pre-filter, `max_na_prop`, which drops proteins emptier than a
+given fraction before imputation begins. It is **disabled by default**:
+
+```{r prefilter}
+res_all <- process_proteomics(nadia_dia, verbose = FALSE)                 # NULL
+res_cut <- process_proteomics(nadia_dia, max_na_prop = 0.8, verbose = FALSE)
+
+c(no_filter = nrow(res_all$se_proc), filtered = nrow(res_cut$se_proc))
+```
+
+Disabled is the right default for a package about missing values: the proteins it
+would remove are the on/off cases from the start of this vignette, present in one
+condition and absent from another, which are often the most interesting rows in
+the table. Set it when you would rather not report a fold change built on two
+surviving measurements out of twelve.
+
+```{r session}
+sessionInfo()
+```

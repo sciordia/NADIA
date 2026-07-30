@@ -26,7 +26,7 @@ process_proteomics(
   prop_present_mar = 0.5,
   min_present_mar = 1,
   require_n_conditions = 1,
-  max_na_prop = 0.8,
+  max_na_prop = NULL,
   method_args = list(),
   with_value = NA_real_,
   comparisons = NULL,
@@ -98,7 +98,8 @@ categorical covariates for BERT batch correction (default: NULL)}
 
 \item{require_n_conditions}{Required conditions with presence (default: 1)}
 
-\item{max_na_prop}{Maximum NA proportion for single-method pre-filtering (default: 0.8)}
+\item{max_na_prop}{Maximum NA proportion above which a protein is removed
+before imputation. \code{NULL} (the default) disables the filter.}
 
 \item{method_args}{Named list of per-method argument lists}
 

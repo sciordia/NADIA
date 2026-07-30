@@ -1,0 +1,231 @@
+---
+title: "Visualization: tuning the figures"
+author: "Sergio Ciordia"
+package: NADIA
+output:
+  BiocStyle::html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{Visualization: tuning the figures}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
+```
+
+# Introduction
+
+The visualisation modules are independent of the pipeline: they take data frames,
+not the objects that produced them, so any of them can be pointed at results
+computed elsewhere. This vignette covers the arguments that matter and the two or
+three places where a default deserves a second thought.
+
+The split is deliberate. **Highcharts** for the figures you explore — volcano,
+boxplot, PCA — where hovering a point to read its identity is the whole value.
+**ggplot2 and ComplexHeatmap** for the figures you publish, where a static file
+at a fixed size is what a journal wants.
+
+# Installation
+
+```{r install, eval = FALSE}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("NADIA")
+```
+
+```{r library, message = FALSE}
+library(NADIA)
+data(nadia_dia)
+```
+
+```{r run, message = FALSE}
+res <- process_proteomics(nadia_dia, verbose = FALSE)
+```
+
+Interactive widgets are not rendered in this vignette — they would multiply its
+size — so the Highcharts chunks below are shown but not run. Each returns a
+`highchart` object that prints in RStudio, a browser, or an R Markdown document.
+
+# The three inputs
+
+Each interactive module consumes one of the three tables the pipeline returns,
+and none of them needs the `SummarizedExperiment`:
+
+```{r inputs}
+str(res$DEPs_results,  max.level = 1, give.attr = FALSE, list.len = 4)
+str(res$BoxPlot_Input, max.level = 1, give.attr = FALSE, list.len = 4)
+str(res$PCA_Input,     max.level = 1, give.attr = FALSE, list.len = 4)
+```
+
+# Volcano plots
+
+```{r volcano, eval = FALSE}
+v <- volcano_highchart_list(res$DEPs_results,
+                            alpha   = 0.05,
+                            lfc_thr = 1,
+                            palette = "Set1")
+v[["B-A"]]
+```
+
+`lfc_thr` here is a **drawing** threshold — where the vertical guides go and how
+points are coloured. It is independent of the `logFC_threshold` used when the
+model was fitted, which is what decided the `Change` column. Setting it to 1 in
+the plot does not re-test anything, and a point drawn outside the guides is not
+thereby significant.
+
+Two arguments label points. `show_top_genes` takes the *n* most significant:
+
+```{r volcano-top, eval = FALSE}
+volcano_highchart_list(res$DEPs_results, show_top_genes = 10)
+```
+
+`highlight_genes` takes a list you choose, which is usually what a figure for a
+paper needs — the proteins the paper is about, whether or not they top the table:
+
+```{r volcano-highlight, eval = FALSE}
+volcano_highchart_list(res$DEPs_results,
+                       highlight_genes = c("ALB", "NUDT4B", "EPPK1"))
+```
+
+`p_col` switches the y axis between `adj.P.Val` (the default, and the honest
+choice) and `P.Value`.
+
+# Boxplots
+
+The input holds one row per protein, sample and assay, so a single call can show
+the effect of a processing step:
+
+```{r boxplot-assays}
+unique(res$BoxPlot_Input$Assay)
+```
+
+```{r boxplot, eval = FALSE}
+boxplot_highchart_list(res$BoxPlot_Input,
+                       assays     = c("log2", "Impseqrob_min"),
+                       color_by   = "Condition",
+                       horizontal = TRUE)
+```
+
+Comparing `log2` against the processed assay is the standard check that
+normalisation did what it claims: the medians should line up afterwards without
+the distributions collapsing onto each other.
+
+`group_order` fixes the order of the boxes, which otherwise follows the factor
+levels; `show_outliers = FALSE` drops the individual outlier points, worth doing
+when there are thousands of them and the browser starts to labour.
+
+# PCA
+
+```{r pca, eval = FALSE}
+pca_highchart_list(res$PCA_Input,
+                   modes        = c("all", "any"),
+                   ellipse_type = "confidence",
+                   addEllipses  = TRUE)
+```
+
+Three arguments deserve attention.
+
+**`modes`** — note the plural — selects which proteins enter the projection.
+`"all"` uses every protein; `"any"` restricts to those significant in at least
+one comparison; `"specific"` restricts to one named comparison. The two answer
+different questions: `"all"` asks whether the samples separate at all, `"any"`
+asks how well they separate *given* the proteins the analysis already selected.
+The second will always look better, and that is not evidence of anything.
+
+**`ellipse_type`** is the one to think about:
+
+| Value | What it draws | What it means |
+|---|---|---|
+| `"convex"` (default) | the convex hull of the group | exactly where the samples are, no more |
+| `"confidence"` | a `t`-based confidence ellipse | an inference about the population |
+
+A hull is a description and cannot be wrong. A confidence ellipse is a claim, and
+with four replicates per group it is a claim resting on three degrees of freedom
+— it will be large, and its size should not be read as a measurement.
+
+**`filter_samples_to_comparison`** drops samples not involved in a comparison. For
+`"B-A"` it plots only the B and A samples, which is often what you meant when the
+experiment has more than two groups.
+
+```{r pca-filtered, eval = FALSE}
+pca_highchart_list(res$PCA_Input, modes = "specific",
+                   filter_samples_to_comparison = TRUE)
+```
+
+`scale. = TRUE` (the default) gives every protein equal weight. Turn it off and
+the projection is dominated by the most abundant proteins, since their variance
+in log2 space is largest in absolute terms.
+
+# Heatmaps
+
+The heatmap is static, built on ComplexHeatmap through tidyHeatmap, and takes the
+same long table as the PCA:
+
+```{r heatmap, fig.width = 7, fig.height = 5.5, fig.alt = "Heatmap of proteins significant in B-A"}
+proteomics_heatmap(
+    res$PCA_Input,
+    mode            = "target",
+    comparison      = "B-A",
+    scale_data      = "row",
+    sample_order    = "condition",
+    condition_order = c("A", "B", "D"),
+    cluster_rows    = TRUE,
+    show_row_names  = FALSE,
+    heatmap_title   = "Significant in B-A")
+```
+
+`scale_data = "row"` z-scores each protein, which is almost always what you want:
+without it the picture is a map of abundance, and the few most abundant proteins
+set the colour scale for everything else.
+
+`sample_order` is either `"clustering"` (the default, which lets the samples
+arrange themselves and so doubles as a check that replicates group together) or
+`"condition"`, which imposes your order and makes the figure comparable across
+panels.
+
+```{r heatmap-list, eval = FALSE}
+# One heatmap per mode, all with the same settings
+proteomics_heatmap_list(res$PCA_Input, modes = c("all", "any"),
+                        scale_data = "row")
+```
+
+# Palettes
+
+Every module accepts `palette`, resolved in the same order everywhere: a built-in
+name, then an RColorBrewer name, then a `paletteer` specification, then a plain
+vector of colours you supply.
+
+```{r palettes, eval = FALSE}
+volcano_highchart_list(res$DEPs_results, palette = "Set1")          # Brewer
+volcano_highchart_list(res$DEPs_results, palette = "ggsci::nrc_npg") # paletteer
+volcano_highchart_list(res$DEPs_results,
+                       colors = c(Up = "#D55E00", Down = "#0072B2",
+                                  `No Change` = "#BBBBBB"))          # explicit
+```
+
+The explicit form is worth using for anything that will be published: it is the
+only one that guarantees the same protein keeps the same colour across figures
+made at different times, and the three shown here are colour-blind safe.
+
+# Exporting
+
+Static plots go through their own machinery:
+
+```{r export, eval = FALSE}
+proteomics_heatmap(res$PCA_Input, mode = "any",
+                   export_path = tempdir(),
+                   export_file = "heatmap.png",
+                   plot_width = 10, plot_height = 8, export_dpi = 300)
+```
+
+Interactive ones carry export buttons — PNG, SVG, PDF — in the chart itself, and
+`vignette("results-and-export")` covers saving a whole widget to a self-contained
+HTML file.
+
+```{r session}
+sessionInfo()
+```

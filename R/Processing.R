@@ -375,7 +375,8 @@
 #' @param prop_present_mar Present proportion for MAR (default: 0.5)
 #' @param min_present_mar Minimum present values for MAR (default: 1)
 #' @param require_n_conditions Required conditions with presence (default: 1)
-#' @param max_na_prop Maximum NA proportion for single-method pre-filtering (default: 0.8)
+#' @param max_na_prop Maximum NA proportion above which a protein is removed
+#'   before imputation. `NULL` (the default) disables the filter.
 #' @param method_args Named list of per-method argument lists
 #' @param with_value Constant value for imp_method="with"
 #' @param comparisons Comparisons for DE. If NULL, generates all pairwise
@@ -462,7 +463,7 @@ process_proteomics <- function(
     prop_present_mar = 0.5,
     min_present_mar = 1,
     require_n_conditions = 1,
-    max_na_prop = 0.8,
+    max_na_prop = NULL,
     method_args = list(),
     with_value = NA_real_,
     comparisons = NULL,

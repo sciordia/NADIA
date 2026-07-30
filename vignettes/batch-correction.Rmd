@@ -1,0 +1,363 @@
+---
+title: "Batch correction: diagnose, correct, verify"
+author: "Sergio Ciordia"
+package: NADIA
+output:
+  BiocStyle::html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{Batch correction: diagnose, correct, verify}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
+```
+
+# Introduction
+
+Samples digested on different days, or injected in different sequences, carry
+that history in their intensities. Batch correction removes it. Done carelessly
+it removes the biology along with it, and nothing warns you — the result simply
+looks cleaner and means less.
+
+This vignette follows the discipline that avoids that: **diagnose before
+correcting, verify after**. Along the way it shows two things that are easy to
+get wrong: the difference between removing a factor and adjusting for it, and the
+fact that a large batch effect can be **invisible** in the default variance
+decomposition.
+
+# Installation
+
+```{r install, eval = FALSE}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("NADIA")
+```
+
+```{r library, message = FALSE}
+library(NADIA)
+data(nadia_dia)
+```
+
+Batch correction needs `BERT` and the variance decomposition needs `lme4`; both
+are optional dependencies:
+
+```{r deps}
+have_bert <- requireNamespace("BERT", quietly = TRUE)
+have_lme4 <- requireNamespace("lme4", quietly = TRUE)
+c(BERT = have_bert, lme4 = have_lme4)
+```
+
+```{r flags, include = FALSE}
+run_bc  <- have_bert
+run_all <- have_bert && have_lme4
+```
+
+# The sample annotation
+
+The example experiment has no batches — it is twelve injections of one digest. So
+we attach a plausible technical history: two digestion days crossed with two
+injection sequences, and four subjects.
+
+In a real analysis this is your sample sheet, read from a file. The `Column`
+column must match the sample names the pipeline uses:
+
+```{r covariates}
+md <- nadia_dia$metadata
+
+covariates <- data.frame(
+    Column    = md$Coding,
+    Digestion = rep(c("d1", "d2"),             length.out = nrow(md)),
+    Injection = rep(c("i1", "i1", "i2", "i2"), length.out = nrow(md)),
+    Subject   = rep(paste0("s", 1:4),          length.out = nrow(md)),
+    stringsAsFactors = FALSE)
+
+covariates
+```
+
+## A simulated batch effect
+
+The annotation alone is just labels; the data have no batch effect to find. To
+have something to correct we **inject one deliberately**, so that every number
+below can be checked against a known truth.
+
+The effect is protein-dependent on purpose. A batch that simply scaled every
+protein by a constant would be removed by normalisation and would never reach
+this vignette; a real digestion-day effect hits different proteins differently,
+and that is what survives normalisation and needs ComBat.
+
+```{r inject}
+batched <- nadia_dia
+qcols   <- grep("^PG.Quantity_", colnames(batched$protein_quant))
+samples <- sub("^PG.Quantity_", "", colnames(batched$protein_quant)[qcols])
+d2_cols <- qcols[samples %in% covariates$Column[covariates$Digestion == "d2"]]
+
+set.seed(1)
+up     <- sample(c(TRUE, FALSE), nrow(batched$protein_quant), replace = TRUE)
+factor <- ifelse(up, 2.5, 1 / 2.5)   # half the proteins up, half down, in d2
+batched$protein_quant[, d2_cols] <- batched$protein_quant[, d2_cols] * factor
+
+length(d2_cols)   # the six samples digested on day 2
+```
+
+Everything from here on is a real computation on those data.
+
+# Step 1: is the design correctable at all?
+
+This is the step most often skipped, and it costs one line. Before deciding what
+to remove, cross the factors and count:
+
+```{r design}
+table(Digestion = covariates$Digestion, Injection = covariates$Injection)
+table(Condition = md$R.Condition,       Digestion = covariates$Digestion)
+```
+
+Both tables are full: every digestion day contains both injection sequences, and
+every condition appears in both digestion days. That is what makes the batch
+effect separable from the biology.
+
+Had a condition appeared in only one digestion day, the two would be
+**confounded**, and no algorithm could tell them apart. ComBat would still run
+and still return a matrix — it would simply have removed the biological
+difference as if it were a batch effect. This table is your only protection
+against that, and it is worth printing every time.
+
+# Step 2: how much variance does the batch explain?
+
+```{r process, eval = run_bc}
+res <- process_proteomics(batched, covariate_df = covariates, verbose = FALSE)
+```
+
+`pvca_analysis()` decomposes the variance of the principal components over the
+factors you name. Run at its defaults, it reports this:
+
+```{r pvca-default, eval = run_all, message = FALSE, warning = FALSE}
+pvca_default <- pvca_analysis(
+    res$se_proc,
+    assay_name         = "Impseqrob_min",
+    technical_factors  = c("Digestion", "Injection"),
+    biological_factors = "Condition",
+    verbose            = FALSE)
+
+pvca_default$variance_components
+```
+
+Condition explains essentially everything and the digestion day does not appear
+at all — even though we injected a 2.5-fold effect into half the proteins and
+know for a fact that it is there.
+
+## Why the default hides it, and what to do
+
+`pca_threshold` controls how many principal components enter the decomposition:
+enough to reach that share of the variance, 60 % by default. In this experiment
+the conditions differ enormously — many proteins are absent from one condition
+entirely — so PC1 alone clears 60 %, and PC1 is pure condition. The batch effect
+lives in later components, and the default never looks at them.
+
+Raise the threshold and it appears:
+
+```{r pvca-before, eval = run_all, message = FALSE, warning = FALSE}
+pvca_before <- pvca_analysis(
+    res$se_proc,
+    assay_name         = "Impseqrob_min",
+    technical_factors  = c("Digestion", "Injection"),
+    biological_factors = "Condition",
+    pca_threshold      = 0.95,
+    variance_threshold = 0,
+    verbose            = FALSE)
+
+pvca_before$variance_components
+```
+
+Digestion accounts for about three quarters of the variance across those
+components, and condition for barely a fifth. **The batch effect is not merely
+present; it is dominant, and it is masking the biology.**
+
+The lesson generalises beyond this dataset: a decomposition that reports nothing
+technical is not evidence that there is nothing technical. Check what
+`pca_threshold` let in before believing it.
+
+```{r pvca-before-plot, eval = run_all, message = FALSE, warning = FALSE, fig.width = 7, fig.height = 4.5, fig.alt = "Variance decomposition before batch correction"}
+pvca_before$plot
+```
+
+# Step 3: correct, and keep the biology
+
+`process_proteomics()` runs batch correction as an optional step **before**
+imputation. Three of its arguments are easy to confuse, and they do different
+things:
+
+| Argument | Effect |
+|---|---|
+| `batch_column` | the factor to be **removed** from the data |
+| `covariate_column` | a variable **kept**, as a term in the limma design |
+| `bio_replicate_column` | a **blocking** factor, for samples that are not independent |
+
+`batch_column = "Digestion"` erases the digestion-day effect from the matrix.
+`covariate_column = "Injection"` does the opposite — it leaves the injection
+effect in the data and accounts for it when testing.
+`bio_replicate_column = "Subject"` tells limma that samples from the same subject
+are correlated, so it estimates that correlation instead of assuming
+independence.
+
+```{r correct, eval = run_bc, message = FALSE}
+res_bc <- process_proteomics(
+    batched,
+    covariate_df         = covariates,
+    batch_correct        = TRUE,
+    batch_column         = "Digestion",
+    batch_algorithm      = "ComBat",
+    batch_ComBat_mode    = 1,
+    covariate_column     = "Injection",
+    bio_replicate_column = "Subject",
+    verbose              = FALSE)
+
+SummarizedExperiment::assayNames(res_bc$se_proc)
+```
+
+Note where the new `BERT` assay sits: after `cycloess`, before the imputed
+matrix. Correction runs on the normalised data, and imputation then runs on its
+output.
+
+## Protecting a variable inside ComBat
+
+A fourth argument, `batch_covariates`, is passed to ComBat itself so a variable
+is *preserved* during correction rather than absorbed into it. When condition and
+batch are partly confounded this is what stops ComBat from erasing the biology,
+and `batch_correct_proteomics()` warns when it is left empty.
+
+It is not free. Protecting a variable adds parameters to a model fitted per
+batch, and with few samples per combination the model becomes singular and the
+correction fails outright. With twelve samples, three conditions and two batches,
+`batch_covariates = "Condition"` is already too much to ask of these data. The
+honest rule: protect the biological variable when the design can afford it, and
+when it cannot, say so and treat the result with suspicion.
+
+# Step 4: verify
+
+## Did the batch effect go?
+
+Because we injected the effect, we can measure its removal directly. The mean
+difference between the two digestion days, per protein, should collapse:
+
+```{r verify-direct, eval = run_bc}
+grp <- covariates$Digestion[
+    match(colnames(SummarizedExperiment::assay(res_bc$se_proc, "cycloess")),
+          covariates$Column)]
+
+delta <- function(assay_name) {
+    m <- SummarizedExperiment::assay(res_bc$se_proc, assay_name)
+    rowMeans(m[, grp == "d1", drop = FALSE], na.rm = TRUE) -
+    rowMeans(m[, grp == "d2", drop = FALSE], na.rm = TRUE)
+}
+
+data.frame(
+    assay      = c("cycloess (before)", "BERT (after)"),
+    median_abs = c(abs(median(delta("cycloess"), na.rm = TRUE)),
+                   abs(median(delta("BERT"),     na.rm = TRUE))),
+    sd         = c(sd(delta("cycloess"), na.rm = TRUE),
+                   sd(delta("BERT"),     na.rm = TRUE)))
+```
+
+The spread of the between-day difference drops by an order of magnitude.
+
+## Did the biology survive?
+
+That is the other half, and the half that matters. Repeat the decomposition on
+the corrected assay, at the same threshold:
+
+```{r pvca-after, eval = run_all, message = FALSE, warning = FALSE}
+pvca_after <- pvca_analysis(
+    res_bc$se_proc,
+    assay_name         = "BERT",
+    technical_factors  = c("Digestion", "Injection"),
+    biological_factors = "Condition",
+    pca_threshold      = 0.95,
+    variance_threshold = 0,
+    verbose            = FALSE)
+
+merge(pvca_before$variance_components, pvca_after$variance_components,
+      by = "label", suffixes = c("_before", "_after"))[, c(1, 2, 4)]
+```
+
+Digestion falls from roughly 0.74 to numerically zero, and condition rises from
+about 0.22 to 0.79. That is the pattern you want: the technical factor gone,
+the biological factor **recovered**, not merely preserved.
+
+The failure case looks different — the technical factor falls and the biological
+one falls with it. This table is where you would see it, which is the whole
+reason for computing the decomposition twice.
+
+## What it changed in the results
+
+```{r de-effect, eval = run_bc}
+table(uncorrected = res$DEPs_results$Change)
+table(corrected   = res_bc$DEPs_results$Change)
+```
+
+Uncorrected, the batch effect inflates the residual variance and buries real
+differences. After correction the number of proteins called significant rises
+sharply, because the biology was there all along.
+
+This is also why the direction of the check matters. A correction that *increases*
+significance while the biological share of the variance rises is doing its job. A
+correction that increases significance while the biological share falls is
+manufacturing results, and only the decomposition can tell you which one you have.
+
+# Removing two factors, one after the other
+
+`batch_correct_proteomics()` corrects one factor per call, but it reads an assay
+and writes another, so calls chain. To remove digestion and then injection, point
+the second call at the output of the first:
+
+```{r cascade, eval = run_bc, message = FALSE, warning = FALSE}
+se1 <- batch_correct_proteomics(
+    res$se_proc,
+    assay_name           = "Impseqrob_min",
+    batch_column         = "Digestion",
+    corrected_assay_name = "BERT",
+    verbose              = FALSE)
+
+se2 <- batch_correct_proteomics(
+    se1,
+    assay_name           = "BERT",       # the already-corrected matrix
+    batch_column         = "Injection",
+    corrected_assay_name = "BERT_2",
+    verbose              = FALSE)
+
+SummarizedExperiment::assayNames(se2)
+```
+
+Two caveats. Each correction consumes degrees of freedom, and the second is
+fitted on data the first has already altered. And the order is not neutral when
+the two factors are not orthogonal — here they are, which is exactly what the
+design table in step 1 established.
+
+# Looking at it directly
+
+PVCA summarises; a PCA lets you look. `pca_covariates_plot()` draws the same
+projection once per covariate, which is the quickest way to spot a factor that
+separates samples:
+
+```{r pca-cov, eval = run_bc, message = FALSE, fig.width = 7, fig.height = 6, fig.alt = "PCA coloured by condition, digestion, injection and subject"}
+pca_grid <- pca_covariates_plot(
+    res_bc$se_proc,
+    assay_name = "BERT",
+    covariates = c("Condition", "Digestion", "Injection", "Subject"),
+    scale.     = TRUE,
+    verbose    = FALSE)
+
+pca_grid$grid
+```
+
+Samples grouping by condition and mixed with respect to the technical factors is
+the picture you want. Still grouping by digestion day means the correction did not
+take, and the cascade above is the next thing to try.
+
+```{r session}
+sessionInfo()
+```

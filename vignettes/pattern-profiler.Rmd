@@ -1,0 +1,247 @@
+---
+title: "Pattern Profiler: grouping proteins by their behaviour"
+author: "Sergio Ciordia"
+package: NADIA
+output:
+  BiocStyle::html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{Pattern Profiler: grouping proteins by their behaviour}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
+```
+
+# Introduction
+
+Differential expression answers "which proteins changed", one comparison at a
+time. Across three or more conditions a second question appears: **which proteins
+changed in the same shape?** Proteins that rise, peak and fall together are
+candidates for a shared mechanism, and no pairwise contrast can reveal that.
+
+The Pattern Profiler answers it with Mfuzz's fuzzy c-means clustering. *Fuzzy* is
+the important word: instead of assigning each protein to one cluster, it gives a
+**membership** between 0 and 1 for every cluster. A protein with a clean profile
+scores high in one; an ambiguous one spreads its membership around, and can be
+filtered out — which hard clustering has no way to express.
+
+# Installation
+
+```{r install, eval = FALSE}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("NADIA")
+```
+
+```{r library, message = FALSE}
+library(NADIA)
+data(nadia_dia)
+```
+
+This module needs `Mfuzz`, which is optional. It also needs `Biobase` and `e1071`
+**attached**, not merely installed, because Mfuzz calls `exprs()` and `cmeans()`
+without qualifying them. `pattern_profiler_analysis()` attaches them on entry and
+releases them with `on.exit()`, leaving your search path as it found it — so this
+is a note on how it works, not something you have to do.
+
+```{r deps}
+have_mfuzz <- all(vapply(c("Mfuzz", "Biobase", "e1071"),
+                         requireNamespace, logical(1), quietly = TRUE))
+have_mfuzz
+```
+
+# Running it
+
+```{r run, eval = have_mfuzz, message = FALSE, warning = FALSE}
+res <- process_proteomics(nadia_dia, verbose = FALSE)
+
+pp <- pattern_profiler_analysis(
+    res$se_proc, res$DEPs_results,
+    assay_name    = "Impseqrob_min",
+    filter_mode   = "any",
+    alpha         = 0.05,
+    auto_select_c = FALSE,   # fixed here to keep the vignette fast
+    c             = 3,
+    verbose       = FALSE)
+
+c(features_in = pp$n_features_input,
+  features_clustered = pp$n_features_final,
+  rows_out = pp$n_rows_output,
+  clusters = pp$optimal_c)
+```
+
+Each protein is reduced to one value per condition — the median across replicates
+by default, `aggregate = "mean"` for the alternative — and z-scored, so that the
+*shape* of the profile is clustered rather than its absolute level.
+
+```{r long-output, eval = have_mfuzz}
+head(pp$long_output, 4)
+```
+
+One row per protein **per cluster it belongs to**, with its membership and its
+z-scored profile. Which is why 794 proteins produced 948 rows.
+
+# What soft clustering actually buys you
+
+That row count is the whole point, and `summarize_pattern_profiler()` makes it
+explicit:
+
+```{r summary, eval = have_mfuzz}
+s <- summarize_pattern_profiler(pp$long_output)
+
+c(unique_features   = s$n_unique_features,
+  total_rows        = s$n_total_entries,
+  in_more_than_one  = s$n_multi_cluster_features)
+
+s$cluster_summary
+```
+
+A hundred and twenty-eight proteins do not belong cleanly to a single cluster.
+Hard clustering would have assigned each of them to exactly one anyway, silently,
+and you would have had no way to tell those apart from the confident assignments.
+
+Note the mean membership per cluster in the table above: cluster 1 averages 0.86,
+cluster 2 only 0.48. That is the signature of a cluster that is not really a
+pattern so much as a place where leftovers accumulate, and it is worth knowing
+before drawing conclusions from it.
+
+`min_membership` is the control:
+
+```{r membership, eval = have_mfuzz}
+thresholds <- c(0, 0.25, 0.5, 0.7, 0.9)
+data.frame(min_membership = thresholds,
+           rows_kept = vapply(thresholds,
+                              function(m) sum(pp$long_output$Membership >= m),
+                              numeric(1)))
+```
+
+A protein whose highest membership is 0.4 across three clusters is not really in
+any of them. Whether to draw it is a presentation decision, and this is the number
+that lets you make it deliberately.
+
+# Which proteins go in
+
+`filter_mode` decides, and one of its values is easy to misread:
+
+| `filter_mode` | Proteins included |
+|---|---|
+| `"any"` | significant in **at least one** comparison |
+| `"specific"` | significant in the single comparison named by `comparison` |
+| `"all"` | **every protein**, with no significance filter at all |
+
+`"all"` does *not* mean "significant in all comparisons". It means no filter.
+
+```{r filter-modes, eval = have_mfuzz, message = FALSE, warning = FALSE}
+pp_all <- pattern_profiler_analysis(
+    res$se_proc, res$DEPs_results, assay_name = "Impseqrob_min",
+    filter_mode = "all", auto_select_c = FALSE, c = 3, verbose = FALSE)
+
+c(any = pp$n_features_input, all = pp_all$n_features_input)
+```
+
+Two and a half times as many proteins. If that is what you want it is the right
+choice; reaching for it expecting the stricter reading would quietly cluster
+everything, most of it noise.
+
+# Choosing the number of clusters
+
+`c` is the one parameter with no defensible default, and `auto_select_c = TRUE`
+(the real default) chooses it by sweeping `c_range`:
+
+```{r auto-c, eval = have_mfuzz, message = FALSE, warning = FALSE}
+pp_auto <- pattern_profiler_analysis(
+    res$se_proc, res$DEPs_results, assay_name = "Impseqrob_min",
+    c_range = 2:5, auto_select_c = TRUE, selection_method = "xb",
+    verbose = FALSE)
+
+pp_auto$optimal_c
+pp_auto$selection_metrics
+```
+
+Four indices are computed per candidate `c`:
+
+- **XB** — the Xie-Beni index, compactness against separation. **Lower is
+  better**, and `selection_method = "xb"` minimises it.
+- **FPC** — fuzzy partition coefficient, how crisp the assignment is. Higher is
+  better.
+- **AMM** — average maximum membership.
+- **Dmin** — minimum distance between centroids.
+
+Here XB is minimised at `c = 2`, and note that it increases monotonically with
+`c` in this range. That is common and it is a caution rather than an answer: with
+three conditions there is a limit to how many distinguishable shapes exist, and
+an index that always prefers fewer clusters is telling you the data do not
+strongly support more. `"consensus"` combines the indices for when they disagree,
+and `"elbow"` looks for where the improvement flattens.
+
+## Two things that would corrupt this choice
+
+Both are handled, and both are worth knowing about because they fail silently.
+
+A clustering run can fail to converge for a given seed. Such a run is recorded as
+`NA`, **not** `0`. A zero would look like a perfect XB score and drag the mean
+towards whichever `c` crashed most often — choosing the number of clusters by
+which one failed.
+
+And features with zero variance across conditions are dropped before z-scoring.
+Dividing by a zero standard deviation gives `NaN`, and a matrix containing `NaN`
+does not cluster at all. The count is reported so the drop is never invisible:
+
+```{r constant, eval = have_mfuzz}
+c(before = pp$n_features_input, after = pp$n_features_final)
+```
+
+# The profiles
+
+Two interactive views. The first draws every protein in a cluster, with the
+centroid on top:
+
+```{r profiles, eval = FALSE}
+plots <- cluster_profile_highchart_list(pp$long_output, min_membership = 0.5)
+plots[[1]]
+```
+
+The second overlays only the centroids, which is the summary figure:
+
+```{r centroids, eval = FALSE}
+cluster_centroids_highchart(pp$long_output, min_membership = 0.5)
+```
+
+Both are omitted from this vignette's output only to keep it small.
+
+# Saving and reloading
+
+The analysis can write its table to disk, and the plotting functions read it
+back, so a figure can be redrawn without repeating the clustering:
+
+```{r roundtrip, eval = have_mfuzz, message = FALSE, warning = FALSE}
+f <- file.path(tempdir(), "pattern_profiler.tsv")
+
+invisible(pattern_profiler_analysis(
+    res$se_proc, res$DEPs_results, assay_name = "Impseqrob_min",
+    auto_select_c = FALSE, c = 3, output_file = f, verbose = FALSE))
+
+reloaded <- read_pattern_profiler_data(f)
+identical(dim(reloaded), dim(pp$long_output))
+unlink(f)
+```
+
+# A caveat about the number of conditions
+
+Soft clustering groups *profiles*, and a profile needs enough points to have a
+shape. With two conditions every protein is a straight line and there are only
+two shapes available, up or down — at which point the clustering has degenerated
+into the sign of the fold change, which the differential expression table already
+gave you.
+
+Three conditions is the practical minimum. It is why the example dataset keeps
+three of its original four.
+
+```{r session}
+sessionInfo()
+```

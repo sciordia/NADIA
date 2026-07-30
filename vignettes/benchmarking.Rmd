@@ -1,0 +1,392 @@
+---
+title: "Benchmarking with a spike-in: scoring against known truth"
+author: "Sergio Ciordia"
+package: NADIA
+output:
+  BiocStyle::html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{Benchmarking with a spike-in: scoring against known truth}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
+```
+
+# Introduction
+
+`vignette("choosing-methods")` had to work by proxy, because in an ordinary
+experiment nobody knows which proteins really changed. A spike-in experiment
+removes that limitation. Proteins from a foreign organism are added at known
+ratios into a constant background, so for every protein there is a right answer:
+the spike-in species *should* come out differential, at a ratio you specified,
+and the background *should not*.
+
+With real answers available you can count mistakes rather than infer them, and
+that is what this vignette does — including a definition of "mistake" that is
+less obvious than it looks.
+
+# Installation
+
+```{r install, eval = FALSE}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("NADIA")
+```
+
+```{r library, message = FALSE}
+library(NADIA)
+data(nadia_dia)
+```
+
+Some metrics need `pROC`, which is optional:
+
+```{r deps}
+have_proc <- requireNamespace("pROC", quietly = TRUE)
+have_proc
+```
+
+# The experiment
+
+The example dataset is a three-organism spike-in: a human background with
+*E. coli* and yeast added at different amounts per condition.
+
+```{r species}
+spikein <- read.delim(system.file("extdata", "nadia_dia_spikein.tsv.gz",
+                                  package = "NADIA"))
+species_df <- data.frame(Protein.IDs = spikein$PG.ProteinGroups,
+                         Species     = spikein$PG.OrganismId)
+
+table(species_df$Species)
+```
+
+`species_df` is deliberately a separate table rather than a column of the
+results. The species is a property of the protein, not of any analysis, so it can
+be attached to the output of any pipeline you want to score.
+
+# Declaring the truth
+
+`expected_values` says what each species should do in each comparison, as a
+log2 fold change. This is the specification of the experiment, taken from how
+much of each organism was mixed in — not something derived from the data.
+
+```{r expected}
+expected <- data.frame(
+    Comparison     = rep(c("B-A", "D-A", "D-B"), each = 2),
+    Species        = c("ECOLI", "YEAST"),
+    expected_logFC = c(1, -0.58, 2, -3.3, 1, -2.72))
+
+expected
+```
+
+Human proteins do not appear, and that is the convention: any species without a
+declared expectation is background, and should not change.
+
+# Scoring a pipeline
+
+```{r bench, message = FALSE, warning = FALSE}
+res <- process_proteomics(nadia_dia, verbose = FALSE)
+
+bench <- benchmarking_proteomics(res$DEPs_results, expected,
+                                 species_df = species_df,
+                                 output_dir = NULL, verbose = FALSE)
+names(bench)
+```
+
+```{r bench-metrics}
+bench$metrics_table
+```
+
+# How TP, FP, TN and FN are defined
+
+This is the part worth reading slowly, because the natural definition is wrong in
+a way that quietly corrupts the specificity.
+
+Two independent things go into every classification.
+
+**`truth` — what the protein *is*.** It is 1 if the protein belongs to a
+spike-in species with a declared expectation, 0 if it is background. This comes
+from `species_df` and `expected_values`, that is, from how the experiment was
+mixed. It is a property of the protein and **no analysis can change it**.
+
+**`predicted` — what the pipeline *said*.** It is 1 only if the protein is
+significant (`adj.P.Val < alpha`) **and** its `logFC` has the sign the experiment
+specified. Significance alone is not enough.
+
+Crossing them gives the four cells:
+
+| | `truth = 1` (spike-in) | `truth = 0` (background) |
+|---|---|---|
+| **`predicted = 1`** | **TP** — detected, right direction | **FP** — background wrongly flagged |
+| **`predicted = 0`** | **FN** — missed, *or found with the wrong sign* | **TN** — correctly left alone |
+
+The cell that decides the design is the bottom left. A spike-in protein that
+comes out **significant with the wrong sign** is an **FN**, not an FP.
+
+The temptation to call it a false positive is understandable — the pipeline did
+make a wrong claim about it. But the protein genuinely is differential; the
+experiment says so. What failed was the characterisation, which makes it a missed
+detection. Filing it under FP would put a spike-in protein into the count of
+*background proteins wrongly flagged*, and that count is the entire content of
+the specificity. One misfiled protein and specificity stops measuring what its
+name says.
+
+Those cases are not hypothetical. In this run there are nine:
+
+```{r classification}
+wrong_sign <- merge(
+    subset(bench$classified_df, truth == 1 & classification == "FN" &
+                                Change != "No Change"),
+    expected, by = c("Comparison", "Species"))
+wrong_sign <- wrong_sign[sign(wrong_sign$logFC) != sign(wrong_sign$expected_logFC), ]
+
+nrow(wrong_sign)
+head(wrong_sign[, c("Protein.IDs", "Comparison", "Species", "logFC",
+                    "expected_logFC", "adj.P.Val", "classification")], 4)
+```
+
+Yeast proteins that should have dropped by 3.3 and instead rose, significantly.
+Every one is an `FN`, and every one keeps `truth = 1`.
+
+The invariant that follows is worth checking, because it is what makes the
+specificity trustworthy:
+
+```{r invariant}
+table(classification = bench$classified_df$classification,
+      truth          = bench$classified_df$truth)
+```
+
+Two of the four cells are empty by construction. `TP` and `FN` occur only where
+`truth` is 1; `FP` and `TN` only where it is 0. **No prediction can move a protein
+between the biological classes** — which is also why `truth` can be handed to
+`pROC` untouched, so the AUC always scores the ranking of a fixed, biologically
+defined label.
+
+# The confusion plots: the whole picture at once
+
+The tables above are per comparison. The confusion figures show every cell of
+every comparison together, and that global view is where the structure of the
+experiment becomes visible at a glance.
+
+Start with the breakdown by species, which is the most informative of the two:
+
+```{r conf-species, fig.width = 7.5, fig.height = 5, fig.alt = "Confusion matrix by species and comparison"}
+bench$gg_confusion_by_species
+```
+
+```{r conf-species-tbl}
+bench$confusion_by_species
+```
+
+Read down the columns and the definitions appear as a shape. **Every `HUMAN` row
+has zeros in TP and FN**; every spike-in row has zeros in FP and TN. That is not
+a property of this pipeline — it is the invariant above, drawn. Background
+proteins can only ever be TN or FP, and spike-ins only ever TP or FN.
+
+What is left is the real performance, and it is legible per species. In `B-A`,
+*E. coli* is recovered 87.9 % of the time but yeast only 42.5 %, because the yeast
+ratio in that comparison is a log2 fold change of -0.58 — a factor of 1.5, which
+is genuinely hard. Move to `D-A`, where yeast is expected at -3.3, and recovery
+jumps to 90.9 %. The benchmark is not scoring the pipeline in the abstract; it is
+scoring it against effects of a stated size, and small effects are supposed to be
+harder.
+
+The overall view collapses the species and adds the percentages:
+
+```{r conf-overall, fig.width = 7.5, fig.height = 4.5, fig.alt = "Overall confusion matrix by comparison"}
+bench$gg_confusion_overall
+```
+
+```{r conf-overall-tbl}
+bench$confusion_overall
+```
+
+The FP column is the one to watch: 1.4 %, 3.0 % and 1.8 % of proteins. Those are
+false discovery rates in the region a 5 % threshold promises, which is the basic
+sanity check — a pipeline whose FP column ran into double figures would be
+failing at multiple-testing correction regardless of how good its sensitivity
+looked.
+
+# The metrics heatmap
+
+Six metrics across the three comparisons, on one colour scale:
+
+```{r bench-heatmap, fig.width = 7.5, fig.height = 4, fig.alt = "Heatmap of the benchmark metrics by comparison"}
+bench$gg_heatmap
+```
+
+The value of the heatmap is that it makes the *pattern of weakness* visible.
+Specificity and precision are uniformly high across all three comparisons; the
+column that varies is sensitivity, and it varies with the size of the spiked-in
+difference. A pipeline with the opposite profile — steady sensitivity, wobbling
+specificity — would be a pipeline with a multiple-testing problem, and the two
+look nothing alike here.
+
+# The OpDEA metrics
+
+The usual metrics have a weakness this experiment exposes: 1,256 of the 1,997
+proteins are background and should not change, so a method that called *nothing*
+significant would score 63 % accuracy. The OpDEA benchmarking study
+(Peng et al., 2024) selected three metrics that resist that:
+
+```{r opdea, eval = have_proc}
+bench$opdea_metrics
+```
+
+- **nMCC** — the Matthews correlation coefficient rescaled to `[0, 1]`. It uses
+  all four cells of the confusion matrix, so unlike accuracy it cannot be
+  inflated by a large, easy majority class.
+- **G_mean** — the geometric mean of sensitivity and specificity. Being
+  geometric, it collapses if either one is poor; an arithmetic mean would let a
+  good sensitivity hide a bad specificity.
+- **pAUC** — partial area under the ROC curve, restricted to low false positive
+  rates (1 %, 5 %, 10 %) and McClish-corrected so the numbers stay comparable
+  across different restrictions.
+
+The three tell a consistent story here: `B-A` is the hard comparison
+(nMCC 0.84, G_mean 0.79) and `D-A` the easy one (0.94 both), which matches what
+the confusion plots showed about the effect sizes.
+
+# ROC curves, and why the zoom is the one that matters
+
+The ROC curve traces sensitivity against false positive rate as the q-value
+threshold sweeps from 0 to 1. The full curve first:
+
+```{r roc, eval = have_proc, fig.width = 6.5, fig.height = 5, fig.alt = "ROC curves for the three comparisons"}
+bench$gg_roc
+```
+
+Its legend reports the **full AUC** for each comparison, in the order the
+comparisons appear in the data — it is not ranked.
+
+The AUCs are high — 0.83 to 0.98 — and that is the number usually quoted. But
+consider what the AUC is an average over: **every possible threshold**, including
+q = 0.5 and q = 0.9, which no one would ever use. A large part of the area under
+that curve is earned in a region of the parameter space that has nothing to do
+with how the analysis is actually run.
+
+The zoom restricts the view to the first 10 % of false positive rate:
+
+```{r roc-zoom, eval = have_proc, fig.width = 6.5, fig.height = 5, fig.alt = "ROC curves zoomed into the low false-positive region"}
+bench$gg_roc_zoom
+```
+
+Two things change in the legend, and both are deliberate.
+
+It now reports the **pAUC at 5 % FPR** instead of the full AUC — the McClish-
+corrected area over the region reached at roughly q = 0.05, not over all
+thresholds.
+
+And the entries are **sorted by that pAUC, best first**. This is the difference
+from the plot above, where the comparisons appear in whatever order the data
+supplied them. So in the zoomed figure the legend is itself the ranking: read it
+top to bottom and you have the comparisons ordered by how well they perform at
+the threshold you actually use. A comparison that led on full AUC can drop down
+this list, and when it does, the full AUC was flattering it.
+
+The reason this is the right view is concrete, and it can be checked. The
+operating point of the analysis — the actual sensitivity and false positive rate
+you get at the threshold you actually used, `adj.P.Val < 0.05` — is already in
+`metrics_table`, since `FPR = 1 - Specificity`:
+
+```{r operating-point}
+op <- data.frame(
+    Comparison = bench$metrics_table$Comparison,
+    FPR_at_q005 = round(1 - bench$metrics_table$Specificity, 4),
+    TPR_at_q005 = bench$metrics_table$Sensitivity)
+op
+
+all(op$FPR_at_q005 <= 0.10)   # inside the zoom window?
+```
+
+Between 2.2 % and 4.8 % false positive rate. **All three operating points sit
+inside the zoomed region**, and two of the three inside the 5 % band the pAUC
+integrates over. The full ROC devotes most of its width to thresholds to the
+right of every point you will ever use; the zoom shows the neighbourhood you are
+actually standing in.
+
+So when two pipelines are separated by 0.01 of AUC, that difference may live
+entirely at q-values nobody applies. A difference in pAUC at 5 % is a difference
+where you work. That is why `pAUC_005` carries weight in the ranking below, and
+why the zoom is worth reading before the full curve.
+
+# The volcanoes
+
+```{r bench-volcano, eval = FALSE}
+# One interactive volcano per comparison, points coloured by species
+bench$hc_volcano_list[["B-A"]]
+```
+
+These are the only Highcharts objects the module produces; everything above is
+ggplot2. Colouring by species turns a volcano into a diagnostic: background
+proteins should cluster at the origin, and each spike-in species should sit
+around its expected fold change.
+
+# Comparing whole pipelines
+
+Scoring one pipeline tells you how it did. The point of a benchmark is to choose
+between several, and `benchmarking_multiple()` does that from the outputs of
+individual runs.
+
+```{r multiple, message = FALSE, warning = FALSE, eval = have_proc}
+pipelines <- list(
+    cycloess_combo = list(norm_method = "cycloess", imp_method = "combo"),
+    quantile_combo = list(norm_method = "quantile", imp_method = "combo"),
+    cycloess_min   = list(norm_method = "cycloess", imp_method = "min"))
+
+invisible(capture.output(
+  opdea <- do.call(rbind, lapply(names(pipelines), function(p) {
+      r <- do.call(process_proteomics,
+                   c(list(nadia_dia, verbose = FALSE), pipelines[[p]]))
+      b <- benchmarking_proteomics(r$DEPs_results, expected,
+                                   species_df = species_df,
+                                   output_dir = NULL, verbose = FALSE)
+      cbind(Assay = p, b$opdea_metrics)
+  }))))
+
+ranking <- bm_compute_ranking(opdea)
+names(ranking)
+ranking$mean_ranking
+```
+
+Rank 1 is the best pipeline, averaged over the five OpDEA metrics and the three
+comparisons. Here the verdict is unanimous — `cycloess` with `combo` wins on
+every metric.
+
+That is the same question `vignette("choosing-methods")` had to answer by proxy,
+and the two answers agree: `cycloess` came first there too, on replicate
+tightness and condition separation alone, with no knowledge of which proteins
+had actually been spiked in. The agreement is worth noting in both directions. It
+is evidence that the proxy metrics are measuring something real, and it is a
+reason to trust them on the experiments where no spike-in is available — which is
+most of them.
+
+Agreement is not guaranteed, though, and when the two disagree the spike-in wins:
+it is scoring against what actually happened, and the proxy is scoring against an
+assumption about what a good analysis looks like. That is why a spike-in is worth
+including in a method-development experiment even though it costs a channel.
+
+```{r multiple-plot, eval = have_proc, fig.width = 7, fig.height = 4.5, fig.alt = "Ranking of the pipelines across the OpDEA metrics"}
+bm_plot_ranking_bars(ranking, type = "mean")
+```
+
+# A note on what this proves
+
+A spike-in tells you which pipeline best recovers *a known ratio of a foreign
+organism spiked into a fixed background*. That is a real question and a hard one,
+but it is not identical to your biological question. Spike-in proteins are
+present in every sample at controlled amounts, whereas the biology you care about
+may be genuinely absent from a condition — which is the MNAR case that
+`vignette("missing-values")` is about, and the one a spike-in reproduces least
+well.
+
+Treat the ranking as strong evidence about the analytical pipeline, not as proof
+that its output is right for a different kind of experiment.
+
+```{r session}
+sessionInfo()
+```

@@ -16,8 +16,29 @@ without any change to the results the pipeline produces.
 * Example dataset `nadia_dia` and trimmed reports in `inst/extdata/`, with their
   provenance documented in `inst/scripts/`.
 
+* Nine vignettes covering the pipeline end to end: `NADIA` (start here), plus
+  `input-formats`, `missing-values`, `choosing-methods`, `benchmarking`,
+  `batch-correction`, `pattern-profiler`, `visualization` and
+  `results-and-export`. They replace `example_workflow.R`, which has been
+  removed.
+* A testthat suite of over 450 assertions, including one regression test per bug
+  fixed in the 2026-07 code reviews.
+
 ## Changes
 
+* **`max_na_prop` now defaults to `NULL`, which disables the pre-filter.** It
+  used to default to 0.8, but the filter was only applied by `softHybrid` and by
+  the single imputation methods; `combo`, the default, never applied it. The same
+  argument therefore meant different things depending on `imp_method`. Passing a
+  value still filters, now for every method alike. Runs that used the default
+  `imp_method = "combo"` are unaffected; a run with a single method may now keep
+  proteins that were previously discarded for having more than 80 % missing
+  values — which in a package about missing values is the better default, since
+  those are often the on/off cases.
+* The "Export to Excel" button in the `*_widget()` tables no longer loads ExcelJS
+  and PapaParse from a CDN. Both libraries (MIT) ship inside the package, so the
+  button works offline and `saveWidget(selfcontained = TRUE)` embeds them. The
+  exported `.xlsx` is byte-for-byte identical in content and formatting.
 * Dependencies are declared in `Imports:` and `Suggests:`; the code no longer
   calls `library()`. Packages needed only for one specific method are checked at
   the point of use.

@@ -86,5 +86,7 @@ Suggests:
     vegan,
     viridis,
     vsn
+VignetteBuilder: knitr
 RoxygenNote: 8.0.0
 Roxygen: list(markdown = TRUE)
+Config/testthat/edition: 3

@@ -1,0 +1,280 @@
+---
+title: "Input formats: DIA, TMT and label-free"
+author: "Sergio Ciordia"
+package: NADIA
+output:
+  BiocStyle::html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{Input formats: DIA, TMT and label-free}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
+```
+
+# Introduction
+
+NADIA reads three kinds of report, and after the reading step it stops caring
+which one it was. `preprocess_spectronaut()`, `preprocess_tmt()` and
+`preprocess_lfq()` all return an object of class `proteomics_data`, with the same
+three elements, so `process_proteomics()` and everything downstream take any of
+them unchanged.
+
+This vignette shows the three preprocessors on real reports and then makes the
+convergence explicit. The interesting part is not that they converge — it is
+*where they get the experimental design from*, because that differs in each case
+and is the one thing you have to get right.
+
+# Installation
+
+```{r install, eval = FALSE}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("NADIA")
+```
+
+```{r library, message = FALSE}
+library(NADIA)
+```
+
+# DIA: Spectronaut and DIA-NN
+
+Spectronaut and DIA-NN export a **long** report: one row per protein group *per
+run*, with the condition and replicate written in every row.
+
+```{r dia}
+dia_file <- system.file("extdata", "nadia_dia_report.tsv.gz", package = "NADIA")
+dia <- preprocess_spectronaut(dia_file, condition_order = c("A", "B", "D"),
+                              verbose = FALSE)
+dia
+```
+
+The design comes from the report itself, in the `R.Condition` and `R.Replicate`
+columns. `condition_order` does not define the design; it fixes the order the
+conditions appear in downstream and selects which ones to keep.
+
+```{r dia-md}
+dia$metadata
+```
+
+Because the report is run-level and long, several columns hold one value per run
+for the same protein — sequence coverage, molecular weight, C-score. The
+`agg_*` arguments choose how those collapse to a single number per protein:
+
+```{r dia-agg, eval = FALSE}
+dia_median <- preprocess_spectronaut(
+    dia_file, condition_order = c("A", "B", "D"),
+    agg_coverage_run = "median",   # default "max"
+    agg_cscore_runwise = "median", # default "mean"
+    verbose = FALSE)
+```
+
+These affect only the annotation carried alongside the data, never the
+intensities.
+
+# TMT: Proteome Discoverer
+
+A TMT report from Proteome Discoverer is **wide**: one row per protein, one
+column per channel. The design is encoded in the column names, as
+`Abundance: <condition>_<replicate>`.
+
+```{r tmt}
+tmt_file <- system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA")
+tmt_cols <- colnames(read.delim(tmt_file, nrows = 1, check.names = FALSE))
+grep("^Abundance", tmt_cols, value = TRUE)
+```
+
+`preprocess_tmt()` parses those suffixes to build the sample-to-condition map.
+Nothing else is consulted, which is worth knowing: **if the channel names are
+wrong, the design is wrong**, and there is no annotation file to correct it.
+
+This experiment has four conditions of eight replicates plus four `IS` channels,
+an internal standard used to bridge the two TMT mixes. `condition_order` is where
+you leave it out, because a standard is not a biological group and including it
+would generate contrasts against it:
+
+```{r tmt-run}
+tmt <- preprocess_tmt(tmt_file, condition_order = c("A", "B", "C", "D"),
+                      verbose = FALSE)
+tmt
+head(tmt$metadata)
+table(tmt$metadata$Condition)
+```
+
+# Label-free: Proteome Discoverer
+
+The label-free export is wide too, but differs from TMT in two ways.
+
+First, it carries **per-sample metrics** beyond the abundance — a Mascot score, a
+PSM count and a peptide count for every sample:
+
+```{r lfq-cols}
+lfq_file <- system.file("extdata", "nadia_lfq_report.tsv.gz", package = "NADIA")
+lfq_cols <- colnames(read.delim(lfq_file, nrows = 1, check.names = FALSE))
+per_sample <- c("Abundance", "Score Mascot", "# PSMs (by Search Engine)",
+                "# Peptides (by Search Engine)")
+vapply(per_sample, function(p) sum(startsWith(lfq_cols, paste0(p, ":"))), integer(1))
+```
+
+Those are matched to samples **by sample name**, not by column position.
+
+Second, and more important, the design does **not** live in the column names.
+It comes from a separate annotation file:
+
+```{r lfq-annot}
+annot_file <- system.file("extdata", "nadia_lfq_annotation.tsv", package = "NADIA")
+read.delim(annot_file)
+```
+
+`Column` names the sample as it appears in the report, `Condition` assigns it to
+a group, and the optional `Experiment` column separates independent experiments.
+This is the more flexible arrangement: relabelling an experiment means editing a
+small text file rather than renaming columns in the report.
+
+```{r lfq-run}
+lfq <- preprocess_lfq(lfq_file, annot_path = annot_file, verbose = FALSE)
+lfq
+lfq$metadata
+```
+
+# Where the design comes from
+
+That is the whole difference, and it is worth stating in one place:
+
+| Format | Layout | Design taken from |
+|---|---|---|
+| Spectronaut / DIA-NN | long, run-level | the `R.Condition` / `R.Replicate` columns |
+| TMT (PD) | wide | the `Abundance: <cond>_<rep>` column suffixes |
+| LFQ (PD) | wide | a **separate annotation file** (`annot_path`) |
+
+# Naming the conditions
+
+Whatever the format, the condition names end up as **column names of a design
+matrix**, and limma builds contrasts from them by pasting names around a minus
+sign. `"B-A"` is not a label the package invented for display; it is the
+expression `B - A` evaluated against that matrix.
+
+That single fact decides which names are usable. A condition called `Ct-1` would
+produce the contrast string `Tr-1-Ct-1`, which cannot be parsed back into two
+condition names, and which R cannot interpret as an expression either.
+
+The rule is: **a condition name must be a syntactically valid R name.** In
+practice:
+
+| In the name | Verdict | Why |
+|---|---|---|
+| letters, digits (not first) | fine | `Ctrl`, `Treat24h` |
+| `.` full stop | **fine** | `Ct.1` gives the contrast `Tr.1-Ct.1` |
+| `_` underscore | **fine** | `Ct_a` gives `Tr_a-Ct_a` |
+| `-` hyphen | **rejected** | collides with the contrast separator |
+| space | **rejected** | not a syntactic name |
+| leading digit | **rejected** | `1Ct` is not a name; R would rewrite it `X1Ct` |
+
+So yes, a full stop is safe, and it is the natural choice if you want to separate
+parts of a condition name — `Ct.1`, `Ct.2` rather than `Ct-1`, `Ct-2`.
+`make.names()` is the exact test:
+
+```{r names-test}
+candidates <- c("Ctrl", "Ct.1", "Ct_a", "Ct-1", "Ct 1", "1Ct")
+data.frame(name  = candidates,
+           valid = make.names(candidates) == candidates,
+           what_r_would_do = make.names(candidates))
+```
+
+An invalid name does not slip through to produce a wrong answer. The pipeline
+checks before fitting the model and stops with a message that names the problem:
+
+```{r names-error, error = TRUE}
+bad <- dia
+bad$metadata$R.Condition <- paste0(bad$metadata$R.Condition, "-x")
+bad$metadata$Coding <- paste0(bad$metadata$R.Condition, "_",
+                              bad$metadata$R.Replicate)
+colnames(bad$protein_quant) <- sub("^(PG.Quantity_)([A-Z])_", "\\1\\2-x_",
+                                   colnames(bad$protein_quant))
+
+process_proteomics(bad, verbose = FALSE)
+```
+
+One caution while you are renaming by hand, because this failure mode *does* pass
+unnoticed. Samples are matched to their intensities by **`metadata$Coding`
+against the `PG.Quantity_<coding>` column names**. Those two must agree. Break
+the pairing and the affected samples are silently dropped — no error, just a
+smaller analysis:
+
+```{r names-drop}
+half <- dia
+half$metadata$R.Condition <- sub("^A$", "A.1", half$metadata$R.Condition)
+half$metadata$Coding <- paste0(half$metadata$R.Condition, "_",
+                               half$metadata$R.Replicate)
+# ... but the PG.Quantity_ columns still say "A_1", "A_2", ...
+
+res_drop <- process_proteomics(half, verbose = FALSE)
+ncol(res_drop$se_proc)   # 12 samples went in
+unique(as.character(SummarizedExperiment::colData(res_drop$se_proc)$Condition))
+```
+
+Four samples gone and condition A with them, from a rename that looked complete.
+Note that `R.Condition` on its own is only a label: changing it alone is
+harmless, because it is not what the matching uses. It is `Coding` and the column
+names that have to move together. If a run comes back with fewer samples than you
+sent it, this is the first thing to check.
+
+Two format-specific notes. In **TMT** the condition is read from the
+`Abundance: <condition>_<replicate>` suffix; the replicate is matched as the
+trailing digits, so an underscore inside the condition name is still parsed
+correctly (`Ct_a_1` gives condition `Ct_a`, replicate `1`). In **LFQ** the names
+come from the `Condition` column of the annotation file, which is the easiest
+place to fix them — no report needs to be touched.
+
+# One contract, three sources
+
+All three carry the same class hierarchy, and share `proteomics_data`:
+
+```{r classes}
+vapply(list(DIA = dia, TMT = tmt, LFQ = lfq), function(x) class(x)[1], character(1))
+vapply(list(DIA = dia, TMT = tmt, LFQ = lfq),
+       function(x) inherits(x, "proteomics_data"), logical(1))
+```
+
+And the same three elements:
+
+```{r elements}
+lapply(list(DIA = dia, TMT = tmt, LFQ = lfq), names)
+```
+
+Which is what lets the pipeline be indifferent to the source:
+
+```{r pipeline}
+res_tmt <- process_proteomics(tmt, verbose = FALSE)
+res_lfq <- process_proteomics(lfq, verbose = FALSE)
+
+res_tmt$comparisons
+res_lfq$comparisons
+table(res_lfq$DEPs_results$Change)
+```
+
+Not a single argument had to change. The same is true of every vignette that
+follows: where they say `nadia_dia`, a TMT or LFQ object would do.
+
+# One caveat about the metadata
+
+The three metadata tables are *not* identical, even though the three objects are
+interchangeable. Spectronaut reports identification counts that Proteome
+Discoverer does not:
+
+```{r md-cols}
+lapply(list(DIA = dia, TMT = tmt, LFQ = lfq), function(x) colnames(x$metadata))
+```
+
+Functions that display those counts degrade rather than fail —
+`summary_list_widget()` shows whichever columns are present. See
+`vignette("results-and-export")`.
+
+```{r session}
+sessionInfo()
+```

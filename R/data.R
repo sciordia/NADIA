@@ -16,7 +16,7 @@
 #'       three identification counts reported by Spectronaut
 #'       (`R.PrecursorsIdentified`, `R.StrippedSequencesIdentified`,
 #'       `R.ProteinGroupsIdentified`).}
-#'     \item{`protein_id`}{Data frame of 2,000 rows by 56 columns holding the
+#'     \item{`protein_id`}{Data frame of 2,000 rows by 52 columns holding the
 #'       identification information of every protein group.}
 #'     \item{`protein_quant`}{Data frame of 2,000 rows by 44 columns: eight
 #'       annotation columns plus, for each of the 12 samples, the number of

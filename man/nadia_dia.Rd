@@ -12,7 +12,7 @@ injection: \code{R.FileName}, \code{R.Condition}, \code{R.Replicate}, \code{Codi
 three identification counts reported by Spectronaut
 (\code{R.PrecursorsIdentified}, \code{R.StrippedSequencesIdentified},
 \code{R.ProteinGroupsIdentified}).}
-\item{\code{protein_id}}{Data frame of 2,000 rows by 56 columns holding the
+\item{\code{protein_id}}{Data frame of 2,000 rows by 52 columns holding the
 identification information of every protein group.}
 \item{\code{protein_quant}}{Data frame of 2,000 rows by 44 columns: eight
 annotation columns plus, for each of the 12 samples, the number of

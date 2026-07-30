@@ -2,19 +2,24 @@
 % Please edit documentation in R/Imputation.R
 \name{.prefilter_by_na_prop}
 \alias{.prefilter_by_na_prop}
-\title{Pre-filter proteins by NA proportion (for single methods)}
+\title{Pre-filter proteins by NA proportion}
 \usage{
-.prefilter_by_na_prop(x, max_na_prop = 0.8)
+.prefilter_by_na_prop(x, max_na_prop = NULL)
 }
 \arguments{
 \item{x}{Numeric matrix}
 
-\item{max_na_prop}{Maximum NA proportion (default: 0.8)}
+\item{max_na_prop}{Maximum NA proportion, or \code{NULL} to disable the filter
+(default).}
 }
 \value{
 List with keep (logical vector), summary
 }
 \description{
-Removes proteins with more than max_na_prop fraction of NAs.
+Removes proteins with more than \code{max_na_prop} fraction of NAs. With
+\code{max_na_prop = NULL} (the default) nothing is removed, so every imputation
+method sees the same set of proteins: \code{combo} never applied this filter, and
+having the single methods apply it made the same argument mean different
+things depending on \code{imp_method}.
 }
 \keyword{internal}

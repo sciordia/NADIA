@@ -206,6 +206,40 @@
 }
 
 
+#' JavaScript libraries backing the "Export to Excel" button
+#'
+#' ExcelJS builds the workbook and PapaParse parses the TSV that
+#' `Reactable.getDataCSV()` produces. Both are shipped inside the package rather
+#' than pulled from a CDN, so the button works without an internet connection and
+#' `htmlwidgets::saveWidget(selfcontained = TRUE)` embeds them in the HTML.
+#'
+#' PapaParse is kept, small as it is, because `getDataCSV()` quotes any field
+#' containing the separator, a quote or a newline; splitting the TSV by hand would
+#' corrupt those rows.
+#'
+#' Both libraries are under the MIT licence; their terms travel with them in
+#' `inst/js/*/LICENSE`.
+#'
+#' @return A list of two htmlDependency objects.
+#' @noRd
+.rl_export_deps <- function() {
+  list(
+    htmltools::htmlDependency(
+      name       = "exceljs",
+      version    = "4.4.0",
+      src        = c(file = system.file("js", "exceljs", package = "NADIA")),
+      script     = "exceljs.min.js",
+      all_files  = FALSE),
+    htmltools::htmlDependency(
+      name       = "papaparse",
+      version    = "5.4.1",
+      src        = c(file = system.file("js", "papaparse", package = "NADIA")),
+      script     = "papaparse.min.js",
+      all_files  = FALSE)
+  )
+}
+
+
 #' Interface language strings
 #' @return A reactableLang object
 #' @noRd
@@ -723,11 +757,8 @@ results_list_widget <- function(
   # --- CSS ---
   css <- .rl_css()
 
-  # --- CDN scripts for ExcelJS and PapaParse ---
-  cdn_scripts <- tagList(
-    tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"),
-    tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js")
-  )
+  # --- ExcelJS and PapaParse, shipped with the package (see .rl_export_deps) ---
+  export_deps <- .rl_export_deps()
 
   # --- JavaScript: toggle filters, clear filters, export to Excel ---
   js_code <- tags$script(HTML(sprintf("
@@ -1007,7 +1038,7 @@ results_list_widget <- function(
 
   browsable(tagList(
     css,
-    cdn_scripts,
+    export_deps,
     js_code,
     search_actions,
     filters_panel,
@@ -2162,10 +2193,8 @@ protein_list_widget <- function(
 
   # --- CSS + CDN scripts ---
   css <- .rl_css()
-  cdn_scripts <- tagList(
-    tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"),
-    tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js")
-  )
+  # --- ExcelJS and PapaParse, shipped with the package (see .rl_export_deps) ---
+  export_deps <- .rl_export_deps()
 
   # --- JavaScript (toggle filters, condition chips, clear, export) ---
   js_code <- tags$script(HTML(sprintf("
@@ -2461,7 +2490,7 @@ protein_list_widget <- function(
 
   browsable(tagList(
     css,
-    cdn_scripts,
+    export_deps,
     js_code,
     search_actions,
     filters_panel,
@@ -2624,10 +2653,8 @@ quant_list_widget <- function(
   palette_json <- jsonlite::toJSON(as.list(palette), auto_unbox = TRUE)
 
   css <- .rl_css()
-  cdn_scripts <- tagList(
-    tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"),
-    tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js")
-  )
+  # --- ExcelJS and PapaParse, shipped with the package (see .rl_export_deps) ---
+  export_deps <- .rl_export_deps()
 
   js_code <- tags$script(HTML(sprintf("
     var qlFiltersVisible = false;
@@ -2919,7 +2946,7 @@ quant_list_widget <- function(
 
   browsable(tagList(
     css,
-    cdn_scripts,
+    export_deps,
     js_code,
     search_actions,
     filters_panel,
@@ -3001,10 +3028,8 @@ summary_list_widget <- function(
 
   # --- CSS + CDN scripts ---
   css <- .rl_css()
-  cdn_scripts <- tagList(
-    tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"),
-    tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js")
-  )
+  # --- ExcelJS and PapaParse, shipped with the package (see .rl_export_deps) ---
+  export_deps <- .rl_export_deps()
 
   # --- Embedded JavaScript (slToggleFilters / slToggleCondition / slClearFilters / slExportExcel) ---
   js_code <- tags$script(HTML(sprintf("
@@ -3302,7 +3327,7 @@ summary_list_widget <- function(
 
   browsable(tagList(
     css,
-    cdn_scripts,
+    export_deps,
     js_code,
     search_actions,
     filters_panel,

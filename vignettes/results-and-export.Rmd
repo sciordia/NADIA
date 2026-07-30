@@ -1,0 +1,224 @@
+---
+title: "Results and export: getting the analysis out of R"
+author: "Sergio Ciordia"
+package: NADIA
+output:
+  BiocStyle::html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{Results and export: getting the analysis out of R}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
+```
+
+# Introduction
+
+An analysis that only exists inside an R session is not finished. Collaborators
+want to browse the results, reviewers want the numbers, and you want to be able to
+reproduce the table a year from now.
+
+This vignette covers the three ways out: **files** for archiving and for other
+software, **interactive tables** for people who do not use R, and
+**self-contained HTML** for sending a figure or a table to someone by email.
+
+# Installation
+
+```{r install, eval = FALSE}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("NADIA")
+```
+
+```{r library, message = FALSE}
+library(NADIA)
+data(nadia_dia)
+```
+
+```{r run, message = FALSE}
+res <- process_proteomics(nadia_dia, verbose = FALSE)
+```
+
+# Files
+
+`process_proteomics()` writes nothing unless you give it somewhere to write. That
+is deliberate: a function that creates files as a side effect of being called is
+a nuisance in a script and a hazard in a package.
+
+```{r export-dir, message = FALSE}
+out <- file.path(tempdir(), "nadia_results")
+
+invisible(process_proteomics(nadia_dia, export_dir = out,
+                             export_format = "tsv", verbose = FALSE))
+
+list.files(out)
+```
+
+`export_format` takes `"tsv"`, `"parquet"` or `"both"`. Parquet needs the `arrow`
+package and is worth it for large matrices — it is typically several times
+smaller and much faster to read back, and it preserves column types, which TSV
+does not.
+
+```{r parquet, eval = requireNamespace("arrow", quietly = TRUE), message = FALSE}
+out_pq <- file.path(tempdir(), "nadia_parquet")
+invisible(process_proteomics(nadia_dia, export_dir = out_pq,
+                             export_format = "both", verbose = FALSE))
+
+sizes <- file.info(list.files(out_pq, full.names = TRUE))["size"]
+head(sizes[order(rownames(sizes)), , drop = FALSE], 6)
+```
+
+The individual export switches — `export_normalized`, `export_imputed`,
+`export_volcano`, `export_boxplot`, `export_pca` — turn off anything you do not
+need.
+
+Two functions in the package have a trap worth knowing: `normalization_metrics()`,
+`imputation_metrics()` and `benchmarking_multiple()` default to
+`export_tables = TRUE`, so they *do* write files unless you pass
+`output_dir = NULL`. Every example and vignette in this package passes it.
+
+```{r no-write}
+before <- length(list.files(tempdir()))
+nm <- normalization_metrics(
+    nm_run_normalizations(nm_prepare_se(nadia_dia, verbose = FALSE),
+                          methods = c("log2Norm", "cycloess"), verbose = FALSE),
+    output_dir = NULL, verbose = FALSE)
+identical(before, length(list.files(tempdir())))
+```
+
+# Interactive tables
+
+Four tables, each with sorting, filtering, search and an Excel button. The
+`*_reactable()` form returns a `reactable` for embedding; the `*_widget()` form
+returns a complete page with the search bar, filter panel and buttons around it.
+
+## The results
+
+```{r results-table, eval = FALSE}
+results_list_widget(res$DEPs_results,
+                    protein_quant = nadia_dia$protein_quant,
+                    alpha = 0.05, lfc_thr = 1)
+```
+
+Passing `protein_quant` is what makes the expandable detail row work: clicking a
+protein shows its intensities across samples, which is the quickest way to check
+whether a fold change rests on real measurements or on imputed ones.
+
+```{r results-reactable}
+class(results_list_reactable(res$DEPs_results))
+```
+
+## The protein annotation
+
+```{r protein-table}
+class(protein_list_reactable(nadia_dia$protein_id,
+                             metadata = nadia_dia$metadata))
+```
+
+## The quantification matrix
+
+`quant_list_widget()` puts the raw quantification beside the processed matrix.
+The processed matrix has to carry a `ProteinGroups` column, since a bare matrix
+has no column to join on:
+
+```{r quant-table}
+mat <- SummarizedExperiment::assay(res$se_proc, "Impseqrob_min")
+mat_df <- data.frame(ProteinGroups = rownames(mat), mat, check.names = FALSE)
+
+class(quant_list_widget(nadia_dia$protein_quant,
+                        matrix_data = mat_df,
+                        metadata    = nadia_dia$metadata))
+```
+
+## The sample summary
+
+```{r summary-table}
+class(summary_list_widget(nadia_dia$metadata))
+```
+
+This one adapts to what it is given. Spectronaut metadata carry identification
+counts that Proteome Discoverer does not export, so with a TMT or LFQ experiment
+the table shows the columns that exist rather than failing:
+
+```{r summary-degradation}
+tmt <- preprocess_tmt(
+    system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA"),
+    condition_order = c("A", "B"), verbose = FALSE)
+
+colnames(tmt$metadata)                        # no identification counts
+class(summary_list_widget(tmt$metadata))      # still works
+```
+
+# The Excel button works offline
+
+Each widget carries an "Export to Excel" button that builds a formatted `.xlsx`
+in the browser — bold header, coloured fill, sensible column widths, numeric
+columns typed as numbers rather than text.
+
+It runs on two JavaScript libraries, **ExcelJS** and **PapaParse**, and both are
+**shipped inside the package** rather than loaded from a CDN. So the button works
+with no internet connection, and `htmlwidgets::saveWidget(selfcontained = TRUE)`
+embeds them along with everything else:
+
+```{r js-libs}
+list.files(system.file("js", package = "NADIA"), recursive = TRUE)
+```
+
+Both are MIT-licensed, and their terms travel with them in those directories.
+
+# Saving a widget to a file
+
+```{r save-widget, message = FALSE}
+w <- results_list_widget(res$DEPs_results)
+f <- file.path(tempdir(), "results.html")
+htmltools::save_html(w, f)
+
+round(file.size(f) / 1024)   # KB
+```
+
+`htmltools::save_html()` writes the page and copies its libraries into a `lib/`
+directory beside it — so the HTML and that folder travel together. For a single
+file that can be emailed, use `htmlwidgets::saveWidget()` with
+`selfcontained = TRUE`, which base64-embeds everything:
+
+```{r save-selfcontained, eval = FALSE}
+htmlwidgets::saveWidget(w, file.path(tempdir(), "results_standalone.html"),
+                        selfcontained = TRUE)
+```
+
+The same applies to the Highcharts figures:
+
+```{r save-hc, eval = FALSE}
+v <- volcano_highchart_list(res$DEPs_results)
+htmlwidgets::saveWidget(v[["B-A"]], file.path(tempdir(), "volcano_B-A.html"),
+                        selfcontained = TRUE)
+```
+
+# What to keep
+
+The one thing a results file cannot tell you on its own is how it was made, and
+the parameters are recorded for exactly that reason:
+
+```{r parameters}
+unlist(res$parameters[c("norm_method", "imp_method", "mar_method",
+                        "mnar_method", "de_method", "alpha",
+                        "logFC_threshold")])
+```
+
+Given `vignette("choosing-methods")` — where four combinations of two arguments
+moved the count of down-regulated proteins by a factor of fourteen on this same
+dataset — this list is not bookkeeping. It is the difference between a result
+someone can reproduce and one they cannot.
+
+```{r cleanup, include = FALSE}
+unlink(c(out, file.path(tempdir(), "nadia_parquet"), f), recursive = TRUE)
+```
+
+```{r session}
+sessionInfo()
+```

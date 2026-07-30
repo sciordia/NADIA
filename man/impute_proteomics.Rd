@@ -15,7 +15,7 @@ impute_proteomics(
   prop_present_mar = 0.5,
   min_present_mar = 1,
   require_n_conditions = 1,
-  max_na_prop = 0.8,
+  max_na_prop = NULL,
   method_args = list(),
   with_value = NA_real_,
   verbose = TRUE
@@ -48,7 +48,9 @@ its own name.}
 
 \item{require_n_conditions}{Number of conditions required with presence (default: 1)}
 
-\item{max_na_prop}{Maximum NA proportion for single-method pre-filtering (default: 0.8)}
+\item{max_na_prop}{Maximum NA proportion above which a protein is removed
+before imputation. \code{NULL} (the default) disables the filter, so every
+method receives the same proteins.}
 
 \item{method_args}{Named list of per-method argument lists (e.g.,
 list(knn = list(k = 10), bpca = list(nPcs = 3)))}

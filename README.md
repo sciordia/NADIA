@@ -78,8 +78,10 @@ prep <- preprocess_spectronaut(
 - `data/` — the example dataset `nadia_dia`.
 - `data-raw/`, `results/` — full datasets and real analysis outputs. Not part of
   the package (`.Rbuildignore`).
-- `example_workflow.R` and the numbered scripts — end-to-end walkthroughs over the
-  full datasets.
+- `vignettes/` — nine articles covering the pipeline end to end. Start with
+  `vignette("NADIA")`.
+- The numbered scripts — end-to-end walkthroughs over the full datasets. Not part
+  of the package (`.Rbuildignore`).
 - `CLAUDE.md` — detailed description of the architecture and of every module.
 - `CODE_REVIEW_*.md` — code reviews and impact analyses of their fixes.
 
