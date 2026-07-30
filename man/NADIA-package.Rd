@@ -41,11 +41,11 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Sergio Ciordia \email{sciordia@gmail.com}
+\strong{Maintainer}: Sergio Ciordia \email{sciordia@gmail.com} (\href{https://orcid.org/0000-0002-5726-853X}{ORCID})
 
 Authors:
 \itemize{
-  \item Sergio Ciordia \email{sciordia@gmail.com}
+  \item Sergio Ciordia \email{sciordia@gmail.com} (\href{https://orcid.org/0000-0002-5726-853X}{ORCID})
 }
 
 }

@@ -45,8 +45,6 @@ install_nadia_deps(dry_run = TRUE)       # only report what is missing
 install_nadia_deps(optional = FALSE)     # only the essentials
 ```
 
-`renv` is not used.
-
 ## A first example
 
 ```r

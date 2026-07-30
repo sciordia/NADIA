@@ -6,7 +6,8 @@ Authors@R: person(
     given = "Sergio",
     family = "Ciordia",
     email = "sciordia@gmail.com",
-    role = c("aut", "cre"))
+    role = c("aut", "cre"),
+    comment = c(ORCID = "0000-0002-5726-853X"))
 Description: Provides a complete workflow for the differential expression
     analysis of protein quantification data, with particular attention to the
     missing values that dominate data-independent acquisition (DIA) experiments.
