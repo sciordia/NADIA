@@ -2,7 +2,7 @@
 % Please edit documentation in R/Pattern_Profiler_Highcharts.R
 \name{cluster_centroids_highchart}
 \alias{cluster_centroids_highchart}
-\title{Gráfico de Centroides de Todos los Clusters}
+\title{Centroid plot for all the clusters}
 \usage{
 cluster_centroids_highchart(
   data,
@@ -18,31 +18,31 @@ cluster_centroids_highchart(
 )
 }
 \arguments{
-\item{data}{DataFrame de Pattern Profiler (formato LONG)}
+\item{data}{Pattern Profiler DataFrame (LONG format)}
 
-\item{conditions}{Vector de nombres de condiciones}
+\item{conditions}{Vector of condition names}
 
-\item{clusters}{Clusters a incluir (NULL = todos)}
+\item{clusters}{Clusters to include (NULL = all)}
 
-\item{min_membership}{Filtro de membership para calcular centroides}
+\item{min_membership}{Membership filter applied before computing the centroids}
 
-\item{centroid_summary}{Método: "mean" o "median"}
+\item{centroid_summary}{Method: "mean" or "median"}
 
-\item{palette}{Paleta de colores}
+\item{palette}{Colour palette}
 
-\item{line_width}{Ancho de líneas (default: 2.5)}
+\item{line_width}{Line width (default: 2.5)}
 
-\item{show_markers}{Mostrar marcadores en puntos (default: TRUE)}
+\item{show_markers}{Show markers on the points (default: TRUE)}
 
-\item{title}{Título personalizado}
+\item{title}{Custom title}
 
-\item{height}{Altura del gráfico}
+\item{height}{Plot height}
 }
 \value{
-Objeto highchart
+highchart object
 }
 \description{
-Genera un gráfico comparativo con los centroides de todos los clusters.
+Builds a comparative plot with the centroids of all the clusters.
 }
 \examples{
 \dontrun{

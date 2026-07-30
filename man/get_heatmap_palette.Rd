@@ -2,26 +2,26 @@
 % Please edit documentation in R/Heatmap_tidyHeatmap.R
 \name{get_heatmap_palette}
 \alias{get_heatmap_palette}
-\title{Obtener paleta de colores para valores del heatmap}
+\title{Build the Colour Palette for the Heatmap Values}
 \usage{
 get_heatmap_palette(palette = NULL, n = 11, reverse = FALSE)
 }
 \arguments{
-\item{palette}{Especificación de paleta:
+\item{palette}{Palette specification:
 \itemize{
-\item NULL: usa paleta por defecto (RdBu)
-\item Vector de colores: usa esos colores directamente
-\item String "paletteer::" (ej: "viridis::viridis"): usa paletteer
-\item String "brewer:" (ej: "brewer:RdBu"): usa RColorBrewer
+\item NULL: use the default palette (RdBu)
+\item Vector of colours: use those colours directly
+\item String "paletteer::" (e.g. "viridis::viridis"): use paletteer
+\item String "brewer:" (e.g. "brewer:RdBu"): use RColorBrewer
 }}
 
-\item{n}{Número de colores a generar}
+\item{n}{Number of colours to generate}
 
-\item{reverse}{Invertir la paleta (default: FALSE)}
+\item{reverse}{Reverse the palette (default: FALSE)}
 }
 \value{
-Vector de colores o función colorRamp2
+Vector of colours, or a colorRamp2 function
 }
 \description{
-Obtener paleta de colores para valores del heatmap
+Build the Colour Palette for the Heatmap Values
 }

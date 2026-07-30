@@ -1,34 +1,34 @@
 # =============================================================================
-# PCA Plot Interactivo con Highcharts para Datos de Proteómica
+# Interactive PCA Plot with Highcharts for Proteomics Data
 # =============================================================================
 
 
 
 # -----------------------------------------------------------------------------
-# Función para construir scores de PCA
+# Function to build PCA scores
 # -----------------------------------------------------------------------------
 
-#' Construir dataframe de scores de PCA desde datos en formato long
+#' Build a PCA scores data frame from data in long format
 #'
-#' @param pca_input Data frame en formato long con columnas:
-#'   - SampleID: Identificador de muestra
-#'   - FeatureID: Identificador de proteína/feature
-#'   - Intensity: Valor de intensidad (log2)
-#'   - Condition: Condición experimental
-#'   - Replicate: Número de réplica (opcional)
-#'   - sig_any: Lógico indicando significancia en cualquier comparación (para mode="any")
-#'   - adjP_*: Columnas de p-valores ajustados por comparación (para mode="specific")
-#' @param mode Modo de filtrado de proteínas: "all", "any", o "specific"
-#' @param alpha Umbral de significancia para modo "specific" (default: 0.05)
-#' @param comparison Nombre de la comparación para modo "specific" (ej: "B-A")
-#' @param subset_label Etiqueta personalizada para el subset (opcional)
-#' @param center Centrar datos antes de PCA (default: TRUE)
-#' @param scale. Escalar datos antes de PCA (default: TRUE)
-#' @param filter_samples_to_comparison Filtrar muestras solo a las condiciones
-#'   de la comparación específica (default: FALSE)
-#' @param cond_col Nombre de la columna de condición (default: "Condition")
+#' @param pca_input Data frame in long format with columns:
+#'   - SampleID: Sample identifier
+#'   - FeatureID: Protein/feature identifier
+#'   - Intensity: Intensity value (log2)
+#'   - Condition: Experimental condition
+#'   - Replicate: Replicate number (optional)
+#'   - sig_any: Logical flagging significance in any comparison (for mode="any")
+#'   - adjP_*: Adjusted p-value columns, one per comparison (for mode="specific")
+#' @param mode Protein filtering mode: "all", "any", or "specific"
+#' @param alpha Significance threshold for mode "specific" (default: 0.05)
+#' @param comparison Name of the comparison for mode "specific" (e.g. "B-A")
+#' @param subset_label Custom label for the subset (optional)
+#' @param center Center the data before PCA (default: TRUE)
+#' @param scale. Scale the data before PCA (default: TRUE)
+#' @param filter_samples_to_comparison Restrict samples to the conditions
+#'   involved in the specific comparison (default: FALSE)
+#' @param cond_col Name of the condition column (default: "Condition")
 #'
-#' @return Data frame con columnas: SampleID, PC1, PC2, PC1_Perc, PC2_Perc,
+#' @return Data frame with columns: SampleID, PC1, PC2, PC1_Perc, PC2_Perc,
 #'   Subset, Condition, Replicate
 build_pca_scores <- function(pca_input,
                              mode = c("all", "any", "specific"),
@@ -42,7 +42,7 @@ build_pca_scores <- function(pca_input,
 
   mode <- match.arg(mode)
 
-  # Etiqueta por defecto según el modo
+  # Default label depending on the mode
   if (is.null(subset_label)) {
     subset_label <- switch(mode,
       all = "All proteins",
@@ -51,66 +51,66 @@ build_pca_scores <- function(pca_input,
     )
   }
 
-  # Convertir a data.frame para evitar problemas con tibbles
+  # Convert to data.frame to avoid issues with tibbles
   pca_input <- as.data.frame(pca_input)
 
-  # Metadata por muestra
+  # Per-sample metadata
   md_cols <- intersect(c("SampleID", "Condition", "Replicate"), names(pca_input))
   md <- pca_input[!duplicated(pca_input$SampleID), md_cols, drop = FALSE]
   rownames(md) <- md$SampleID
 
-  # Filtrar muestras si se solicita (solo para mode = "specific")
+  # Filter samples if requested (only for mode = "specific")
   keep_samples <- md$SampleID
   if (isTRUE(filter_samples_to_comparison) && mode == "specific" && !is.null(comparison)) {
     conds <- unique(trimws(strsplit(comparison, "[-|:]")[[1]]))
     if (!(cond_col %in% names(md))) {
-      stop("No existe la columna '", cond_col, "' en pca_input.")
+      stop("Column '", cond_col, "' does not exist in pca_input.")
     }
     keep_samples <- rownames(md)[md[[cond_col]] %in% conds]
     if (length(keep_samples) < 2) {
-      stop("Menos de 2 muestras tras filtrar por comparación: ", comparison)
+      stop("Fewer than 2 samples left after filtering by comparison: ", comparison)
     }
   }
 
-  # Obtener IDs de features según el modo
+  # Get the feature IDs according to the mode
   ids <- .get_feature_ids(pca_input, mode = mode, alpha = alpha, comparison = comparison)
   if (length(ids) < 2) {
-    stop("Subset '", mode, "' sin suficientes proteínas para PCA (mínimo 2).")
+    stop("Subset '", mode, "' has too few proteins for PCA (minimum 2).")
   }
 
-  # Filtrar datos
+  # Filter the data
   dt <- pca_input[pca_input$SampleID %in% keep_samples & pca_input$FeatureID %in% ids,
                   c("SampleID", "FeatureID", "Intensity"), drop = FALSE]
   dt <- dt[is.finite(dt$Intensity) & !is.na(dt$Intensity), , drop = FALSE]
 
-  # Pivotar a matriz (muestras x features)
+  # Pivot to a matrix (samples x features)
   Xt <- with(dt, tapply(Intensity, list(SampleID, FeatureID), mean))
   Xt <- as.matrix(Xt)
 
-  # Eliminar features con varianza 0
+  # Drop features with zero variance
   v <- apply(Xt, 2, var, na.rm = TRUE)
   Xt <- Xt[, is.finite(v) & v > 0, drop = FALSE]
 
-  # prcomp no admite NA: tapply deja NA en combinaciones muestra x feature
-  # ausentes. Conservar solo features completas (sin NA en ninguna muestra).
+  # prcomp does not accept NAs: tapply leaves NA for the sample x feature
+  # combinations that are absent. Keep only complete features (no NA in any sample).
   complete_feats <- colSums(is.na(Xt)) == 0
   n_dropped <- sum(!complete_feats)
   if (n_dropped > 0) {
-    warning(sprintf("PCA '%s': %d features con NA descartadas antes de prcomp.",
+    warning(sprintf("PCA '%s': %d features with NAs discarded before prcomp.",
                     subset_label, n_dropped))
     Xt <- Xt[, complete_feats, drop = FALSE]
   }
 
   if (ncol(Xt) < 2) {
-    stop("Demasiado pocas proteínas con varianza > 0 para PCA en '", subset_label, "'.")
+    stop("Too few proteins with variance > 0 for PCA in '", subset_label, "'.")
   }
 
-  # Ejecutar PCA
+  # Run the PCA
   pc <- stats::prcomp(Xt, center = center, scale. = scale.)
   var_exp <- (pc$sdev^2) / sum(pc$sdev^2)
   scores <- pc$x[, 1:2, drop = FALSE]
 
-  # Construir dataframe de salida
+  # Build the output data frame
   out <- data.frame(
     SampleID = rownames(scores),
     PC1 = as.numeric(scores[, 1]),
@@ -121,7 +121,7 @@ build_pca_scores <- function(pca_input,
     stringsAsFactors = FALSE
   )
 
-  # Añadir metadata
+  # Add the metadata
   if ("Condition" %in% names(md)) {
     out$Condition <- md[out$SampleID, "Condition"]
   }
@@ -134,24 +134,24 @@ build_pca_scores <- function(pca_input,
 
 
 # -----------------------------------------------------------------------------
-# Función para calcular convex hull por grupo
+# Function to compute the convex hull per group
 # -----------------------------------------------------------------------------
 
-#' Calcular convex hull (polígono envolvente) por grupo
+#' Compute the convex hull (enclosing polygon) per group
 #'
-#' @param scores_df Data frame con columnas PC1, PC2 y la columna de grupo
-#' @param group_col Nombre de la columna de agrupación (default: "Condition")
+#' @param scores_df Data frame with columns PC1, PC2 and the grouping column
+#' @param group_col Name of the grouping column (default: "Condition")
 #'
-#' @return Lista de data frames, cada uno con columnas: group, x, y
+#' @return List of data frames, each one with columns: group, x, y
 compute_hulls <- function(scores_df, group_col = "Condition") {
 
-  # Convertir a data.frame para evitar problemas con tibbles
+  # Convert to data.frame to avoid issues with tibbles
   scores_df <- as.data.frame(scores_df)
 
   required <- c("PC1", "PC2", group_col)
   missing <- setdiff(required, names(scores_df))
   if (length(missing) > 0) {
-    stop("Columnas requeridas faltantes para hulls: ", paste(missing, collapse = ", "))
+    stop("Missing required columns for hulls: ", paste(missing, collapse = ", "))
   }
 
   split_list <- split(scores_df, scores_df[[group_col]], drop = TRUE)
@@ -160,12 +160,12 @@ compute_hulls <- function(scores_df, group_col = "Condition") {
     d <- split_list[[g]]
     d <- d[is.finite(d$PC1) & is.finite(d$PC2), , drop = FALSE]
 
-    # Se necesitan al menos 3 puntos para un hull
+    # At least 3 points are needed for a hull
     if (nrow(d) < 3) return(NULL)
 
-    # Calcular hull (índices del contorno)
+    # Compute the hull (indices of the outline)
     h <- grDevices::chull(d$PC1, d$PC2)
-    # Cerrar el polígono repitiendo el primer punto
+    # Close the polygon by repeating the first point
     h <- c(h, h[1])
 
     data.frame(
@@ -181,32 +181,32 @@ compute_hulls <- function(scores_df, group_col = "Condition") {
 
 
 # -----------------------------------------------------------------------------
-# Función para calcular elipse de confianza por grupo
+# Function to compute the confidence ellipse per group
 # -----------------------------------------------------------------------------
 
-#' Calcular elipse de confianza por grupo
+#' Compute the confidence ellipse per group
 #'
-#' Calcula las coordenadas de una elipse de confianza basada en la distribución
-#' chi-cuadrado, similar a FactoMineR::coord.ellipse y ggplot2::stat_ellipse.
+#' Computes the coordinates of a confidence ellipse based on the chi-squared
+#' distribution, similar to FactoMineR::coord.ellipse and ggplot2::stat_ellipse.
 #'
-#' @param scores_df Data frame con columnas PC1, PC2 y la columna de grupo
-#' @param group_col Nombre de la columna de agrupación (default: "Condition")
-#' @param level Nivel de confianza (default: 0.95)
-#' @param npoints Número de puntos para dibujar la elipse (default: 100)
+#' @param scores_df Data frame with columns PC1, PC2 and the grouping column
+#' @param group_col Name of the grouping column (default: "Condition")
+#' @param level Confidence level (default: 0.95)
+#' @param npoints Number of points used to draw the ellipse (default: 100)
 #'
-#' @return Lista de data frames, cada uno con columnas: group, x, y
+#' @return List of data frames, each one with columns: group, x, y
 compute_confidence_ellipse <- function(scores_df,
                                        group_col = "Condition",
                                        level = 0.95,
                                        npoints = 100) {
 
-  # Convertir a data.frame
+  # Convert to data.frame
   scores_df <- as.data.frame(scores_df)
 
   required <- c("PC1", "PC2", group_col)
   missing <- setdiff(required, names(scores_df))
   if (length(missing) > 0) {
-    stop("Columnas requeridas faltantes para ellipse: ", paste(missing, collapse = ", "))
+    stop("Missing required columns for ellipse: ", paste(missing, collapse = ", "))
   }
 
   split_list <- split(scores_df, scores_df[[group_col]], drop = TRUE)
@@ -215,43 +215,43 @@ compute_confidence_ellipse <- function(scores_df,
     d <- split_list[[g]]
     d <- d[is.finite(d$PC1) & is.finite(d$PC2), , drop = FALSE]
 
-    # Se necesitan al menos 3 puntos para una elipse
+    # At least 3 points are needed for an ellipse
     if (nrow(d) < 3) return(NULL)
 
-    # Coordenadas
+    # Coordinates
     x <- d$PC1
     y <- d$PC2
 
-    # Centro (media)
+    # Center (mean)
     center_x <- mean(x)
     center_y <- mean(y)
 
-    # Matriz de covarianza
+    # Covariance matrix
     cov_mat <- cov(cbind(x, y))
 
-    # Radio basado en distribución chi-cuadrado con 2 grados de libertad
-    # Similar a FactoMineR: sqrt(qchisq(level, df = 2))
+    # Radius based on the chi-squared distribution with 2 degrees of freedom
+    # Similar to FactoMineR: sqrt(qchisq(level, df = 2))
     radius <- sqrt(stats::qchisq(level, df = 2))
 
-    # Descomposición eigen para obtener ejes de la elipse
+    # Eigen decomposition to obtain the axes of the ellipse
     eigen_decomp <- eigen(cov_mat)
     eigenvalues <- eigen_decomp$values
     eigenvectors <- eigen_decomp$vectors
 
-    # Verificar que los eigenvalues sean positivos
+    # Check that the eigenvalues are positive
     if (any(eigenvalues <= 0)) return(NULL)
 
-    # Ángulos para parametrizar la elipse
+    # Angles used to parameterize the ellipse
     theta <- seq(0, 2 * pi, length.out = npoints + 1)
 
-    # Semi-ejes de la elipse
+    # Semi-axes of the ellipse
     a <- radius * sqrt(eigenvalues[1])
     b <- radius * sqrt(eigenvalues[2])
 
-    # Ángulo de rotación
+    # Rotation angle
     angle <- atan2(eigenvectors[2, 1], eigenvectors[1, 1])
 
-    # Coordenadas de la elipse (parametrización)
+    # Coordinates of the ellipse (parametric form)
     ellipse_x <- center_x + a * cos(theta) * cos(angle) - b * sin(theta) * sin(angle)
     ellipse_y <- center_y + a * cos(theta) * sin(angle) + b * sin(theta) * cos(angle)
 
@@ -268,34 +268,34 @@ compute_confidence_ellipse <- function(scores_df,
 
 
 # -----------------------------------------------------------------------------
-# Función principal: PCA Highchart
+# Main function: PCA Highchart
 # -----------------------------------------------------------------------------
 
-#' PCA Plot Interactivo con Highcharts
+#' Interactive PCA Plot with Highcharts
 #'
-#' Genera un scatter plot de PCA con opción de mostrar elipses o convex hulls
-#' por grupo, similar a factoextra::fviz_pca_ind.
+#' Builds a PCA scatter plot with the option of showing per-group ellipses or
+#' convex hulls, similar to factoextra::fviz_pca_ind.
 #'
-#' @param scores_df Data frame generado por build_pca_scores() con columnas:
+#' @param scores_df Data frame produced by build_pca_scores() with columns:
 #'   PC1, PC2, PC1_Perc, PC2_Perc, Subset, Condition, Replicate, SampleID
-#' @param color_by Columna para colorear los puntos (default: "Condition")
-#' @param group_order Vector con el orden de los grupos/condiciones (opcional)
-#' @param palette Vector nombrado de colores o NULL para paleta automática
-#' @param title Título del gráfico (opcional, usa Subset por defecto)
-#' @param addEllipses Mostrar elipses/hulls alrededor de los grupos (default: TRUE)
-#' @param ellipse_type Tipo de elipse: "convex" para convex hull o "confidence"
-#'   para elipse de confianza basada en distribución normal (default: "convex")
-#' @param ellipse_level Nivel de confianza para ellipse_type = "confidence"
-#'   (default: 0.95). Valores típicos: 0.95, 0.90, 0.68
-#' @param ellipse_fill_opacity Opacidad del relleno (0-1, default: 0.12)
-#' @param ellipse_line_width Ancho de línea del contorno (default: 1)
-#' @param ellipse_npoints Número de puntos para dibujar la elipse de confianza
-#'   (default: 100). Solo aplica para ellipse_type = "confidence"
-#' @param point_size Radio de los puntos (default: 5)
-#' @param show_labels Mostrar etiquetas de los puntos (SampleID) (default: FALSE)
-#' @param label_size Tamaño de fuente de las etiquetas en px (default: 10)
+#' @param color_by Column used to colour the points (default: "Condition")
+#' @param group_order Vector with the order of the groups/conditions (optional)
+#' @param palette Named vector of colours, or NULL for an automatic palette
+#' @param title Chart title (optional, defaults to Subset)
+#' @param addEllipses Show ellipses/hulls around the groups (default: TRUE)
+#' @param ellipse_type Ellipse type: "convex" for a convex hull or "confidence"
+#'   for a confidence ellipse based on the normal distribution (default: "convex")
+#' @param ellipse_level Confidence level for ellipse_type = "confidence"
+#'   (default: 0.95). Typical values: 0.95, 0.90, 0.68
+#' @param ellipse_fill_opacity Fill opacity (0-1, default: 0.12)
+#' @param ellipse_line_width Outline line width (default: 1)
+#' @param ellipse_npoints Number of points used to draw the confidence ellipse
+#'   (default: 100). Only applies to ellipse_type = "confidence"
+#' @param point_size Point radius (default: 5)
+#' @param show_labels Show the point labels (SampleID) (default: FALSE)
+#' @param label_size Label font size in px (default: 10)
 #'
-#' @return Objeto highchart
+#' @return A highchart object
 #' @export
 pca_highchart <- function(scores_df,
                           color_by = "Condition",
@@ -315,24 +315,24 @@ pca_highchart <- function(scores_df,
   ellipse_type <- match.arg(ellipse_type)
 
   # ---------------------------------------------------------------------------
-  # 1) Validación de inputs y conversión a data.frame
+  # 1) Input validation and conversion to data.frame
   # ---------------------------------------------------------------------------
 
-  # Convertir a data.frame para evitar problemas con tibbles
+  # Convert to data.frame to avoid issues with tibbles
   scores_df <- as.data.frame(scores_df)
 
   required <- c("PC1", "PC2", "SampleID")
   missing <- setdiff(required, names(scores_df))
   if (length(missing) > 0) {
-    stop("Columnas requeridas faltantes: ", paste(missing, collapse = ", "))
+    stop("Missing required columns: ", paste(missing, collapse = ", "))
   }
 
   if (!is.null(color_by) && !(color_by %in% names(scores_df))) {
-    stop("La columna '", color_by, "' no existe en scores_df.")
+    stop("Column '", color_by, "' does not exist in scores_df.")
   }
 
   # ---------------------------------------------------------------------------
-  # 2) Configurar etiquetas de ejes con % varianza
+  # 2) Set up the axis labels with the % of variance
   # ---------------------------------------------------------------------------
   pc1p <- unique(scores_df$PC1_Perc)
   pc2p <- unique(scores_df$PC2_Perc)
@@ -340,7 +340,7 @@ pca_highchart <- function(scores_df,
   y_lab <- if (length(pc2p) == 1) paste0("PC2 (", pc2p, "%)") else "PC2"
 
   # ---------------------------------------------------------------------------
-  # 3) Configurar niveles de grupos
+  # 3) Set up the group levels
   # ---------------------------------------------------------------------------
   if (!is.null(group_order)) {
     scores_df[[color_by]] <- factor(scores_df[[color_by]], levels = group_order)
@@ -350,7 +350,7 @@ pca_highchart <- function(scores_df,
   lvls <- levels(scores_df[[color_by]])
 
   # ---------------------------------------------------------------------------
-  # 4) Configurar paleta de colores
+  # 4) Set up the colour palette
   # ---------------------------------------------------------------------------
   default_palette <- c(
     "#457B9D", "#E63946", "#2A9D8F", "#E9C46A",
@@ -358,67 +358,68 @@ pca_highchart <- function(scores_df,
   )
 
   if (is.null(palette)) {
-    # Paleta por defecto
+    # Default palette
     pal <- grDevices::hcl.colors(length(lvls), "Dark 3")
     palette <- stats::setNames(pal, lvls)
   } else if (is.character(palette) && length(palette) == 1 && grepl("::", palette)) {
-    # Paleta de paletteer (formato "ggsci::category10_d3")
+    # paletteer palette (format "ggsci::category10_d3")
     if (!requireNamespace("paletteer", quietly = TRUE)) {
-      stop("Para usar paletteer, instala con: install.packages('paletteer')")
+      stop("To use paletteer, install it with: install.packages('paletteer')")
     }
     pal <- tryCatch({
       raw_pal <- as.character(paletteer::paletteer_d(palette))
-      # Normalizar colores (eliminar canal alpha si existe)
+      # Normalize the colours (drop the alpha channel if present)
       vapply(raw_pal, .normalize_hex, character(1), USE.NAMES = FALSE)
     }, error = function(e) {
-      stop("Error al cargar paleta '", palette, "': ", e$message)
+      stop("Error loading palette '", palette, "': ", e$message)
     })
     if (length(pal) < length(lvls)) {
       pal <- rep(pal, length.out = length(lvls))
     }
     palette <- stats::setNames(pal[seq_along(lvls)], lvls)
   } else if (is.character(palette) && length(palette) == 1 && startsWith(palette, "brewer:")) {
-    # Paleta de RColorBrewer (formato "brewer:Set1")
+    # RColorBrewer palette (format "brewer:Set1")
     if (!requireNamespace("RColorBrewer", quietly = TRUE)) {
-      stop("Para usar RColorBrewer, instala con: install.packages('RColorBrewer')")
+      stop("To use RColorBrewer, install it with: install.packages('RColorBrewer')")
     }
     nm <- sub("^brewer:", "", palette)
     pal <- tryCatch({
       maxc <- RColorBrewer::brewer.pal.info[nm, "maxcolors"]
       raw_pal <- RColorBrewer::brewer.pal(maxc, nm)
-      # Normalizar colores por consistencia
+      # Normalize the colours for consistency
       vapply(raw_pal, .normalize_hex, character(1), USE.NAMES = FALSE)
     }, error = function(e) {
-      stop("Error al cargar paleta brewer '", nm, "': ", e$message)
+      stop("Error loading brewer palette '", nm, "': ", e$message)
     })
     if (length(pal) < length(lvls)) {
       pal <- rep(pal, length.out = length(lvls))
     }
     palette <- stats::setNames(pal[seq_along(lvls)], lvls)
   } else if (is.character(palette) && length(palette) == 1) {
-    # String de un solo color - repetir para todos los niveles
+    # Single colour string - repeat it for every level
     palette <- stats::setNames(rep(palette, length(lvls)), lvls)
   } else if (is.character(palette) && length(palette) > 1 && is.null(names(palette))) {
-    # Vector de colores sin nombres
+    # Unnamed vector of colours
     if (length(palette) < length(lvls)) {
       palette <- rep(palette, length.out = length(lvls))
     }
     palette <- stats::setNames(palette[seq_along(lvls)], lvls)
   } else if (is.character(palette) && !is.null(names(palette))) {
-    # Vector de colores con nombres
+    # Named vector of colours
     miss <- setdiff(lvls, names(palette))
     if (length(miss) > 0) {
-      stop("Faltan colores para niveles: ", paste(miss, collapse = ", "))
+      stop("Missing colours for levels: ", paste(miss, collapse = ", "))
     }
     palette <- palette[lvls]
   }
 
   # ---------------------------------------------------------------------------
-  # 5) Título del gráfico
+  # 5) Chart title
   # ---------------------------------------------------------------------------
-  # Se recurre al subset como título no solo si `title` es NULL, sino también si
-  # viene vacío o NA. Antes lo cubría una variante local de `%||%`; ahora que el
-  # operador es el canónico (solo NULL), la comprobación se hace explícita.
+  # The subset is used as the title not only when `title` is NULL, but also when
+  # it comes in empty or NA. This used to be handled by a local variant of
+  # `%||%`; now that the operator is the canonical one (NULL only), the check is
+  # made explicit.
   chart_title <- if (!is.null(title) && length(title) && !is.na(title[1])) {
     title
   } else {
@@ -426,7 +427,7 @@ pca_highchart <- function(scores_df,
   }
 
   # ---------------------------------------------------------------------------
-  # 6) Construir highchart base
+  # 6) Build the base highchart
   # ---------------------------------------------------------------------------
   hc <- highchart() |>
     hc_chart(
@@ -515,7 +516,7 @@ pca_highchart <- function(scores_df,
     )
 
   # ---------------------------------------------------------------------------
-  # 7) Añadir series de scatter por grupo (con id para vincular elipses)
+  # 7) Add one scatter series per group (with an id to link the ellipses)
   # ---------------------------------------------------------------------------
   split_list <- split(scores_df, scores_df[[color_by]], drop = TRUE)
 
@@ -525,7 +526,7 @@ pca_highchart <- function(scores_df,
     d <- as.data.frame(split_list[[g]])
     group_id <- paste0("scatter_", gsub("[^a-zA-Z0-9]", "_", as.character(g)))
 
-    # Crear lista de puntos con valores escalares explícitos
+    # Build the list of points with explicit scalar values
     pts <- vector("list", nrow(d))
     for (i in seq_len(nrow(d))) {
       pts[[i]] <- list(
@@ -538,11 +539,11 @@ pca_highchart <- function(scores_df,
       )
     }
 
-    # Obtener color del grupo y versión oscurecida para etiquetas
+    # Get the group colour and a darkened version for the labels
     group_color <- unname(palette[as.character(g)])
     label_color <- .darken_hex(group_color, factor = 0.3)
 
-    # Configurar dataLabels si show_labels = TRUE
+    # Set up dataLabels if show_labels = TRUE
     data_labels_config <- if (isTRUE(show_labels)) {
       list(
         enabled = TRUE,
@@ -589,11 +590,11 @@ pca_highchart <- function(scores_df,
   }
 
   # ---------------------------------------------------------------------------
-  # 8) Añadir elipses/hulls vinculadas a las series de scatter
+  # 8) Add the ellipses/hulls linked to the scatter series
   # ---------------------------------------------------------------------------
   if (isTRUE(addEllipses)) {
 
-    # Calcular coordenadas según el tipo de elipse
+    # Compute the coordinates according to the ellipse type
     if (ellipse_type == "convex") {
       ellipse_coords <- compute_hulls(scores_df, group_col = color_by)
     } else {
@@ -640,51 +641,51 @@ pca_highchart <- function(scores_df,
 
 
 # -----------------------------------------------------------------------------
-# Función wrapper: Generar lista de PCA plots
+# Wrapper function: build a list of PCA plots
 # -----------------------------------------------------------------------------
 
-#' Generar Lista de PCA Plots para Múltiples Subsets
+#' Build a List of PCA Plots for Multiple Subsets
 #'
-#' Genera automáticamente PCA plots para "all", "any" y/o comparaciones específicas.
-#' Similar a factoextra::fviz_pca_ind con opciones de elipses.
+#' Automatically builds PCA plots for "all", "any" and/or specific comparisons.
+#' Similar to factoextra::fviz_pca_ind with ellipse options.
 #'
-#' @param pca_input Data frame en formato long (ver build_pca_scores para estructura)
-#' @param modes Vector de modos a generar: "all", "any", y/o nombres de comparaciones
+#' @param pca_input Data frame in long format (see build_pca_scores for the structure)
+#' @param modes Vector of modes to generate: "all", "any", and/or comparison names
 #'   (default: c("all", "any"))
-#' @param alpha Umbral de significancia para proteínas DEPs (default: 0.05)
-#' @param color_by Columna para colorear (default: "Condition")
-#' @param group_order Orden de grupos/condiciones (opcional)
-#' @param palette Vector nombrado de colores o NULL para automático
-#' @param addEllipses Mostrar elipses/hulls alrededor de los grupos (default: TRUE)
-#' @param ellipse_type Tipo de elipse: "convex" o "confidence" (default: "convex")
-#' @param ellipse_level Nivel de confianza para ellipse_type = "confidence"
+#' @param alpha Significance threshold for DEPs (default: 0.05)
+#' @param color_by Column used to colour the points (default: "Condition")
+#' @param group_order Order of the groups/conditions (optional)
+#' @param palette Named vector of colours, or NULL for an automatic palette
+#' @param addEllipses Show ellipses/hulls around the groups (default: TRUE)
+#' @param ellipse_type Ellipse type: "convex" or "confidence" (default: "convex")
+#' @param ellipse_level Confidence level for ellipse_type = "confidence"
 #'   (default: 0.95)
-#' @param ellipse_fill_opacity Opacidad del relleno de elipses (0-1, default: 0.12)
-#' @param ellipse_line_width Ancho de línea del contorno (default: 1)
-#' @param ellipse_npoints Número de puntos para elipse de confianza (default: 100)
-#' @param point_size Radio de los puntos (default: 5)
-#' @param show_labels Mostrar etiquetas de los puntos (SampleID) (default: FALSE)
-#' @param label_size Tamaño de fuente de las etiquetas en px (default: 10)
-#' @param center Centrar datos antes de PCA (default: TRUE)
-#' @param scale. Escalar datos antes de PCA (default: TRUE)
-#' @param filter_samples_to_comparison Para comparaciones específicas, filtrar
-#'   muestras solo a las condiciones involucradas (default: FALSE)
+#' @param ellipse_fill_opacity Ellipse fill opacity (0-1, default: 0.12)
+#' @param ellipse_line_width Outline line width (default: 1)
+#' @param ellipse_npoints Number of points for the confidence ellipse (default: 100)
+#' @param point_size Point radius (default: 5)
+#' @param show_labels Show the point labels (SampleID) (default: FALSE)
+#' @param label_size Label font size in px (default: 10)
+#' @param center Center the data before PCA (default: TRUE)
+#' @param scale. Scale the data before PCA (default: TRUE)
+#' @param filter_samples_to_comparison For specific comparisons, restrict the
+#'   samples to the conditions involved (default: FALSE)
 #'
-#' @return Lista nombrada de objetos highchart
+#' @return Named list of highchart objects
 #'
 #' @examples
 #' \dontrun{
-#' # Cargar datos
+#' # Load the data
 #' pca_input <- arrow::read_parquet("PCA_Input.parquet")
 #'
-#' # PCA con convex hull (default)
+#' # PCA with convex hull (default)
 #' hc_pcas <- pca_highchart_list(
 #'   pca_input   = pca_input,
 #'   modes       = c("all", "any"),
 #'   group_order = c("A", "B", "C", "D")
 #' )
 #'
-#' # PCA con elipse de confianza 95%
+#' # PCA with a 95% confidence ellipse
 #' hc_pcas <- pca_highchart_list(
 #'   pca_input     = pca_input,
 #'   modes         = c("all"),
@@ -693,7 +694,7 @@ pca_highchart <- function(scores_df,
 #'   ellipse_level = 0.95
 #' )
 #'
-#' # PCA con etiquetas visibles
+#' # PCA with visible labels
 #' hc_pcas <- pca_highchart_list(
 #'   pca_input   = pca_input,
 #'   modes       = c("all"),
@@ -701,7 +702,7 @@ pca_highchart <- function(scores_df,
 #'   label_size  = 9
 #' )
 #'
-#' # Visualizar
+#' # Display
 #' hc_pcas[["all"]]
 #' }
 #' @export
@@ -727,33 +728,33 @@ pca_highchart_list <- function(pca_input,
   ellipse_type <- match.arg(ellipse_type)
 
   # ---------------------------------------------------------------------------
-  # 1) Validación de inputs
+  # 1) Input validation
   # ---------------------------------------------------------------------------
   required_cols <- c("SampleID", "FeatureID", "Intensity")
   missing_cols <- setdiff(required_cols, names(pca_input))
   if (length(missing_cols) > 0) {
-    stop("Columnas requeridas faltantes: ", paste(missing_cols, collapse = ", "))
+    stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
   }
 
   if (!is.null(color_by) && !(color_by %in% names(pca_input))) {
-    warning("'", color_by, "' no está en el data frame. Se ignorará.")
+    warning("'", color_by, "' is not in the data frame. It will be ignored.")
     color_by <- NULL
   }
 
   # ---------------------------------------------------------------------------
-  # 2) Detectar comparaciones disponibles (columnas adjP_*)
+  # 2) Detect the available comparisons (adjP_* columns)
   # ---------------------------------------------------------------------------
   adjp_cols <- grep("^adjP_", names(pca_input), value = TRUE)
   available_comparisons <- sub("^adjP_", "", adjp_cols)
 
   # ---------------------------------------------------------------------------
-  # 3) Generar plots para cada modo
+  # 3) Build the plots for each mode
   # ---------------------------------------------------------------------------
   hc_list <- list()
 
   for (m in modes) {
 
-    # Determinar el mode interno y la comparación (si aplica)
+    # Determine the internal mode and the comparison (where applicable)
     if (m == "all") {
       internal_mode <- "all"
       comparison <- NULL
@@ -765,9 +766,9 @@ pca_highchart_list <- function(pca_input,
       subset_label <- "DEPs (any comparison)"
       plot_title <- "PCA (DEPs in any comparison)"
     } else {
-      # Es una comparación específica
+      # It is a specific comparison
       if (!(m %in% available_comparisons)) {
-        warning("Comparación '", m, "' no encontrada. Se omite.")
+        warning("Comparison '", m, "' not found. It will be skipped.")
         next
       }
       internal_mode <- "specific"
@@ -776,7 +777,7 @@ pca_highchart_list <- function(pca_input,
       plot_title <- paste0("PCA (DEPs ", m, ")")
     }
 
-    # Intentar construir scores (puede fallar si no hay suficientes proteínas)
+    # Try to build the scores (it may fail if there are too few proteins)
     scores_df <- tryCatch({
       build_pca_scores(
         pca_input = pca_input,
@@ -789,13 +790,13 @@ pca_highchart_list <- function(pca_input,
         filter_samples_to_comparison = filter_samples_to_comparison
       )
     }, error = function(e) {
-      warning("Error generando PCA para '", m, "': ", e$message)
+      warning("Error building the PCA for '", m, "': ", e$message)
       return(NULL)
     })
 
     if (is.null(scores_df)) next
 
-    # Generar plot
+    # Build the plot
     hc <- pca_highchart(
       scores_df = scores_df,
       color_by = color_by,
@@ -821,19 +822,19 @@ pca_highchart_list <- function(pca_input,
 
 
 # =============================================================================
-# EJEMPLOS DE USO
+# USAGE EXAMPLES
 # =============================================================================
 
-# --- Cargar datos ---
+# --- Load the data ---
 # pca_input <- arrow::read_parquet("PCA_Input.parquet")
 # pca_input <- readr::read_tsv("PCA_Input.tsv")
 
-# --- Ejemplo básico: PCA con convex hull (default) ---
+# --- Basic example: PCA with convex hull (default) ---
 # sc_all <- build_pca_scores(pca_input, mode = "all")
 # p_all <- pca_highchart(sc_all, color_by = "Condition", group_order = c("A","B","C","D"))
 # p_all
 
-# --- PCA con elipse de confianza 95% ---
+# --- PCA with a 95% confidence ellipse ---
 # sc_all <- build_pca_scores(pca_input, mode = "all")
 # p_all <- pca_highchart(
 #   sc_all,
@@ -844,7 +845,7 @@ pca_highchart_list <- function(pca_input,
 # )
 # p_all
 
-# --- PCA con elipse de confianza 68% (1 desviación estándar) ---
+# --- PCA with a 68% confidence ellipse (1 standard deviation) ---
 # p_68 <- pca_highchart(
 #   sc_all,
 #   color_by = "Condition",
@@ -854,7 +855,7 @@ pca_highchart_list <- function(pca_input,
 # )
 # p_68
 
-# --- PCA sin elipses (solo puntos) ---
+# --- PCA without ellipses (points only) ---
 # p_noellipse <- pca_highchart(
 #   sc_all,
 #   color_by = "Condition",
@@ -863,7 +864,7 @@ pca_highchart_list <- function(pca_input,
 # )
 # p_noellipse
 
-# --- Generar múltiples PCA plots con convex hull ---
+# --- Build several PCA plots with convex hulls ---
 # hc_pcas <- pca_highchart_list(
 #   pca_input   = pca_input,
 #   modes       = c("all", "any", "B-A", "C-A", "D-A"),
@@ -875,7 +876,7 @@ pca_highchart_list <- function(pca_input,
 # hc_pcas[["any"]]
 # hc_pcas[["B-A"]]
 
-# --- Generar PCA plots con elipse de confianza ---
+# --- Build PCA plots with confidence ellipses ---
 # hc_pcas <- pca_highchart_list(
 #   pca_input     = pca_input,
 #   modes         = c("all", "any"),
@@ -886,7 +887,7 @@ pca_highchart_list <- function(pca_input,
 # )
 # hc_pcas[["all"]]
 
-# --- Con paleta personalizada ---
+# --- With a custom palette ---
 # my_palette <- c(A = "#457B9D", B = "#E63946", C = "#2A9D8F", D = "#E9C46A")
 # hc_pcas <- pca_highchart_list(
 #   pca_input   = pca_input,
@@ -895,20 +896,20 @@ pca_highchart_list <- function(pca_input,
 #   palette     = my_palette
 # )
 
-# --- Comparar diferentes niveles de confianza ---
+# --- Comparing different confidence levels ---
 # sc_all <- build_pca_scores(pca_input, mode = "all")
 #
 # # 68% (1 SD)
 # p_68 <- pca_highchart(sc_all, ellipse_type = "confidence", ellipse_level = 0.68,
 #                       title = "PCA - 68% CI")
-# # 95% (2 SD aprox)
+# # 95% (approx. 2 SD)
 # p_95 <- pca_highchart(sc_all, ellipse_type = "confidence", ellipse_level = 0.95,
 #                       title = "PCA - 95% CI")
 # # 99%
 # p_99 <- pca_highchart(sc_all, ellipse_type = "confidence", ellipse_level = 0.99,
 #                       title = "PCA - 99% CI")
 
-# --- PCA con etiquetas visibles (útil para exportar) ---
+# --- PCA with visible labels (useful for exporting) ---
 # p_labels <- pca_highchart(
 #   sc_all,
 #   color_by = "Condition",
@@ -918,7 +919,7 @@ pca_highchart_list <- function(pca_input,
 # )
 # p_labels
 
-# --- PCA con etiquetas y elipse de confianza ---
+# --- PCA with labels and a confidence ellipse ---
 # p_labels_ellipse <- pca_highchart(
 #   sc_all,
 #   color_by = "Condition",
@@ -930,7 +931,7 @@ pca_highchart_list <- function(pca_input,
 # )
 # p_labels_ellipse
 
-# --- Usando pca_highchart_list con etiquetas ---
+# --- Using pca_highchart_list with labels ---
 # hc_pcas <- pca_highchart_list(
 #   pca_input   = pca_input,
 #   modes       = c("all", "any"),
@@ -940,7 +941,7 @@ pca_highchart_list <- function(pca_input,
 # )
 # hc_pcas[["all"]]
 
-# --- Con paleta de paletteer ---
+# --- With a paletteer palette ---
 # hc_pcas <- pca_highchart_list(
 #   pca_input   = pca_input,
 #   modes       = c("all"),
@@ -949,7 +950,7 @@ pca_highchart_list <- function(pca_input,
 # )
 # hc_pcas[["all"]]
 
-# --- Con paleta de RColorBrewer ---
+# --- With an RColorBrewer palette ---
 # hc_pcas <- pca_highchart_list(
 #   pca_input   = pca_input,
 #   modes       = c("all"),

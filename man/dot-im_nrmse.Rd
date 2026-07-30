@@ -2,7 +2,7 @@
 % Please edit documentation in R/Imputation_Metrics.R
 \name{.im_nrmse}
 \alias{.im_nrmse}
-\title{NRMSE — Normalized Root Mean Squared Error}
+\title{NRMSE -- Normalized Root Mean Squared Error}
 \usage{
 .im_nrmse(true_mat, imp_mat, na_mask)
 }

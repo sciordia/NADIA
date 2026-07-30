@@ -2,7 +2,7 @@
 % Please edit documentation in R/Normalization_Metrics.R
 \name{nm_rank_pev}
 \alias{nm_rank_pev}
-\title{Rank normalization methods by median PEV (ascending — lower is better)}
+\title{Rank normalization methods by median PEV (ascending -- lower is better)}
 \usage{
 nm_rank_pev(
   se,
@@ -24,5 +24,5 @@ nm_rank_pev(
 A \code{data.frame} with columns \code{Method}, \code{Median_PEV}, \code{Rank}.
 }
 \description{
-Rank normalization methods by median PEV (ascending — lower is better)
+Rank normalization methods by median PEV (ascending -- lower is better)
 }

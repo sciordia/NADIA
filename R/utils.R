@@ -1,44 +1,45 @@
 # =============================================================================
-# Utilidades internas compartidas
+# Shared internal utilities
 # =============================================================================
 #
-# Definiciones comunes a todos los módulos de NADIA. Antes cada módulo redefinía
-# `%||%` por su cuenta (18 copias con 3 semánticas distintas), de modo que la
-# última definición cargada ganaba y cambiaba el comportamiento de los módulos
-# ya cargados. Ahora hay una sola definición canónica.
+# Definitions common to every NADIA module. Each module used to redefine `%||%`
+# on its own (18 copies with 3 different semantics), so the last definition
+# loaded won and silently changed the behaviour of the modules already loaded.
+# There is now a single canonical definition.
 #
-# Los módulos que necesitan los helpers de RNG cargan este archivo mediante el
-# bloque `if (!exists(".rng_state", mode = "function"))` de su cabecera. Al
-# convertir el proyecto en paquete ese bloque desaparece: todos los archivos de
-# R/ comparten un mismo namespace.
+# The modules that need the RNG helpers loaded this file through the
+# `if (!exists(".rng_state", mode = "function"))` block in their header. That
+# block disappears once the project becomes a package: all the files under R/
+# share one and the same namespace.
 #
 # Author: Sergio Ciordia
 # License: MIT
 # =============================================================================
 
 
-#' Operador de coalescencia nula
+#' Null-coalescing operator
 #'
-#' Devuelve `a` salvo que sea `NULL`, en cuyo caso devuelve `b`. Misma semántica
-#' que `base::\%||\%` (disponible desde R 4.4) y que `rlang::\%||\%`.
+#' Returns `a` unless it is `NULL`, in which case it returns `b`. Same semantics
+#' as `base::\%||\%` (available since R 4.4) and as `rlang::\%||\%`.
 #'
-#' Se define aquí en lugar de importarlo de `base` para que el paquete siga
-#' funcionando bajo el `Depends: R (>= 4.4)` declarado sin depender de que el
-#' operador esté exportado en esa versión concreta. La definición es idéntica.
+#' It is defined here rather than imported from `base` so that the package keeps
+#' working under the declared `Depends: R (>= 4.4)` without relying on the
+#' operator being exported in that particular version. The definition is
+#' identical.
 #'
-#' @param a Valor a comprobar.
-#' @param b Valor alternativo si `a` es `NULL`.
-#' @return `a` si no es `NULL`; en caso contrario `b`.
+#' @param a Value to check.
+#' @param b Fallback value if `a` is `NULL`.
+#' @return `a` if it is not `NULL`; otherwise `b`.
 #' @keywords internal
 #' @noRd
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
 
-#' Capturar el estado del generador de números aleatorios
+#' Capture the state of the random number generator
 #'
-#' Las funciones que llaman a `set.seed()` alteran el RNG de la sesión del
-#' usuario, de modo que el código que se ejecute después deja de ser
-#' reproducible. Estos dos helpers permiten dejar el RNG como estaba:
+#' Functions that call `set.seed()` alter the RNG of the user's session, so any
+#' code run afterwards is no longer reproducible. These two helpers make it
+#' possible to leave the RNG exactly as it was:
 #'
 #' ```
 #' old_rng <- .rng_state()
@@ -46,8 +47,8 @@
 #' set.seed(seed)
 #' ```
 #'
-#' @return El valor de `.Random.seed`, o `NULL` si el RNG aún no se ha usado en
-#'   esta sesión.
+#' @return The value of `.Random.seed`, or `NULL` if the RNG has not been used
+#'   yet in this session.
 #' @keywords internal
 #' @noRd
 .rng_state <- function() {
@@ -58,16 +59,16 @@
   }
 }
 
-#' Restaurar el estado del generador de números aleatorios
+#' Restore the state of the random number generator
 #'
-#' @param state Valor devuelto previamente por `.rng_state()`.
-#' @return `NULL`, de forma invisible. Se llama por su efecto secundario.
+#' @param state Value previously returned by `.rng_state()`.
+#' @return `NULL`, invisibly. Called for its side effect.
 #' @keywords internal
 #' @noRd
 .rng_restore <- function(state) {
   if (is.null(state)) {
-    # El RNG no se había inicializado antes de la llamada: se elimina la
-    # semilla creada por set.seed() para no dejar rastro.
+    # The RNG had not been initialised before the call: the seed created by
+    # set.seed() is removed so that no trace is left behind.
     if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
       rm(".Random.seed", envir = globalenv())
     }
@@ -79,30 +80,30 @@
 
 
 # =============================================================================
-# Helpers de color
+# Colour helpers
 # =============================================================================
 #
-# Estaban duplicados en Boxplot_Highcharts_Final.R, PCA_Highcharts_Final.R,
-# Pattern_Profiler_Highcharts.R y Heatmap_tidyHeatmap.R (8 definiciones de 3
-# funciones). Al vivir todos los módulos en el entorno global, la copia activa
-# era la del último módulo cargado; en un paquete ganaría la del último archivo
-# por orden alfabético. Se unifican aquí.
+# These were duplicated in Boxplot_Highcharts_Final.R, PCA_Highcharts_Final.R,
+# Pattern_Profiler_Highcharts.R and Heatmap_tidyHeatmap.R (8 definitions of 3
+# functions). With every module living in the global environment, the active
+# copy was the one from the last module loaded; in a package the winner would
+# be the one from the last file in alphabetical order. They are unified here.
 #
-# Verificado antes de unificar: para entradas hexadecimales las tres copias de
-# `hex_to_rgba` y las dos de `darken_hex` daban salidas idénticas a igual
-# alpha/factor. Solo diferían en el valor por defecto, y los 7 sitios de llamada
-# lo pasan siempre de forma explícita. Por eso aquí NO se declara default: una
-# llamada sin el argumento debe fallar de forma visible en vez de tomar un valor
-# arbitrario.
+# Verified before unifying: for hexadecimal inputs the three copies of
+# `hex_to_rgba` and the two of `darken_hex` produced identical output for the
+# same alpha/factor. They only differed in the default value, and all 7 call
+# sites always pass it explicitly. That is why NO default is declared here: a
+# call without the argument must fail visibly instead of taking some arbitrary
+# value.
 
 
-#' Normalizar un color hexadecimal
+#' Normalise a hexadecimal colour
 #'
-#' Quita el `#` inicial, descarta el canal alpha si el color viene en formato
-#' `RRGGBBAA` y devuelve `#RRGGBB` en mayúsculas.
+#' Strips the leading `#`, discards the alpha channel if the colour comes in
+#' `RRGGBBAA` format, and returns `#RRGGBB` in upper case.
 #'
-#' @param hex Color en formato hexadecimal, con o sin `#`.
-#' @return Cadena `#RRGGBB` en mayúsculas.
+#' @param hex Colour in hexadecimal format, with or without `#`.
+#' @return `#RRGGBB` string in upper case.
 #' @keywords internal
 #' @noRd
 .normalize_hex <- function(hex) {
@@ -114,12 +115,12 @@
 }
 
 
-#' Convertir un color hexadecimal a cadena `rgba()`
+#' Convert a hexadecimal colour to an `rgba()` string
 #'
-#' @param hex Color hexadecimal.
-#' @param alpha Opacidad entre 0 y 1. Sin valor por defecto a propósito: todos
-#'   los sitios de llamada lo especifican.
-#' @return Cadena `"rgba(r, g, b, a)"` apta para Highcharts.
+#' @param hex Hexadecimal colour.
+#' @param alpha Opacity between 0 and 1. Deliberately without a default value:
+#'   every call site specifies it.
+#' @return `"rgba(r, g, b, a)"` string suitable for Highcharts.
 #' @keywords internal
 #' @noRd
 .hex_to_rgba <- function(hex, alpha) {
@@ -130,12 +131,12 @@
 }
 
 
-#' Oscurecer un color hexadecimal
+#' Darken a hexadecimal colour
 #'
-#' @param hex Color hexadecimal.
-#' @param factor Fracción de oscurecimiento entre 0 y 1. Sin valor por defecto a
-#'   propósito: todos los sitios de llamada lo especifican.
-#' @return Color `#RRGGBB` oscurecido.
+#' @param hex Hexadecimal colour.
+#' @param factor Darkening fraction between 0 and 1. Deliberately without a
+#'   default value: every call site specifies it.
+#' @return Darkened `#RRGGBB` colour.
 #' @keywords internal
 #' @noRd
 .darken_hex <- function(hex, factor) {
@@ -148,13 +149,13 @@
 
 
 # =============================================================================
-# Helpers de filtrado de features
+# Feature filtering helpers
 # =============================================================================
 
-#' Construir el nombre de la columna de p-valor ajustado de una comparación
+#' Build the adjusted p-value column name for a comparison
 #'
-#' @param comparison Nombre de la comparación, p.ej. `"B-A"`.
-#' @return Nombre de columna, p.ej. `"adjP_B-A"`.
+#' @param comparison Name of the comparison, e.g. `"B-A"`.
+#' @return Column name, e.g. `"adjP_B-A"`.
 #' @keywords internal
 #' @noRd
 .adjp_col <- function(comparison) {
@@ -162,26 +163,26 @@
 }
 
 
-#' Obtener los IDs de features según el modo de filtrado
+#' Get the feature IDs according to the filtering mode
 #'
-#' Unifica las dos copias que había en `Heatmap_tidyHeatmap.R` y
-#' `PCA_Highcharts_Final.R`. Diferían en dos cosas:
+#' Unifies the two copies that lived in `Heatmap_tidyHeatmap.R` and
+#' `PCA_Highcharts_Final.R`. They differed in two respects:
 #'
-#' * El nombre del tercer modo: `"target"` en la del heatmap y `"specific"` en la
-#'   del PCA. Aquí se aceptan **ambos** como sinónimos, porque las funciones
-#'   públicas de cada módulo propagan su propio vocabulario y cualquiera de las
-#'   dos habría roto a la otra al fusionarse en un único namespace.
-#' * El filtrado de `mode = "any"`: la del PCA usaba `sig_any == TRUE`, que cuela
-#'   `FeatureID` `NA` cuando `sig_any` tiene `NA`. Se conserva el `which()` de la
-#'   del heatmap, que no lo hace.
+#' * The name of the third mode: `"target"` in the heatmap copy and `"specific"`
+#'   in the PCA one. **Both** are accepted here as synonyms, because the public
+#'   functions of each module propagate their own vocabulary and either one
+#'   would have broken the other when merged into a single namespace.
+#' * The `mode = "any"` filtering: the PCA copy used `sig_any == TRUE`, which
+#'   lets `NA` `FeatureID`s slip through when `sig_any` contains `NA`. The
+#'   `which()` from the heatmap copy is kept, which does not.
 #'
-#' @param data Data frame en formato long con columnas `FeatureID`, `sig_any` y
+#' @param data Data frame in long format with columns `FeatureID`, `sig_any` and
 #'   `adjP_*`.
-#' @param mode `"all"` (todos), `"any"` (significativo en alguna comparación) o
-#'   `"target"`/`"specific"` (significativo en `comparison`).
-#' @param alpha Umbral de significancia para el modo dirigido.
-#' @param comparison Comparación a usar en el modo dirigido.
-#' @return Vector de `FeatureID` que cumplen el criterio.
+#' @param mode `"all"` (everything), `"any"` (significant in at least one
+#'   comparison) or `"target"`/`"specific"` (significant in `comparison`).
+#' @param alpha Significance threshold for the targeted mode.
+#' @param comparison Comparison to use in the targeted mode.
+#' @return Vector of `FeatureID`s meeting the criterion.
 #' @keywords internal
 #' @noRd
 .get_feature_ids <- function(data,
@@ -200,21 +201,21 @@
 
   if (mode == "any") {
     if (!("sig_any" %in% names(feat))) {
-      stop("La columna 'sig_any' es requerida para mode = 'any'")
+      stop("Column 'sig_any' is required for mode = 'any'")
     }
-    # which() evita colar FeatureID NA cuando sig_any tiene NA (a diferencia de
-    # feat$sig_any == TRUE, que devolvería filas NA).
+    # which() prevents NA FeatureIDs from slipping through when sig_any contains
+    # NA (unlike feat$sig_any == TRUE, which would return NA rows).
     return(feat$FeatureID[which(feat$sig_any)])
   }
 
-  # modo dirigido: "target" y "specific" son sinónimos
+  # targeted mode: "target" and "specific" are synonyms
   if (is.null(comparison)) {
-    stop("El argumento 'comparison' es requerido para mode = '", mode, "'")
+    stop("Argument 'comparison' is required for mode = '", mode, "'")
   }
 
   col <- .adjp_col(comparison)
   if (!(col %in% names(feat))) {
-    stop("No existe la columna: ", col)
+    stop("Column not found: ", col)
   }
 
   feat$FeatureID[which(feat[[col]] <= alpha)]
@@ -222,52 +223,53 @@
 
 
 # =============================================================================
-# Dependencias de Mfuzz que exigen estar adjuntadas
+# Mfuzz dependencies that must be attached
 # =============================================================================
 #
-# `Mfuzz` declara `Depends: Biobase, e1071` y llama a `exprs()` y `cmeans()` sin
-# cualificar, así que sus funciones solo resuelven esos nombres si ambos paquetes
-# están en la ruta de búsqueda. `requireNamespace()` no basta: carga el namespace
-# pero no lo adjunta. Antes lo conseguía el `library(Mfuzz)` de la cabecera del
-# módulo, que arrastraba sus Depends; un paquete no puede hacer eso.
+# `Mfuzz` declares `Depends: Biobase, e1071` and calls `exprs()` and `cmeans()`
+# unqualified, so its functions only resolve those names if both packages are on
+# the search path. `requireNamespace()` is not enough: it loads the namespace but
+# does not attach it. This used to be taken care of by the `library(Mfuzz)` call
+# in the module header, which pulled in its Depends; a package cannot do that.
 #
-# La solución es adjuntarlos solo mientras se ejecuta el Pattern Profiler y
-# dejar la ruta de búsqueda como estaba, para no alterar la sesión del usuario.
+# The solution is to attach them only while the Pattern Profiler is running and
+# to leave the search path as it was, so that the user's session is untouched.
 
-#' Adjuntar las dependencias que Mfuzz necesita en la ruta de búsqueda
+#' Attach the dependencies that Mfuzz needs on the search path
 #'
-#' @return Vector con los paquetes que esta llamada ha adjuntado (posiblemente
-#'   vacío si ya lo estaban). Debe pasarse a `.mfuzz_deps_detach()`.
+#' @return Vector with the packages that this call has attached (possibly empty
+#'   if they were already attached). It must be passed to
+#'   `.mfuzz_deps_detach()`.
 #' @keywords internal
 #' @noRd
 .mfuzz_deps_attach <- function() {
-  necesarios <- c("Mfuzz", "Biobase", "e1071")
-  faltan <- necesarios[!vapply(necesarios, requireNamespace, logical(1),
-                               quietly = TRUE)]
-  if (length(faltan) > 0) {
-    stop("El Pattern Profiler necesita ", paste(faltan, collapse = ", "),
-         ". Instálalos con BiocManager::install(c(",
-         paste(sprintf('"%s"', faltan), collapse = ", "), ")).",
+  required <- c("Mfuzz", "Biobase", "e1071")
+  missing_pkgs <- required[!vapply(required, requireNamespace, logical(1),
+                                   quietly = TRUE)]
+  if (length(missing_pkgs) > 0) {
+    stop("The Pattern Profiler requires ", paste(missing_pkgs, collapse = ", "),
+         ". Install them with BiocManager::install(c(",
+         paste(sprintf('"%s"', missing_pkgs), collapse = ", "), ")).",
          call. = FALSE)
   }
-  # Solo Biobase y e1071 hacen falta adjuntados; Mfuzz se usa con Mfuzz::
-  adjuntables <- c("Biobase", "e1071")
-  ya_estaban <- paste0("package:", adjuntables) %in% search()
-  for (p in adjuntables[!ya_estaban]) attachNamespace(asNamespace(p))
-  adjuntables[!ya_estaban]
+  # Only Biobase and e1071 need to be attached; Mfuzz is used via Mfuzz::
+  attachable <- c("Biobase", "e1071")
+  already_on <- paste0("package:", attachable) %in% search()
+  for (p in attachable[!already_on]) attachNamespace(asNamespace(p))
+  attachable[!already_on]
 }
 
-#' Deshacer lo que hizo `.mfuzz_deps_attach()`
+#' Undo what `.mfuzz_deps_attach()` did
 #'
-#' @param pkgs Vector devuelto por `.mfuzz_deps_attach()`.
-#' @return `NULL`, de forma invisible. Se llama por su efecto secundario.
+#' @param pkgs Vector returned by `.mfuzz_deps_attach()`.
+#' @return `NULL`, invisibly. Called for its side effect.
 #' @keywords internal
 #' @noRd
 .mfuzz_deps_detach <- function(pkgs) {
   for (p in pkgs) {
-    nombre <- paste0("package:", p)
-    if (nombre %in% search()) {
-      detach(nombre, character.only = TRUE, unload = FALSE)
+    entry <- paste0("package:", p)
+    if (entry %in% search()) {
+      detach(entry, character.only = TRUE, unload = FALSE)
     }
   }
   invisible(NULL)
@@ -275,19 +277,19 @@
 
 
 # =============================================================================
-# Helpers de Proteome Discoverer
+# Proteome Discoverer helpers
 # =============================================================================
 #
-# Estaban duplicados entre Preprocessing_LFQ.R y Preprocessing_TMT.R. Las dos
-# copias de `.parse_gene_from_description` eran idénticas; las de
-# `.validate_pd_columns` solo diferían en el texto del mensaje de error.
+# These were duplicated between Preprocessing_LFQ.R and Preprocessing_TMT.R. The
+# two copies of `.parse_gene_from_description` were identical; those of
+# `.validate_pd_columns` differed only in the text of the error message.
 
-#' Extraer el Gene Name de la columna Description (formato UniProt embebido)
+#' Extract the Gene Name from the Description column (embedded UniProt format)
 #'
-#' Busca el patrón `GN=<gene>` habitual en los exports de Proteome Discoverer.
+#' Looks for the `GN=<gene>` pattern usual in Proteome Discoverer exports.
 #'
-#' @param x Vector de descripciones.
-#' @return Vector de nombres de gen, `NA` donde no haya coincidencia.
+#' @param x Vector of descriptions.
+#' @return Vector of gene names, `NA` where there is no match.
 #' @keywords internal
 #' @noRd
 .parse_gene_from_description <- function(x) {
@@ -295,11 +297,11 @@
   m[, 2]
 }
 
-#' Validar las columnas mínimas de un export de Proteome Discoverer
+#' Validate the minimum columns of a Proteome Discoverer export
 #'
-#' @param df Data frame leído del export.
-#' @return `TRUE` de forma invisible; aborta con un error si falta alguna
-#'   columna requerida.
+#' @param df Data frame read from the export.
+#' @return `TRUE` invisibly; aborts with an error if any required column is
+#'   missing.
 #' @keywords internal
 #' @noRd
 .validate_pd_columns <- function(df) {
@@ -307,9 +309,9 @@
   missing <- setdiff(required, names(df))
   if (length(missing) > 0) {
     stop(
-      "Columnas requeridas faltantes en el archivo de datos:\n  - ",
+      "Required columns missing from the data file:\n  - ",
       paste(missing, collapse = "\n  - "),
-      "\nVerifica que el archivo sea un export de proteínas de Proteome Discoverer."
+      "\nCheck that the file is a Proteome Discoverer protein export."
     )
   }
   invisible(TRUE)

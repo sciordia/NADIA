@@ -2,7 +2,7 @@
 % Please edit documentation in R/Pattern_Profiler_Analysis.R
 \name{select_optimal_clusters}
 \alias{select_optimal_clusters}
-\title{Seleccionar número óptimo de clusters}
+\title{Select the optimal number of clusters}
 \usage{
 select_optimal_clusters(
   eset_std,
@@ -13,19 +13,19 @@ select_optimal_clusters(
 )
 }
 \arguments{
-\item{eset_std}{ExpressionSet estandarizado}
+\item{eset_std}{Standardised ExpressionSet}
 
-\item{c_range}{Rango de clusters a evaluar}
+\item{c_range}{Range of cluster numbers to evaluate}
 
-\item{m}{Parámetro de fuzziness}
+\item{m}{Fuzziness parameter}
 
-\item{method}{Método: "xb", "consensus", "elbow"}
+\item{method}{Method: "xb", "consensus", "elbow"}
 
-\item{verbose}{Mostrar progreso}
+\item{verbose}{Show progress}
 }
 \value{
-Lista con optimal_c, metrics, m
+List with optimal_c, metrics, m
 }
 \description{
-Seleccionar número óptimo de clusters
+Select the optimal number of clusters
 }

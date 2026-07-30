@@ -2,7 +2,7 @@
 % Please edit documentation in R/Pattern_Profiler_Analysis.R
 \name{build_clustering_matrix}
 \alias{build_clustering_matrix}
-\title{Construir matriz de clustering agregada por condición}
+\title{Build the clustering matrix aggregated by condition}
 \usage{
 build_clustering_matrix(
   intensity_matrix,
@@ -13,19 +13,19 @@ build_clustering_matrix(
 )
 }
 \arguments{
-\item{intensity_matrix}{Matriz de intensidades (features x samples)}
+\item{intensity_matrix}{Intensity matrix (features x samples)}
 
-\item{sample_metadata}{DataFrame con SampleID, Condition}
+\item{sample_metadata}{DataFrame with SampleID, Condition}
 
-\item{selected_features}{Vector de features a incluir}
+\item{selected_features}{Vector of features to include}
 
-\item{condition_order}{Orden de condiciones (NULL = orden alfabético)}
+\item{condition_order}{Condition order (NULL = alphabetical order)}
 
-\item{aggregate}{Método de agregación: "median" o "mean"}
+\item{aggregate}{Aggregation method: "median" or "mean"}
 }
 \value{
-Matriz de intensidades agregadas (features x conditions)
+Matrix of aggregated intensities (features x conditions)
 }
 \description{
-Construir matriz de clustering agregada por condición
+Build the clustering matrix aggregated by condition
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/Volcano_Plot_Highcharts_Final.R
 \name{volcano_highchart_list}
 \alias{volcano_highchart_list}
-\title{Volcano Plot Interactivo con Highcharter}
+\title{Interactive Volcano Plot with Highcharter}
 \usage{
 volcano_highchart_list(
   de_res,
@@ -20,34 +20,34 @@ volcano_highchart_list(
 )
 }
 \arguments{
-\item{de_res}{Data frame con resultados de expresión diferencial}
+\item{de_res}{Data frame with differential expression results}
 
-\item{ain}{Vector de assays a filtrar (opcional)}
+\item{ain}{Vector of assays to filter on (optional)}
 
-\item{comparisons}{Vector de comparaciones a incluir (opcional)}
+\item{comparisons}{Vector of comparisons to include (optional)}
 
-\item{lfc_thr}{Umbral de log2 fold-change (default: 0)}
+\item{lfc_thr}{log2 fold-change threshold (default: 0)}
 
-\item{alpha}{Umbral de significancia (default: 0.05)}
+\item{alpha}{Significance threshold (default: 0.05)}
 
-\item{p_col}{Columna de p-valores a usar}
+\item{p_col}{Column of p-values to use}
 
-\item{point_size}{Tamaño de los puntos (default: 4)}
+\item{point_size}{Point size (default: 4)}
 
-\item{colors}{Lista con colores para "up", "down", "ns" (ignorado si se usa palette)}
+\item{colors}{List of colours for "up", "down", "ns" (ignored when palette is used)}
 
-\item{palette}{Nombre de paleta de paletteer (ej: "ggsci::default_jco"). Usa 3 colores: up, down, ns}
+\item{palette}{Name of a paletteer palette (e.g. "ggsci::default_jco"). Uses 3 colours: up, down, ns}
 
-\item{show_top_genes}{Número de genes top a etiquetar por significancia (default: 0)}
+\item{show_top_genes}{Number of top genes to label by significance (default: 0)}
 
-\item{highlight_genes}{Vector de nombres de genes a resaltar manualmente (default: NULL)}
+\item{highlight_genes}{Vector of gene names to highlight manually (default: NULL)}
 
-\item{title}{Título personalizado del gráfico (default: NULL, usa "Comparison (Assay)").
-Usa \code{\{comparison\}} como placeholder (ej: "Volcano Plot: \{comparison\}" -> "Volcano Plot: B-A")}
+\item{title}{Custom chart title (default: NULL, uses "Comparison (Assay)").
+Use \code{\{comparison\}} as a placeholder (e.g. "Volcano Plot: \{comparison\}" -> "Volcano Plot: B-A")}
 }
 \value{
-Lista de objetos highchart
+List of highchart objects
 }
 \description{
-Volcano Plot Interactivo con Highcharter
+Interactive Volcano Plot with Highcharter
 }

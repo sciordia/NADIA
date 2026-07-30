@@ -1,45 +1,45 @@
 # =============================================================================
-# Preprocesamiento de Datos LFQ de Proteome Discoverer
+# Proteome Discoverer LFQ Data Preprocessing
 # =============================================================================
 #
-# Convierte exports de proteínas LFQ de Proteome Discoverer a la misma estructura
-# que `preprocess_spectronaut()` / `preprocess_tmt()` para alimentar el pipeline
-# downstream sin cambios (Processing.R y módulos asociados).
+# Converts Proteome Discoverer LFQ protein exports into the same structure as
+# `preprocess_spectronaut()` / `preprocess_tmt()`, so the downstream pipeline
+# (Processing.R and the associated modules) consumes them unchanged.
 #
-# A diferencia de TMT (métricas globales por proteína), un experimento LFQ trae
-# métricas POR MUESTRA en el mismo archivo, como el report de Spectronaut:
-#   - `Abundance: <muestra>`                       (intensidad)
-#   - `# PSMs (by Search Engine): <muestra>`       (PSMs por muestra)
-#   - `# Peptides (by Search Engine): <muestra>`   (péptidos por muestra)
-#   - `Score Mascot: <muestra>`                    (score por muestra)
+# Unlike TMT (global per-protein metrics), an LFQ experiment carries PER-SAMPLE
+# metrics in the same file, just like the Spectronaut report:
+#   - `Abundance: <sample>`                       (intensity)
+#   - `# PSMs (by Search Engine): <sample>`       (PSMs per sample)
+#   - `# Peptides (by Search Engine): <sample>`   (peptides per sample)
+#   - `Score Mascot: <sample>`                    (score per sample)
 #
-# El mapeo muestra->condición se toma del archivo de anotación (`_Annot`), con
-# columnas `Column`, `Condition` (obligatorias) y `Experiment` (opcional). Las
-# intensidades se mapean POR NOMBRE de muestra (no por posición): el orden de las
-# columnas `Abundance:` puede diferir del de las columnas de métricas.
+# The sample->condition mapping is taken from the annotation file (`_Annot`),
+# with columns `Column`, `Condition` (mandatory) and `Experiment` (optional).
+# Intensities are mapped BY SAMPLE NAME (not by position): the order of the
+# `Abundance:` columns may differ from that of the metric columns.
 #
 # Copyright 2025 Sergio Ciordia
 # Licensed under MIT
 # =============================================================================
 
-# --- Dependencias ---
+# --- Dependencies ---
 
 # =============================================================================
-# Funciones Auxiliares Internas
+# Internal Helper Functions
 # =============================================================================
 
-# .parse_gene_from_description() y .validate_pd_columns() viven en R/utils.R:
-# estaban duplicadas aquí y en Preprocessing_TMT.R.
+# .parse_gene_from_description() and .validate_pd_columns() live in R/utils.R:
+# they used to be duplicated here and in Preprocessing_TMT.R.
 
-#' Extrae la especie (OS=...) de la columna Description
-#' @description Toma el texto entre `OS=` y el siguiente token `XX=` (p.ej. OX=).
+#' Extract the species (OS=...) from the Description column
+#' @description Takes the text between `OS=` and the next `XX=` token (e.g. OX=).
 #' @noRd
 .parse_species_from_description <- function(x) {
   m <- stringr::str_match(x, "OS=(.+?)\\s+[A-Za-z]+=")
   m[, 2]
 }
 
-#' Lookup tolerante a variantes habituales de nombres de columna de PD
+#' Lookup that tolerates the usual variants of PD column names
 #' @noRd
 .pd_resolve_col <- function(df, ...) {
   candidates <- unlist(list(...), use.names = FALSE)
@@ -47,44 +47,44 @@
   if (length(hit) == 0) NA_character_ else hit[1]
 }
 
-#' Extrae un vector numérico de `df[[col]]` o NA si la columna no existe
+#' Extract a numeric vector from `df[[col]]`, or NA if the column is absent
 #' @noRd
 .pd_numeric_or_na <- function(df, col) {
   if (is.na(col) || !col %in% names(df)) return(rep(NA_real_, nrow(df)))
   suppressWarnings(as.numeric(df[[col]]))
 }
 
-#' Extrae un vector character de `df[[col]]` o NA si la columna no existe
+#' Extract a character vector from `df[[col]]`, or NA if the column is absent
 #' @noRd
 .pd_char_or_na <- function(df, col) {
   if (is.na(col) || !col %in% names(df)) return(rep(NA_character_, nrow(df)))
   as.character(df[[col]])
 }
 
-#' Valida el archivo de anotación (diseño experimental)
+#' Validate the annotation file (experimental design)
 #' @noRd
 .validate_lfq_annot <- function(annot) {
   required <- c("Column", "Condition")
   missing <- setdiff(required, names(annot))
   if (length(missing) > 0) {
     stop(
-      "Columnas requeridas faltantes en el archivo de anotación (_Annot):\n  - ",
+      "Required columns missing from the annotation file (_Annot):\n  - ",
       paste(missing, collapse = "\n  - "),
-      "\nEl _Annot debe tener al menos 'Column' y 'Condition'."
+      "\nThe _Annot must have at least 'Column' and 'Condition'."
     )
   }
   if (anyDuplicated(annot$Column) > 0) {
-    stop("El archivo de anotación tiene valores duplicados en 'Column'.")
+    stop("The annotation file has duplicated values in 'Column'.")
   }
   invisible(TRUE)
 }
 
-#' Mapea columnas de una familia (por prefijo) a nombres de muestra
-#' @description Hace `grep(prefix_regex, ...)`, quita el prefijo para obtener el
-#'   nombre de muestra y devuelve un vector nombrado (nombre de muestra -> nombre
-#'   de columna) restringido a las muestras del diseño. El mapeo es POR NOMBRE,
-#'   por lo que es robusto a diferencias de orden entre familias de columnas.
-#' @return Vector character nombrado por muestra (subset de `samples`).
+#' Map the columns of a family (by prefix) to sample names
+#' @description Runs `grep(prefix_regex, ...)`, strips the prefix to obtain the
+#'   sample name and returns a named vector (sample name -> column name)
+#'   restricted to the samples in the design. The mapping is BY NAME, so it is
+#'   robust to ordering differences between column families.
+#' @return Character vector named by sample (a subset of `samples`).
 #' @noRd
 .lfq_sample_cols <- function(df, prefix_regex, samples) {
   cols <- grep(prefix_regex, names(df), value = TRUE)
@@ -95,37 +95,38 @@
 }
 
 # =============================================================================
-# Función Principal
+# Main Function
 # =============================================================================
 
-#' Preprocesa exports LFQ de Proteome Discoverer
+#' Preprocess Proteome Discoverer LFQ exports
 #'
 #' @description
-#' Convierte un export de proteínas LFQ de Proteome Discoverer (formato TSV ancho)
-#' a la misma estructura de salida que `preprocess_spectronaut()` /
-#' `preprocess_tmt()`: tres data.frames (`metadata`, `protein_id`, `protein_quant`)
-#' listos para el pipeline downstream (`process_proteomics()`).
+#' Converts a Proteome Discoverer LFQ protein export (wide TSV format) into the
+#' same output structure as `preprocess_spectronaut()` / `preprocess_tmt()`:
+#' three data.frames (`metadata`, `protein_id`, `protein_quant`) ready for the
+#' downstream pipeline (`process_proteomics()`).
 #'
-#' El diseño experimental (muestra -> condición) se toma del archivo de anotación
-#' `annot_path` (columnas `Column`, `Condition`, y opcional `Experiment`). Las
-#' intensidades (`Abundance: <muestra>`) y las métricas por muestra
-#' (`# PSMs (by Search Engine)`, `# Peptides (by Search Engine)`, `Score Mascot`)
-#' se mapean POR NOMBRE de muestra.
+#' The experimental design (sample -> condition) is taken from the annotation
+#' file `annot_path` (columns `Column`, `Condition`, and optionally
+#' `Experiment`). The intensities (`Abundance: <sample>`) and the per-sample
+#' metrics (`# PSMs (by Search Engine)`, `# Peptides (by Search Engine)`,
+#' `Score Mascot`) are mapped BY SAMPLE NAME.
 #'
-#' @param file_path Ruta al TSV de datos exportado de Proteome Discoverer.
-#' @param annot_path Ruta al TSV de anotación con columnas `Column`, `Condition`
-#'   (obligatorias) y `Experiment` (opcional).
-#' @param condition_order Vector de caracteres con el orden de las condiciones.
-#'   Si es `NULL` (default), se deriva de `Condition` (orden de aparición). Si se
-#'   provee, fija los niveles del factor y descarta muestras cuya condición no
-#'   esté en la lista.
-#' @param export_dir Directorio para exportar TSVs. `NULL` (default) = no exporta.
-#' @param timestamp_suffix Lógico. Si `TRUE` (default), añade timestamp a los
-#'   archivos exportados.
-#' @param verbose Lógico. Si `TRUE` (default), muestra mensajes de progreso.
+#' @param file_path Path to the data TSV exported from Proteome Discoverer.
+#' @param annot_path Path to the annotation TSV with columns `Column`,
+#'   `Condition` (mandatory) and `Experiment` (optional).
+#' @param condition_order Character vector with the order of the conditions. If
+#'   `NULL` (default), it is derived from `Condition` (order of appearance). If
+#'   supplied, it fixes the factor levels and discards samples whose condition is
+#'   not in the list.
+#' @param export_dir Directory to export the TSVs to. `NULL` (default) = no
+#'   export.
+#' @param timestamp_suffix Logical. If `TRUE` (default), appends a timestamp to
+#'   the exported files.
+#' @param verbose Logical. If `TRUE` (default), shows progress messages.
 #'
-#' @return Lista con clase `c("lfq_data", "proteomics_data", "list")` conteniendo
-#'   `metadata`, `protein_id` y `protein_quant`.
+#' @return A list with class `c("lfq_data", "proteomics_data", "list")`
+#'   containing `metadata`, `protein_id` and `protein_quant`.
 #'
 #' @examples
 #' \dontrun{
@@ -147,21 +148,21 @@ preprocess_lfq <- function(
     verbose = TRUE
 ) {
 
-  # --- Validación de argumentos ---
-  if (!file.exists(file_path)) stop("Archivo de datos no encontrado: ", file_path)
-  if (!file.exists(annot_path)) stop("Archivo de anotación no encontrado: ", annot_path)
+  # --- Argument validation ---
+  if (!file.exists(file_path)) stop("Data file not found: ", file_path)
+  if (!file.exists(annot_path)) stop("Annotation file not found: ", annot_path)
   if (!is.null(condition_order) &&
       (length(condition_order) == 0 || !is.character(condition_order))) {
-    stop("condition_order debe ser NULL o un vector de caracteres no vacío.")
+    stop("condition_order must be NULL or a non-empty character vector.")
   }
 
-  # --- Lectura (check.names = FALSE para preservar headers de PD) ---
-  if (verbose) message("Leyendo archivo de datos: ", basename(file_path))
+  # --- Reading (check.names = FALSE to preserve the PD headers) ---
+  if (verbose) message("Reading data file: ", basename(file_path))
   df <- read.delim(file_path, header = TRUE, sep = "\t",
                    stringsAsFactors = FALSE, check.names = FALSE)
   .validate_pd_columns(df)
 
-  if (verbose) message("Leyendo archivo de anotación: ", basename(annot_path))
+  if (verbose) message("Reading annotation file: ", basename(annot_path))
   annot <- read.delim(annot_path, header = TRUE, sep = "\t",
                       stringsAsFactors = FALSE, check.names = FALSE)
   .validate_lfq_annot(annot)
@@ -173,50 +174,50 @@ preprocess_lfq <- function(
     NA_character_
   }
 
-  # --- Resolver orden de condiciones y filtrar diseño ---
+  # --- Resolve the condition order and filter the design ---
   if (is.null(condition_order)) {
     condition_order <- unique(annot$Condition)
   } else {
     keep_ann <- annot$Condition %in% condition_order
     if (!any(keep_ann)) {
-      stop("Ninguna condición del _Annot coincide con condition_order = c(",
+      stop("No condition in the _Annot matches condition_order = c(",
            paste0("'", condition_order, "'", collapse = ", "), ").\n",
-           "Condiciones en el _Annot: ", paste(unique(annot$Condition), collapse = ", "))
+           "Conditions in the _Annot: ", paste(unique(annot$Condition), collapse = ", "))
     }
     annot <- annot[keep_ann, , drop = FALSE]
   }
 
-  # --- Tabla de muestras (ordenada por condición y orden del Annot) ---
+  # --- Sample table (sorted by condition and by the order in the Annot) ---
   annot$R.Condition <- factor(annot$Condition, levels = condition_order,
                               ordered = TRUE)
   annot <- annot[order(annot$R.Condition, seq_len(nrow(annot))), , drop = FALSE]
-  # Replicado = índice secuencial dentro de cada condición (robusto a nombres)
+  # Replicate = sequential index within each condition (robust to names)
   annot$R.Replicate <- as.integer(
     stats::ave(seq_len(nrow(annot)), annot$R.Condition,
                FUN = function(i) seq_along(i))
   )
-  coding_levels <- annot$Column   # Coding = nombre de muestra del _Annot
+  coding_levels <- annot$Column   # Coding = sample name from the _Annot
 
-  # --- Verificar que cada muestra del diseño tiene su columna Abundance ---
+  # --- Check that every sample in the design has its Abundance column ---
   abund_map <- .lfq_sample_cols(df, "^Abundance:\\s*", coding_levels)
   missing_abund <- setdiff(coding_levels, names(abund_map))
   if (length(missing_abund) > 0) {
-    stop("No se encontró columna 'Abundance:' para estas muestras del _Annot:\n  - ",
+    stop("No 'Abundance:' column found for these samples of the _Annot:\n  - ",
          paste(missing_abund, collapse = "\n  - "))
   }
-  # Avisar de columnas Abundance del TSV que no están en el diseño
+  # Warn about Abundance columns in the TSV that are not part of the design
   all_abund <- sub("^Abundance:\\s*", "",
                    grep("^Abundance:\\s*", names(df), value = TRUE))
   extra_abund <- setdiff(all_abund, coding_levels)
   if (length(extra_abund) > 0 && verbose) {
-    message("Aviso: columnas 'Abundance:' ignoradas (no están en el _Annot): ",
+    message("Note: 'Abundance:' columns ignored (not present in the _Annot): ",
             paste(extra_abund, collapse = ", "))
   }
 
   # ==========================================================================
   # metadata
   # ==========================================================================
-  if (verbose) message("Generando metadata de muestras...")
+  if (verbose) message("Generating sample metadata...")
   run_summary <- data.frame(
     R.FileName   = unname(abund_map[coding_levels]),
     R.Condition  = annot$R.Condition,
@@ -228,9 +229,9 @@ preprocess_lfq <- function(
   rownames(run_summary) <- run_summary$Coding
 
   # ==========================================================================
-  # Información base de proteínas
+  # Base protein information
   # ==========================================================================
-  if (verbose) message("Procesando información base de proteínas...")
+  if (verbose) message("Processing the base protein information...")
 
   col_mw     <- .pd_resolve_col(df, "MW [kDa]", "MW (kDa)", "MW")
   col_pi     <- .pd_resolve_col(df, "calc. pI", "calc pI", "Calculated pI")
@@ -264,13 +265,13 @@ preprocess_lfq <- function(
     stringsAsFactors = FALSE
   )
 
-  # Métricas globales
+  # Global metrics
   g_psms <- .pd_numeric_or_na(df, col_psms)
   g_pept <- .pd_numeric_or_na(df, col_pepts)
   g_cov  <- .pd_numeric_or_na(df, col_cov)
   g_pep  <- .pd_numeric_or_na(df, col_pep)
 
-  # --- Helper: matriz por muestra (mapeada por nombre) para una familia ---
+  # --- Helper: per-sample matrix (mapped by name) for one column family ---
   sample_matrix <- function(prefix_regex, out_prefix) {
     map <- .lfq_sample_cols(df, prefix_regex, coding_levels)
     mat <- matrix(NA_real_, nrow = nrow(df), ncol = length(coding_levels),
@@ -283,7 +284,7 @@ preprocess_lfq <- function(
     }
     as.data.frame(mat, stringsAsFactors = FALSE, check.names = FALSE)
   }
-  # Réplica de una métrica global por muestra (para shape wide)
+  # Replicate a global metric across samples (to get the wide shape)
   wide_global <- function(values, out_prefix) {
     mat <- matrix(rep(values, length(coding_levels)),
                   nrow = length(values), ncol = length(coding_levels))
@@ -291,7 +292,7 @@ preprocess_lfq <- function(
     as.data.frame(mat, stringsAsFactors = FALSE, check.names = FALSE)
   }
 
-  # Familias por muestra
+  # Per-sample column families
   psms_by <- sample_matrix("^# PSMs \\(by Search Engine\\):\\s*",
                            "PG.NrOfPrecursorsUsedForQuantification")
   pept_by <- sample_matrix("^# Peptides \\(by Search Engine\\):\\s*",
@@ -303,9 +304,9 @@ preprocess_lfq <- function(
   names(abund_mat) <- paste0("PG.Quantity_", coding_levels)
 
   # ==========================================================================
-  # protein_ID  (métricas de identificación por muestra donde existan)
+  # protein_ID  (per-sample identification metrics wherever they exist)
   # ==========================================================================
-  if (verbose) message("Procesando protein_ID...")
+  if (verbose) message("Processing protein_ID...")
 
   id_psms <- psms_by; names(id_psms) <- paste0("PG.NrOfPrecursorsIdentified_", coding_levels)
   id_pept <- pept_by; names(id_pept) <- paste0("PG.NrOfStrippedSequencesIdentified_", coding_levels)
@@ -327,13 +328,13 @@ preprocess_lfq <- function(
   protein_ID <- protein_ID[order(protein_ID$PG.ProteinGroups), , drop = FALSE]
   rownames(protein_ID) <- NULL
   if (anyDuplicated(protein_ID$PG.ProteinGroups) > 0) {
-    stop("Error de integridad: protein_ID contiene Accession duplicados.")
+    stop("Integrity error: protein_ID contains duplicated Accession values.")
   }
 
   # ==========================================================================
   # protein_QUANT
   # ==========================================================================
-  if (verbose) message("Procesando protein_QUANT...")
+  if (verbose) message("Processing protein_QUANT...")
 
   global_metrics <- data.frame(
     PG.NrOfPrecursorsIdentified.Global        = g_psms,
@@ -358,14 +359,14 @@ preprocess_lfq <- function(
   protein_QUANT <- protein_QUANT[order(protein_QUANT$PG.ProteinGroups), , drop = FALSE]
   rownames(protein_QUANT) <- NULL
   if (anyDuplicated(protein_QUANT$PG.ProteinGroups) > 0) {
-    stop("Error de integridad: protein_QUANT contiene Accession duplicados.")
+    stop("Integrity error: protein_QUANT contains duplicated Accession values.")
   }
 
   # ==========================================================================
-  # Exportación opcional
+  # Optional export
   # ==========================================================================
   if (!is.null(export_dir)) {
-    if (verbose) message("Exportando archivos a: ", export_dir)
+    if (verbose) message("Exporting files to: ", export_dir)
     if (!dir.exists(export_dir)) dir.create(export_dir, recursive = TRUE)
     suffix <- if (timestamp_suffix) paste0("_", format(Sys.time(), "%Y%m%d_%H%M%S")) else ""
     readr::write_tsv(run_summary,
@@ -374,17 +375,17 @@ preprocess_lfq <- function(
                      file.path(export_dir, paste0("Protein_ID", suffix, ".tsv")), na = "")
     readr::write_tsv(protein_QUANT,
                      file.path(export_dir, paste0("Protein_QUANT", suffix, ".tsv")), na = "")
-    if (verbose) message("Archivos exportados exitosamente.")
+    if (verbose) message("Files exported successfully.")
   }
 
   # ==========================================================================
-  # Resultado
+  # Result
   # ==========================================================================
   if (verbose) {
-    message("Procesamiento completado:\n",
-            "  - Muestras: ", nrow(run_summary), "\n",
-            "  - Proteínas (ID): ", nrow(protein_ID), "\n",
-            "  - Proteínas (QUANT): ", nrow(protein_QUANT))
+    message("Processing complete:\n",
+            "  - Samples: ", nrow(run_summary), "\n",
+            "  - Proteins (ID): ", nrow(protein_ID), "\n",
+            "  - Proteins (QUANT): ", nrow(protein_QUANT))
   }
 
   result <- list(
@@ -397,17 +398,17 @@ preprocess_lfq <- function(
 }
 
 # =============================================================================
-# Métodos para clase lfq_data
+# Methods for the lfq_data class
 # =============================================================================
 
 #' @export
 print.lfq_data <- function(x, ...) {
-  cat("Datos LFQ (Proteome Discoverer) preprocesados\n")
-  cat("---------------------------------------------\n")
-  cat("Muestras (metadata):", nrow(x$metadata), "\n")
-  cat("Proteínas (ID):", nrow(x$protein_id), "\n")
-  cat("Proteínas (QUANT):", nrow(x$protein_quant), "\n")
-  cat("\nCondiciones:",
+  cat("Preprocessed LFQ (Proteome Discoverer) data\n")
+  cat("------------------------------------------\n")
+  cat("Samples (metadata):", nrow(x$metadata), "\n")
+  cat("Proteins (ID):", nrow(x$protein_id), "\n")
+  cat("Proteins (QUANT):", nrow(x$protein_quant), "\n")
+  cat("\nConditions:",
       paste(levels(x$metadata$R.Condition) %||%
               unique(x$metadata$R.Condition), collapse = ", "), "\n")
   invisible(x)

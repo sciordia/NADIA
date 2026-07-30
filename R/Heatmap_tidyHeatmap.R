@@ -1,21 +1,21 @@
 # =============================================================================
-# Heatmap con tidyHeatmap para Datos de Proteómica
+# tidyHeatmap heatmaps for proteomics data
 # =============================================================================
 
 
 
 # -----------------------------------------------------------------------------
-# Wrapper y método print para heatmaps con título personalizado
+# Wrapper and print method for heatmaps carrying a custom title
 # -----------------------------------------------------------------------------
 
-#' Crear wrapper para heatmap con título
+#' Wrap a Heatmap Together With Its Title
 #'
-#' @param hm Objeto tidyHeatmap (InputHeatmap)
-#' @param title Título del heatmap
-#' @param title_size Tamaño de fuente del título
-#' @param title_face Estilo de fuente del título
+#' @param hm tidyHeatmap object (InputHeatmap)
+#' @param title Heatmap title
+#' @param title_size Font size of the title
+#' @param title_face Font face of the title
 #'
-#' @return Objeto proteomics_heatmap (lista S3)
+#' @return proteomics_heatmap object (S3 list)
 wrap_heatmap_with_title <- function(hm, title, title_size = 14, title_face = "bold") {
 
   structure(
@@ -33,19 +33,19 @@ wrap_heatmap_with_title <- function(hm, title, title_size = 14, title_face = "bo
 print.proteomics_heatmap <- function(x, ...) {
   hm <- x$heatmap
 
-  # Convertir InputHeatmap a ComplexHeatmap usando el método de tidyHeatmap
+  # Convert the InputHeatmap into a ComplexHeatmap using tidyHeatmap's method
   if (inherits(hm, "InputHeatmap")) {
-    # Usar as.list para extraer los componentes y luego reconstruir
-    # O simplemente convertir usando el método interno de tidyHeatmap
+    # Either use as.list to pull out the components and rebuild the object,
+    # or simply convert it with tidyHeatmap's own internal method
     ht <- tryCatch({
-      # Intentar slot directo (versiones antiguas)
+      # Try the slot directly (older versions)
       methods::slot(hm, "ht")
     }, error = function(e) {
       tryCatch({
-        # Intentar con input_heatmap (versiones más nuevas)
+        # Try input_heatmap (newer versions)
         methods::slot(hm, "input_heatmap")
       }, error = function(e2) {
-        # Usar la conversión de tidyHeatmap a ComplexHeatmap
+        # Fall back on tidyHeatmap's conversion to ComplexHeatmap
         tidyHeatmap::as_ComplexHeatmap(hm)
       })
     })
@@ -53,7 +53,7 @@ print.proteomics_heatmap <- function(x, ...) {
     ht <- hm
   }
 
-  # Dibujar con título
+  # Draw with the title
   ComplexHeatmap::draw(
     ht,
     column_title = x$title,
@@ -67,25 +67,25 @@ print.proteomics_heatmap <- function(x, ...) {
 
 
 # -----------------------------------------------------------------------------
-# Función para obtener paleta de colores para el heatmap
+# Helper that builds the colour palette for the heatmap
 # -----------------------------------------------------------------------------
 
-#' Obtener paleta de colores para valores del heatmap
+#' Build the Colour Palette for the Heatmap Values
 #'
-#' @param palette Especificación de paleta:
-#'   - NULL: usa paleta por defecto (RdBu)
-#'   - Vector de colores: usa esos colores directamente
-#'   - String "paletteer::" (ej: "viridis::viridis"): usa paletteer
-#'   - String "brewer:" (ej: "brewer:RdBu"): usa RColorBrewer
-#' @param n Número de colores a generar
-#' @param reverse Invertir la paleta (default: FALSE)
+#' @param palette Palette specification:
+#'   - NULL: use the default palette (RdBu)
+#'   - Vector of colours: use those colours directly
+#'   - String "paletteer::" (e.g. "viridis::viridis"): use paletteer
+#'   - String "brewer:" (e.g. "brewer:RdBu"): use RColorBrewer
+#' @param n Number of colours to generate
+#' @param reverse Reverse the palette (default: FALSE)
 #'
-#' @return Vector de colores o función colorRamp2
+#' @return Vector of colours, or a colorRamp2 function
 get_heatmap_palette <- function(palette = NULL,
                                 n = 11,
                                 reverse = FALSE) {
 
-  # Paleta por defecto (divergente azul-blanco-rojo)
+  # Default palette (diverging blue-white-red)
   if (is.null(palette)) {
     colors <- c("#2166AC", "#4393C3", "#92C5DE", "#D1E5F0", "#F7F7F7",
                 "#FDDBC7", "#F4A582", "#D6604D", "#B2182B")
@@ -93,23 +93,23 @@ get_heatmap_palette <- function(palette = NULL,
     return(colors)
   }
 
-  # Paleta de paletteer
+  # paletteer palette
   if (is.character(palette) && length(palette) == 1 && grepl("::", palette)) {
     if (!requireNamespace("paletteer", quietly = TRUE)) {
-      stop("Para usar paletteer, instala con: install.packages('paletteer')")
+      stop("To use paletteer, install it with: install.packages('paletteer')")
     }
 
-    # Intentar como paleta discreta primero
+    # Try it as a discrete palette first
     colors <- tryCatch({
       raw_pal <- as.character(paletteer::paletteer_d(palette, n = n))
       vapply(raw_pal, .normalize_hex, character(1), USE.NAMES = FALSE)
     }, error = function(e) {
-      # Intentar como paleta continua
+      # Then try it as a continuous palette
       tryCatch({
         raw_pal <- as.character(paletteer::paletteer_c(palette, n = n))
         vapply(raw_pal, .normalize_hex, character(1), USE.NAMES = FALSE)
       }, error = function(e2) {
-        stop("Error al cargar paleta '", palette, "': ", e2$message)
+        stop("Error loading palette '", palette, "': ", e2$message)
       })
     })
 
@@ -117,10 +117,10 @@ get_heatmap_palette <- function(palette = NULL,
     return(colors)
   }
 
-  # Paleta de RColorBrewer
+  # RColorBrewer palette
   if (is.character(palette) && length(palette) == 1 && startsWith(palette, "brewer:")) {
     if (!requireNamespace("RColorBrewer", quietly = TRUE)) {
-      stop("Para usar RColorBrewer, instala con: install.packages('RColorBrewer')")
+      stop("To use RColorBrewer, install it with: install.packages('RColorBrewer')")
     }
 
     nm <- sub("^brewer:", "", palette)
@@ -128,20 +128,20 @@ get_heatmap_palette <- function(palette = NULL,
       maxc <- RColorBrewer::brewer.pal.info[nm, "maxcolors"]
       RColorBrewer::brewer.pal(min(n, maxc), nm)
     }, error = function(e) {
-      stop("Error al cargar paleta brewer '", nm, "': ", e$message)
+      stop("Error loading brewer palette '", nm, "': ", e$message)
     })
 
     if (reverse) colors <- rev(colors)
     return(colors)
   }
 
-  # Vector de colores directo
+  # Plain vector of colours
   if (is.character(palette) && length(palette) > 1) {
     if (reverse) palette <- rev(palette)
     return(palette)
   }
 
-  # Nombre de paleta simple (intentar RColorBrewer)
+  # Bare palette name (try RColorBrewer)
   if (is.character(palette) && length(palette) == 1) {
     if (requireNamespace("RColorBrewer", quietly = TRUE) &&
         palette %in% rownames(RColorBrewer::brewer.pal.info)) {
@@ -152,7 +152,7 @@ get_heatmap_palette <- function(palette = NULL,
     }
   }
 
-  # Por defecto
+  # Fallback default
   colors <- c("#2166AC", "#4393C3", "#92C5DE", "#D1E5F0", "#F7F7F7",
               "#FDDBC7", "#F4A582", "#D6604D", "#B2182B")
   if (reverse) colors <- rev(colors)
@@ -160,17 +160,17 @@ get_heatmap_palette <- function(palette = NULL,
 }
 
 
-#' Obtener paleta de colores para anotaciones categóricas
+#' Build the Colour Palette for Categorical Annotations
 #'
-#' @param levels Vector de niveles (categorías)
-#' @param palette Especificación de paleta (mismo formato que get_heatmap_palette)
+#' @param levels Vector of levels (categories)
+#' @param palette Palette specification (same format as get_heatmap_palette)
 #'
-#' @return Vector nombrado de colores
+#' @return Named vector of colours
 get_annotation_palette <- function(levels, palette = NULL) {
 
   n <- length(levels)
 
-  # Paleta por defecto
+  # Default palette
   default_palette <- c(
     "#457B9D", "#E63946", "#2A9D8F", "#E9C46A",
     "#9B5DE5", "#F4A261", "#264653", "#00BBF9",
@@ -182,16 +182,16 @@ get_annotation_palette <- function(levels, palette = NULL) {
     return(stats::setNames(pal, levels))
   }
 
-  # Paleta de paletteer
+  # paletteer palette
   if (is.character(palette) && length(palette) == 1 && grepl("::", palette)) {
     if (!requireNamespace("paletteer", quietly = TRUE)) {
-      stop("Para usar paletteer, instala con: install.packages('paletteer')")
+      stop("To use paletteer, install it with: install.packages('paletteer')")
     }
     colors <- tryCatch({
       raw_pal <- as.character(paletteer::paletteer_d(palette))
       vapply(raw_pal, .normalize_hex, character(1), USE.NAMES = FALSE)
     }, error = function(e) {
-      stop("Error al cargar paleta '", palette, "': ", e$message)
+      stop("Error loading palette '", palette, "': ", e$message)
     })
     if (length(colors) < n) {
       colors <- rep(colors, length.out = n)
@@ -199,17 +199,17 @@ get_annotation_palette <- function(levels, palette = NULL) {
     return(stats::setNames(colors[seq_len(n)], levels))
   }
 
-  # Paleta de RColorBrewer
+  # RColorBrewer palette
   if (is.character(palette) && length(palette) == 1 && startsWith(palette, "brewer:")) {
     if (!requireNamespace("RColorBrewer", quietly = TRUE)) {
-      stop("Para usar RColorBrewer, instala con: install.packages('RColorBrewer')")
+      stop("To use RColorBrewer, install it with: install.packages('RColorBrewer')")
     }
     nm <- sub("^brewer:", "", palette)
     colors <- tryCatch({
       maxc <- RColorBrewer::brewer.pal.info[nm, "maxcolors"]
       RColorBrewer::brewer.pal(max(3, min(n, maxc)), nm)
     }, error = function(e) {
-      stop("Error al cargar paleta brewer '", nm, "': ", e$message)
+      stop("Error loading brewer palette '", nm, "': ", e$message)
     })
     if (length(colors) < n) {
       colors <- rep(colors, length.out = n)
@@ -217,16 +217,16 @@ get_annotation_palette <- function(levels, palette = NULL) {
     return(stats::setNames(colors[seq_len(n)], levels))
   }
 
-  # Vector nombrado de colores
+  # Named vector of colours
   if (is.character(palette) && !is.null(names(palette))) {
     miss <- setdiff(levels, names(palette))
     if (length(miss) > 0) {
-      stop("Faltan colores para niveles: ", paste(miss, collapse = ", "))
+      stop("Missing colours for levels: ", paste(miss, collapse = ", "))
     }
     return(palette[levels])
   }
 
-  # Vector de colores sin nombres
+  # Unnamed vector of colours
   if (is.character(palette) && length(palette) >= 1) {
     if (length(palette) < n) {
       palette <- rep(palette, length.out = n)
@@ -234,7 +234,7 @@ get_annotation_palette <- function(levels, palette = NULL) {
     return(stats::setNames(palette[seq_len(n)], levels))
   }
 
-  # Por defecto
+  # Fallback default
   if (length(default_palette) < n) {
     default_palette <- rep(default_palette, length.out = n)
   }
@@ -243,28 +243,28 @@ get_annotation_palette <- function(levels, palette = NULL) {
 
 
 # -----------------------------------------------------------------------------
-# Función principal: Preparar datos para heatmap
+# Main function: prepare the data for the heatmap
 # -----------------------------------------------------------------------------
 
-#' Preparar datos en formato largo para tidyHeatmap
+#' Prepare Long-Format Data for tidyHeatmap
 #'
-#' @param data Data frame en formato largo con columnas:
-#'   - SampleID: Identificador de muestra
-#'   - FeatureID: Identificador de proteína/feature
-#'   - Intensity: Valor de intensidad (log2)
-#'   - Condition: Condición experimental
-#'   - Replicate: Número de réplica
-#'   - sig_any: Lógico indicando significancia (para mode="any")
-#'   - adjP_*: Columnas de p-valores ajustados (para mode="target")
-#' @param mode Modo de filtrado: "all", "any", o "target"
-#' @param alpha Umbral de significancia para modo "target" (default: 0.05)
-#' @param comparison Nombre de la comparación para modo "target" (ej: "B-A")
-#' @param feature_ids Vector de FeatureIDs específicos (si se proporciona, ignora mode/alpha)
-#' @param scale_data Tipo de escalado: "none", "row", "column" (default: "row")
-#' @param sample_order Orden de muestras: "clustering", "condition", o vector personalizado
-#' @param condition_order Orden de condiciones cuando sample_order = "condition"
+#' @param data Data frame in long format with columns:
+#'   - SampleID: sample identifier
+#'   - FeatureID: protein/feature identifier
+#'   - Intensity: intensity value (log2)
+#'   - Condition: experimental condition
+#'   - Replicate: replicate number
+#'   - sig_any: logical flagging significance (for mode="any")
+#'   - adjP_*: adjusted p-value columns (for mode="target")
+#' @param mode Filtering mode: "all", "any", or "target"
+#' @param alpha Significance threshold for mode "target" (default: 0.05)
+#' @param comparison Name of the comparison for mode "target" (e.g. "B-A")
+#' @param feature_ids Vector of specific FeatureIDs (when supplied, mode/alpha are ignored)
+#' @param scale_data Scaling type: "none", "row", "column" (default: "row")
+#' @param sample_order Sample order: "clustering", "condition", or a custom vector
+#' @param condition_order Condition order when sample_order = "condition"
 #'
-#' @return Data frame en formato largo listo para tidyHeatmap
+#' @return Data frame in long format, ready for tidyHeatmap
 prepare_heatmap_data <- function(data,
                                  mode = c("all", "any", "target"),
                                  alpha = 0.05,
@@ -281,22 +281,22 @@ prepare_heatmap_data <- function(data,
     sample_order <- match.arg(sample_order, c("clustering", "condition", "custom"))
   }
 
-  # Validar columnas requeridas
+  # Validate the required columns
   required_cols <- c("SampleID", "FeatureID", "Intensity", "Condition", "Replicate")
   missing_cols <- setdiff(required_cols, names(data))
   if (length(missing_cols) > 0) {
-    stop("Columnas requeridas faltantes: ", paste(missing_cols, collapse = ", "))
+    stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
   }
 
   data <- as.data.frame(data)
 
-  # Para mode = "target", filtrar muestras solo a las condiciones de la comparación
+  # For mode = "target", keep only the samples belonging to the compared conditions
   if (mode == "target" && !is.null(comparison)) {
-    # Extraer condiciones de la comparación (ej: "B-A" -> c("B", "A"))
+    # Extract the conditions from the comparison (e.g. "B-A" -> c("B", "A"))
     conds <- unique(trimws(strsplit(comparison, "[-|:]")[[1]]))
     if (length(conds) >= 2) {
       data <- data[data$Condition %in% conds, , drop = FALSE]
-      # Actualizar condition_order para solo incluir las condiciones relevantes
+      # Update condition_order so it only lists the relevant conditions
       if (!is.null(condition_order)) {
         condition_order <- condition_order[condition_order %in% conds]
       } else {
@@ -305,33 +305,33 @@ prepare_heatmap_data <- function(data,
     }
   }
 
-  # Obtener IDs de features según el modo o usar los proporcionados
+  # Get the feature IDs according to the mode, or use the ones supplied
   if (!is.null(feature_ids) && length(feature_ids) > 0) {
-    # Usar IDs proporcionados directamente
+    # Use the supplied IDs directly
     available_ids <- unique(data$FeatureID)
     ids <- feature_ids[feature_ids %in% available_ids]
     if (length(ids) < length(feature_ids)) {
       missing <- setdiff(feature_ids, available_ids)
-      warning("FeatureIDs no encontrados en datos (ignorados): ",
+      warning("FeatureIDs not found in the data (ignored): ",
               paste(head(missing, 5), collapse = ", "),
-              if (length(missing) > 5) paste0(" ... y ", length(missing) - 5, " más"))
+              if (length(missing) > 5) paste0(" ... and ", length(missing) - 5, " more"))
     }
   } else {
-    # Usar filtrado por mode
+    # Use the mode-based filtering
     ids <- .get_feature_ids(data, mode = mode, alpha = alpha, comparison = comparison)
   }
 
   if (length(ids) < 2) {
-    stop("Subset sin suficientes proteínas (mínimo 2). Encontradas: ", length(ids))
+    stop("Subset does not have enough proteins (minimum 2). Found: ", length(ids))
   }
 
-  # Filtrar datos
+  # Filter the data
   dt <- data[data$FeatureID %in% ids, , drop = FALSE]
   dt <- dt[is.finite(dt$Intensity) & !is.na(dt$Intensity), , drop = FALSE]
 
 
-  # Crear data frame largo para heatmap
-  # Incluir adjP si mode = "target" para anotación de filas
+  # Build the long-format data frame for the heatmap
+  # Include adjP when mode = "target", for the row annotation
   if (mode == "target" && !is.null(comparison)) {
     adjp_colname <- .adjp_col(comparison)
     if (adjp_colname %in% names(dt)) {
@@ -350,9 +350,9 @@ prepare_heatmap_data <- function(data,
       distinct()
   }
 
-  # Ordenar muestras según el criterio especificado
+  # Order the samples according to the requested criterion
   if (is.character(sample_order) && length(sample_order) == 1 && sample_order == "condition") {
-    # Ordenar por Condition y luego por Replicate
+    # Sort by Condition and then by Replicate
     if (!is.null(condition_order)) {
       hm_data <- hm_data %>%
         mutate(Condition = factor(Condition, levels = condition_order))
@@ -361,30 +361,30 @@ prepare_heatmap_data <- function(data,
       arrange(Condition, Replicate) %>%
       mutate(SampleID = factor(SampleID, levels = unique(SampleID)))
   } else if (is.character(sample_order) && length(sample_order) > 1) {
-    # Orden personalizado (vector de SampleIDs)
-    # Filtrar para incluir solo las muestras especificadas
+    # Custom order (vector of SampleIDs)
+    # Keep only the specified samples
     samples_in_data <- unique(hm_data$SampleID)
     valid_samples <- sample_order[sample_order %in% samples_in_data]
 
     if (length(valid_samples) == 0) {
-      stop("Ninguna de las muestras especificadas en sample_order está en los datos")
+      stop("None of the samples given in sample_order is present in the data")
     }
 
     if (!all(sample_order %in% samples_in_data)) {
       missing <- setdiff(sample_order, samples_in_data)
-      warning("Muestras no encontradas en datos (ignoradas): ", paste(missing, collapse = ", "))
+      warning("Samples not found in the data (ignored): ", paste(missing, collapse = ", "))
     }
 
-    # Filtrar datos para incluir solo las muestras especificadas
+    # Subset the data down to the specified samples
     hm_data <- hm_data %>%
       filter(SampleID %in% valid_samples) %>%
       mutate(SampleID = factor(SampleID, levels = valid_samples))
   }
-  # Si sample_order == "clustering", dejamos que tidyHeatmap haga el clustering
+  # When sample_order == "clustering" we let tidyHeatmap do the clustering
 
-  # Aplicar escalado si se solicita
+  # Apply the scaling if requested
   if (scale_data != "none") {
-    # Pivotar a matriz para escalar (usar mean para posibles duplicados)
+    # Pivot to a matrix in order to scale (use mean to collapse possible duplicates)
     mat_wide <- hm_data %>%
       select(SampleID, FeatureID, Intensity) %>%
       pivot_wider(names_from = SampleID, values_from = Intensity, values_fn = mean) %>%
@@ -394,17 +394,17 @@ prepare_heatmap_data <- function(data,
     mat <- as.matrix(mat_wide[, -1])
     rownames(mat) <- rownames_feat
 
-    # Escalado ignorando NA: scale() base NO admite na.rm, por lo que una sola
-    # celda NA convertiria toda la fila/columna en NA. Se centra/escala a mano.
+    # NA-aware scaling: base scale() does NOT accept na.rm, so a single NA cell
+    # would turn the whole row/column into NA. Centre/scale by hand instead.
     if (scale_data == "row") {
       ctr <- rowMeans(mat, na.rm = TRUE)
       sdv <- apply(mat, 1, sd, na.rm = TRUE)
-      # Features constantes (sd 0/NA) -> z-score indefinido y romperian el
-      # clustering de filas (fila all-NA). Se eliminan antes de escalar.
+      # Constant features (sd 0/NA) -> undefined z-score, and they would break
+      # the row clustering (all-NA row). Drop them before scaling.
       keep <- is.finite(sdv) & sdv > 0
       if (any(!keep)) {
         message(sprintf(
-          "Heatmap: %d features de varianza 0/NA eliminadas antes del z-score.",
+          "Heatmap: %d features with 0/NA variance dropped before the z-score.",
           sum(!keep)))
         mat <- mat[keep, , drop = FALSE]; ctr <- ctr[keep]; sdv <- sdv[keep]
       }
@@ -418,17 +418,17 @@ prepare_heatmap_data <- function(data,
       mat <- sweep(mat, 2, sdv, "/")
     }
 
-    # Reemplazar NaN por NA
+    # Replace NaN with NA
     mat[is.nan(mat)] <- NA
 
-    # Volver a formato largo
+    # Back to long format
     mat_df <- as.data.frame(mat)
     mat_df$FeatureID <- rownames(mat)
 
     scaled_long <- mat_df %>%
       pivot_longer(cols = -FeatureID, names_to = "SampleID", values_to = "Intensity")
 
-    # Reintegrar metadata (incluyendo adjP si existe)
+    # Merge the metadata back in (including adjP when present)
     if ("adjP" %in% names(hm_data)) {
       metadata <- hm_data %>%
         select(SampleID, FeatureID, Condition, Replicate, adjP) %>%
@@ -445,7 +445,7 @@ prepare_heatmap_data <- function(data,
         left_join(metadata, by = "SampleID")
     }
 
-    # Restaurar orden de factores si aplica
+    # Restore the factor ordering where applicable
     if (is.character(sample_order) && length(sample_order) == 1 && sample_order == "condition") {
       if (!is.null(condition_order)) {
         hm_data <- hm_data %>%
@@ -455,7 +455,7 @@ prepare_heatmap_data <- function(data,
         arrange(Condition, as.numeric(Replicate)) %>%
         mutate(SampleID = factor(SampleID, levels = unique(SampleID)))
     } else if (is.character(sample_order) && length(sample_order) > 1) {
-      # Restaurar orden personalizado
+      # Restore the custom order
       hm_data <- hm_data %>%
         mutate(SampleID = factor(SampleID, levels = sample_order))
     }
@@ -466,99 +466,99 @@ prepare_heatmap_data <- function(data,
 
 
 # -----------------------------------------------------------------------------
-# Función principal: Heatmap con tidyHeatmap
+# Main function: heatmap built with tidyHeatmap
 # -----------------------------------------------------------------------------
 
-#' Crear Heatmap con tidyHeatmap para Proteómica
+#' Create a tidyHeatmap Heatmap for Proteomics
 #'
-#' @param data Data frame en formato largo (ver prepare_heatmap_data para estructura)
-#' @param mode Modo de filtrado de proteínas: "all", "any", o "target"
-#' @param alpha Umbral de significancia para proteínas DEPs (default: 0.05)
-#' @param comparison Nombre de la comparación para modo "target" (ej: "B-A")
-#' @param feature_ids Vector de FeatureIDs específicos a mostrar (default: NULL, usa filtrado por mode).
-#'   Si se proporciona, solo se muestran estas proteínas, ignorando el filtrado por mode/alpha.
-#' @param row_annotation Anotaciones para filas (FeatureIDs). Puede ser:
-#'   - Ruta a archivo TSV con columna "FeatureID" y columnas categóricas adicionales
-#'   - Data frame con la misma estructura
-#'   - NULL: sin anotaciones de fila (default)
-#' @param row_annotation_cols Vector de nombres de columnas a mostrar como anotaciones.
-#'   Default: NULL (usa todas las columnas excepto FeatureID)
-#' @param row_annotation_palette Lista nombrada de paletas para cada anotación.
-#'   Ejemplo: list(Pathway = "brewer:Set1", Function = c("red", "blue", "green"))
-#' @param row_annotation_size Ancho de las barras de anotación de filas. Puede ser:
-#'   - Número: interpretado como centímetros (ej: 0.3 = 0.3cm)
-#'   - Objeto unit: grid::unit(0.3, "cm")
-#'   - NULL: usa el valor por defecto de tidyHeatmap
-#' @param row_annotation_name_size Tamaño de fuente del nombre de las anotaciones de fila (default: 8)
-#' @param row_order_by Orden de filas. Puede ser:
-#'   - NULL: sin ordenamiento específico (default)
-#'   - "clustering": ordenar por clustering jerárquico
-#'   - Nombre de columna: ordenar por esa anotación (ej: "Specie")
-#'   - Vector de columnas: ordenar secuencialmente (ej: c("Specie", "Process", "Function"))
-#'   - Incluir "adjP" cuando mode = "target" para ordenar por p-valor ajustado
-#' @param split_rows_by Nombre de columna de anotación para separar filas en grupos (default: NULL)
-#' @param scale_data Tipo de escalado: "none", "row", "column" (default: "row")
-#' @param sample_order Orden de muestras: "clustering", "condition", o vector personalizado
-#' @param condition_order Orden de condiciones cuando sample_order = "condition"
-#' @param cluster_rows Aplicar clustering a filas (default: FALSE)
-#' @param cluster_columns Aplicar clustering a columnas (default: TRUE)
-#' @param show_row_names Mostrar nombres de filas (default: TRUE si <= 50 proteínas)
-#' @param show_column_names Mostrar nombres de columnas (default: TRUE)
-#' @param palette_value Paleta para valores del heatmap (ver get_heatmap_palette)
-#' @param palette_annotation Paleta para anotación de Condition
-#' @param reverse_palette Invertir paleta de valores (default: FALSE)
-#' @param row_title Título para las filas
-#' @param column_title Título para las columnas
-#' @param row_title_size Tamaño de fuente del título de filas (default: 10)
-#' @param column_title_size Tamaño de fuente del título de columnas (default: 10)
-#' @param show_row_title Mostrar título de filas (default: TRUE)
-#' @param show_column_title Mostrar título de columnas (default: TRUE)
-#' @param show_annotation Mostrar anotación de Condition (default: TRUE)
-#' @param split_by_condition Dividir el heatmap por condición (default: FALSE)
-#' @param show_adjp_annotation Mostrar anotación de adjP en filas para mode="target" (default: TRUE)
-#' @param palette_adjp Paleta para anotación de adjP. Puede ser:
-#'   - NULL: usa paleta por defecto (rojo-naranja-blanco)
-#'   - Vector de 3 colores: c(color_0, color_medio, color_0.05)
-#'   - String "brewer:nombre": usa paleta de RColorBrewer
-#'   - String "paquete::paleta": usa paleta de paletteer
-#' @param row_names_size Tamaño de fuente de nombres de fila (default: 7)
-#' @param column_names_size Tamaño de fuente de nombres de columna (default: 9)
-#' @param column_names_rotation Rotación de nombres de columna en grados (default: 45)
-#' @param column_dend_height Altura del dendrograma de columnas. Puede ser:
-#'   - Número: interpretado como milímetros (ej: 30 = 30mm)
-#'   - Objeto unit: grid::unit(2, "cm")
-#'   - NULL: usa el valor por defecto de ComplexHeatmap
-#' @param row_dend_width Ancho del dendrograma de filas. Mismo formato que column_dend_height
-#' @param show_heatmap_legend Mostrar leyenda del heatmap (default: TRUE)
-#' @param show_annotation_legend Mostrar leyenda de las anotaciones (default: TRUE)
-#' @param border_color Color del borde de las celdas del heatmap. Puede ser:
-#'   - NULL o FALSE: sin borde (default)
-#'   - TRUE: borde negro
-#'   - String de color: color específico (ej: "black", "grey", "#CCCCCC")
-#' @param heatmap_title Título principal del heatmap (default: NULL, sin título)
-#' @param heatmap_title_size Tamaño de fuente del título principal (default: 14)
-#' @param heatmap_title_face Estilo de fuente del título: "plain", "bold", "italic", "bold.italic" (default: "bold")
-#' @param export_path Ruta para exportar los datos del heatmap a TSV (default: NULL, no exporta).
-#'   El archivo incluirá FeatureID, valores de intensidad por muestra, y metadatos (adjP si aplica).
-#' @param export_file Ruta para exportar el gráfico. El formato se detecta por la extensión:
-#'   - .png: Imagen PNG (raster)
-#'   - .svg: Imagen SVG (vectorial)
-#'   - .pdf: Documento PDF (vectorial)
-#' @param plot_width Ancho del gráfico en pulgadas (default: 10).
-#'   Para calcular píxeles: píxeles = pulgadas × dpi (ej: 10" × 300dpi = 3000px)
-#' @param plot_height Alto del gráfico en pulgadas (default: 8).
-#'   Para calcular píxeles: píxeles = pulgadas × dpi (ej: 8" × 300dpi = 2400px)
-#' @param export_dpi Resolución para PNG en puntos por pulgada (default: 300).
-#'   Mayor dpi = más detalle. Valores comunes: 72 (web), 150 (draft), 300 (publicación)
+#' @param data Data frame in long format (see prepare_heatmap_data for the structure)
+#' @param mode Protein filtering mode: "all", "any", or "target"
+#' @param alpha Significance threshold for DEP proteins (default: 0.05)
+#' @param comparison Name of the comparison for mode "target" (e.g. "B-A")
+#' @param feature_ids Vector of specific FeatureIDs to show (default: NULL, uses the mode-based filtering).
+#'   When supplied, only these proteins are shown and the mode/alpha filtering is ignored.
+#' @param row_annotation Row annotations (FeatureIDs). It can be:
+#'   - Path to a TSV file with a "FeatureID" column plus additional categorical columns
+#'   - Data frame with the same structure
+#'   - NULL: no row annotations (default)
+#' @param row_annotation_cols Vector of column names to display as annotations.
+#'   Default: NULL (uses every column except FeatureID)
+#' @param row_annotation_palette Named list of palettes, one per annotation.
+#'   Example: list(Pathway = "brewer:Set1", Function = c("red", "blue", "green"))
+#' @param row_annotation_size Width of the row annotation bars. It can be:
+#'   - Number: interpreted as centimetres (e.g. 0.3 = 0.3cm)
+#'   - A unit object: grid::unit(0.3, "cm")
+#'   - NULL: use tidyHeatmap's default value
+#' @param row_annotation_name_size Font size of the row annotation names (default: 8)
+#' @param row_order_by Row order. It can be:
+#'   - NULL: no particular ordering (default)
+#'   - "clustering": order by hierarchical clustering
+#'   - A column name: order by that annotation (e.g. "Specie")
+#'   - A vector of columns: order sequentially (e.g. c("Specie", "Process", "Function"))
+#'   - Include "adjP" when mode = "target" to order by adjusted p-value
+#' @param split_rows_by Name of the annotation column used to split the rows into groups (default: NULL)
+#' @param scale_data Scaling type: "none", "row", "column" (default: "row")
+#' @param sample_order Sample order: "clustering", "condition", or a custom vector
+#' @param condition_order Condition order when sample_order = "condition"
+#' @param cluster_rows Cluster the rows (default: FALSE)
+#' @param cluster_columns Cluster the columns (default: TRUE)
+#' @param show_row_names Show the row names (default: TRUE when <= 50 proteins)
+#' @param show_column_names Show the column names (default: TRUE)
+#' @param palette_value Palette for the heatmap values (see get_heatmap_palette)
+#' @param palette_annotation Palette for the Condition annotation
+#' @param reverse_palette Reverse the value palette (default: FALSE)
+#' @param row_title Title for the rows
+#' @param column_title Title for the columns
+#' @param row_title_size Font size of the row title (default: 10)
+#' @param column_title_size Font size of the column title (default: 10)
+#' @param show_row_title Show the row title (default: TRUE)
+#' @param show_column_title Show the column title (default: TRUE)
+#' @param show_annotation Show the Condition annotation (default: TRUE)
+#' @param split_by_condition Split the heatmap by condition (default: FALSE)
+#' @param show_adjp_annotation Show the adjP row annotation when mode="target" (default: TRUE)
+#' @param palette_adjp Palette for the adjP annotation. It can be:
+#'   - NULL: use the default palette (red-orange-white)
+#'   - A vector of 3 colours: c(color_0, color_middle, color_0.05)
+#'   - String "brewer:name": use an RColorBrewer palette
+#'   - String "package::palette": use a paletteer palette
+#' @param row_names_size Font size of the row names (default: 7)
+#' @param column_names_size Font size of the column names (default: 9)
+#' @param column_names_rotation Rotation of the column names in degrees (default: 45)
+#' @param column_dend_height Height of the column dendrogram. It can be:
+#'   - Number: interpreted as millimetres (e.g. 30 = 30mm)
+#'   - A unit object: grid::unit(2, "cm")
+#'   - NULL: use ComplexHeatmap's default value
+#' @param row_dend_width Width of the row dendrogram. Same format as column_dend_height
+#' @param show_heatmap_legend Show the heatmap legend (default: TRUE)
+#' @param show_annotation_legend Show the annotation legends (default: TRUE)
+#' @param border_color Border colour of the heatmap cells. It can be:
+#'   - NULL or FALSE: no border (default)
+#'   - TRUE: black border
+#'   - A colour string: that specific colour (e.g. "black", "grey", "#CCCCCC")
+#' @param heatmap_title Main heatmap title (default: NULL, no title)
+#' @param heatmap_title_size Font size of the main title (default: 14)
+#' @param heatmap_title_face Font face of the title: "plain", "bold", "italic", "bold.italic" (default: "bold")
+#' @param export_path Path used to export the heatmap data to TSV (default: NULL, nothing is exported).
+#'   The file contains FeatureID, the per-sample intensity values, and the metadata (adjP where applicable).
+#' @param export_file Path used to export the plot. The format is taken from the extension:
+#'   - .png: PNG image (raster)
+#'   - .svg: SVG image (vector)
+#'   - .pdf: PDF document (vector)
+#' @param plot_width Plot width in inches (default: 10).
+#'   To get pixels: pixels = inches x dpi (e.g. 10" x 300dpi = 3000px)
+#' @param plot_height Plot height in inches (default: 8).
+#'   To get pixels: pixels = inches x dpi (e.g. 8" x 300dpi = 2400px)
+#' @param export_dpi Resolution for PNG output in dots per inch (default: 300).
+#'   Higher dpi = more detail. Common values: 72 (web), 150 (draft), 300 (publication)
 #'
-#' @return Objeto tidyHeatmap/ComplexHeatmap
+#' @return tidyHeatmap/ComplexHeatmap object
 #'
 #' @examples
 #' \dontrun{
-#' # Cargar datos
+#' # Load the data
 #' hm_input <- arrow::read_parquet("PCA_Input.parquet")
 #'
-#' # Heatmap de todas las proteínas
+#' # Heatmap of every protein
 #' hm_all <- proteomics_heatmap(
 #'   data = hm_input,
 #'   mode = "all",
@@ -567,7 +567,7 @@ prepare_heatmap_data <- function(data,
 #'   condition_order = c("A", "B", "C", "D")
 #' )
 #'
-#' # Heatmap con separación por condición
+#' # Heatmap split by condition
 #' hm_split <- proteomics_heatmap(
 #'   data = hm_input,
 #'   mode = "any",
@@ -576,14 +576,14 @@ prepare_heatmap_data <- function(data,
 #'   condition_order = c("A", "B", "C", "D")
 #' )
 #'
-#' # Heatmap de proteínas significativas (any)
+#' # Heatmap of the significant proteins (any)
 #' hm_any <- proteomics_heatmap(
 #'   data = hm_input,
 #'   mode = "any",
 #'   scale_data = "row"
 #' )
 #'
-#' # Heatmap de proteínas significativas en comparación específica
+#' # Heatmap of the proteins significant in a specific comparison
 #' hm_target <- proteomics_heatmap(
 #'   data = hm_input,
 #'   mode = "target",
@@ -645,11 +645,11 @@ proteomics_heatmap <- function(data,
   scale_data <- match.arg(scale_data)
   heatmap_title_face <- match.arg(heatmap_title_face)
 
-  # Suprimir mensajes de ComplexHeatmap (use_raster, magick)
-  # Se establece para toda la sesión ya que los mensajes aparecen al dibujar, no al crear
+  # Silence ComplexHeatmap's messages (use_raster, magick)
+  # Set for the whole session, since the messages appear when drawing, not when creating
   ComplexHeatmap::ht_opt(message = FALSE)
 
-  # Procesar border_color
+  # Resolve border_color
   rect_gp <- NULL
   if (!is.null(border_color) && !isFALSE(border_color)) {
     if (isTRUE(border_color)) {
@@ -659,7 +659,7 @@ proteomics_heatmap <- function(data,
     }
   }
 
-  # Procesar títulos (ocultar si show_*_title es FALSE)
+  # Resolve the titles (hide them when show_*_title is FALSE)
   if (!show_row_title) {
     row_title <- NULL
   }
@@ -667,7 +667,7 @@ proteomics_heatmap <- function(data,
     column_title <- NULL
   }
 
-  # Convertir tamaños de dendrogramas a unidades grid si son numéricos
+  # Convert the dendrogram sizes to grid units when they are given as numbers
   if (!is.null(column_dend_height) && is.numeric(column_dend_height)) {
     column_dend_height <- grid::unit(column_dend_height, "mm")
   }
@@ -676,7 +676,7 @@ proteomics_heatmap <- function(data,
   }
 
   # ---------------------------------------------------------------------------
-  # 1) Preparar datos
+  # 1) Prepare the data
   # ---------------------------------------------------------------------------
 
   hm_data <- prepare_heatmap_data(
@@ -691,11 +691,11 @@ proteomics_heatmap <- function(data,
   )
 
   # ---------------------------------------------------------------------------
-  # 1b) Exportar datos a TSV si se solicita
+  # 1b) Export the data to TSV if requested
   # ---------------------------------------------------------------------------
 
   if (!is.null(export_path) && nzchar(export_path)) {
-    # Crear matriz wide con FeatureID como filas y SampleID como columnas
+    # Build a wide matrix with FeatureID as rows and SampleID as columns
     export_wide <- hm_data %>%
       select(FeatureID, SampleID, Intensity) %>%
       tidyr::pivot_wider(
@@ -704,7 +704,7 @@ proteomics_heatmap <- function(data,
         values_fn = mean
       )
 
-    # Añadir adjP si existe
+    # Add adjP when present
     if ("adjP" %in% names(hm_data)) {
       adjp_data <- hm_data %>%
         select(FeatureID, adjP) %>%
@@ -713,13 +713,13 @@ proteomics_heatmap <- function(data,
         left_join(adjp_data, by = "FeatureID")
     }
 
-    # Exportar a TSV
+    # Write the TSV
     readr::write_tsv(export_wide, export_path)
-    message("Datos exportados a: ", export_path)
+    message("Data exported to: ", export_path)
   }
 
   # ---------------------------------------------------------------------------
-  # 1c) Procesar anotaciones de fila
+  # 1c) Process the row annotations
   # ---------------------------------------------------------------------------
 
   row_annot_data <- NULL
@@ -727,38 +727,38 @@ proteomics_heatmap <- function(data,
   row_split_vector <- NULL
 
   if (!is.null(row_annotation)) {
-    # Cargar anotaciones si es ruta a archivo
+    # Load the annotations when a file path is given
     if (is.character(row_annotation) && length(row_annotation) == 1 && file.exists(row_annotation)) {
       row_annot_data <- readr::read_tsv(row_annotation, show_col_types = FALSE)
     } else if (is.data.frame(row_annotation)) {
       row_annot_data <- as.data.frame(row_annotation)
     } else {
-      warning("row_annotation debe ser ruta a archivo TSV o data.frame")
+      warning("row_annotation must be a path to a TSV file or a data.frame")
     }
 
     if (!is.null(row_annot_data)) {
-      # Validar columna FeatureID
+      # Validate the FeatureID column
       if (!("FeatureID" %in% names(row_annot_data))) {
-        stop("El archivo de anotaciones debe tener una columna 'FeatureID'")
+        stop("The annotation file must have a 'FeatureID' column")
       }
 
-      # Determinar columnas a usar
+      # Work out which columns to use
       all_annot_cols <- setdiff(names(row_annot_data), "FeatureID")
       if (is.null(row_annotation_cols)) {
         row_annotation_cols <- all_annot_cols
       } else {
         missing_cols <- setdiff(row_annotation_cols, all_annot_cols)
         if (length(missing_cols) > 0) {
-          warning("Columnas de anotación no encontradas: ", paste(missing_cols, collapse = ", "))
+          warning("Annotation columns not found: ", paste(missing_cols, collapse = ", "))
           row_annotation_cols <- intersect(row_annotation_cols, all_annot_cols)
         }
       }
 
-      # Convertir valores vacíos al string "NA" (no NA_character_) para asignar color blanco
+      # Turn empty values into the "NA" string (not NA_character_) so they can be coloured white
       for (col in row_annotation_cols) {
         values <- row_annot_data[[col]]
         if (is.character(values)) {
-          # Convertir strings vacíos, espacios en blanco, y NA reales a string "NA"
+          # Convert empty strings, whitespace and real NAs into the "NA" string
           row_annot_data[[col]] <- ifelse(
             is.na(values) | trimws(values) == "",
             "NA",
@@ -767,17 +767,17 @@ proteomics_heatmap <- function(data,
         }
       }
 
-      # Filtrar solo FeatureIDs presentes en los datos
+      # Keep only the FeatureIDs present in the data
       feature_ids_in_data <- unique(hm_data$FeatureID)
       row_annot_data <- row_annot_data[row_annot_data$FeatureID %in% feature_ids_in_data, , drop = FALSE]
 
-      # Preparar paletas de colores para cada anotación (incluyendo "NA" con blanco)
+      # Build a colour palette for each annotation (mapping "NA" to white)
       for (col in row_annotation_cols) {
-        # Obtener niveles únicos
+        # Get the unique levels
         all_levels <- unique(row_annot_data[[col]])
         has_na <- "NA" %in% all_levels
 
-        # Separar niveles reales de "NA" y ordenar: primero reales, luego "NA"
+        # Separate the real levels from "NA" and order them: real ones first, "NA" last
         real_levels <- sort(all_levels[all_levels != "NA"])
         if (has_na) {
           ordered_levels <- c(real_levels, "NA")
@@ -785,18 +785,18 @@ proteomics_heatmap <- function(data,
           ordered_levels <- real_levels
         }
 
-        # Convertir la columna a factor con niveles ordenados
+        # Turn the column into a factor with the ordered levels
         row_annot_data[[col]] <- factor(row_annot_data[[col]], levels = ordered_levels)
 
-        # Obtener colores para niveles reales
+        # Get the colours for the real levels
         if (!is.null(row_annotation_palette) && col %in% names(row_annotation_palette)) {
           real_colors <- get_annotation_palette(real_levels, row_annotation_palette[[col]])
         } else {
           real_colors <- get_annotation_palette(real_levels, NULL)
         }
 
-        # Construir paleta final en el EXACTO orden de los niveles del factor
-        # Esto asegura que tidyHeatmap asigne los colores correctamente
+        # Build the final palette in the EXACT order of the factor levels;
+        # this is what makes tidyHeatmap assign the colours correctly
         final_palette <- character(length(ordered_levels))
         names(final_palette) <- ordered_levels
         for (lvl in ordered_levels) {
@@ -809,35 +809,35 @@ proteomics_heatmap <- function(data,
         row_annot_colors[[col]] <- final_palette
       }
 
-      # Unir anotaciones con hm_data
+      # Join the annotations onto hm_data
       cols_to_join <- c("FeatureID", row_annotation_cols)
       hm_data <- hm_data %>%
         left_join(row_annot_data[, cols_to_join, drop = FALSE], by = "FeatureID")
 
-      # Asegurar que los factores se mantienen después del join
+      # Make sure the factors survive the join
       for (col in row_annotation_cols) {
         if (col %in% names(hm_data) && col %in% names(row_annot_data)) {
           hm_data[[col]] <- factor(hm_data[[col]], levels = levels(row_annot_data[[col]]))
         }
       }
 
-      # Ordenar filas por anotación(es) si se especifica (excepto "clustering")
+      # Order the rows by annotation(s) when requested (except "clustering")
       if (!is.null(row_order_by) && !identical(row_order_by, "clustering")) {
-        # Determinar columnas válidas para ordenar
-        # Incluir columnas de anotación y adjP (si existe en hm_data)
+        # Work out which columns are valid to order by:
+        # the annotation columns plus adjP (when present in hm_data)
         valid_order_cols <- row_annotation_cols
         if ("adjP" %in% names(hm_data)) {
           valid_order_cols <- c(valid_order_cols, "adjP")
         }
 
-        # Filtrar solo columnas válidas del vector row_order_by
+        # Keep only the valid columns from the row_order_by vector
         order_cols <- row_order_by[row_order_by %in% valid_order_cols]
 
         if (length(order_cols) > 0) {
-          # Preparar datos para ordenar (combinar anotaciones con adjP si es necesario)
+          # Assemble the data to sort on (annotations plus adjP where needed)
           order_data <- row_annot_data
 
-          # Añadir adjP a order_data si se necesita para ordenar
+          # Add adjP to order_data when it is needed for the ordering
           if ("adjP" %in% order_cols && "adjP" %in% names(hm_data)) {
             adjp_data <- hm_data %>%
               select(FeatureID, adjP) %>%
@@ -846,32 +846,32 @@ proteomics_heatmap <- function(data,
               left_join(adjp_data, by = "FeatureID")
           }
 
-          # Ordenar por múltiples columnas secuencialmente
+          # Sort by several columns sequentially
           order_syms <- rlang::syms(order_cols)
           order_data_sorted <- order_data %>%
             arrange(!!!order_syms)
 
-          # Obtener el orden de FeatureIDs
+          # Get the FeatureID order
           feature_order <- unique(order_data_sorted$FeatureID)
 
-          # Convertir FeatureID a factor con el orden correcto
+          # Turn FeatureID into a factor carrying the right order
           hm_data <- hm_data %>%
             mutate(FeatureID = factor(FeatureID, levels = feature_order)) %>%
-            arrange(FeatureID)  # Ordenar explícitamente los datos
+            arrange(FeatureID)  # Sort the data explicitly
         }
       }
 
-      # Preparar row_split si se especifica (DESPUÉS de ordenar)
+      # Build row_split when requested (AFTER the ordering)
       if (!is.null(split_rows_by) && split_rows_by %in% row_annotation_cols) {
-        # Obtener FeatureIDs únicos en el orden actual de hm_data
+        # Get the unique FeatureIDs in the current order of hm_data
         if (!is.null(row_order_by)) {
-          # Si hay orden, usar los niveles del factor
+          # When an order was applied, use the factor levels
           ordered_features <- levels(hm_data$FeatureID)
         } else {
           ordered_features <- unique(as.character(hm_data$FeatureID))
         }
 
-        # Crear mapping de FeatureID a valor de split
+        # Build the FeatureID -> split value mapping
         feature_to_split <- row_annot_data %>%
           select(FeatureID, all_of(split_rows_by)) %>%
           distinct()
@@ -880,10 +880,10 @@ proteomics_heatmap <- function(data,
           feature_to_split$FeatureID
         )
 
-        # Crear vector de split en el orden correcto
+        # Build the split vector in the right order
         split_values <- feature_to_split[ordered_features]
 
-        # Determinar orden de niveles del split (según aparición en datos ordenados)
+        # Determine the order of the split levels (as they appear in the sorted data)
         split_levels <- unique(split_values)
         split_levels <- split_levels[!is.na(split_levels)]
 
@@ -892,53 +892,53 @@ proteomics_heatmap <- function(data,
     }
   }
 
-  # Ordenar por adjP si se especifica y no hay anotaciones de fila
-  # (cuando hay anotaciones, el ordenamiento ya se maneja arriba)
+  # Order by adjP when requested and there are no row annotations
+  # (when there are annotations, the ordering is already handled above)
   if (!is.null(row_order_by) && !identical(row_order_by, "clustering") &&
       (is.null(row_annot_data) || length(row_annotation_cols) == 0)) {
-    # Verificar si se solicita ordenar por adjP
+    # Check whether ordering by adjP was requested
     if ("adjP" %in% row_order_by && "adjP" %in% names(hm_data)) {
-      # Obtener orden de FeatureIDs por adjP
+      # Get the FeatureID order by adjP
       adjp_order <- hm_data %>%
         select(FeatureID, adjP) %>%
         distinct() %>%
         arrange(adjP)
       feature_order <- adjp_order$FeatureID
 
-      # Convertir FeatureID a factor con el orden correcto
+      # Turn FeatureID into a factor carrying the right order
       hm_data <- hm_data %>%
         mutate(FeatureID = factor(FeatureID, levels = feature_order)) %>%
         arrange(FeatureID)
     }
   }
 
-  # Determinar número de proteínas para auto-configuración
+  # Count the proteins, used for the auto-configuration below
   n_proteins <- length(unique(hm_data$FeatureID))
   n_samples <- length(unique(hm_data$SampleID))
 
-  # Auto-decidir si mostrar nombres de filas
+  # Decide automatically whether to show the row names
   if (is.null(show_row_names)) {
     show_row_names <- n_proteins <= 50
   }
 
   # ---------------------------------------------------------------------------
-  # 2) Obtener paletas de colores
+  # 2) Build the colour palettes
   # ---------------------------------------------------------------------------
 
-  # Paleta para valores
+  # Palette for the values
   value_colors <- get_heatmap_palette(
     palette = palette_value,
     n = 11,
     reverse = reverse_palette
   )
 
-  # Crear función colorRamp2 para valores
+  # Build a colorRamp2 function for the values
   if (requireNamespace("circlize", quietly = TRUE)) {
-    # Determinar rango de valores
+    # Determine the value range
     val_range <- range(hm_data$Intensity, na.rm = TRUE)
 
     if (scale_data != "none") {
-      # Para datos escalados, usar rango simétrico
+      # For scaled data, use a symmetric range
       abs_max <- max(abs(val_range), na.rm = TRUE)
       val_breaks <- seq(-abs_max, abs_max, length.out = length(value_colors))
     } else {
@@ -950,7 +950,7 @@ proteomics_heatmap <- function(data,
     palette_func <- value_colors
   }
 
-  # Paleta para anotación de Condition
+  # Palette for the Condition annotation
   condition_levels <- unique(hm_data$Condition)
   if (!is.null(condition_order)) {
     condition_levels <- condition_order[condition_order %in% condition_levels]
@@ -958,34 +958,34 @@ proteomics_heatmap <- function(data,
   annotation_colors <- get_annotation_palette(condition_levels, palette_annotation)
 
   # ---------------------------------------------------------------------------
-  # 3) Configurar clustering
+  # 3) Configure the clustering
   # ---------------------------------------------------------------------------
 
-  # Determinar si aplicar clustering a columnas
+  # Decide whether to cluster the columns
   cluster_cols_final <- cluster_columns
   if (is.character(sample_order) && (length(sample_order) > 1 || sample_order != "clustering")) {
     cluster_cols_final <- FALSE
   }
 
-  # Determinar si aplicar clustering a filas
+  # Decide whether to cluster the rows
   cluster_rows_final <- cluster_rows
   if (!is.null(row_order_by)) {
     if (identical(row_order_by, "clustering")) {
-      # row_order_by = "clustering" activa el clustering de filas
+      # row_order_by = "clustering" turns on row clustering
       cluster_rows_final <- TRUE
     } else {
-      # Ordenar por columnas específicas desactiva clustering
+      # Ordering by specific columns turns clustering off
       cluster_rows_final <- FALSE
     }
   }
-  # split_rows_by es compatible con clustering (agrupa dentro de cada split)
+  # split_rows_by is compatible with clustering (it clusters within each split)
 
   # ---------------------------------------------------------------------------
-  # 4) Crear heatmap con tidyHeatmap
+  # 4) Build the heatmap with tidyHeatmap
   # ---------------------------------------------------------------------------
 
-  # Convertir a tibble con tipos base de R (evita problemas con clases de arrow/parquet)
-  # tidyHeatmap usa `class(x) %in% ...` que falla si class() devuelve múltiples valores
+  # Convert to a tibble holding base R types (avoids trouble with arrow/parquet classes):
+  # tidyHeatmap uses `class(x) %in% ...`, which fails when class() returns several values
   hm_data <- as.data.frame(lapply(hm_data, function(col) {
     if (is.factor(col)) return(factor(as.character(col), levels = levels(col)))
     if (is.logical(col)) return(as.logical(col))
@@ -995,21 +995,21 @@ proteomics_heatmap <- function(data,
   }), stringsAsFactors = FALSE)
   hm_data <- tibble::as_tibble(hm_data)
 
-  # Preparar column_split si se solicita (para separación visual entre condiciones)
+  # Build column_split when requested (to visually separate the conditions)
   col_split_vector <- NULL
   if (split_by_condition) {
-    # Obtener el orden de muestras únicas tal como aparecen en los datos
+    # Get the unique samples in the order in which they appear in the data
     sample_info <- hm_data %>%
       select(SampleID, Condition) %>%
       distinct()
 
-    # Mantener el orden original de SampleID en los datos
+    # Preserve the original SampleID order of the data
     sample_order_vec <- unique(as.character(hm_data$SampleID))
     sample_info <- sample_info[match(sample_order_vec, as.character(sample_info$SampleID)), ]
     col_split_vector <- factor(sample_info$Condition, levels = unique(sample_info$Condition))
   }
 
-  # Preparar argumentos opcionales
+  # Assemble the optional arguments
   extra_args <- list()
   if (!is.null(column_dend_height)) {
     extra_args$column_dend_height <- column_dend_height
@@ -1024,7 +1024,7 @@ proteomics_heatmap <- function(data,
     extra_args$row_split <- row_split_vector
   }
 
-  # Crear heatmap base
+  # Build the base heatmap
   hm_args <- c(
     list(
       .data = hm_data,
@@ -1052,7 +1052,7 @@ proteomics_heatmap <- function(data,
 
   hm <- do.call(tidyHeatmap::heatmap, hm_args)
 
-  # Añadir anotación de Condition como barra de color si se solicita
+  # Add the Condition annotation as a colour bar when requested
   if (show_annotation) {
     hm <- hm %>%
       tidyHeatmap::annotation_tile(
@@ -1062,9 +1062,9 @@ proteomics_heatmap <- function(data,
       )
   }
 
-  # Añadir anotaciones de fila personalizadas (suppressWarnings para manejar NA silenciosamente)
+  # Add the custom row annotations (suppressWarnings so NAs are handled quietly)
   if (!is.null(row_annot_data) && length(row_annotation_cols) > 0) {
-    # Preparar size como unit si es numérico
+    # Turn size into a unit when given as a number
     annot_size <- NULL
     if (!is.null(row_annotation_size)) {
       if (is.numeric(row_annotation_size)) {
@@ -1074,16 +1074,16 @@ proteomics_heatmap <- function(data,
       }
     }
 
-    # Preparar annotation_name_gp
+    # Assemble annotation_name_gp
     annot_name_gp <- grid::gpar(fontsize = row_annotation_name_size)
 
-    # Identificar las columnas válidas
+    # Identify the valid columns
     valid_cols <- row_annotation_cols[row_annotation_cols %in% names(hm_data)]
     n_cols <- length(valid_cols)
 
     for (i in seq_along(valid_cols)) {
       col <- valid_cols[i]
-      # Solo aplicar size en la última anotación (evita warning de tidyHeatmap)
+      # Only set size on the last annotation (avoids a tidyHeatmap warning)
       use_size <- if (i == n_cols) annot_size else NULL
 
       hm <- hm %>%
@@ -1097,17 +1097,17 @@ proteomics_heatmap <- function(data,
     }
   }
 
-  # Añadir anotación de adjP para mode = "target" (anotación de filas)
+  # Add the adjP annotation for mode = "target" (a row annotation)
   if (show_adjp_annotation && mode == "target" && "adjP" %in% names(hm_data)) {
-    # Obtener colores para la paleta de adjP
-    adjp_colors <- c("#67001F", "#F4A582", "#F7F7F7")  # Default: rojo oscuro -> naranja -> blanco
+    # Get the colours for the adjP palette
+    adjp_colors <- c("#67001F", "#F4A582", "#F7F7F7")  # Default: dark red -> orange -> white
 
     if (!is.null(palette_adjp)) {
       if (is.character(palette_adjp) && length(palette_adjp) >= 3) {
-        # Vector de colores personalizado
+        # Custom vector of colours
         adjp_colors <- palette_adjp[1:3]
       } else if (is.character(palette_adjp) && length(palette_adjp) == 1) {
-        # Paleta de paletteer o RColorBrewer
+        # paletteer or RColorBrewer palette
         if (grepl("::", palette_adjp)) {
           # Paletteer
           if (requireNamespace("paletteer", quietly = TRUE)) {
@@ -1138,7 +1138,7 @@ proteomics_heatmap <- function(data,
       }
     }
 
-    # Crear paleta para p-valores (valores bajos = más significativos)
+    # Build the palette for the p-values (low values = more significant)
     adjp_palette <- circlize::colorRamp2(
       c(0, 0.01, 0.05),
       adjp_colors
@@ -1153,7 +1153,7 @@ proteomics_heatmap <- function(data,
   }
 
   # ---------------------------------------------------------------------------
-  # 5) Añadir título principal si se especifica
+  # 5) Add the main title when one was given
   # ---------------------------------------------------------------------------
 
   if (!is.null(heatmap_title) && nzchar(heatmap_title)) {
@@ -1166,37 +1166,37 @@ proteomics_heatmap <- function(data,
   }
 
   # ---------------------------------------------------------------------------
-  # 6) Exportar gráfico si se especifica
+  # 6) Export the plot when a path was given
   # ---------------------------------------------------------------------------
 
   if (!is.null(export_file) && nzchar(export_file)) {
-    # Detectar formato por extensión
+    # Take the format from the extension
     file_ext <- tolower(tools::file_ext(export_file))
 
-    # Crear directorio si no existe
+    # Create the directory if it does not exist
     export_dir <- dirname(export_file)
     if (!dir.exists(export_dir) && export_dir != ".") {
       dir.create(export_dir, recursive = TRUE)
     }
 
-    # Calcular píxeles para PNG (pulgadas × dpi)
+    # Compute the pixel size for PNG output (inches x dpi)
     width_pixels <- round(plot_width * export_dpi)
     height_pixels <- round(plot_height * export_dpi)
 
-    # Función para dibujar el heatmap según su tipo
+    # Helper that draws the heatmap according to its type
     draw_heatmap <- function(hm_obj) {
       if (inherits(hm_obj, "proteomics_heatmap")) {
-        # Objeto con título - usar el método print que ya maneja todo
+        # Object carrying a title - the print method already handles everything
         print(hm_obj)
       } else if (inherits(hm_obj, c("Heatmap", "HeatmapList"))) {
-        # ComplexHeatmap nativo
+        # Native ComplexHeatmap
         ComplexHeatmap::draw(hm_obj)
       } else if (inherits(hm_obj, "InputHeatmap")) {
-        # tidyHeatmap - convertir a ComplexHeatmap y dibujar
+        # tidyHeatmap - convert to ComplexHeatmap and draw
         ht <- tidyHeatmap::as_ComplexHeatmap(hm_obj)
         ComplexHeatmap::draw(ht)
       } else {
-        # Fallback para otros tipos
+        # Fallback for any other type
         print(hm_obj)
       }
     }
@@ -1211,7 +1211,7 @@ proteomics_heatmap <- function(data,
         )
         draw_heatmap(hm)
         grDevices::dev.off()
-        message("Heatmap exportado a PNG: ", export_file,
+        message("Heatmap exported to PNG: ", export_file,
                 " (", width_pixels, "x", height_pixels, "px)")
 
       } else if (file_ext == "svg") {
@@ -1222,7 +1222,7 @@ proteomics_heatmap <- function(data,
         )
         draw_heatmap(hm)
         grDevices::dev.off()
-        message("Heatmap exportado a SVG: ", export_file,
+        message("Heatmap exported to SVG: ", export_file,
                 " (", plot_width, "x", plot_height, "in)")
 
       } else if (file_ext == "pdf") {
@@ -1233,16 +1233,16 @@ proteomics_heatmap <- function(data,
         )
         draw_heatmap(hm)
         grDevices::dev.off()
-        message("Heatmap exportado a PDF: ", export_file,
+        message("Heatmap exported to PDF: ", export_file,
                 " (", plot_width, "x", plot_height, "in)")
 
       } else {
-        warning("Formato no soportado: ", file_ext, ". Use .png, .svg o .pdf")
+        warning("Unsupported format: ", file_ext, ". Use .png, .svg or .pdf")
       }
     }, error = function(e) {
-      # Asegurar que el dispositivo gráfico se cierre en caso de error
+      # Make sure the graphics device is closed even if something fails
       try(grDevices::dev.off(), silent = TRUE)
-      warning("Error al exportar heatmap: ", e$message)
+      warning("Error exporting the heatmap: ", e$message)
     })
   }
 
@@ -1251,73 +1251,73 @@ proteomics_heatmap <- function(data,
 
 
 # -----------------------------------------------------------------------------
-# Función wrapper: Generar lista de heatmaps
+# Wrapper function: build a list of heatmaps
 # -----------------------------------------------------------------------------
 
-#' Generar Lista de Heatmaps para Múltiples Subsets
+#' Build a List of Heatmaps for Several Subsets
 #'
-#' Genera automáticamente heatmaps para "all", "any" y/o comparaciones específicas.
+#' Automatically builds heatmaps for "all", "any" and/or specific comparisons.
 #'
-#' @param data Data frame en formato long (ver prepare_heatmap_data para estructura)
-#' @param modes Vector de modos a generar: "all", "any", y/o nombres de comparaciones
+#' @param data Data frame in long format (see prepare_heatmap_data for the structure)
+#' @param modes Vector of modes to generate: "all", "any", and/or comparison names
 #'   (default: c("all", "any"))
-#' @param alpha Umbral de significancia para proteínas DEPs (default: 0.05)
-#' @param feature_ids Vector de FeatureIDs específicos a mostrar (default: NULL)
-#' @param row_annotation Anotaciones para filas (ruta TSV o data.frame)
-#' @param row_annotation_cols Columnas a usar como anotaciones de fila
-#' @param row_annotation_palette Lista de paletas para anotaciones de fila
-#' @param row_annotation_size Ancho de las barras de anotación de filas (número en cm o unit)
-#' @param row_annotation_name_size Tamaño de fuente del nombre de anotaciones de fila (default: 8)
-#' @param row_order_by Orden de filas: "clustering", columna(s) de anotación, o incluir "adjP" para mode="target"
-#' @param split_rows_by Columna de anotación para separar filas en grupos
-#' @param scale_data Tipo de escalado: "none", "row", "column" (default: "row")
-#' @param sample_order Orden de muestras: "clustering", "condition", o vector personalizado
-#' @param condition_order Orden de condiciones cuando sample_order = "condition"
-#' @param cluster_rows Aplicar clustering a filas (default: FALSE)
-#' @param cluster_columns Aplicar clustering a columnas (default: TRUE)
-#' @param show_row_names Mostrar nombres de filas (default: auto)
-#' @param show_column_names Mostrar nombres de columnas (default: TRUE)
-#' @param palette_value Paleta para valores del heatmap
-#' @param palette_annotation Paleta para anotación de Condition
-#' @param reverse_palette Invertir paleta de valores (default: FALSE)
-#' @param row_title_size Tamaño de fuente del título de filas (default: 10)
-#' @param column_title_size Tamaño de fuente del título de columnas (default: 10)
-#' @param show_row_title Mostrar título de filas (default: TRUE)
-#' @param show_column_title Mostrar título de columnas (default: TRUE)
-#' @param show_annotation Mostrar anotación de Condition (default: TRUE)
-#' @param split_by_condition Dividir el heatmap por condición (default: FALSE)
-#' @param show_adjp_annotation Mostrar anotación de adjP en filas para comparaciones (default: TRUE)
-#' @param palette_adjp Paleta para anotación de adjP (ver proteomics_heatmap)
-#' @param row_names_size Tamaño de fuente de nombres de fila (default: 7)
-#' @param column_names_size Tamaño de fuente de nombres de columna (default: 9)
-#' @param column_names_rotation Rotación de nombres de columna (default: 45)
-#' @param column_dend_height Altura del dendrograma de columnas (número en mm o unit)
-#' @param row_dend_width Ancho del dendrograma de filas (número en mm o unit)
-#' @param show_heatmap_legend Mostrar leyenda del heatmap (default: TRUE)
-#' @param show_annotation_legend Mostrar leyenda de las anotaciones (default: TRUE)
-#' @param border_color Color del borde de las celdas (NULL, TRUE, o color)
-#' @param heatmap_title Título principal del heatmap (default: NULL, sin título).
-#'   Se puede usar "\{mode\}" como placeholder que será reemplazado por el nombre del modo
-#' @param heatmap_title_size Tamaño de fuente del título principal (default: 14)
-#' @param heatmap_title_face Estilo de fuente del título (default: "bold")
-#' @param export_path Ruta base para exportar datos a TSV (default: NULL).
-#'   Se añadirá el nombre del modo al archivo (ej: "export_all.tsv", "export_B-A.tsv")
-#' @param export_modes Vector de modos a exportar (default: NULL, exporta todos).
-#'   Solo aplica si export_path está definido. Ejemplo: c("all", "B-A")
-#' @param export_file Ruta base para exportar gráficos. Se añade el modo al nombre.
-#'   El formato se detecta por extensión (.png, .svg, .pdf)
-#' @param plot_width Ancho del gráfico en pulgadas (default: 10)
-#' @param plot_height Alto del gráfico en pulgadas (default: 8)
-#' @param export_dpi Resolución para PNG en puntos por pulgada (default: 300)
+#' @param alpha Significance threshold for DEP proteins (default: 0.05)
+#' @param feature_ids Vector of specific FeatureIDs to show (default: NULL)
+#' @param row_annotation Row annotations (TSV path or data.frame)
+#' @param row_annotation_cols Columns to use as row annotations
+#' @param row_annotation_palette List of palettes for the row annotations
+#' @param row_annotation_size Width of the row annotation bars (a number in cm, or a unit)
+#' @param row_annotation_name_size Font size of the row annotation names (default: 8)
+#' @param row_order_by Row order: "clustering", annotation column(s), or include "adjP" for mode="target"
+#' @param split_rows_by Annotation column used to split the rows into groups
+#' @param scale_data Scaling type: "none", "row", "column" (default: "row")
+#' @param sample_order Sample order: "clustering", "condition", or a custom vector
+#' @param condition_order Condition order when sample_order = "condition"
+#' @param cluster_rows Cluster the rows (default: FALSE)
+#' @param cluster_columns Cluster the columns (default: TRUE)
+#' @param show_row_names Show the row names (default: auto)
+#' @param show_column_names Show the column names (default: TRUE)
+#' @param palette_value Palette for the heatmap values
+#' @param palette_annotation Palette for the Condition annotation
+#' @param reverse_palette Reverse the value palette (default: FALSE)
+#' @param row_title_size Font size of the row title (default: 10)
+#' @param column_title_size Font size of the column title (default: 10)
+#' @param show_row_title Show the row title (default: TRUE)
+#' @param show_column_title Show the column title (default: TRUE)
+#' @param show_annotation Show the Condition annotation (default: TRUE)
+#' @param split_by_condition Split the heatmap by condition (default: FALSE)
+#' @param show_adjp_annotation Show the adjP row annotation for comparisons (default: TRUE)
+#' @param palette_adjp Palette for the adjP annotation (see proteomics_heatmap)
+#' @param row_names_size Font size of the row names (default: 7)
+#' @param column_names_size Font size of the column names (default: 9)
+#' @param column_names_rotation Rotation of the column names (default: 45)
+#' @param column_dend_height Height of the column dendrogram (a number in mm, or a unit)
+#' @param row_dend_width Width of the row dendrogram (a number in mm, or a unit)
+#' @param show_heatmap_legend Show the heatmap legend (default: TRUE)
+#' @param show_annotation_legend Show the annotation legends (default: TRUE)
+#' @param border_color Border colour of the cells (NULL, TRUE, or a colour)
+#' @param heatmap_title Main heatmap title (default: NULL, no title).
+#'   "\{mode\}" can be used as a placeholder, and is replaced by the mode name
+#' @param heatmap_title_size Font size of the main title (default: 14)
+#' @param heatmap_title_face Font face of the title (default: "bold")
+#' @param export_path Base path used to export the data to TSV (default: NULL).
+#'   The mode name is appended to the file name (e.g. "export_all.tsv", "export_B-A.tsv")
+#' @param export_modes Vector of modes to export (default: NULL, exports all of them).
+#'   Only relevant when export_path is set. Example: c("all", "B-A")
+#' @param export_file Base path used to export the plots. The mode is appended to the name.
+#'   The format is taken from the extension (.png, .svg, .pdf)
+#' @param plot_width Plot width in inches (default: 10)
+#' @param plot_height Plot height in inches (default: 8)
+#' @param export_dpi Resolution for PNG output in dots per inch (default: 300)
 #'
-#' @return Lista nombrada de objetos tidyHeatmap
+#' @return Named list of tidyHeatmap objects
 #'
 #' @examples
 #' \dontrun{
-#' # Cargar datos
+#' # Load the data
 #' hm_input <- arrow::read_parquet("PCA_Input.parquet")
 #'
-#' # Generar heatmaps para all y any
+#' # Build heatmaps for all and any
 #' hm_list <- proteomics_heatmap_list(
 #'   data = hm_input,
 #'   modes = c("all", "any"),
@@ -1325,11 +1325,11 @@ proteomics_heatmap <- function(data,
 #'   condition_order = c("A", "B", "C", "D")
 #' )
 #'
-#' # Visualizar
+#' # Display them
 #' hm_list[["all"]]
 #' hm_list[["any"]]
 #'
-#' # Generar heatmaps incluyendo comparaciones específicas
+#' # Build heatmaps including specific comparisons
 #' hm_list <- proteomics_heatmap_list(
 #'   data = hm_input,
 #'   modes = c("all", "any", "B-A", "C-A"),
@@ -1337,14 +1337,14 @@ proteomics_heatmap <- function(data,
 #' )
 #' hm_list[["B-A"]]
 #'
-#' # Con paleta personalizada de paletteer
+#' # With a custom paletteer palette
 #' hm_list <- proteomics_heatmap_list(
 #'   data = hm_input,
 #'   modes = c("all"),
 #'   palette_value = "viridis::viridis"
 #' )
 #'
-#' # Con paleta de RColorBrewer
+#' # With an RColorBrewer palette
 #' hm_list <- proteomics_heatmap_list(
 #'   data = hm_input,
 #'   modes = c("all"),
@@ -1403,31 +1403,31 @@ proteomics_heatmap_list <- function(data,
   scale_data <- match.arg(scale_data)
 
   # ---------------------------------------------------------------------------
-  # 1) Validación de inputs
+  # 1) Input validation
   # ---------------------------------------------------------------------------
 
   required_cols <- c("SampleID", "FeatureID", "Intensity", "Condition", "Replicate")
   missing_cols <- setdiff(required_cols, names(data))
   if (length(missing_cols) > 0) {
-    stop("Columnas requeridas faltantes: ", paste(missing_cols, collapse = ", "))
+    stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
   }
 
   # ---------------------------------------------------------------------------
-  # 2) Detectar comparaciones disponibles (columnas adjP_*)
+  # 2) Detect the available comparisons (adjP_* columns)
   # ---------------------------------------------------------------------------
 
   adjp_cols <- grep("^adjP_", names(data), value = TRUE)
   available_comparisons <- sub("^adjP_", "", adjp_cols)
 
   # ---------------------------------------------------------------------------
-  # 3) Generar heatmaps para cada modo
+  # 3) Build a heatmap for each mode
   # ---------------------------------------------------------------------------
 
   hm_list <- list()
 
   for (m in modes) {
 
-    # Determinar el mode interno y la comparación (si aplica)
+    # Resolve the internal mode and the comparison (where applicable)
     if (m == "all") {
       internal_mode <- "all"
       comparison <- NULL
@@ -1437,9 +1437,9 @@ proteomics_heatmap_list <- function(data,
       comparison <- NULL
       row_title <- "DEPs (any comparison)"
     } else {
-      # Es una comparación específica (modo "target")
+      # It is a specific comparison (mode "target")
       if (!(m %in% available_comparisons)) {
-        warning("Comparación '", m, "' no encontrada. Se omite.")
+        warning("Comparison '", m, "' not found. It will be skipped.")
         next
       }
       internal_mode <- "target"
@@ -1447,19 +1447,19 @@ proteomics_heatmap_list <- function(data,
       row_title <- paste0("DEPs (", m, ")")
     }
 
-    # Procesar título (reemplazar {mode} si existe)
+    # Resolve the title (substitute {mode} when present)
     current_title <- NULL
     if (!is.null(heatmap_title)) {
       current_title <- gsub("\\{mode\\}", m, heatmap_title)
     }
 
-    # Procesar export_path (añadir modo al nombre del archivo)
+    # Resolve export_path (append the mode to the file name)
     current_export_path <- NULL
     if (!is.null(export_path) && nzchar(export_path)) {
-      # Verificar si este modo debe exportarse
+      # Check whether this mode should be exported
       should_export <- is.null(export_modes) || m %in% export_modes
       if (should_export) {
-        # Separar directorio, nombre y extensión
+        # Split off the directory, the base name and the extension
         dir_path <- dirname(export_path)
         base_name <- tools::file_path_sans_ext(basename(export_path))
         ext <- tools::file_ext(export_path)
@@ -1468,13 +1468,13 @@ proteomics_heatmap_list <- function(data,
       }
     }
 
-    # Procesar export_file (añadir modo al nombre del archivo de gráfico)
+    # Resolve export_file (append the mode to the plot file name)
     current_export_file <- NULL
     if (!is.null(export_file) && nzchar(export_file)) {
-      # Verificar si este modo debe exportarse
+      # Check whether this mode should be exported
       should_export <- is.null(export_modes) || m %in% export_modes
       if (should_export) {
-        # Separar directorio, nombre y extensión
+        # Split off the directory, the base name and the extension
         dir_path <- dirname(export_file)
         base_name <- tools::file_path_sans_ext(basename(export_file))
         ext <- tools::file_ext(export_file)
@@ -1483,7 +1483,7 @@ proteomics_heatmap_list <- function(data,
       }
     }
 
-    # Intentar generar heatmap (puede fallar si no hay suficientes proteínas)
+    # Try to build the heatmap (it can fail when there are not enough proteins)
     hm <- tryCatch({
       proteomics_heatmap(
         data = data,
@@ -1536,7 +1536,7 @@ proteomics_heatmap_list <- function(data,
         export_dpi = export_dpi
       )
     }, error = function(e) {
-      warning("Error generando heatmap para '", m, "': ", e$message)
+      warning("Error building the heatmap for '", m, "': ", e$message)
       return(NULL)
     })
 
@@ -1550,14 +1550,14 @@ proteomics_heatmap_list <- function(data,
 
 
 # =============================================================================
-# EJEMPLOS DE USO
+# USAGE EXAMPLES
 # =============================================================================
 
-# --- Cargar datos ---
+# --- Load the data ---
 # hm_input <- arrow::read_parquet("PCA_Input.parquet")
 # hm_input <- readr::read_tsv("PCA_Input.tsv")
 
-# --- Ejemplo básico: Heatmap de todas las proteínas ---
+# --- Basic example: heatmap of every protein ---
 # hm_all <- proteomics_heatmap(
 #   data = hm_input,
 #   mode = "all",
@@ -1567,7 +1567,7 @@ proteomics_heatmap_list <- function(data,
 # )
 # hm_all
 
-# --- Heatmap con clustering de columnas ---
+# --- Heatmap with column clustering ---
 # hm_cluster <- proteomics_heatmap(
 #   data = hm_input,
 #   mode = "all",
@@ -1578,7 +1578,7 @@ proteomics_heatmap_list <- function(data,
 # )
 # hm_cluster
 
-# --- Heatmap de proteínas significativas en cualquier comparación ---
+# --- Heatmap of the proteins significant in any comparison ---
 # hm_any <- proteomics_heatmap(
 #   data = hm_input,
 #   mode = "any",
@@ -1588,7 +1588,7 @@ proteomics_heatmap_list <- function(data,
 # )
 # hm_any
 
-# --- Heatmap de proteínas significativas en una comparación específica ---
+# --- Heatmap of the proteins significant in one specific comparison ---
 # hm_target <- proteomics_heatmap(
 #   data = hm_input,
 #   mode = "target",
@@ -1598,7 +1598,7 @@ proteomics_heatmap_list <- function(data,
 # )
 # hm_target
 
-# --- Con paleta personalizada de paletteer ---
+# --- With a custom paletteer palette ---
 # hm_viridis <- proteomics_heatmap(
 #   data = hm_input,
 #   mode = "all",
@@ -1608,7 +1608,7 @@ proteomics_heatmap_list <- function(data,
 # )
 # hm_viridis
 
-# --- Con paleta de RColorBrewer ---
+# --- With an RColorBrewer palette ---
 # hm_brewer <- proteomics_heatmap(
 #   data = hm_input,
 #   mode = "all",
@@ -1618,7 +1618,7 @@ proteomics_heatmap_list <- function(data,
 # )
 # hm_brewer
 
-# --- Generar múltiples heatmaps ---
+# --- Build several heatmaps at once ---
 # hm_list <- proteomics_heatmap_list(
 #   data = hm_input,
 #   modes = c("all", "any", "B-A", "C-A", "D-A"),
@@ -1630,7 +1630,7 @@ proteomics_heatmap_list <- function(data,
 # hm_list[["any"]]
 # hm_list[["B-A"]]
 
-# --- Orden personalizado de muestras ---
+# --- Custom sample order ---
 # custom_order <- c("A_1", "A_2", "B_1", "B_2", "C_1", "C_2", "D_1", "D_2")
 # hm_custom <- proteomics_heatmap(
 #   data = hm_input,
@@ -1641,7 +1641,7 @@ proteomics_heatmap_list <- function(data,
 # )
 # hm_custom
 
-# --- Heatmap con título personalizado ---
+# --- Heatmap with a custom title ---
 # hm_title <- proteomics_heatmap(
 #   data = hm_input,
 #   mode = "any",
@@ -1652,25 +1652,25 @@ proteomics_heatmap_list <- function(data,
 # )
 # hm_title
 
-# --- Lista de heatmaps con títulos dinámicos ---
+# --- List of heatmaps with dynamic titles ---
 # hm_list <- proteomics_heatmap_list(
 #   data = hm_input,
 #   modes = c("all", "any", "B-A"),
 #   heatmap_title = "Proteomics Heatmap: {mode}",
 #   heatmap_title_size = 14
 # )
-# # Los títulos serán: "Proteomics Heatmap: all", "Proteomics Heatmap: any", "Proteomics Heatmap: B-A"
+# # The titles will be: "Proteomics Heatmap: all", "Proteomics Heatmap: any", "Proteomics Heatmap: B-A"
 
-# --- Paletas disponibles ---
-# Divergentes (buenas para datos escalados):
+# --- Available palettes ---
+# Diverging (good for scaled data):
 #   - NULL (default RdBu-like)
 #   - "brewer:RdBu", "brewer:RdYlBu", "brewer:PiYG", "brewer:BrBG"
 #   - "viridis::plasma", "viridis::inferno"
 #
-# Secuenciales (buenas para datos no escalados):
+# Sequential (good for unscaled data):
 #   - "viridis::viridis", "viridis::magma"
 #   - "brewer:Blues", "brewer:Reds", "brewer:YlOrRd"
 #
-# Para anotaciones:
+# For annotations:
 #   - "brewer:Set1", "brewer:Set2", "brewer:Dark2"
 #   - "ggsci::category10_d3", "ggsci::nrc_npg"

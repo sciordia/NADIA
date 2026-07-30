@@ -31,7 +31,7 @@
 
 
 # --- Benchmark methods (15 individual methods, excludes combo/softHybrid/none) ---
-# "with" se excluye por defecto: requiere `with_value` y falla si no se provee.
+# "with" is excluded by default: it requires `with_value` and fails without it.
 .IM_BENCH_METHODS <- c(
   "bpca", "knn", "mice", "missForest", "Impseq", "Impseqrob",
   "QRILC", "MLE", "MinDet", "MinProb", "PI", "min", "zero", "nbavg", "limpa"
@@ -41,7 +41,7 @@
 # SECTION 1: INTERNAL METRIC HELPERS (.im_*)
 # =============================================================================
 
-#' NRMSE — Normalized Root Mean Squared Error
+#' NRMSE -- Normalized Root Mean Squared Error
 #'
 #' Computes NRMSE between true and imputed values at positions indicated by
 #' the NA mask. Lower is better.
@@ -93,7 +93,7 @@
   rmse_vec
 }
 
-#' PSS — Procrustes Statistical Shape analysis
+#' PSS -- Procrustes Statistical Shape analysis
 #'
 #' PCA on both true and imputed matrices (transposed: samples as rows),
 #' retain components up to 95% cumulative variance, then Procrustes SS.
@@ -140,16 +140,16 @@
   res$ss
 }
 
-#' ACC_OI — Correlation of Original and Imputed at masked positions
+#' ACC_OI -- Correlation of Original and Imputed at masked positions
 #'
 #' Pearson correlation between the true values and the imputed values,
 #' evaluated ONLY at the artificially masked cells (pooled across all
 #' features and columns). Higher is better.
 #'
-#' Nota: la version anterior correlacionaba la fila COMPLETA (verdadera vs
-#' imputada), que solo difiere en 1-2 celdas enmascaradas → correlacion ~1
-#' independientemente de la calidad de la imputacion, haciendo la metrica no
-#' discriminativa. Restringir a las celdas enmascaradas mide la accuracy real.
+#' Note: the previous version correlated the WHOLE row (true vs imputed),
+#' which differs in only 1-2 masked cells -> correlation ~1 regardless of the
+#' imputation quality, making the metric non-discriminative. Restricting it to
+#' the masked cells measures the real accuracy.
 #'
 #' @param true_mat Numeric matrix (ground truth)
 #' @param imp_mat  Numeric matrix (imputed)
@@ -229,9 +229,9 @@
 #' @keywords internal
 .im_introduce_na <- function(mat, na_prop = 0.20, seed = 42L,
                              pattern = "random", ref_mat = NULL) {
-  # Esta función fija la semilla varias veces (global, por columna y por celda)
-  # para reproducir la estrategia de NAguideR; el RNG del usuario se restaura al
-  # salir para no afectar al código que se ejecute después.
+  # This function sets the seed several times (globally, per column and per
+  # cell) in order to reproduce the NAguideR strategy; the user's RNG state is
+  # restored on exit so that code running afterwards is not affected.
   old_rng <- .rng_state()
   on.exit(.rng_restore(old_rng), add = TRUE)
 
@@ -240,11 +240,11 @@
   na_mask <- matrix(FALSE, nrow = nr, ncol = nc,
                     dimnames = dimnames(mat))
 
-  # from_data requiere ref_mat; sin el, caer a 'random' en vez de devolver una
-  # mascara vacia silenciosamente (que dejaria todas las metricas en NA).
+  # from_data requires ref_mat; without it, fall back to 'random' instead of
+  # silently returning an empty mask (which would leave every metric as NA).
   if (pattern == "from_data" && is.null(ref_mat)) {
-    warning(".im_introduce_na: pattern='from_data' requiere 'ref_mat'; ",
-            "usando patron 'random'.")
+    warning(".im_introduce_na: pattern='from_data' requires 'ref_mat'; ",
+            "using the 'random' pattern instead.")
     pattern <- "random"
   }
 
@@ -570,7 +570,7 @@ import_imp_matrices <- function(tsv_dir,
     rowData = row_data
   )
 
-  message("import_imp_matrices: loaded ", length(files), " assay(s) — ",
+  message("import_imp_matrices: loaded ", length(files), " assay(s) -- ",
           paste(method_names, collapse = ", "))
   message("  Proteins: ", nrow(se), " | Samples: ", ncol(se))
   se
@@ -652,8 +652,8 @@ im_prepare_se <- function(preprocessing,
       message("im_prepare_se: winner from pc1_rank -> '", norm_method, "'")
   }
 
-  # nm_prepare_se() y .nm_dispatch_normalization() están en
-  # Normalization_Metrics.R, que comparte namespace con este archivo.
+  # nm_prepare_se() and .nm_dispatch_normalization() live in
+  # Normalization_Metrics.R, which shares its namespace with this file.
 
   # --- Build baseline SE with assay "log2" ---
   if (verbose) message("im_prepare_se: building baseline SE ...")
@@ -769,7 +769,7 @@ im_compute_metrics <- function(se,
 
   # Inform about optional packages
   if (!requireNamespace("vegan", quietly = TRUE))
-    message("im_compute_metrics: 'vegan' not installed — PSS will be NA.")
+    message("im_compute_metrics: 'vegan' not installed -- PSS will be NA.")
 
   # --- Extract matrix and complete cases ---
   mat_full <- SummarizedExperiment::assay(se, assay_name)
@@ -853,7 +853,7 @@ im_compute_metrics <- function(se,
     rmse_matrix[common, m] <- rmse_vec[common]
   }
 
-  # Step 3: Rank per feature, then sum ranks → SOR
+  # Step 3: Rank per feature, then sum ranks -> SOR
   if (length(successful_methods) == 1L) {
     # Single method: all ranks = 1, SOR = number of features
     sor_vec <- setNames(nrow(rmse_matrix), successful_methods)
@@ -861,9 +861,9 @@ im_compute_metrics <- function(se,
     n_m <- length(successful_methods)
     rank_per_feature <- t(apply(rmse_matrix, 1, function(row) {
       r <- rank(row, na.last = "keep", ties.method = "average")
-      # Penalizar con el peor rango las features que un metodo no imputo
-      # (RMSE = NA); si no, colSums(na.rm=TRUE) las favoreceria al sumar
-      # sobre menos terminos.
+      # Penalize with the worst rank the features a method did not impute
+      # (RMSE = NA); otherwise colSums(na.rm=TRUE) would favour them by
+      # summing over fewer terms.
       r[is.na(r)] <- n_m
       r
     }))
@@ -898,7 +898,7 @@ im_compute_metrics <- function(se,
   metrics_df$PSS_Rank   <- rank(metrics_df$PSS, na.last = "keep",
                                 ties.method = "average")
 
-  # Higher is better: ACC_OI → rank descending
+  # Higher is better: ACC_OI -> rank descending
   if (all(is.na(metrics_df$ACC_OI))) {
     metrics_df$ACC_OI_Rank <- rep(NA_real_, n)
   } else {
@@ -1173,7 +1173,7 @@ im_plot_metrics <- function(metrics_df, ...) {
   if (is.null(output_dir)) return(invisible(NULL))
   if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
-  # Tablas
+  # Tables
   if (export_tables) {
     if (!is.null(result$metrics_table))
       utils::write.table(result$metrics_table,

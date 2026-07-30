@@ -1,40 +1,40 @@
 # =============================================================================
-# Pattern Profiler Highcharts: Visualización de Clusters
+# Pattern Profiler Highcharts: cluster visualisation
 # =============================================================================
 #
-# Este script genera visualizaciones interactivas con Highcharts para los
-# resultados del clustering generados por Pattern_Profiler_Analysis.R.
+# This script builds interactive Highcharts visualisations for the clustering
+# results produced by Pattern_Profiler_Analysis.R.
 #
 # Input:
-#   - Pattern_Profiler_Input.parquet: Tabla en formato LONG con:
-#     - FeatureID, Cluster, Membership, z-scores por condición
+#   - Pattern_Profiler_Input.parquet: table in LONG format with:
+#     - FeatureID, Cluster, Membership, z-scores per condition
 #
 # Output:
-#   - Gráficos Highcharts interactivos (perfiles, centroides)
+#   - Interactive Highcharts plots (profiles, centroids)
 #
-# Autor: Sergio Ciordia
-# Licencia: MIT
+# Author: Sergio Ciordia
+# License: MIT
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# DEPENDENCIAS
+# DEPENDENCIES
 # -----------------------------------------------------------------------------
 
 
 
 # =============================================================================
-# FUNCIONES AUXILIARES DE COLOR
+# COLOUR HELPER FUNCTIONS
 # =============================================================================
 
-#' Configurar paleta de colores para clusters
+#' Configure the colour palette for the clusters
 #'
-#' @param n_clusters Número de clusters
-#' @param palette Paleta a usar (NULL, "ggsci::nombre", "brewer:nombre")
+#' @param n_clusters Number of clusters
+#' @param palette Palette to use (NULL, "ggsci::name", "brewer:name")
 #'
-#' @return Vector de colores nombrado por cluster
+#' @return Vector of colours named by cluster
 configure_cluster_palette <- function(n_clusters, palette = NULL) {
 
-  # Paleta por defecto: colores distintivos y accesibles
+  # Default palette: distinctive and accessible colours
   default_colors <- c(
     "#E63946", "#457B9D", "#2A9D8F", "#E9C46A", "#F4A261",
     "#264653", "#A8DADC", "#1D3557", "#F77F00", "#D62828",
@@ -42,8 +42,9 @@ configure_cluster_palette <- function(n_clusters, palette = NULL) {
   )
 
   if (is.null(palette)) {
-    # Si se piden mas clusters que colores base, interpolar en vez de reciclar
-    # (evita el desajuste de longitud al asignar names() mas abajo).
+    # If more clusters are requested than there are base colours, interpolate
+    # instead of recycling (this avoids the length mismatch when names() is
+    # assigned further down).
     if (n_clusters > length(default_colors)) {
       colors <- colorRampPalette(default_colors)(n_clusters)
     } else {
@@ -51,27 +52,27 @@ configure_cluster_palette <- function(n_clusters, palette = NULL) {
     }
 
   } else if (grepl("^ggsci::", palette)) {
-    # Paletas de ggsci via paletteer
+    # ggsci palettes via paletteer
     if (requireNamespace("paletteer", quietly = TRUE)) {
       pal_name <- sub("^ggsci::", "", palette)
       colors <- tryCatch({
         as.character(paletteer::paletteer_d(paste0("ggsci::", pal_name), n_clusters))
       }, error = function(e) {
-        warning("Paleta ggsci no encontrada, usando default")
+        warning("ggsci palette not found, using the default one")
         default_colors[seq_len(n_clusters)]
       })
     } else {
-      warning("Paquete 'paletteer' no disponible, usando paleta default")
+      warning("Package 'paletteer' not available, using the default palette")
       colors <- default_colors[seq_len(n_clusters)]
     }
 
   } else if (grepl("^brewer:", palette)) {
-    # Paletas de RColorBrewer
+    # RColorBrewer palettes
     pal_name <- sub("^brewer:", "", palette)
     if (requireNamespace("RColorBrewer", quietly = TRUE)) {
       max_colors <- RColorBrewer::brewer.pal.info[pal_name, "maxcolors"]
       if (is.na(max_colors)) {
-        warning("Paleta brewer no encontrada, usando default")
+        warning("brewer palette not found, using the default one")
         colors <- default_colors[seq_len(n_clusters)]
       } else {
         colors <- RColorBrewer::brewer.pal(min(n_clusters, max_colors), pal_name)
@@ -80,12 +81,12 @@ configure_cluster_palette <- function(n_clusters, palette = NULL) {
         }
       }
     } else {
-      warning("Paquete 'RColorBrewer' no disponible, usando paleta default")
+      warning("Package 'RColorBrewer' not available, using the default palette")
       colors <- default_colors[seq_len(n_clusters)]
     }
 
   } else {
-    # Asumir vector de colores
+    # Assume a vector of colours
     if (length(palette) >= n_clusters) {
       colors <- palette[seq_len(n_clusters)]
     } else {
@@ -93,22 +94,22 @@ configure_cluster_palette <- function(n_clusters, palette = NULL) {
     }
   }
 
-  # Nombrar por cluster
+  # Name them by cluster
   names(colors) <- seq_len(n_clusters)
   colors
 }
 
 
 # =============================================================================
-# LECTURA DE DATOS
+# DATA READING
 # =============================================================================
 
-#' Leer datos de Pattern Profiler desde parquet
+#' Read Pattern Profiler data from a parquet file
 #'
-#' @param file_path Ruta al archivo parquet
-#' @param min_membership Filtro opcional por membership mínima
+#' @param file_path Path to the parquet file
+#' @param min_membership Optional filter by minimum membership
 #'
-#' @return DataFrame con datos de clustering
+#' @return DataFrame with the clustering data
 #'
 #' @examples
 #' \dontrun{
@@ -120,25 +121,25 @@ configure_cluster_palette <- function(n_clusters, palette = NULL) {
 read_pattern_profiler_data <- function(file_path, min_membership = NULL) {
 
   if (!file.exists(file_path)) {
-    stop("Archivo no encontrado: ", file_path)
+    stop("File not found: ", file_path)
   }
 
   data <- arrow::read_parquet(file_path)
   data <- as.data.frame(data)
 
-  # Validar columnas requeridas
+  # Validate the required columns
   required_cols <- c("FeatureID", "Cluster", "Membership")
   missing_cols <- setdiff(required_cols, names(data))
   if (length(missing_cols) > 0) {
-    stop("Columnas faltantes: ", paste(missing_cols, collapse = ", "))
+    stop("Missing columns: ", paste(missing_cols, collapse = ", "))
   }
 
-  # Filtrar por membership si se especifica
+  # Filter by membership if requested
   if (!is.null(min_membership)) {
     n_before <- nrow(data)
     data <- data[data$Membership >= min_membership, ]
     n_after <- nrow(data)
-    message(sprintf("Filtrado por membership >= %.2f: %d -> %d filas",
+    message(sprintf("Filtered by membership >= %.2f: %d -> %d rows",
                     min_membership, n_before, n_after))
   }
 
@@ -146,19 +147,19 @@ read_pattern_profiler_data <- function(file_path, min_membership = NULL) {
 }
 
 
-#' Detectar columnas de condiciones (z-scores)
+#' Detect the condition columns (z-scores)
 #'
-#' @param data DataFrame de Pattern Profiler
-#' @return Vector de nombres de columnas de condiciones
+#' @param data Pattern Profiler DataFrame
+#' @return Vector with the names of the condition columns
 detect_condition_columns <- function(data) {
-  # Excluir columnas conocidas
+  # Exclude the known columns
   exclude_cols <- c("FeatureID", "Cluster", "Membership")
   all_cols <- names(data)
 
   condition_cols <- setdiff(all_cols, exclude_cols)
 
   if (length(condition_cols) == 0) {
-    stop("No se encontraron columnas de condiciones (z-scores)")
+    stop("No condition columns (z-scores) found")
   }
 
   condition_cols
@@ -166,28 +167,28 @@ detect_condition_columns <- function(data) {
 
 
 # =============================================================================
-# FUNCIONES DE VISUALIZACIÓN
+# VISUALISATION FUNCTIONS
 # =============================================================================
 
-#' Gráfico de Perfil de Cluster con Highcharts
+#' Cluster profile plot with Highcharts
 #'
-#' Genera un gráfico interactivo mostrando los perfiles de expresión
-#' de las proteínas en un cluster específico.
+#' Builds an interactive plot showing the expression profiles of the proteins in
+#' a given cluster.
 #'
-#' @param data DataFrame de Pattern Profiler (formato LONG)
-#' @param cluster Número de cluster a visualizar
-#' @param conditions Vector de nombres de condiciones (orden para eje X)
-#' @param min_membership Filtro adicional de membership (NULL = sin filtro)
-#' @param show_centroid Mostrar línea del centroide (default: TRUE)
-#' @param centroid_summary Método para centroide: "mean" o "median"
-#' @param cluster_color Color del cluster (NULL = automático)
-#' @param line_width Ancho de líneas de perfil (default: 1)
-#' @param line_opacity Opacidad de líneas (default: 0.4)
-#' @param centroid_width Ancho de línea del centroide (default: 3)
-#' @param title Título personalizado (opcional)
-#' @param height Altura del gráfico en píxeles
+#' @param data Pattern Profiler DataFrame (LONG format)
+#' @param cluster Number of the cluster to plot
+#' @param conditions Vector of condition names (order for the X axis)
+#' @param min_membership Additional membership filter (NULL = no filter)
+#' @param show_centroid Show the centroid line (default: TRUE)
+#' @param centroid_summary Method for the centroid: "mean" or "median"
+#' @param cluster_color Cluster colour (NULL = automatic)
+#' @param line_width Width of the profile lines (default: 1)
+#' @param line_opacity Opacity of the lines (default: 0.4)
+#' @param centroid_width Width of the centroid line (default: 3)
+#' @param title Custom title (optional)
+#' @param height Plot height in pixels
 #'
-#' @return Objeto highchart
+#' @return highchart object
 #'
 #' @examples
 #' \dontrun{
@@ -213,36 +214,36 @@ cluster_profile_highchart <- function(data,
 
   centroid_summary <- match.arg(centroid_summary)
 
-  # Detectar condiciones si no se especifican
+  # Detect the conditions if they are not supplied
   if (is.null(conditions)) {
     conditions <- detect_condition_columns(data)
   }
 
-  # Filtrar por cluster
+  # Filter by cluster
   cluster_data <- data[data$Cluster == cluster, ]
 
   if (nrow(cluster_data) == 0) {
-    warning(sprintf("No hay datos para el cluster %d", cluster))
+    warning(sprintf("No data for cluster %d", cluster))
     return(NULL)
   }
 
-  # Filtrar por membership adicional
+  # Apply the additional membership filter
   if (!is.null(min_membership)) {
     cluster_data <- cluster_data[cluster_data$Membership >= min_membership, ]
   }
 
   if (nrow(cluster_data) == 0) {
-    warning(sprintf("Cluster %d: sin proteínas con membership >= %.2f",
+    warning(sprintf("Cluster %d: no proteins with membership >= %.2f",
                     cluster, min_membership))
     return(NULL)
   }
 
-  # Extraer z-scores y metadata
+  # Extract the z-scores and the metadata
   zscores <- as.matrix(cluster_data[, conditions, drop = FALSE])
   feature_ids <- cluster_data$FeatureID
   n_proteins <- nrow(cluster_data)
 
-  # Calcular centroide
+  # Compute the centroid
   if (centroid_summary == "mean") {
     centroid <- colMeans(zscores, na.rm = TRUE)
   } else {
@@ -250,17 +251,17 @@ cluster_profile_highchart <- function(data,
   }
   centroid <- unname(as.numeric(centroid))
 
-  # Configurar color del cluster
+  # Configure the cluster colour
   if (is.null(cluster_color)) {
     n_clusters <- max(data$Cluster)
     palette <- configure_cluster_palette(n_clusters)
     cluster_color <- unname(palette[as.character(cluster)])
   }
 
-  # Color de líneas con opacidad
+  # Line colour with opacity
   line_color <- .hex_to_rgba(cluster_color, line_opacity)
 
-  # Título
+  # Title
   if (is.null(title)) {
     min_mem <- min(cluster_data$Membership)
     title <- sprintf("Cluster %d (n = %d, membership >= %.2f)",
@@ -268,7 +269,7 @@ cluster_profile_highchart <- function(data,
   }
 
   # ---------------------------------------------------------------------------
-  # Construir series de líneas de perfil (sin interactividad)
+  # Build the profile line series (non-interactive)
   # ---------------------------------------------------------------------------
   profile_series <- lapply(seq_len(n_proteins), function(i) {
     zscore_row <- unname(as.numeric(zscores[i, ]))
@@ -294,7 +295,7 @@ cluster_profile_highchart <- function(data,
   })
 
   # ---------------------------------------------------------------------------
-  # Serie del centroide (interactiva)
+  # Centroid series (interactive)
   # ---------------------------------------------------------------------------
   centroid_series <- NULL
   if (show_centroid) {
@@ -306,7 +307,7 @@ cluster_profile_highchart <- function(data,
       )
     })
 
-    # Colores limpios sin nombres
+    # Clean colours without names
     centroid_line_color <- .darken_hex(cluster_color, 0.2)
     centroid_marker_line <- .darken_hex(cluster_color, 0.3)
 
@@ -331,7 +332,7 @@ cluster_profile_highchart <- function(data,
   }
 
   # ---------------------------------------------------------------------------
-  # Construir highchart
+  # Build the highchart
   # ---------------------------------------------------------------------------
   hc <- highchart() |>
     hc_chart(
@@ -434,7 +435,7 @@ cluster_profile_highchart <- function(data,
       )
     )
 
-  # Añadir series de perfiles
+  # Add the profile series
   for (series in profile_series) {
     hc <- hc |> hc_add_series(
       name = series$name,
@@ -448,7 +449,7 @@ cluster_profile_highchart <- function(data,
     )
   }
 
-  # Añadir centroide
+  # Add the centroid
   if (!is.null(centroid_series)) {
     hc <- hc |> hc_add_series(
       name = centroid_series$name,
@@ -467,23 +468,23 @@ cluster_profile_highchart <- function(data,
 }
 
 
-#' Lista de Gráficos de Perfil de Clusters con Highcharts
+#' List of cluster profile plots with Highcharts
 #'
-#' Genera una lista de gráficos interactivos para todos los clusters.
+#' Builds a list of interactive plots for all the clusters.
 #'
-#' @param data DataFrame de Pattern Profiler (formato LONG)
-#' @param conditions Vector de nombres de condiciones
-#' @param clusters Vector de clusters a visualizar (NULL = todos)
-#' @param min_membership Filtro de membership mínima
-#' @param show_centroid Mostrar línea central (default: TRUE)
-#' @param centroid_summary Método para centroide: "mean" o "median"
-#' @param palette Paleta para colores de clusters
-#' @param line_width Ancho de líneas de perfil (default: 1)
-#' @param line_opacity Opacidad de líneas (default: 0.4)
-#' @param centroid_width Ancho de línea del centroide (default: 3)
-#' @param height Altura de cada gráfico en píxeles
+#' @param data Pattern Profiler DataFrame (LONG format)
+#' @param conditions Vector of condition names
+#' @param clusters Vector of clusters to plot (NULL = all)
+#' @param min_membership Minimum membership filter
+#' @param show_centroid Show the centroid line (default: TRUE)
+#' @param centroid_summary Method for the centroid: "mean" or "median"
+#' @param palette Palette for the cluster colours
+#' @param line_width Width of the profile lines (default: 1)
+#' @param line_opacity Opacity of the lines (default: 0.4)
+#' @param centroid_width Width of the centroid line (default: 3)
+#' @param height Height of each plot in pixels
 #'
-#' @return Lista nombrada de objetos highchart
+#' @return Named list of highchart objects
 #'
 #' @examples
 #' \dontrun{
@@ -509,22 +510,22 @@ cluster_profile_highchart_list <- function(data,
 
   centroid_summary <- match.arg(centroid_summary)
 
-  # Detectar condiciones si no se especifican
+  # Detect the conditions if they are not supplied
   if (is.null(conditions)) {
     conditions <- detect_condition_columns(data)
   }
 
-  # Determinar clusters a visualizar
+  # Determine which clusters to plot
   if (is.null(clusters)) {
     clusters <- sort(unique(data$Cluster))
   }
 
   n_clusters <- max(data$Cluster)
 
-  # Configurar paleta de colores
+  # Configure the colour palette
   cluster_colors <- configure_cluster_palette(n_clusters, palette)
 
-  # Generar gráficos
+  # Build the plots
   hc_list <- lapply(clusters, function(k) {
     hc <- tryCatch({
       cluster_profile_highchart(
@@ -541,7 +542,7 @@ cluster_profile_highchart_list <- function(data,
         height = height
       )
     }, error = function(e) {
-      warning(sprintf("Error generando gráfico para Cluster %d: %s", k, e$message))
+      warning(sprintf("Error building the plot for Cluster %d: %s", k, e$message))
       return(NULL)
     })
 
@@ -553,22 +554,22 @@ cluster_profile_highchart_list <- function(data,
 }
 
 
-#' Gráfico de Centroides de Todos los Clusters
+#' Centroid plot for all the clusters
 #'
-#' Genera un gráfico comparativo con los centroides de todos los clusters.
+#' Builds a comparative plot with the centroids of all the clusters.
 #'
-#' @param data DataFrame de Pattern Profiler (formato LONG)
-#' @param conditions Vector de nombres de condiciones
-#' @param clusters Clusters a incluir (NULL = todos)
-#' @param min_membership Filtro de membership para calcular centroides
-#' @param centroid_summary Método: "mean" o "median"
-#' @param palette Paleta de colores
-#' @param line_width Ancho de líneas (default: 2.5)
-#' @param show_markers Mostrar marcadores en puntos (default: TRUE)
-#' @param title Título personalizado
-#' @param height Altura del gráfico
+#' @param data Pattern Profiler DataFrame (LONG format)
+#' @param conditions Vector of condition names
+#' @param clusters Clusters to include (NULL = all)
+#' @param min_membership Membership filter applied before computing the centroids
+#' @param centroid_summary Method: "mean" or "median"
+#' @param palette Colour palette
+#' @param line_width Line width (default: 2.5)
+#' @param show_markers Show markers on the points (default: TRUE)
+#' @param title Custom title
+#' @param height Plot height
 #'
-#' @return Objeto highchart
+#' @return highchart object
 #'
 #' @examples
 #' \dontrun{
@@ -592,27 +593,27 @@ cluster_centroids_highchart <- function(data,
 
   centroid_summary <- match.arg(centroid_summary)
 
-  # Detectar condiciones
+  # Detect the conditions
   if (is.null(conditions)) {
     conditions <- detect_condition_columns(data)
   }
 
-  # Filtrar por membership si se especifica
+  # Filter by membership if requested
   if (!is.null(min_membership)) {
     data <- data[data$Membership >= min_membership, ]
   }
 
-  # Determinar clusters
+  # Determine the clusters
   if (is.null(clusters)) {
     clusters <- sort(unique(data$Cluster))
   }
 
   n_clusters <- max(data$Cluster)
 
-  # Configurar paleta
+  # Configure the palette
   cluster_colors <- configure_cluster_palette(n_clusters, palette)
 
-  # Calcular centroides por cluster
+  # Compute the centroids per cluster
   agg_fun <- if (centroid_summary == "mean") mean else median
 
   centroids_list <- lapply(clusters, function(k) {
@@ -634,16 +635,16 @@ cluster_centroids_highchart <- function(data,
   centroids_list <- Filter(Negate(is.null), centroids_list)
 
   if (length(centroids_list) == 0) {
-    warning("No hay datos para generar gráfico de centroides")
+    warning("No data available to build the centroid plot")
     return(NULL)
   }
 
-  # Título
+  # Title
   if (is.null(title)) {
     title <- sprintf("Cluster Centroids (%s)", centroid_summary)
   }
 
-  # Construir highchart
+  # Build the highchart
   hc <- highchart() |>
     hc_chart(
       type = "line",
@@ -739,9 +740,9 @@ cluster_centroids_highchart <- function(data,
       )
     )
 
-  # Añadir series de centroides
+  # Add the centroid series
   for (item in centroids_list) {
-    # Construir puntos con valores limpios (sin nombres)
+    # Build the points with clean values (without names)
     points <- lapply(seq_along(conditions), function(j) {
       list(
         x = as.integer(j - 1),
@@ -750,7 +751,7 @@ cluster_centroids_highchart <- function(data,
       )
     })
 
-    # Color limpio sin nombres
+    # Clean colour without names
     series_color <- unname(item$color)
     darker_color <- .darken_hex(series_color, 0.2)
 
@@ -777,19 +778,19 @@ cluster_centroids_highchart <- function(data,
 
 
 # =============================================================================
-# FUNCIONES AUXILIARES DE RESUMEN
+# SUMMARY HELPER FUNCTIONS
 # =============================================================================
 
-#' Resumen de datos de Pattern Profiler
+#' Summary of the Pattern Profiler data
 #'
-#' @param data DataFrame de Pattern Profiler
-#' @return Lista con estadísticas resumidas
+#' @param data Pattern Profiler DataFrame
+#' @return List with summary statistics
 #' @export
 summarize_pattern_profiler <- function(data) {
 
   conditions <- detect_condition_columns(data)
 
-  # Contar por cluster
+  # Count per cluster
   cluster_summary <- data %>%
     group_by(Cluster) %>%
     summarise(
@@ -801,7 +802,7 @@ summarize_pattern_profiler <- function(data) {
       .groups = "drop"
     )
 
-  # Features en múltiples clusters
+  # Features in several clusters
   multi_cluster <- data %>%
     group_by(FeatureID) %>%
     summarise(n_clusters = n_distinct(Cluster), .groups = "drop") %>%
@@ -820,42 +821,42 @@ summarize_pattern_profiler <- function(data) {
 
 
 # =============================================================================
-# EJEMPLOS DE USO
+# USAGE EXAMPLES
 # =============================================================================
 
-# --- Uso típico ---
+# --- Typical usage ---
 # source("R/Pattern_Profiler_Highcharts.R")
 #
-# # Leer datos
+# # Read the data
 # data <- read_pattern_profiler_data("data-raw/Pattern_Profiler_Input.parquet")
 #
-# # Ver resumen
+# # Inspect the summary
 # summary <- summarize_pattern_profiler(data)
 # print(summary$cluster_summary)
 #
-# # Definir orden de condiciones
+# # Define the condition order
 # conditions <- c("A", "B", "C", "D")
 #
-# # Gráfico de un cluster específico
+# # Plot for one specific cluster
 # hc_c1 <- cluster_profile_highchart(data, cluster = 1, conditions = conditions)
 # hc_c1
 #
-# # Lista de gráficos para todos los clusters
+# # List of plots for all the clusters
 # hc_profiles <- cluster_profile_highchart_list(data, conditions)
 # hc_profiles[["Cluster_1"]]
 # hc_profiles[["Cluster_2"]]
 #
-# # Con filtro de membership más estricto
+# # With a stricter membership filter
 # hc_profiles <- cluster_profile_highchart_list(
 #   data, conditions,
 #   min_membership = 0.5
 # )
 #
-# # Gráfico de centroides comparativo
+# # Comparative centroid plot
 # hc_centroids <- cluster_centroids_highchart(data, conditions)
 # hc_centroids
 #
-# # Con paleta personalizada
+# # With a custom palette
 # hc_profiles <- cluster_profile_highchart_list(
 #   data, conditions,
 #   palette = "ggsci::nrc_npg"

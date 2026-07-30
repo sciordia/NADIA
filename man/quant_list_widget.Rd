@@ -2,7 +2,7 @@
 % Please edit documentation in R/Results_List_reactable.R
 \name{quant_list_widget}
 \alias{quant_list_widget}
-\title{Widget Completo para tabla Protein_QUANT con matriz log2 anexada}
+\title{Full Widget for the Protein_QUANT Table with the log2 Matrix Appended}
 \usage{
 quant_list_widget(
   data = "data-raw/Protein_QUANT_20260423_142504.tsv",
@@ -16,32 +16,32 @@ quant_list_widget(
 )
 }
 \arguments{
-\item{data}{Data frame o ruta a TSV/CSV/Parquet de Protein_QUANT.}
+\item{data}{Data frame or path to a Protein_QUANT TSV/CSV/Parquet file.}
 
-\item{matrix_data}{Data frame o ruta a TSV/CSV/Parquet de la matriz log2
-normalizada/imputada (con columna ProteinGroups + samples \if{html}{\out{<cond>}}_\if{html}{\out{<rep>}}).}
+\item{matrix_data}{Data frame or path to a TSV/CSV/Parquet file with the
+normalized/imputed log2 matrix (a ProteinGroups column + \if{html}{\out{<cond>}}_\if{html}{\out{<rep>}} samples).}
 
-\item{metadata}{Opcional: data frame de metadata con columna Coding para
-fijar el orden de muestras.}
+\item{metadata}{Optional: metadata data frame with a Coding column that fixes
+the sample order.}
 
-\item{page_size}{Filas por pagina (default 15).}
+\item{page_size}{Rows per page (default 15).}
 
-\item{height}{Altura de la tabla en px (default 720).}
+\item{height}{Table height in px (default 720).}
 
-\item{element_id}{ID del elemento Reactable.}
+\item{element_id}{Reactable element ID.}
 
 \item{selection}{"single" | "multiple" | NULL.}
 
-\item{searchable}{Habilitar busqueda (default TRUE).}
+\item{searchable}{Enable the search box (default TRUE).}
 }
 \value{
-Objeto browsable.
+A browsable object.
 }
 \description{
-Tabla reactable que reproduce el layout del Excel Protein-List_QUANT con
-cabeceras de 2 niveles, sticky cols, paleta azul, filtros agregados y export
-Excel. Anexa al Protein_QUANT las 16 columnas de la matriz normalizada/imputada
-log2, cruzando por Protein Groups.
+Reactable table that reproduces the layout of the Protein-List_QUANT Excel
+sheet, with 2-level headers, sticky columns, a blue palette, aggregated
+filters and Excel export. It appends to Protein_QUANT the 16 columns of the
+normalized/imputed log2 matrix, matching by Protein Groups.
 }
 \examples{
 \dontrun{

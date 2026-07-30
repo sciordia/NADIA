@@ -1,31 +1,31 @@
 # =============================================================================
-# Preprocesamiento de Datos TMT de Proteome Discoverer
+# Proteome Discoverer TMT Data Preprocessing
 # =============================================================================
 #
-# Convierte exports de proteínas de Proteome Discoverer (TMT/TMTpro) a la
-# misma estructura que `preprocess_spectronaut()` para alimentar el pipeline
-# downstream sin cambios (Processing.R y módulos asociados).
+# Converts Proteome Discoverer protein exports (TMT/TMTpro) into the same
+# structure as `preprocess_spectronaut()`, so the downstream pipeline
+# (Processing.R and the associated modules) consumes them unchanged.
 #
 # Copyright 2025 Sergio Ciordia
 # Licensed under MIT
 # =============================================================================
 
-# --- Dependencias ---
+# --- Dependencies ---
 
 # =============================================================================
-# Funciones Auxiliares Internas
+# Internal Helper Functions
 # =============================================================================
 
-# .parse_gene_from_description() y .validate_pd_columns() viven en R/utils.R:
-# estaban duplicadas aquí y en Preprocessing_LFQ.R.
+# .parse_gene_from_description() and .validate_pd_columns() live in R/utils.R:
+# they used to be duplicated here and in Preprocessing_LFQ.R.
 
-#' Detecta columnas `Abundance:` y deriva Coding / Condition / Replicate
+#' Detect the `Abundance:` columns and derive Coding / Condition / Replicate
 #' @noRd
 .parse_abundance_columns <- function(df) {
   abund_cols <- grep("^Abundance:\\s*", names(df), value = TRUE)
   if (length(abund_cols) == 0) {
-    stop("No se encontraron columnas 'Abundance:' en el archivo. ",
-         "Verifica que sea un export de Proteome Discoverer.")
+    stop("No 'Abundance:' columns found in the file. ",
+         "Check that it is a Proteome Discoverer export.")
   }
 
   coding <- sub("^Abundance:\\s*", "", abund_cols)
@@ -33,7 +33,7 @@
   if (any(is.na(m[, 1]))) {
     bad <- coding[is.na(m[, 1])]
     stop(
-      "No se pudieron parsear los sufijos de Abundance (esperado <Condicion>_<Replicado>):\n  - ",
+      "Could not parse the Abundance suffixes (expected <Condition>_<Replicate>):\n  - ",
       paste(bad, collapse = "\n  - ")
     )
   }
@@ -47,10 +47,10 @@
   )
 }
 
-#' Lookup tolerante a variantes habituales de nombres de columna de PD
-#' @description PD exporta columnas con caracteres especiales (espacios, #, %,
-#'   corchetes, ":"). Esta función prueba varias variantes y devuelve la primera
-#'   que exista, o `NA_character_` si ninguna coincide.
+#' Lookup that tolerates the usual variants of PD column names
+#' @description PD exports columns with special characters (spaces, #, %,
+#'   brackets, ":"). This function tries several variants and returns the first
+#'   one that exists, or `NA_character_` if none matches.
 #' @noRd
 .tmt_resolve_col <- function(df, ...) {
   candidates <- unlist(list(...), use.names = FALSE)
@@ -58,7 +58,7 @@
   if (length(hit) == 0) NA_character_ else hit[1]
 }
 
-#' Extrae un vector numérico de `df[[col]]` o NA si la columna no existe
+#' Extract a numeric vector from `df[[col]]`, or NA if the column is absent
 #' @noRd
 .tmt_numeric_or_na <- function(df, col) {
   if (is.na(col) || !col %in% names(df)) {
@@ -67,7 +67,7 @@
   suppressWarnings(as.numeric(df[[col]]))
 }
 
-#' Extrae un vector character de `df[[col]]` o NA si la columna no existe
+#' Extract a character vector from `df[[col]]`, or NA if the column is absent
 #' @noRd
 .tmt_char_or_na <- function(df, col) {
   if (is.na(col) || !col %in% names(df)) {
@@ -77,41 +77,41 @@
 }
 
 # =============================================================================
-# Función Principal
+# Main Function
 # =============================================================================
 
-#' Preprocesa exports TMT de Proteome Discoverer
+#' Preprocess Proteome Discoverer TMT exports
 #'
 #' @description
-#' Convierte un export de proteínas de Proteome Discoverer (formato TSV ancho,
-#' con columnas `Abundance: <Condicion>_<Replicado>`) a la misma estructura de
-#' salida que `preprocess_spectronaut()`: tres data.frames (`metadata`,
-#' `protein_id`, `protein_quant`) listos para el pipeline downstream
-#' (`process_proteomics()` y módulos asociados).
+#' Converts a Proteome Discoverer protein export (wide TSV format, with
+#' `Abundance: <Condition>_<Replicate>` columns) into the same output structure
+#' as `preprocess_spectronaut()`: three data.frames (`metadata`, `protein_id`,
+#' `protein_quant`) ready for the downstream pipeline (`process_proteomics()`
+#' and the associated modules).
 #'
-#' Las métricas globales de identificación de PD (`# PSMs`, `# Peptides`,
-#' `# Unique Peptides`, `Coverage [%]`) se replican en columnas por canal para
-#' encajar con el contrato wide de Spectronaut.
+#' The global PD identification metrics (`# PSMs`, `# Peptides`,
+#' `# Unique Peptides`, `Coverage [%]`) are replicated into per-channel columns
+#' to fit the wide Spectronaut contract.
 #'
-#' @param file_path Ruta al TSV exportado de Proteome Discoverer.
-#' @param condition_order Vector de caracteres con el orden de las condiciones
-#'   experimentales (ej: `c("A","B","C","D","IS")`). Solo se conservan los
-#'   canales cuya condición esté en este vector — útil para excluir Internal
-#'   Standards omitiendo `"IS"`.
-#' @param export_dir Directorio para exportar archivos TSV. Si es `NULL`
-#'   (default), no se exportan archivos.
-#' @param timestamp_suffix Lógico. Si `TRUE` (default), añade timestamp a los
-#'   nombres de los archivos exportados.
-#' @param verbose Lógico. Si `TRUE` (default), muestra mensajes de progreso.
+#' @param file_path Path to the TSV exported from Proteome Discoverer.
+#' @param condition_order Character vector with the order of the experimental
+#'   conditions (e.g. `c("A","B","C","D","IS")`). Only the channels whose
+#'   condition is in this vector are kept -- handy for excluding Internal
+#'   Standards by omitting `"IS"`.
+#' @param export_dir Directory to export the TSV files to. If `NULL` (default),
+#'   no files are exported.
+#' @param timestamp_suffix Logical. If `TRUE` (default), appends a timestamp to
+#'   the names of the exported files.
+#' @param verbose Logical. If `TRUE` (default), shows progress messages.
 #'
-#' @return Lista con clase `c("tmt_data", "proteomics_data", "list")`
-#'   conteniendo:
+#' @return A list with class `c("tmt_data", "proteomics_data", "list")`
+#'   containing:
 #'   \describe{
-#'     \item{metadata}{Data frame con un registro por canal/muestra}
-#'     \item{protein_id}{Data frame con métricas de identificación por proteína
-#'       (formato wide, métricas globales replicadas por canal)}
-#'     \item{protein_quant}{Data frame con métricas de cuantificación por
-#'       proteína (incluye `PG.Quantity_<Coding>`)}
+#'     \item{metadata}{Data frame with one record per channel/sample}
+#'     \item{protein_id}{Data frame with the identification metrics per protein
+#'       (wide format, global metrics replicated per channel)}
+#'     \item{protein_quant}{Data frame with the quantification metrics per
+#'       protein (includes `PG.Quantity_<Coding>`)}
 #'   }
 #'
 #' @examples
@@ -133,17 +133,17 @@ preprocess_tmt <- function(
     verbose = TRUE
 ) {
 
-  # --- Validación de argumentos ---
+  # --- Argument validation ---
   if (!file.exists(file_path)) {
-    stop("Archivo no encontrado: ", file_path)
+    stop("File not found: ", file_path)
   }
 
   if (length(condition_order) == 0 || !is.character(condition_order)) {
-    stop("condition_order debe ser un vector de caracteres no vacío.")
+    stop("condition_order must be a non-empty character vector.")
   }
 
-  # --- Lectura del archivo (check.names = FALSE para preservar headers PD) ---
-  if (verbose) message("Leyendo archivo: ", basename(file_path))
+  # --- Reading the file (check.names = FALSE to preserve the PD headers) ---
+  if (verbose) message("Reading file: ", basename(file_path))
 
   df <- read.delim(
     file_path,
@@ -153,31 +153,31 @@ preprocess_tmt <- function(
     check.names = FALSE
   )
 
-  # --- Validar columnas mínimas ---
+  # --- Validate the minimum set of columns ---
   .validate_pd_columns(df)
 
-  # --- Parsear columnas Abundance ---
+  # --- Parse the Abundance columns ---
   abund <- .parse_abundance_columns(df)
 
-  # Filtrar canales según condition_order (excluye p.ej. "IS" si no está)
+  # Filter the channels by condition_order (drops e.g. "IS" when not listed)
   keep <- abund$R.Condition %in% condition_order
   if (!any(keep)) {
     stop(
-      "Ningún canal Abundance coincide con condition_order = c(",
+      "No Abundance channel matches condition_order = c(",
       paste0("'", condition_order, "'", collapse = ", "), ").\n",
-      "Condiciones detectadas en el archivo: ",
+      "Conditions detected in the file: ",
       paste(unique(abund$R.Condition), collapse = ", ")
     )
   }
   abund <- abund[keep, , drop = FALSE]
 
-  # Orden final por condition_order y replicate
+  # Final ordering by condition_order and replicate
   abund$R.Condition <- factor(abund$R.Condition,
                               levels = condition_order, ordered = TRUE)
   abund <- abund[order(abund$R.Condition, abund$R.Replicate), , drop = FALSE]
   coding_levels <- abund$Coding
 
-  # --- Resolver columnas opcionales de PD (nombres tolerantes) ---
+  # --- Resolve the optional PD columns (tolerant name matching) ---
   col_mw       <- .tmt_resolve_col(df, "MW [kDa]", "MW (kDa)", "MW")
   col_pi       <- .tmt_resolve_col(df, "calc. pI", "calc pI", "Calculated pI")
   col_master   <- .tmt_resolve_col(df, "Master")
@@ -200,7 +200,7 @@ preprocess_tmt <- function(
   # ==========================================================================
   # metadata
   # ==========================================================================
-  if (verbose) message("Generando metadata de canales...")
+  if (verbose) message("Generating channel metadata...")
 
   run_summary <- data.frame(
     R.FileName  = abund$abundance_col,
@@ -212,9 +212,9 @@ preprocess_tmt <- function(
   rownames(run_summary) <- run_summary$Coding
 
   # ==========================================================================
-  # Información base de proteínas (compartida entre protein_ID y protein_QUANT)
+  # Base protein information (shared between protein_ID and protein_QUANT)
   # ==========================================================================
-  if (verbose) message("Procesando información base de proteínas...")
+  if (verbose) message("Processing the base protein information...")
 
   base_info <- data.frame(
     PG.ProteinGroups       = as.character(df$Accession),
@@ -224,7 +224,7 @@ preprocess_tmt <- function(
     stringsAsFactors = FALSE
   )
 
-  # Extras TMT-específicos (se mantienen tras MW para no romper downstream)
+  # TMT-specific extras (kept after MW so as not to break downstream code)
   tmt_extras <- data.frame(
     calc.pI                = .tmt_numeric_or_na(df, col_pi),
     Master                 = .tmt_char_or_na(df, col_master),
@@ -237,7 +237,7 @@ preprocess_tmt <- function(
     stringsAsFactors = FALSE
   )
 
-  # Métricas globales que se replicarán por canal
+  # Global metrics that will be replicated per channel
   g_psms <- .tmt_numeric_or_na(df, col_psms)
   g_pept <- .tmt_numeric_or_na(df, col_pepts)
   g_cov  <- .tmt_numeric_or_na(df, col_cov)
@@ -245,9 +245,9 @@ preprocess_tmt <- function(
   g_uniq <- .tmt_numeric_or_na(df, col_uniq)
 
   # ==========================================================================
-  # protein_ID  (métricas globales replicadas por canal para shape wide)
+  # protein_ID  (global metrics replicated per channel to get the wide shape)
   # ==========================================================================
-  if (verbose) message("Procesando protein_ID...")
+  if (verbose) message("Processing protein_ID...")
 
   mk_wide <- function(values, metric_name) {
     mat <- matrix(rep(values, length(coding_levels)),
@@ -263,7 +263,7 @@ preprocess_tmt <- function(
 
   protein_ID <- cbind(base_info, tmt_extras, id_psms, id_pept, id_cov, id_pep)
 
-  # Ordenar columnas: estáticas + extras + métricas en orden estable
+  # Order the columns: static + extras + metrics in a stable order
   static_cols  <- c("PG.ProteinGroups", "PG.ProteinDescriptions",
                     "PG.Genes", "PG.MolecularWeight")
   extras_cols  <- names(tmt_extras)
@@ -278,16 +278,16 @@ preprocess_tmt <- function(
   protein_ID <- protein_ID[order(protein_ID$PG.ProteinGroups), , drop = FALSE]
   rownames(protein_ID) <- NULL
 
-  # Validar unicidad
+  # Check uniqueness
   if (anyDuplicated(protein_ID$PG.ProteinGroups) > 0) {
-    stop("Error de integridad: protein_ID contiene Accession duplicados. ",
-         "Revisa los datos de entrada.")
+    stop("Integrity error: protein_ID contains duplicated Accession values. ",
+         "Check the input data.")
   }
 
   # ==========================================================================
   # protein_QUANT
   # ==========================================================================
-  if (verbose) message("Procesando protein_QUANT...")
+  if (verbose) message("Processing protein_QUANT...")
 
   global_metrics <- data.frame(
     PG.NrOfPrecursorsIdentified.Global        = g_psms,
@@ -297,8 +297,8 @@ preprocess_tmt <- function(
     stringsAsFactors = FALSE
   )
 
-  # Métricas por canal: NrOfPrecursorsUsedForQuantification (PSMs replicado),
-  # NrOfStrippedSequencesUsedForQuantification (Unique Peptides replicado),
+  # Per-channel metrics: NrOfPrecursorsUsedForQuantification (replicated PSMs),
+  # NrOfStrippedSequencesUsedForQuantification (replicated Unique Peptides),
   # Quantity (Abundance: <Coding>)
   q_psms <- mk_wide(g_psms, "PG.NrOfPrecursorsUsedForQuantification")
   q_uniq <- mk_wide(g_uniq, "PG.NrOfStrippedSequencesUsedForQuantification")
@@ -327,15 +327,15 @@ preprocess_tmt <- function(
   rownames(protein_QUANT) <- NULL
 
   if (anyDuplicated(protein_QUANT$PG.ProteinGroups) > 0) {
-    stop("Error de integridad: protein_QUANT contiene Accession duplicados. ",
-         "Revisa los datos de entrada.")
+    stop("Integrity error: protein_QUANT contains duplicated Accession values. ",
+         "Check the input data.")
   }
 
   # ==========================================================================
-  # Exportación opcional
+  # Optional export
   # ==========================================================================
   if (!is.null(export_dir)) {
-    if (verbose) message("Exportando archivos a: ", export_dir)
+    if (verbose) message("Exporting files to: ", export_dir)
 
     if (!dir.exists(export_dir)) {
       dir.create(export_dir, recursive = TRUE)
@@ -363,18 +363,18 @@ preprocess_tmt <- function(
       na = ""
     )
 
-    if (verbose) message("Archivos exportados exitosamente.")
+    if (verbose) message("Files exported successfully.")
   }
 
   # ==========================================================================
-  # Construir resultado
+  # Build the result
   # ==========================================================================
   if (verbose) {
     message(
-      "Procesamiento completado:\n",
-      "  - Canales: ", nrow(run_summary), "\n",
-      "  - Proteínas (ID): ", nrow(protein_ID), "\n",
-      "  - Proteínas (QUANT): ", nrow(protein_QUANT)
+      "Processing complete:\n",
+      "  - Channels: ", nrow(run_summary), "\n",
+      "  - Proteins (ID): ", nrow(protein_ID), "\n",
+      "  - Proteins (QUANT): ", nrow(protein_QUANT)
     )
   }
 
@@ -389,17 +389,17 @@ preprocess_tmt <- function(
 }
 
 # =============================================================================
-# Métodos para clase tmt_data
+# Methods for the tmt_data class
 # =============================================================================
 
 #' @export
 print.tmt_data <- function(x, ...) {
-  cat("Datos TMT (Proteome Discoverer) preprocesados\n")
-  cat("---------------------------------------------\n")
-  cat("Canales (metadata):", nrow(x$metadata), "\n")
-  cat("Proteínas (ID):", nrow(x$protein_id), "\n")
-  cat("Proteínas (QUANT):", nrow(x$protein_quant), "\n")
-  cat("\nCondiciones:",
+  cat("Preprocessed TMT (Proteome Discoverer) data\n")
+  cat("------------------------------------------\n")
+  cat("Channels (metadata):", nrow(x$metadata), "\n")
+  cat("Proteins (ID):", nrow(x$protein_id), "\n")
+  cat("Proteins (QUANT):", nrow(x$protein_quant), "\n")
+  cat("\nConditions:",
       paste(levels(x$metadata$R.Condition) %||%
               unique(x$metadata$R.Condition), collapse = ", "),
       "\n")

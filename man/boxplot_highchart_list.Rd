@@ -2,7 +2,7 @@
 % Please edit documentation in R/Boxplot_Highcharts_Final.R
 \name{boxplot_highchart_list}
 \alias{boxplot_highchart_list}
-\title{Boxplot Interactivo con Highcharts para Proteómica}
+\title{Interactive Highcharts Boxplot for Proteomics}
 \usage{
 boxplot_highchart_list(
   data,
@@ -21,37 +21,37 @@ boxplot_highchart_list(
 )
 }
 \arguments{
-\item{data}{Data frame con columnas: Column, Assay, Intensity, Condition}
+\item{data}{Data frame with columns: Column, Assay, Intensity, Condition}
 
-\item{assays}{Vector de assays a incluir (NULL = todos)}
+\item{assays}{Vector of assays to include (NULL = all of them)}
 
-\item{color_by}{Columna para colorear (default: "Condition")}
+\item{color_by}{Column used for colouring (default: "Condition")}
 
-\item{group_order}{Orden de los grupos/condiciones}
+\item{group_order}{Order of the groups/conditions}
 
-\item{palette}{Paleta de colores: "ggsci::palette", "brewer:Name", o vector}
+\item{palette}{Colour palette: "ggsci::palette", "brewer:Name", or a vector}
 
-\item{title}{Título del gráfico (opcional).
-Usa \code{\{assay\}} como placeholder (ej: "Boxplot: \{assay\}" -> "Boxplot: ImpSeqRob_Min")}
+\item{title}{Chart title (optional).
+Use \code{\{assay\}} as a placeholder (e.g. "Boxplot: \{assay\}" -> "Boxplot: ImpSeqRob_Min")}
 
-\item{subtitle}{Subtítulo del gráfico (opcional).
-Usa \code{\{assay\}} como placeholder}
+\item{subtitle}{Chart subtitle (optional).
+Use \code{\{assay\}} as a placeholder}
 
-\item{show_outliers}{Mostrar outliers fuera de los bigotes (default: TRUE)}
+\item{show_outliers}{Show outliers lying outside the whiskers (default: TRUE)}
 
-\item{outlier_jitter}{Cantidad de jitter horizontal para los outliers (default: 0.15)}
+\item{outlier_jitter}{Amount of horizontal jitter applied to the outliers (default: 0.15)}
 
-\item{outlier_size}{Radio de los puntos outliers (default: 3)}
+\item{outlier_size}{Radius of the outlier points (default: 3)}
 
-\item{box_width}{Ancho de las cajas del boxplot en píxeles (default: 20)}
+\item{box_width}{Width of the boxplot boxes in pixels (default: 20)}
 
-\item{horizontal}{Orientación horizontal (default: TRUE)}
+\item{horizontal}{Horizontal orientation (default: TRUE)}
 
-\item{height}{Altura del gráfico en píxeles}
+\item{height}{Chart height in pixels}
 }
 \value{
-Lista de objetos highchart (uno por assay)
+List of highchart objects (one per assay)
 }
 \description{
-Boxplot Interactivo con Highcharts para Proteómica
+Interactive Highcharts Boxplot for Proteomics
 }

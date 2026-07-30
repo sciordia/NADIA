@@ -2,24 +2,24 @@
 % Please edit documentation in R/Pattern_Profiler_Analysis.R
 \name{extract_se_data}
 \alias{extract_se_data}
-\title{Extraer datos de SummarizedExperiment}
+\title{Extract data from a SummarizedExperiment}
 \usage{
 extract_se_data(se_proc, assay_name = NULL)
 }
 \arguments{
-\item{se_proc}{Objeto SummarizedExperiment}
+\item{se_proc}{SummarizedExperiment object}
 
-\item{assay_name}{Nombre del assay a usar (NULL = primero disponible)}
+\item{assay_name}{Name of the assay to use (NULL = first available)}
 }
 \value{
-Lista con:
+List with:
 \itemize{
-\item intensity_matrix: Matriz features x samples
-\item feature_ids: Vector de IDs de proteínas
-\item sample_metadata: DataFrame con SampleID, Condition, etc.
+\item intensity_matrix: features x samples matrix
+\item feature_ids: vector of protein IDs
+\item sample_metadata: DataFrame with SampleID, Condition, etc.
 }
 }
 \description{
-Obtiene la matriz de intensidades, IDs de features y metadatos de muestras
-desde un objeto SummarizedExperiment.
+Retrieves the intensity matrix, the feature IDs and the sample metadata from a
+SummarizedExperiment object.
 }

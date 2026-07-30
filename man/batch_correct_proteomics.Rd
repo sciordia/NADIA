@@ -37,10 +37,10 @@ added to the SE (default "BERT").}
 \item{covariates}{Character vector of column names from colData(se) to
 use as categorical covariates for batch correction (default NULL).
 These are mapped to BERT's Cov_1, Cov_2, ... format internally.
-IMPORTANTE: para ComBat/limma, incluye aqui la variable biologica de
-interes (p.ej. la condicion) para PRESERVARLA; de lo contrario ComBat
-elimina toda la varianza del batch y puede borrar senal biologica si
-condicion y batch estan confundidos. Deben ser covariables categoricas.}
+IMPORTANT: for ComBat/limma, include here the biological variable of
+interest (e.g. the condition) in order to PRESERVE it; otherwise ComBat
+removes all batch-associated variance and can erase biological signal when
+condition and batch are confounded. They must be categorical covariates.}
 
 \item{qualitycontrol}{Logical. Compute ASW (Average Silhouette Width)
 quality metrics for raw vs corrected data (default FALSE).}

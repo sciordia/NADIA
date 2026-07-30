@@ -32,7 +32,7 @@ SummarizedExperiment with assays \code{"raw"} and \code{"log2"}.
 Convenience wrapper that extracts metadata and protein data from a
 \code{proteomics_data} object (output of \code{preprocess_spectronaut()} or
 \code{preprocess_tmt()}), performs zero-to-NA conversion, protein filtering,
-and returns a SE with assays \code{"raw"} and \code{"log2"} — ready for
+and returns a SE with assays \code{"raw"} and \code{"log2"} -- ready for
 \code{nm_run_normalizations()} or \code{normalization_metrics(..., methods = "all")}.
 }
 \details{

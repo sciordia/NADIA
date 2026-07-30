@@ -1,45 +1,45 @@
 # NADIA 0.99.0
 
-Primera versión preparada para su envío a Bioconductor. El proyecto pasa de ser
-una colección de módulos que se consumían con `source()` a un paquete de R
-instalable, sin cambios en los resultados que produce el pipeline.
+First version prepared for submission to Bioconductor. The project moves from a
+collection of modules consumed with `source()` to an installable R package,
+without any change to the results the pipeline produces.
 
-## Nuevo
+## New
 
-* Estructura de paquete: `DESCRIPTION`, `NAMESPACE` y páginas de ayuda generadas
-  con roxygen2. El flujo de trabajo pasa a ser `library(NADIA)`.
-* 102 funciones exportadas, que cubren el pipeline completo: preprocesado de
-  Spectronaut/DIA-NN y de Proteome Discoverer (TMT y LFQ), normalización (13
-  métodos), corrección de lote, imputación (19 métodos), expresión diferencial
-  con limma o limpa, métricas y benchmarking, y visualización interactiva y
-  estática.
-* Dataset de ejemplo `nadia_dia` y reports recortados en `inst/extdata/`, con su
-  procedencia documentada en `inst/scripts/`.
+* Package structure: `DESCRIPTION`, `NAMESPACE` and help pages generated with
+  roxygen2. The way to load the code is now `library(NADIA)`.
+* 102 exported functions covering the whole pipeline: preprocessing of
+  Spectronaut/DIA-NN and Proteome Discoverer reports (both TMT and label-free),
+  normalization (13 methods), batch correction, imputation (19 methods),
+  differential expression with limma or limpa, metrics and benchmarking, and
+  interactive and static visualization.
+* Example dataset `nadia_dia` and trimmed reports in `inst/extdata/`, with their
+  provenance documented in `inst/scripts/`.
 
-## Cambios
+## Changes
 
-* Las dependencias se declaran en `Imports:` y `Suggests:`; ya no se llama a
-  `library()` desde el código. Los paquetes que solo hacen falta para un método
-  concreto se comprueban en el punto de uso.
-* `process_proteomics()` y `pattern_profiler_analysis()` ya no escriben en disco
-  a menos que se les indique una ruta de salida: `export_dir` y `output_file`
-  tienen ahora `NULL` por defecto. `pattern_profiler_analysis()` devuelve
-  `long_output` en su lista de resultados.
-* Las funciones que usan `set.seed()` restauran el generador de números
-  aleatorios al salir, de modo que no alteran la reproducibilidad del código que
-  se ejecute después. `.nm_hopkins()` acepta la semilla como argumento.
+* Dependencies are declared in `Imports:` and `Suggests:`; the code no longer
+  calls `library()`. Packages needed only for one specific method are checked at
+  the point of use.
+* Comments, documentation and user-facing messages are now in English.
+* `process_proteomics()` and `pattern_profiler_analysis()` no longer write to
+  disk unless given an output path: `export_dir` and `output_file` now default to
+  `NULL`. `pattern_profiler_analysis()` returns `long_output` in its result list.
+* Functions that call `set.seed()` restore the random number generator on exit,
+  so they no longer affect the reproducibility of code run afterwards.
+  `.nm_hopkins()` takes the seed as an argument.
 
-## Correcciones
+## Bug fixes
 
-* Ocho definiciones duplicadas de helpers de color y filtrado (`hex_to_rgba`,
-  `darken_hex`, `normalize_hex`, `get_feature_ids` y otros) repartidas por seis
-  módulos se unifican en una sola. Al vivir todas en el entorno global, la copia
-  activa dependía del orden de carga.
-* `get_feature_ids()` acepta ahora `mode = "target"` y `mode = "specific"` como
-  sinónimos. Antes, cargar `Heatmap_tidyHeatmap.R` después de
-  `PCA_Highcharts_Final.R` hacía que `pca_highchart_list(modes = "specific")`
-  abortara.
-* El filtrado por `mode = "any"` ya no puede devolver `FeatureID` `NA` cuando la
-  columna `sig_any` contiene valores ausentes.
-* `summary_list_widget()` funciona con metadatos de LFQ y TMT, que carecen de las
-  columnas de recuento de identificaciones propias de Spectronaut.
+* Eight duplicated definitions of colour and filtering helpers (`hex_to_rgba`,
+  `darken_hex`, `normalize_hex`, `get_feature_ids` and others) spread across six
+  modules are unified into one each. Because they all lived in the global
+  environment, which copy was active depended on the order in which the modules
+  had been loaded.
+* `get_feature_ids()` now accepts `mode = "target"` and `mode = "specific"` as
+  synonyms. Previously, loading `Heatmap_tidyHeatmap.R` after
+  `PCA_Highcharts_Final.R` made `pca_highchart_list(modes = "specific")` abort.
+* Filtering with `mode = "any"` can no longer return `NA` `FeatureID`s when the
+  `sig_any` column contains missing values.
+* `summary_list_widget()` works with LFQ and TMT metadata, which lack the
+  identification-count columns specific to Spectronaut.

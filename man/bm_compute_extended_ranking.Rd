@@ -35,9 +35,10 @@ then ranks methods in descending order (higher = better for all metrics).
 Final rank = mean of the 11 individual ranks.
 }
 \details{
-Nota: este ranking extendido puede desalinearse del ranking OpDEA canónico
-(\code{bm_compute_ranking}, basado en nMCC/G_mean/pAUC). \code{Performance} es colineal
-con F1 (por lo que F1 pesa doble), y \code{Accuracy}/\code{NPV} en spike-ins están
-dominadas por el fondo (TN >> ) → poco poder discriminativo. Úsese como vista
-complementaria, no como sustituto del ranking OpDEA.
+Note: this extended ranking can drift away from the canonical OpDEA ranking
+(\code{bm_compute_ranking}, based on nMCC/G_mean/pAUC). \code{Performance} is collinear
+with F1 (so F1 effectively counts twice), and in spike-in designs
+\code{Accuracy}/\code{NPV} are dominated by the background (TN >> ), hence they have
+little discriminative power. Use it as a complementary view, not as a
+substitute for the OpDEA ranking.
 }

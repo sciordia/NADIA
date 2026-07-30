@@ -111,7 +111,7 @@
 .imp_with <- function(x, args = list()) {
   val <- args$with_value
   if (is.null(val) || is.na(val)) {
-    stop("imp_method='with' requiere un valor en 'with_value'.")
+    stop("imp_method='with' requires a value in 'with_value'.")
   }
   x[is.na(x)] <- val
   x
@@ -119,14 +119,14 @@
 
 #' PI: Perseus-style imputation (down-shifted normal distribution)
 #' @param args list with optional `width` (default 0.3), `downshift` (default 1.8)
-#'   and `seed` (default 1234, para reproducibilidad de rnorm).
+#'   and `seed` (default 1234, for reproducibility of rnorm).
 #' @keywords internal
 .imp_PI <- function(x, args = list()) {
   width     <- args$width     %||% 0.3
   downshift <- args$downshift %||% 1.8
   seed      <- args$seed      %||% 1234
-  # Restaurar el RNG del usuario al salir: fijar la semilla es necesario para
-  # reproducir los rnorm(), pero no debe alterar la sesión de quien llama.
+  # Restore the user's RNG on exit: setting the seed is needed to reproduce the
+  # rnorm() draws, but it must not alter the caller's session.
   old_rng <- .rng_state()
   on.exit(.rng_restore(old_rng), add = TRUE)
   set.seed(seed)
@@ -134,8 +134,8 @@
     na_idx <- which(is.na(x[, j]))
     if (length(na_idx) == 0L) next
     obs    <- x[!is.na(x[, j]), j]
-    # Con <2 observaciones sd(obs) es NA/0; usar la mediana global como
-    # centro y una SD global para no generar NAs.
+    # With <2 observations sd(obs) is NA/0; use the global median as the centre
+    # and a global SD so that no NAs are generated.
     if (length(obs) < 2L) {
       obs_mu <- if (length(obs) == 1L) obs else median(x, na.rm = TRUE)
       obs_sd <- mad(x, na.rm = TRUE)
@@ -163,7 +163,7 @@
 #' @keywords internal
 .imp_limpa <- function(x, args = list()) {
   if (!requireNamespace("limpa", quietly = TRUE)) {
-    stop("Para imp_method='limpa' necesitas 'limpa'.\n",
+    stop("imp_method='limpa' requires the 'limpa' package.\n",
          "  BiocManager::install('limpa')")
   }
 
@@ -175,21 +175,21 @@
   chunk      <- args$chunk      %||% 1000
   verbose    <- args$verbose    %||% FALSE
 
-  # 1. Estimar curva de probabilidad de deteccion
+  # 1. Estimate the detection probability curve
   if (use_dpcCN) {
     dpc_est <- limpa::dpcCN(x, dpc.slope.start = dpc.slope, verbose = verbose)
   } else {
     dpc_est <- limpa::dpc(x, maxit = maxit, eps = eps, b1.upper = b1.upper)
   }
 
-  # 2. Cuantificacion row-wise (imputa + calcula SEs)
+  # 2. Row-wise quantification (imputes + computes SEs)
   elist <- limpa::dpcQuantByRow(x, dpc = dpc_est, verbose = verbose, chunk = chunk)
 
-  # Matriz imputada
+  # Imputed matrix
   result <- elist$E
   dimnames(result) <- dimnames(x)
 
-  # Adjuntar EList para downstream dpcDE
+  # Attach the EList for downstream dpcDE
   attr(result, "limpa_elist") <- elist
 
   result
@@ -202,7 +202,7 @@
 #' @keywords internal
 .imp_bpca <- function(x, args = list()) {
   if (!requireNamespace("pcaMethods", quietly = TRUE)) {
-    stop("Para imp_method='bpca' necesitas 'pcaMethods'.\n",
+    stop("imp_method='bpca' requires the 'pcaMethods' package.\n",
          "  BiocManager::install('pcaMethods')")
   }
   # NAguideR/MsCoreUtils: nPcs = ncol(x) - 1 (max PCs possible)
@@ -219,14 +219,14 @@
 #' @keywords internal
 .imp_knn <- function(x, args = list()) {
   if (!requireNamespace("impute", quietly = TRUE)) {
-    stop("Para imp_method='knn' necesitas 'impute'.\n",
+    stop("imp_method='knn' requires the 'impute' package.\n",
          "  BiocManager::install('impute')")
   }
   k <- args$k %||% 10
   k <- min(k, nrow(x) - 1)
-  # rowmax/colmax por defecto de impute.knn son 0.5/0.8: las filas/columnas que
-  # los superan se rellenan con la media (no KNN real) de forma silenciosa. Se
-  # elevan a 0.99 para hacer KNN efectivo hasta el umbral del prefiltro.
+  # The impute.knn defaults for rowmax/colmax are 0.5/0.8: rows/columns that
+  # exceed them are silently filled with the mean (not actual KNN). They are
+  # raised to 0.99 so that KNN is effective up to the pre-filter threshold.
   rowmax <- args$rowmax %||% 0.99
   colmax <- args$colmax %||% 0.99
   res <- impute::impute.knn(x, k = k, rowmax = rowmax, colmax = colmax)
@@ -240,7 +240,7 @@
 #' @keywords internal
 .imp_mice <- function(x, args = list()) {
   if (!requireNamespace("mice", quietly = TRUE)) {
-    stop("Para imp_method='mice' necesitas 'mice'.\n",
+    stop("imp_method='mice' requires the 'mice' package.\n",
          "  install.packages('mice')")
   }
   m      <- args$m      %||% 5
@@ -264,7 +264,7 @@
 #' @keywords internal
 .imp_missForest <- function(x, args = list()) {
   if (!requireNamespace("missForest", quietly = TRUE)) {
-    stop("Para imp_method='missForest' necesitas 'missForest'.\n",
+    stop("imp_method='missForest' requires the 'missForest' package.\n",
          "  install.packages('missForest')")
   }
   maxiter <- args$maxiter %||% 10
@@ -283,7 +283,7 @@
 #' @keywords internal
 .imp_Impseq <- function(x, args = list()) {
   if (!requireNamespace("rrcovNA", quietly = TRUE)) {
-    stop("Para imp_method='Impseq' necesitas 'rrcovNA'.\n",
+    stop("imp_method='Impseq' requires the 'rrcovNA' package.\n",
          "  install.packages('rrcovNA')")
   }
   res <- rrcovNA::impSeq(x)
@@ -295,7 +295,7 @@
 #' @keywords internal
 .imp_Impseqrob <- function(x, args = list()) {
   if (!requireNamespace("rrcovNA", quietly = TRUE)) {
-    stop("Para imp_method='Impseqrob' necesitas 'rrcovNA'.\n",
+    stop("imp_method='Impseqrob' requires the 'rrcovNA' package.\n",
          "  install.packages('rrcovNA')")
   }
   alpha <- args$alpha %||% 0.9
@@ -308,7 +308,7 @@
 #' @keywords internal
 .imp_QRILC <- function(x, args = list()) {
   if (!requireNamespace("imputeLCMD", quietly = TRUE)) {
-    stop("Para imp_method='QRILC' necesitas 'imputeLCMD'.\n",
+    stop("imp_method='QRILC' requires the 'imputeLCMD' package.\n",
          "  install.packages('imputeLCMD')")
   }
   tune.sigma <- args$tune.sigma %||% 1
@@ -322,7 +322,7 @@
 #' @keywords internal
 .imp_MLE <- function(x, args = list()) {
   if (!requireNamespace("norm", quietly = TRUE)) {
-    stop("Para imp_method='MLE' necesitas 'norm'.\n",
+    stop("imp_method='MLE' requires the 'norm' package.\n",
          "  install.packages('norm')")
   }
   # NAguideR: no transpose (features x samples)
@@ -341,7 +341,7 @@
 #' @keywords internal
 .imp_MinProb <- function(x, args = list()) {
   if (!requireNamespace("imputeLCMD", quietly = TRUE)) {
-    stop("Para imp_method='MinProb' necesitas 'imputeLCMD'.\n",
+    stop("imp_method='MinProb' requires the 'imputeLCMD' package.\n",
          "  install.packages('imputeLCMD')")
   }
   q          <- args$q          %||% 0.01
@@ -377,7 +377,7 @@
   n <- length(missing_rate)
   stopifnot(n == length(mean_intensity), n >= 4)
 
-  # Special case: >75% proteins are complete → use 1/ncol as r0
+  # Special case: >75% proteins are complete -> use 1/ncol as r0
   if (quantile(missing_rate, 0.75) == 0) {
     r0 <- median(missing_rate[missing_rate > 0])
     if (is.na(r0)) r0 <- 0.1
@@ -464,8 +464,8 @@
     "MLE"        = .imp_MLE(x, args),
     "MinProb"    = .imp_MinProb(x, args),
     "limpa"      = .imp_limpa(x, args),
-    stop("Metodo de imputacion desconocido: '", method, "'. ",
-         "Metodos disponibles: ", paste(.IMP_METHODS_ALL, collapse = ", "))
+    stop("Unknown imputation method: '", method, "'. ",
+         "Available methods: ", paste(.IMP_METHODS_ALL, collapse = ", "))
   )
 }
 
@@ -570,11 +570,11 @@
 
   # Validate methods
   if (!mar_method %in% c(.IMP_METHODS_MAR, .IMP_METHODS_MNAR)) {
-    stop("mar_method '", mar_method, "' no reconocido. Opciones: ",
+    stop("mar_method '", mar_method, "' not recognized. Options: ",
          paste(c(.IMP_METHODS_MAR, .IMP_METHODS_MNAR), collapse = ", "))
   }
   if (!mnar_method %in% c(.IMP_METHODS_MNAR, .IMP_METHODS_MAR)) {
-    stop("mnar_method '", mnar_method, "' no reconocido. Opciones: ",
+    stop("mnar_method '", mnar_method, "' not recognized. Options: ",
          paste(c(.IMP_METHODS_MNAR, .IMP_METHODS_MAR), collapse = ", "))
   }
 
@@ -596,11 +596,11 @@
   }
 
   # ---- Stage 2: MNAR imputation ----
-  # La estimacion MNAR se calcula sobre `x` ORIGINAL (no x_stage1): los metodos
-  # distribucionales (QRILC, MinProb, PI, MinDet) estiman media/SD/cuantil por
-  # columna, y hacerlo sobre los valores ya imputados-MAR sesgaria la
-  # distribucion al alza, elevando los valores MNAR que deberian ser bajos.
-  # Solo se copian las celdas MNAR. Coincide con el comportamiento de softHybrid.
+  # The MNAR estimation is computed on the ORIGINAL `x` (not x_stage1): the
+  # distributional methods (QRILC, MinProb, PI, MinDet) estimate a per-column
+  # mean/SD/quantile, and doing so on the already MAR-imputed values would bias
+  # the distribution upwards, raising the MNAR values that ought to be low.
+  # Only the MNAR cells are copied. This matches the softHybrid behaviour.
   x_final <- x_stage1
   if (mnar_method != "none" && any(mnar_mask)) {
     x_imp_mnar <- .dispatch_imputation(x, mnar_method, method_args, with_value)
@@ -632,16 +632,17 @@
 #' Based on Shi et al. (bioRxiv 2026) softHybridImpute approach.
 #'
 #' @param x Numeric matrix (proteins x samples, log2) with NAs
-#' @param mar_method MAR imputation method (default: "Impseqrob", determinista y
-#'   sin dependencias adicionales; el wrapper impute_proteomics pasa este valor).
-#'   Nota: si se elige un metodo MAR/MNAR estocastico (p.ej. "missForest"),
-#'   softHybrid no fija semilla propia — pasa una via method_args para reproducir.
+#' @param mar_method MAR imputation method (default: "Impseqrob", deterministic
+#'   and with no additional dependencies; the impute_proteomics wrapper passes
+#'   this value). Note: if a stochastic MAR/MNAR method is chosen (e.g.
+#'   "missForest"), softHybrid does not set a seed of its own -- pass one via
+#'   method_args for reproducibility.
 #' @param mnar_method MNAR imputation method (default: "min")
 #' @param method_args Named list of per-method argument lists
 #' @param with_value Constant value for method "with"
 #' @param a Steepness of sigmoid for missing rate (default: 10)
-#' @param b Steepness of sigmoid for mean intensity, en unidades de SD (default: 5)
-#' @param lambda Balance between missing rate and intensity signals (default: 0.5, en el rango 0-1)
+#' @param b Steepness of sigmoid for mean intensity, in SD units (default: 5)
+#' @param lambda Balance between missing rate and intensity signals (default: 0.5, in the range 0-1)
 #' @param r0 Elbow point for missing rate sigmoid (NULL = auto-detect)
 #' @param x0 Elbow point for intensity sigmoid (NULL = auto-detect)
 #' @return List with x_imputed, weights (w_mar per protein), elbow (r0, x0), summary
@@ -664,11 +665,11 @@
   # Validate methods
   all_methods <- c(.IMP_METHODS_MAR, .IMP_METHODS_MNAR)
   if (!mar_method %in% all_methods) {
-    stop("mar_method '", mar_method, "' no reconocido para softHybrid. Opciones: ",
+    stop("mar_method '", mar_method, "' not recognized for softHybrid. Options: ",
          paste(all_methods, collapse = ", "))
   }
   if (!mnar_method %in% all_methods) {
-    stop("mnar_method '", mnar_method, "' no reconocido para softHybrid. Opciones: ",
+    stop("mnar_method '", mnar_method, "' not recognized for softHybrid. Options: ",
          paste(all_methods, collapse = ", "))
   }
 
@@ -699,17 +700,17 @@
   }
 
   # Compute per-protein MNAR weight via sigmoid.
-  # La intensidad se estandariza (z-score respecto a x0 y a su SD) antes del
-  # sigmoide para que la pendiente `b` sea relativa a la dispersion de los
-  # datos. En escala log2 cruda, con b=5 la transicion (~0.2 unidades) colapsaba
-  # a un escalon, anulando la mezcla continua en el eje de intensidad.
+  # The intensity is standardized (z-scored with respect to x0 and its SD)
+  # before the sigmoid so that the slope `b` is relative to the spread of the
+  # data. On the raw log2 scale, with b=5 the transition (~0.2 units) collapsed
+  # into a step, cancelling the continuous blend along the intensity axis.
   mi_sd <- stats::sd(mean_intensity[!all_na], na.rm = TRUE)
   if (!is.finite(mi_sd) || mi_sd == 0) mi_sd <- 1
   sigmoid_r <- .sigmoid(missing_rate, k = a, x0 = r0)
   sigmoid_x <- .sigmoid((mean_intensity - x0) / mi_sd, k = b, x0 = 0)
   p_mnar <- sigmoid_r * (1 - lambda * sigmoid_x)
-  # Clamp a [0,1]: con lambda>1 el factor (1 - lambda*sigmoid_x) puede ser
-  # negativo -> p_mnar<0 / w_mar>1 -> extrapolacion fuera de [x_mnar, x_mar].
+  # Clamp to [0,1]: with lambda>1 the factor (1 - lambda*sigmoid_x) can be
+  # negative -> p_mnar<0 / w_mar>1 -> extrapolation outside [x_mnar, x_mar].
   p_mnar <- pmin(pmax(p_mnar, 0), 1)
   w_mar  <- 1 - p_mnar
 
@@ -841,11 +842,11 @@
   ids <- rd[rownames(x_df), id_col, drop = TRUE] |> as.character()
   if (anyNA(ids)) {
     pg_missing <- rownames(x_df)[is.na(ids)]
-    stop(sprintf("IDs faltantes para %d ProteinGroups (ejemplos: %s)",
+    stop(sprintf("Missing IDs for %d ProteinGroups (examples: %s)",
                  length(pg_missing), paste(head(pg_missing, 10), collapse = ", ")))
   }
   if (anyDuplicated(ids)) {
-    warning(sprintf("IDs duplicados detectados: %d. Se aplicara make.unique().",
+    warning(sprintf("Duplicate IDs detected: %d. make.unique() will be applied.",
                     sum(duplicated(ids))))
     ids <- make.unique(ids)
   }
@@ -963,14 +964,14 @@ impute_proteomics <- function(
   # Validate SE
   stopifnot(inherits(se, "SummarizedExperiment"))
   if (!normalized_assay_name %in% SummarizedExperiment::assayNames(se)) {
-    stop("Assay '", normalized_assay_name, "' no encontrado en SE. ",
-         "Assays disponibles: ",
+    stop("Assay '", normalized_assay_name, "' not found in SE. ",
+         "Available assays: ",
          paste(SummarizedExperiment::assayNames(se), collapse = ", "))
   }
 
   # Validate imp_method
   if (!imp_method %in% .IMP_METHODS_ALL) {
-    stop("imp_method '", imp_method, "' no reconocido. Opciones: ",
+    stop("imp_method '", imp_method, "' not recognized. Options: ",
          paste(.IMP_METHODS_ALL, collapse = ", "))
   }
 
@@ -998,7 +999,7 @@ impute_proteomics <- function(
   # =========================================================================
 
   if (imp_method == "none") {
-    if (verbose) cat("\n=== IMPUTACION: none (sin imputar) ===\n")
+    if (verbose) cat("\n=== IMPUTATION: none (no imputation) ===\n")
 
     x_imputed <- x_norm
     pf_summary <- list(n_total = nrow(x_norm), n_keep = nrow(x_norm), n_drop = 0)
@@ -1014,7 +1015,7 @@ impute_proteomics <- function(
   # =========================================================================
 
   } else if (imp_method == "combo") {
-    if (verbose) cat("\n=== PREFILTRADO POR REGLAS MNAR ===\n")
+    if (verbose) cat("\n=== PRE-FILTERING BY MNAR RULES ===\n")
 
     pf <- .prefilter_by_rules(
       x = x_norm,
@@ -1026,13 +1027,13 @@ impute_proteomics <- function(
     )
 
     if (verbose) {
-      cat("- Proteinas conservadas:", pf$summary$n_keep, "\n")
-      cat("- Proteinas eliminadas:", pf$summary$n_drop, "\n")
+      cat("- Proteins kept:", pf$summary$n_keep, "\n")
+      cat("- Proteins removed:", pf$summary$n_drop, "\n")
     }
 
     x_norm_prefilt <- x_norm[pf$keep, , drop = FALSE]
 
-    if (verbose) cat("\n=== IMPUTACION COMBO (MAR:", mar_method, "+ MNAR:", mnar_method, ") ===\n")
+    if (verbose) cat("\n=== COMBO IMPUTATION (MAR:", mar_method, "+ MNAR:", mnar_method, ") ===\n")
 
     res_impute <- .impute_combo(
       x = x_norm_prefilt,
@@ -1054,9 +1055,9 @@ impute_proteomics <- function(
     mar_mask    <- res_impute$mar_mask
 
     if (verbose) {
-      cat("- NA inicial:", round(imp_summary$na_rate_initial * 100, 2), "%\n")
-      cat("- NA despues MAR:", round(imp_summary$na_rate_after_mar * 100, 2), "%\n")
-      cat("- NA final:", round(imp_summary$na_rate_final * 100, 2), "%\n")
+      cat("- Initial NA:", round(imp_summary$na_rate_initial * 100, 2), "%\n")
+      cat("- NA after MAR:", round(imp_summary$na_rate_after_mar * 100, 2), "%\n")
+      cat("- Final NA:", round(imp_summary$na_rate_final * 100, 2), "%\n")
     }
 
   # =========================================================================
@@ -1064,18 +1065,18 @@ impute_proteomics <- function(
   # =========================================================================
 
   } else if (imp_method == "softHybrid") {
-    if (verbose) cat("\n=== PREFILTRADO POR PROPORCION NA (max:", max_na_prop, ") ===\n")
+    if (verbose) cat("\n=== PRE-FILTERING BY NA PROPORTION (max:", max_na_prop, ") ===\n")
 
     pf <- .prefilter_by_na_prop(x_norm, max_na_prop = max_na_prop)
 
     if (verbose) {
-      cat("- Proteinas conservadas:", pf$summary$n_keep, "\n")
-      cat("- Proteinas eliminadas:", pf$summary$n_drop, "\n")
+      cat("- Proteins kept:", pf$summary$n_keep, "\n")
+      cat("- Proteins removed:", pf$summary$n_drop, "\n")
     }
 
     x_norm_prefilt <- x_norm[pf$keep, , drop = FALSE]
 
-    if (verbose) cat("\n=== IMPUTACION softHybrid (MAR:", mar_method, "+ MNAR:", mnar_method, ") ===\n")
+    if (verbose) cat("\n=== softHybrid IMPUTATION (MAR:", mar_method, "+ MNAR:", mnar_method, ") ===\n")
 
     sh_args <- method_args$softHybrid %||% list()
     res <- .impute_softHybrid(
@@ -1098,11 +1099,11 @@ impute_proteomics <- function(
     mar_mask    <- NULL
 
     if (verbose) {
-      cat("- NA inicial:", round(imp_summary$na_rate_initial * 100, 2), "%\n")
-      cat("- NA final:", round(imp_summary$na_rate_final * 100, 2), "%\n")
+      cat("- Initial NA:", round(imp_summary$na_rate_initial * 100, 2), "%\n")
+      cat("- Final NA:", round(imp_summary$na_rate_final * 100, 2), "%\n")
       cat("- Elbow r0:", round(res$elbow$r0, 4),
           " x0:", round(res$elbow$x0, 4), "\n")
-      cat("- w_mar medio:", round(imp_summary$mean_w_mar, 4),
+      cat("- mean w_mar:", round(imp_summary$mean_w_mar, 4),
           " (SD:", round(imp_summary$sd_w_mar, 4), ")\n")
     }
 
@@ -1111,18 +1112,18 @@ impute_proteomics <- function(
   # =========================================================================
 
   } else {
-    if (verbose) cat("\n=== PREFILTRADO POR PROPORCION NA (max:", max_na_prop, ") ===\n")
+    if (verbose) cat("\n=== PRE-FILTERING BY NA PROPORTION (max:", max_na_prop, ") ===\n")
 
     pf <- .prefilter_by_na_prop(x_norm, max_na_prop = max_na_prop)
 
     if (verbose) {
-      cat("- Proteinas conservadas:", pf$summary$n_keep, "\n")
-      cat("- Proteinas eliminadas:", pf$summary$n_drop, "\n")
+      cat("- Proteins kept:", pf$summary$n_keep, "\n")
+      cat("- Proteins removed:", pf$summary$n_drop, "\n")
     }
 
     x_norm_prefilt <- x_norm[pf$keep, , drop = FALSE]
 
-    if (verbose) cat("\n=== IMPUTACION:", imp_method, "===\n")
+    if (verbose) cat("\n=== IMPUTATION:", imp_method, "===\n")
 
     na_before <- mean(is.na(x_norm_prefilt))
     x_imputed <- .dispatch_imputation(x_norm_prefilt, imp_method, method_args, with_value)
@@ -1134,22 +1135,22 @@ impute_proteomics <- function(
     mar_mask    <- NULL
 
     if (verbose) {
-      cat("- NA inicial:", round(na_before * 100, 2), "%\n")
-      cat("- NA final:", round(na_after * 100, 2), "%\n")
+      cat("- Initial NA:", round(na_before * 100, 2), "%\n")
+      cat("- Final NA:", round(na_after * 100, 2), "%\n")
     }
   }
 
   # =========================================================================
-  # GUARD: no deben quedar NAs tras imputar (salvo imp_method = "none")
+  # GUARD: no NAs must remain after imputation (except imp_method = "none")
   # =========================================================================
-  # Algunos metodos MAR (p.ej. knn con filas casi vacias) o filas que superan
-  # el prefiltro pueden dejar NAs residuales; tambien combo/softHybrid con una
-  # etapa "none". Se rellenan con el minimo de columna (fallback tipo MNAR)
-  # para no propagar NAs a PCA/tests DE aguas abajo.
+  # Some MAR methods (e.g. knn with nearly empty rows), or rows that pass the
+  # pre-filter, can leave residual NAs; so can combo/softHybrid with a "none"
+  # stage. They are filled with the column minimum (an MNAR-style fallback) so
+  # that no NAs propagate to the downstream PCA/DE tests.
   if (imp_method != "none" && anyNA(x_imputed)) {
     na_idx <- which(is.na(x_imputed), arr.ind = TRUE)
     warning(sprintf(
-      "Quedaron %d NA tras la imputacion '%s'; se rellenan con el minimo de columna (fallback).",
+      "%d NAs remained after imputation '%s'; they are filled with the column minimum (fallback).",
       nrow(na_idx), imp_method))
     col_min <- apply(x_imputed, 2, function(col) {
       mn <- suppressWarnings(min(col, na.rm = TRUE))
@@ -1162,7 +1163,7 @@ impute_proteomics <- function(
   # RENAME ROWNAMES AND ALIGN SE
   # =========================================================================
 
-  if (verbose) cat("\n=== ACTUALIZANDO SUMMARIZEDEXPERIMENT ===\n")
+  if (verbose) cat("\n=== UPDATING SUMMARIZEDEXPERIMENT ===\n")
 
   rd <- as.data.frame(SummarizedExperiment::rowData(se))
 
@@ -1185,7 +1186,7 @@ impute_proteomics <- function(
       se_subset <- se[idx, ]
       mat <- x_imputed[common_ids, colnames(se_subset), drop = FALSE]
     } else {
-      stop("No hay IDs en comun entre SE y matriz imputada")
+      stop("No IDs in common between the SE and the imputed matrix")
     }
   } else {
     se_subset <- se[common_ids, ]
@@ -1194,8 +1195,8 @@ impute_proteomics <- function(
 
   # Assertion: SE subset must not exceed imputed matrix
   if (nrow(se_subset) > nrow(x_imputed)) {
-    warning("SE alineado tiene ", nrow(se_subset), " filas vs ",
-            nrow(x_imputed), " en matriz imputada. Ajustando.")
+    warning("The aligned SE has ", nrow(se_subset), " rows vs ",
+            nrow(x_imputed), " in the imputed matrix. Adjusting.")
     se_subset <- se[rownames(x_imputed), ]
     mat <- as.matrix(x_imputed[, colnames(se_subset), drop = FALSE])
   }
@@ -1205,12 +1206,12 @@ impute_proteomics <- function(
   # Add imputed assay with the provided name
   SummarizedExperiment::assay(se_subset, imputed_assay_name) <- mat
 
-  # Guardar EList de limpa en metadata para downstream dpcDE.
-  # El EList es posicionalmente 1:1 con x_imputed (limpa se ejecuto sobre esa
-  # matriz). En vez de depender del invariante IDs==rownames (intersect de
-  # nombres), se alinea POSICIONALMENTE a las filas que quedaron en `mat` y se
-  # re-etiqueta a rownames(mat), garantizando que los Protein.IDs del DE limpa
-  # coincidan con el resto del pipeline.
+  # Store the limpa EList in metadata for downstream dpcDE.
+  # The EList is positionally 1:1 with x_imputed (limpa was run on that matrix).
+  # Instead of relying on the IDs==rownames invariant (intersection of names), it
+  # is aligned POSITIONALLY to the rows that remained in `mat` and relabelled to
+  # rownames(mat), guaranteeing that the Protein.IDs of the limpa DE match the
+  # rest of the pipeline.
   limpa_elist <- attr(x_imputed, "limpa_elist")
   if (!is.null(limpa_elist)) {
     pos <- match(rownames(mat), rownames(x_imputed_ids))
@@ -1220,15 +1221,15 @@ impute_proteomics <- function(
       rownames(limpa_elist_aligned$E) <- rownames(mat)
       S4Vectors::metadata(se_subset)$limpa_elist <- limpa_elist_aligned
     } else {
-      warning("No se pudo alinear el EList de limpa con la matriz imputada; ",
-              "el DE con de_method='limpa' no estara disponible.", call. = FALSE)
+      warning("Could not align the limpa EList with the imputed matrix; ",
+              "DE with de_method='limpa' will not be available.", call. = FALSE)
     }
   }
 
   if (verbose) {
-    cat("- Assays disponibles:",
+    cat("- Available assays:",
         paste(SummarizedExperiment::assayNames(se_subset), collapse = ", "), "\n")
-    cat("- Proteinas finales:", nrow(se_subset), "\n")
+    cat("- Final proteins:", nrow(se_subset), "\n")
   }
 
   # =========================================================================

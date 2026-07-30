@@ -23,49 +23,49 @@ pattern_profiler_analysis(
 )
 }
 \arguments{
-\item{se_proc}{SummarizedExperiment con datos de intensidad}
+\item{se_proc}{SummarizedExperiment with intensity data}
 
-\item{DEPs_results}{DataFrame con resultados de expresión diferencial (debe tener columna 'Assay')}
+\item{DEPs_results}{DataFrame with differential expression results (must have an 'Assay' column)}
 
-\item{assay_name}{Nombre del assay a usar (default: "LoessCyc"). Se usa para filtrar DEPs_results también.}
+\item{assay_name}{Name of the assay to use (default: "LoessCyc"). It is also used to filter DEPs_results.}
 
-\item{filter_mode}{Modo de filtrado: "any" (signif. en alguna comparación),
-"all" (TODOS los features, sin filtrar por significancia), "specific"
-(signif. en la comparación de \code{comparison})}
+\item{filter_mode}{Filtering mode: "any" (significant in at least one
+comparison), "all" (ALL features, with no significance filtering),
+"specific" (significant in the comparison given by \code{comparison})}
 
-\item{alpha}{Umbral de significancia (default: 0.05)}
+\item{alpha}{Significance threshold (default: 0.05)}
 
-\item{comparison}{Comparación específica (para filter_mode="specific")}
+\item{comparison}{Specific comparison (for filter_mode="specific")}
 
-\item{condition_order}{Orden de condiciones para los perfiles}
+\item{condition_order}{Condition order for the profiles}
 
-\item{aggregate}{Método de agregación: "median" o "mean"}
+\item{aggregate}{Aggregation method: "median" or "mean"}
 
-\item{c_range}{Rango de clusters a evaluar}
+\item{c_range}{Range of cluster numbers to evaluate}
 
-\item{auto_select_c}{Selección automática de clusters (default: TRUE)}
+\item{auto_select_c}{Automatic selection of the number of clusters (default: TRUE)}
 
-\item{c}{Número fijo de clusters (si auto_select_c=FALSE)}
+\item{c}{Fixed number of clusters (if auto_select_c=FALSE)}
 
-\item{selection_method}{Método de selección: "xb", "consensus", "elbow"}
+\item{selection_method}{Selection method: "xb", "consensus", "elbow"}
 
-\item{min_membership}{Umbral mínimo de membership para incluir en salida}
+\item{min_membership}{Minimum membership threshold for inclusion in the output}
 
-\item{output_file}{Ruta del archivo parquet de salida. Por defecto \code{NULL},
-que no escribe nada en disco; los datos en formato largo se devuelven
-igualmente en el elemento \code{long_output} del resultado.}
+\item{output_file}{Path of the output parquet file. \code{NULL} by default, which
+writes nothing to disk; the long-format data is returned regardless in the
+\code{long_output} element of the result.}
 
-\item{verbose}{Mostrar mensajes de progreso}
+\item{verbose}{Show progress messages}
 }
 \value{
-Lista (invisible) con los resultados del clustering: \code{optimal_c}, \code{m},
-\code{conditions}, recuentos de features, \code{selection_metrics}, \code{cluster_counts},
-el objeto \code{cl} de Mfuzz, el \code{eset_std} estandarizado y \code{long_output}, el
-data.frame en formato largo que se escribe cuando se indica \code{output_file}.
+List (invisible) with the clustering results: \code{optimal_c}, \code{m},
+\code{conditions}, feature counts, \code{selection_metrics}, \code{cluster_counts}, the
+Mfuzz \code{cl} object, the standardised \code{eset_std} and \code{long_output}, the
+long-format data.frame that is written when \code{output_file} is given.
 }
 \description{
-Pipeline completo de clustering desde SummarizedExperiment.
-Genera archivo parquet en formato LONG para visualización.
+Complete clustering pipeline starting from a SummarizedExperiment.
+Writes a parquet file in LONG format for visualisation.
 }
 \examples{
 \dontrun{

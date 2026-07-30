@@ -2,7 +2,7 @@
 % Please edit documentation in R/Pattern_Profiler_Analysis.R
 \name{evaluate_cluster_range}
 \alias{evaluate_cluster_range}
-\title{Evaluar rango de números de clusters}
+\title{Evaluate a range of cluster numbers}
 \usage{
 evaluate_cluster_range(
   eset_std,
@@ -13,19 +13,19 @@ evaluate_cluster_range(
 )
 }
 \arguments{
-\item{eset_std}{ExpressionSet estandarizado}
+\item{eset_std}{Standardised ExpressionSet}
 
-\item{c_range}{Vector de números de clusters a evaluar}
+\item{c_range}{Vector of cluster numbers to evaluate}
 
-\item{m}{Parámetro de fuzziness}
+\item{m}{Fuzziness parameter}
 
-\item{seeds}{Semillas para reproducibilidad}
+\item{seeds}{Seeds for reproducibility}
 
-\item{verbose}{Mostrar progreso}
+\item{verbose}{Show progress}
 }
 \value{
-DataFrame con métricas por número de clusters
+DataFrame with the metrics per number of clusters
 }
 \description{
-Evaluar rango de números de clusters
+Evaluate a range of cluster numbers
 }

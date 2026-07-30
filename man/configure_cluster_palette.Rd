@@ -2,18 +2,18 @@
 % Please edit documentation in R/Pattern_Profiler_Highcharts.R
 \name{configure_cluster_palette}
 \alias{configure_cluster_palette}
-\title{Configurar paleta de colores para clusters}
+\title{Configure the colour palette for the clusters}
 \usage{
 configure_cluster_palette(n_clusters, palette = NULL)
 }
 \arguments{
-\item{n_clusters}{Número de clusters}
+\item{n_clusters}{Number of clusters}
 
-\item{palette}{Paleta a usar (NULL, "ggsci::nombre", "brewer:nombre")}
+\item{palette}{Palette to use (NULL, "ggsci::name", "brewer:name")}
 }
 \value{
-Vector de colores nombrado por cluster
+Vector of colours named by cluster
 }
 \description{
-Configurar paleta de colores para clusters
+Configure the colour palette for the clusters
 }

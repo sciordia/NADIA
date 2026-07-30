@@ -2,7 +2,7 @@
 % Please edit documentation in R/Results_List_reactable.R
 \name{results_list_widget}
 \alias{results_list_widget}
-\title{Widget Completo con Filtros, Busqueda, Export y CSS}
+\title{Full Widget with Filters, Search, Export and CSS}
 \usage{
 results_list_widget(
   data,
@@ -20,48 +20,49 @@ results_list_widget(
 )
 }
 \arguments{
-\item{data}{Data frame o ruta a archivo TSV/CSV/Parquet con resultados DE.
-Columnas requeridas: Protein.IDs, Gene.Names, logFC, P.Value, adj.P.Val,
-Change, Comparison. Opcionales: Assay, MissingGlobal, MissingPCT1, MissingPCT2}
+\item{data}{Data frame or path to a TSV/CSV/Parquet file with DE results.
+Required columns: Protein.IDs, Gene.Names, logFC, P.Value, adj.P.Val,
+Change, Comparison. Optional: Assay, MissingGlobal, MissingPCT1, MissingPCT2}
 
-\item{protein_quant}{Data frame (preprocessing$protein_quant) o ruta a archivo
-Protein_QUANT_*.tsv. Si no es NULL, anade columnas Description y Quant_Pepts.}
+\item{protein_quant}{Data frame (preprocessing$protein_quant) or path to a
+Protein_QUANT_*.tsv file. If not NULL, the Description and Quant_Pepts
+columns are added.}
 
-\item{comparisons}{Vector de comparaciones a incluir (NULL = todas)}
+\item{comparisons}{Vector of comparisons to include (NULL = all of them)}
 
-\item{ain}{Vector de assays a filtrar (NULL = todos)}
+\item{ain}{Vector of assays to keep (NULL = all of them)}
 
-\item{alpha}{Umbral de significancia para resaltar FDR (default: 0.05)}
+\item{alpha}{Significance threshold used to highlight the FDR (default: 0.05)}
 
-\item{lfc_thr}{Umbral de log2 fold-change (default: 0, reservado para uso futuro)}
+\item{lfc_thr}{log2 fold-change threshold (default: 0, reserved for future use)}
 
-\item{page_size}{Filas por pagina (default: 15)}
+\item{page_size}{Rows per page (default: 15)}
 
-\item{height}{Altura de la tabla en pixeles (default: 720)}
+\item{height}{Table height in pixels (default: 720)}
 
-\item{show_missing}{Mostrar columnas de porcentaje de ausencia (default: TRUE)}
+\item{show_missing}{Show the missingness percentage columns (default: TRUE)}
 
-\item{element_id}{ID del elemento (default: "deps_table")}
+\item{element_id}{Element ID (default: "deps_table")}
 
-\item{selection}{Tipo de seleccion: "single", "multiple", o NULL (default: NULL)}
+\item{selection}{Selection type: "single", "multiple", or NULL (default: NULL)}
 
-\item{searchable}{Habilitar busqueda interna (default: TRUE)}
+\item{searchable}{Enable the internal search box (default: TRUE)}
 }
 \value{
-Objeto htmltools browsable
+A browsable htmltools object
 }
 \description{
-Envuelve \code{results_list_reactable()} con filtros interactivos crosstalk
-(Comparison, Change, Method), campo de busqueda, boton de exportar a Excel
-y CSS embebido. El resultado es browsable: al imprimirlo en consola se abre
-automaticamente en el Viewer de RStudio o en el navegador.
+Wraps \code{results_list_reactable()} with interactive crosstalk filters
+(Comparison, Change, Method), a search box, an export-to-Excel button and
+embedded CSS. The result is browsable: printing it at the console opens it
+automatically in the RStudio Viewer or in the browser.
 }
 \examples{
 \dontrun{
-# Uso standalone
+# Standalone use
 results_list_widget("results/VolcanoPlot_Input_cycloess_Impseq_min.tsv")
 
-# Con protein_quant
+# With protein_quant
 results_list_widget(de_res, protein_quant = preprocessing$protein_quant)
 }
 }

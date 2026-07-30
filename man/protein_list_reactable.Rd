@@ -2,7 +2,7 @@
 % Please edit documentation in R/Results_List_reactable.R
 \name{protein_list_reactable}
 \alias{protein_list_reactable}
-\title{Tabla Reactable Interactiva para datos Protein_ID (post-Spectronaut)}
+\title{Interactive Reactable Table for Protein_ID Data (post-Spectronaut)}
 \usage{
 protein_list_reactable(
   data,
@@ -15,29 +15,29 @@ protein_list_reactable(
 )
 }
 \arguments{
-\item{data}{Data frame o ruta a TSV/CSV/Parquet de Protein_ID (salida de
+\item{data}{Data frame or path to a Protein_ID TSV/CSV/Parquet file (output of
 preprocess_spectronaut() -> protein_id).}
 
-\item{metadata}{Opcional: data frame de metadata (run_summary) con columna
-Coding para fijar el orden de las columnas de muestra.}
+\item{metadata}{Optional: metadata data frame (run_summary) with a Coding
+column that fixes the order of the sample columns.}
 
-\item{page_size}{Filas por pagina (default 15).}
+\item{page_size}{Rows per page (default 15).}
 
-\item{height}{Altura de la tabla en px (default 720).}
+\item{height}{Table height in px (default 720).}
 
-\item{element_id}{ID del elemento Reactable (default NULL).}
+\item{element_id}{Reactable element ID (default NULL).}
 
 \item{selection}{"single" | "multiple" | NULL.}
 
-\item{searchable}{Habilitar busqueda (default TRUE).}
+\item{searchable}{Enable the search box (default TRUE).}
 }
 \value{
-Objeto reactable.
+A reactable object.
 }
 \description{
-Genera una tabla reactable con cabeceras agrupadas de 2 niveles, columnas
-estaticas fijas (sticky) a la izquierda y data bars coloreadas por condicion
-dentro de cada celda numerica. Reproduce el formato Excel habitual y lo mejora.
+Builds a reactable table with 2-level grouped headers, static columns pinned
+(sticky) to the left and data bars coloured by condition inside each numeric
+cell. It reproduces the usual Excel layout and improves on it.
 }
 \examples{
 \dontrun{

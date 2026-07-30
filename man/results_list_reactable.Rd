@@ -2,7 +2,7 @@
 % Please edit documentation in R/Results_List_reactable.R
 \name{results_list_reactable}
 \alias{results_list_reactable}
-\title{Tabla Reactable Interactiva para Resultados de Expresion Diferencial}
+\title{Interactive Reactable Table for Differential Expression Results}
 \usage{
 results_list_reactable(
   data,
@@ -20,50 +20,51 @@ results_list_reactable(
 )
 }
 \arguments{
-\item{data}{Data frame o ruta a archivo TSV/CSV/Parquet con resultados DE.
-Columnas requeridas: Protein.IDs, Gene.Names, logFC, P.Value, adj.P.Val,
-Change, Comparison. Opcionales: Assay, MissingGlobal, MissingPCT1, MissingPCT2}
+\item{data}{Data frame or path to a TSV/CSV/Parquet file with DE results.
+Required columns: Protein.IDs, Gene.Names, logFC, P.Value, adj.P.Val,
+Change, Comparison. Optional: Assay, MissingGlobal, MissingPCT1, MissingPCT2}
 
-\item{protein_quant}{Data frame (preprocessing$protein_quant) o ruta a archivo
-Protein_QUANT_*.tsv. Si no es NULL, anade columnas Description y Quant_Pepts.}
+\item{protein_quant}{Data frame (preprocessing$protein_quant) or path to a
+Protein_QUANT_*.tsv file. If not NULL, the Description and Quant_Pepts
+columns are added.}
 
-\item{comparisons}{Vector de comparaciones a incluir (NULL = todas)}
+\item{comparisons}{Vector of comparisons to include (NULL = all of them)}
 
-\item{ain}{Vector de assays a filtrar (NULL = todos)}
+\item{ain}{Vector of assays to keep (NULL = all of them)}
 
-\item{alpha}{Umbral de significancia para resaltar FDR (default: 0.05)}
+\item{alpha}{Significance threshold used to highlight the FDR (default: 0.05)}
 
-\item{lfc_thr}{Umbral de log2 fold-change (default: 0, reservado para uso futuro)}
+\item{lfc_thr}{log2 fold-change threshold (default: 0, reserved for future use)}
 
-\item{page_size}{Filas por pagina (default: 15)}
+\item{page_size}{Rows per page (default: 15)}
 
-\item{height}{Altura de la tabla en pixeles (default: 720)}
+\item{height}{Table height in pixels (default: 720)}
 
-\item{show_missing}{Mostrar columnas de porcentaje de ausencia (default: TRUE)}
+\item{show_missing}{Show the missingness percentage columns (default: TRUE)}
 
-\item{element_id}{ID del elemento para Reactable JS API (default: NULL)}
+\item{element_id}{Element ID for the Reactable JS API (default: NULL)}
 
-\item{selection}{Tipo de seleccion: "single", "multiple", o NULL (default: NULL)}
+\item{selection}{Selection type: "single", "multiple", or NULL (default: NULL)}
 
-\item{searchable}{Habilitar busqueda interna (default: TRUE)}
+\item{searchable}{Enable the internal search box (default: TRUE)}
 }
 \value{
-Objeto reactable
+A reactable object
 }
 \description{
-Genera una tabla reactable con formato profesional para visualizar
-resultados de expresion diferencial de proteinas. Compatible con Shiny
-(devuelve objeto reactable) y con uso standalone via \code{results_list_widget()}.
+Builds a professionally formatted reactable table to display protein
+differential expression results. Works both in Shiny (it returns a reactable
+object) and standalone via \code{results_list_widget()}.
 }
 \examples{
 \dontrun{
-# Desde archivo
+# From a file
 tbl <- results_list_reactable("results/VolcanoPlot_Input_cycloess_Impseq_min.tsv")
 
-# Con protein_quant para Description y Quant_Pepts
+# With protein_quant for Description and Quant_Pepts
 tbl <- results_list_reactable(de_res, protein_quant = preprocessing$protein_quant)
 
-# En Shiny
+# In Shiny
 # output$tabla <- renderReactable({
 #   results_list_reactable(data(), protein_quant = pq, element_id = "tabla")
 # })

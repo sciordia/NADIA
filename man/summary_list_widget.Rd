@@ -2,7 +2,7 @@
 % Please edit documentation in R/Results_List_reactable.R
 \name{summary_list_widget}
 \alias{summary_list_widget}
-\title{Tabla Reactable Interactiva para Metadata de muestras}
+\title{Interactive Reactable Table for the Sample Metadata}
 \usage{
 summary_list_widget(
   data = "data-raw/Metadata_20260423_142504.tsv",
@@ -14,32 +14,30 @@ summary_list_widget(
 )
 }
 \arguments{
-\item{data}{Data frame o ruta a TSV/CSV de metadata. Debe tener las columnas
-R.FileName, R.Condition, R.Replicate, Coding, R.PrecursorsIdentified,
+\item{data}{Data frame or path to a metadata TSV/CSV file. It must have the
+columns R.FileName, R.Condition, R.Replicate, Coding, R.PrecursorsIdentified,
 R.StrippedSequencesIdentified, R.ProteinGroupsIdentified.}
 
-\item{page_size}{Tamano de pagina (defecto 16, todas las filas).}
+\item{page_size}{Page size (default 16, i.e. all the rows).}
 
-\item{height}{Altura en px del contenedor de tabla (defecto 540).}
+\item{height}{Height in px of the table container (default 540).}
 
-\item{element_id}{Id del widget en el DOM (defecto "summary_table").}
+\item{element_id}{Widget id in the DOM (default "summary_table").}
 
-\item{selection}{Tipo de seleccion ("multiple" o NULL).}
+\item{selection}{Selection type ("multiple" or NULL).}
 
-\item{searchable}{Habilitar busqueda global (defecto FALSE).}
+\item{searchable}{Enable the global search box (default FALSE).}
 }
 \value{
-Objeto htmltools (tagList con browsable) listo para ser renderizado.
+An htmltools object (browsable tagList) ready to be rendered.
 }
 \description{
-Genera una tabla reactable que reproduce el layout del Excel de metadata
-(FileName, Condition, Replicate, Coding, # Unique PSMs, # Unique Peptides,
+Builds a reactable table that reproduces the layout of the metadata Excel
+sheet (FileName, Condition, Replicate, Coding, # Unique PSMs, # Unique
+Peptides, # Protein Groups). Black header, rows tinted by condition in light
+shades and Condition/Coding cells with a strong colour chip (the same scheme
+used by protein_list_widget() / quant_list_widget()).
 }
-\section{Protein Groups). Header negro, filas tintadas por condicion en tonos}{
-claros y celdas Condition/Coding con chip de color fuerte (mismo esquema
-usado por protein_list_widget() / quant_list_widget()).
-}
-
 \examples{
 \dontrun{
 summary_list_widget("data-raw/Metadata_20260423_142504.tsv")

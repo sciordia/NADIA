@@ -8,7 +8,7 @@
 }
 \arguments{
 \item{args}{list with optional \code{width} (default 0.3), \code{downshift} (default 1.8)
-and \code{seed} (default 1234, para reproducibilidad de rnorm).}
+and \code{seed} (default 1234, for reproducibility of rnorm).}
 }
 \description{
 PI: Perseus-style imputation (down-shifted normal distribution)

@@ -1,12 +1,12 @@
 
-# Cargar las librerias
+# Load the libraries
 
 
 # =============================================================================
-# Helpers internos
+# Internal helpers
 # =============================================================================
 
-# --- Filtro numerico compartido: input oculto + JS con operadores AND/OR ---
+# --- Shared numeric filter: hidden input + JS with AND/OR operators ---
 .numeric_filter_hidden <- reactable::JS("function() { return null; }")
 
 .numeric_filter_method <- reactable::JS("function(rows, columnId, filterValue) {
@@ -38,14 +38,14 @@
 }")
 
 
-#' Cargar y validar datos de expresion diferencial
-#' @param input Data frame o ruta a archivo TSV/Parquet
-#' @return Data frame validado
+#' Load and validate differential expression data
+#' @param input Data frame or path to a TSV/Parquet file
+#' @return Validated data frame
 #' @noRd
 .rl_load_data <- function(input) {
   if (is.character(input) && length(input) == 1) {
     if (!file.exists(input)) {
-      stop("Archivo no encontrado: ", input)
+      stop("File not found: ", input)
     }
     ext <- tolower(tools::file_ext(input))
     if (ext == "tsv" || ext == "txt") {
@@ -56,7 +56,7 @@
       }
     } else if (ext == "parquet") {
       if (!requireNamespace("arrow", quietly = TRUE)) {
-        stop("El paquete 'arrow' es necesario para leer archivos Parquet")
+        stop("The 'arrow' package is required to read Parquet files")
       }
       input <- arrow::read_parquet(input)
     } else if (ext == "csv") {
@@ -66,21 +66,21 @@
         input <- read.csv(input, stringsAsFactors = FALSE)
       }
     } else {
-      stop("Formato no soportado: ", ext, ". Usa TSV, CSV o Parquet.")
+      stop("Unsupported format: ", ext, ". Use TSV, CSV or Parquet.")
     }
   }
 
   df <- as.data.frame(input)
 
-  # Validar columnas requeridas
+  # Validate the required columns
   required <- c("Protein.IDs", "Gene.Names", "logFC", "P.Value", "adj.P.Val",
                  "Change", "Comparison")
   missing <- setdiff(required, names(df))
   if (length(missing) > 0) {
-    stop("Columnas requeridas faltantes: ", paste(missing, collapse = ", "))
+    stop("Missing required columns: ", paste(missing, collapse = ", "))
   }
 
-  # Coercion de tipos
+  # Type coercion
   df$logFC     <- as.numeric(df$logFC)
   df$P.Value   <- as.numeric(df$P.Value)
   df$adj.P.Val <- as.numeric(df$adj.P.Val)
@@ -89,28 +89,28 @@
 }
 
 
-#' Join con protein_quant para anadir Description y Quant_Pepts
-#' @param df Data frame de resultados DE
-#' @param protein_quant Data frame (preprocessing$protein_quant) o ruta a TSV.
-#'   NULL para no hacer join.
-#' @return Data frame con columnas Description y Quant_Pepts anadidas
+#' Join with protein_quant to add Description and Quant_Pepts
+#' @param df Data frame of DE results
+#' @param protein_quant Data frame (preprocessing$protein_quant) or path to a TSV.
+#'   NULL to skip the join.
+#' @return Data frame with the Description and Quant_Pepts columns added
 #' @noRd
 .rl_join_protein_info <- function(df, protein_quant) {
   if (is.null(protein_quant)) return(df)
 
-  # Cargar si es ruta
+  # Load it when a path is given
   if (is.character(protein_quant) && length(protein_quant) == 1) {
     pq <- .rl_load_data(protein_quant)
   } else {
     pq <- as.data.frame(protein_quant)
   }
 
-  # Verificar columna clave
+  # Check the key column
   if (!"PG.ProteinGroups" %in% names(pq)) {
-    stop("protein_quant debe contener la columna 'PG.ProteinGroups'")
+    stop("protein_quant must contain the 'PG.ProteinGroups' column")
   }
 
-  # Extraer Description
+  # Extract Description
   desc_col <- if ("PG.ProteinDescriptions" %in% names(pq)) pq$PG.ProteinDescriptions else NA_character_
   info <- data.frame(
     Protein.IDs = pq$PG.ProteinGroups,
@@ -118,7 +118,7 @@
     stringsAsFactors = FALSE
   )
 
-  # Calcular max Quant_Pepts
+  # Compute the maximum Quant_Pepts
   pept_cols <- grep("^PG\\.NrOfStrippedSequencesUsedForQuantification_", names(pq), value = TRUE)
   if (length(pept_cols) > 0) {
     pept_mat <- as.matrix(pq[, pept_cols, drop = FALSE])
@@ -131,7 +131,7 @@
     info$Quant_Pepts <- NA_integer_
   }
 
-  # Join por Protein.IDs (match para preservar orden y evitar duplicacion)
+  # Join by Protein.IDs (match preserves the order and avoids duplication)
   idx <- match(df$Protein.IDs, info$Protein.IDs)
   df$Description  <- info$Description[idx]
   df$Quant_Pepts  <- info$Quant_Pepts[idx]
@@ -140,8 +140,8 @@
 }
 
 
-#' Tema reactable estilo teal/green
-#' @return Objeto reactableTheme
+#' Teal/green reactable theme
+#' @return A reactableTheme object
 #' @noRd
 .rl_theme <- function() {
   reactableTheme(
@@ -157,8 +157,8 @@
 }
 
 
-#' Tema reactable estilo azul oscuro (Protein_ID widget)
-#' @return Objeto reactableTheme
+#' Dark blue reactable theme (Protein_ID widget)
+#' @return A reactableTheme object
 #' @noRd
 .pl_theme <- function() {
   reactableTheme(
@@ -174,8 +174,8 @@
 }
 
 
-#' Tema reactable estilo rojo oscuro (Protein_QUANT widget)
-#' @return Objeto reactableTheme
+#' Dark red reactable theme (Protein_QUANT widget)
+#' @return A reactableTheme object
 #' @noRd
 .ql_theme <- function() {
   reactableTheme(
@@ -191,14 +191,14 @@
 }
 
 
-#' CSS embebido para badges, barras, detalle, filtros y export
-#' @return Objeto tags$style
+#' Embedded CSS for badges, bars, detail rows, filters and export
+#' @return A tags$style object
 #' @noRd
 .rl_css <- function() {
   ruta <- system.file("css", "results_list.css", package = "NADIA")
   if (!nzchar(ruta) || !file.exists(ruta)) {
-    warning("No se encontro inst/css/results_list.css; las tablas se mostraran ",
-            "sin estilos.")
+    warning("inst/css/results_list.css was not found; the tables will be shown ",
+            "without styling.")
     return(htmltools::tags$style(htmltools::HTML("")))
   }
   htmltools::tags$style(
@@ -206,14 +206,14 @@
 }
 
 
-#' Traduccion al espanol (interfaz)
-#' @return Objeto reactableLang
+#' Interface language strings
+#' @return A reactableLang object
 #' @noRd
 .rl_lang <- function() {
   reactableLang(
-    searchPlaceholder = "Buscar...",
-    pagePrevious      = "Anterior",
-    pageNext          = "Siguiente",
+    searchPlaceholder = "Search...",
+    pagePrevious      = "Previous",
+    pageNext          = "Next",
     noData            = "No data to display",
     pageSizeOptions   = "Show {rows}",
     pageInfo          = "{rowStart}\u2013{rowEnd} of {rows} Proteins"
@@ -221,10 +221,10 @@
 }
 
 
-#' Funcion de detalle para filas expandibles (JS renderer)
-#' @param has_assay Logico, si el data frame tiene columna Assay
-#' @param has_description Logico, si el data frame tiene columna Description
-#' @return Objeto JS para el parametro details de reactable
+#' Detail renderer for expandable rows (JS renderer)
+#' @param has_assay Logical, whether the data frame has an Assay column
+#' @param has_description Logical, whether the data frame has a Description column
+#' @return A JS object for the reactable details parameter
 #' @noRd
 .rl_detail_row <- function(has_assay = TRUE, has_description = FALSE) {
   assay_block <- if (has_assay) {
@@ -253,27 +253,27 @@
     var row = rowInfo.row;
     var html = '<div class=\"rl-detail\">';
 
-    // Protein.IDs con enlaces UniProt
+    // Protein.IDs with UniProt links
     var pids = (row['Protein.IDs'] || '').split(';').map(function(s) { return s.trim(); }).filter(Boolean);
     var links = pids.map(function(pid) {
       return '<a href=\"https://www.uniprot.org/uniprot/' + pid + '\" target=\"_blank\">' + pid + '</a>';
     }).join(' \\u00b7 ');
     html += '<div class=\"detail-row\"><span class=\"detail-label\">Proteins:</span> ' + links + '</div>';
 
-    // Gene.Names completo
+    // Full Gene.Names
     var genes = row['Gene.Names'] || '';
     html += '<div class=\"detail-row\"><span class=\"detail-label\">Genes:</span> ' + genes + '</div>';
 
     // Description
     %s
 
-    // P-valor y FDR con precision completa
+    // P-value and FDR at full precision
     var pval = row['P.Value'];
     var fdr = row['adj.P.Val'];
     html += '<div class=\"detail-row\"><span class=\"detail-label\">P-value:</span> ' + (pval != null ? pval.toExponential(4) : '') + '</div>';
     html += '<div class=\"detail-row\"><span class=\"detail-label\">FDR:</span> ' + (fdr != null ? fdr.toExponential(4) : '') + '</div>';
 
-    // Assay (si existe)
+    // Assay (when present)
     %s
 
     html += '</div>';
@@ -282,20 +282,20 @@
 }
 
 
-#' Construir definiciones de columnas compartidas
-#' @param max_abs_lfc Valor maximo absoluto de logFC para escalar barras
-#' @param alpha Umbral de significancia
-#' @param has_assay Logico, si hay columna Assay
-#' @param single_assay Logico, si solo hay un assay
-#' @param show_missing Logico, si mostrar columnas Missing%
-#' @param has_description Logico, si hay columna Description
-#' @param has_quant_pepts Logico, si hay columna Quant_Pepts
-#' @return Lista de colDef
+#' Build the shared column definitions
+#' @param max_abs_lfc Maximum absolute logFC, used to scale the bars
+#' @param alpha Significance threshold
+#' @param has_assay Logical, whether an Assay column is present
+#' @param single_assay Logical, whether there is a single assay
+#' @param show_missing Logical, whether to show the Missing% columns
+#' @param has_description Logical, whether a Description column is present
+#' @param has_quant_pepts Logical, whether a Quant_Pepts column is present
+#' @return List of colDef
 #' @noRd
 .rl_build_columns <- function(max_abs_lfc, alpha, has_assay, single_assay,
                                show_missing, has_description, has_quant_pepts) {
 
-  # JS renderer para Missing% estilo rating con circulo de color
+  # JS renderer for Missing% in rating style with a coloured circle
   .missing_cell_js <- JS("function(cellInfo) {
     var pct = cellInfo.value;
     if (pct == null || isNaN(pct)) return '';
@@ -322,14 +322,14 @@
   }")
 
   cols <- list(
-    # --- Comparison (1ro) ---
+    # --- Comparison (1st) ---
     Comparison = colDef(
       name = "Comparison",
       width = 120,
       align = "center"
     ),
 
-    # --- Protein Groups (2do) ---
+    # --- Protein Groups (2nd) ---
     Protein.IDs = colDef(
       name = "Protein Groups",
       width = 160,
@@ -346,7 +346,7 @@
     )
   )
 
-  # --- Description (3ro, condicional) ---
+  # --- Description (3rd, conditional) ---
   if (has_description) {
     cols$Description <- colDef(
       name = "Description",
@@ -354,7 +354,7 @@
     )
   }
 
-  # --- Gene Names (4to) ---
+  # --- Gene Names (4th) ---
   cols$Gene.Names <- colDef(
     name = "Gene Names",
     minWidth = 140,
@@ -371,7 +371,7 @@
     style = list(alignItems = "center")
   )
 
-  # --- Quant_Pepts (5to, condicional) ---
+  # --- Quant_Pepts (5th, conditional) ---
   if (has_quant_pepts) {
     cols$Quant_Pepts <- colDef(
       name = "Quant Pepts",
@@ -398,7 +398,7 @@
     }")
   )
 
-  # --- logFC (valor + barra coloreada por Change) ---
+  # --- logFC (value + bar coloured by Change) ---
   cols$logFC <- colDef(
     name = "log\u2082 FC",
     width = 160,
@@ -468,7 +468,7 @@
     cols$Assay <- colDef(name = "Method", width = 130, show = !single_assay)
   }
 
-  # --- Missing% estilo rating con circulo de color ---
+  # --- Missing% in rating style with a coloured circle ---
   if (show_missing) {
     cols$MissingGlobal <- colDef(
       name = "% Missing", width = 110, align = "center", class = "missing-cell",
@@ -495,42 +495,43 @@
 
 
 # =============================================================================
-# Funcion principal
+# Main function
 # =============================================================================
 
-#' Tabla Reactable Interactiva para Resultados de Expresion Diferencial
+#' Interactive Reactable Table for Differential Expression Results
 #'
-#' Genera una tabla reactable con formato profesional para visualizar
-#' resultados de expresion diferencial de proteinas. Compatible con Shiny
-#' (devuelve objeto reactable) y con uso standalone via \code{results_list_widget()}.
+#' Builds a professionally formatted reactable table to display protein
+#' differential expression results. Works both in Shiny (it returns a reactable
+#' object) and standalone via \code{results_list_widget()}.
 #'
-#' @param data Data frame o ruta a archivo TSV/CSV/Parquet con resultados DE.
-#'   Columnas requeridas: Protein.IDs, Gene.Names, logFC, P.Value, adj.P.Val,
-#'   Change, Comparison. Opcionales: Assay, MissingGlobal, MissingPCT1, MissingPCT2
-#' @param protein_quant Data frame (preprocessing$protein_quant) o ruta a archivo
-#'   Protein_QUANT_*.tsv. Si no es NULL, anade columnas Description y Quant_Pepts.
-#' @param comparisons Vector de comparaciones a incluir (NULL = todas)
-#' @param ain Vector de assays a filtrar (NULL = todos)
-#' @param alpha Umbral de significancia para resaltar FDR (default: 0.05)
-#' @param lfc_thr Umbral de log2 fold-change (default: 0, reservado para uso futuro)
-#' @param page_size Filas por pagina (default: 15)
-#' @param height Altura de la tabla en pixeles (default: 720)
-#' @param show_missing Mostrar columnas de porcentaje de ausencia (default: TRUE)
-#' @param element_id ID del elemento para Reactable JS API (default: NULL)
-#' @param selection Tipo de seleccion: "single", "multiple", o NULL (default: NULL)
-#' @param searchable Habilitar busqueda interna (default: TRUE)
+#' @param data Data frame or path to a TSV/CSV/Parquet file with DE results.
+#'   Required columns: Protein.IDs, Gene.Names, logFC, P.Value, adj.P.Val,
+#'   Change, Comparison. Optional: Assay, MissingGlobal, MissingPCT1, MissingPCT2
+#' @param protein_quant Data frame (preprocessing$protein_quant) or path to a
+#'   Protein_QUANT_*.tsv file. If not NULL, the Description and Quant_Pepts
+#'   columns are added.
+#' @param comparisons Vector of comparisons to include (NULL = all of them)
+#' @param ain Vector of assays to keep (NULL = all of them)
+#' @param alpha Significance threshold used to highlight the FDR (default: 0.05)
+#' @param lfc_thr log2 fold-change threshold (default: 0, reserved for future use)
+#' @param page_size Rows per page (default: 15)
+#' @param height Table height in pixels (default: 720)
+#' @param show_missing Show the missingness percentage columns (default: TRUE)
+#' @param element_id Element ID for the Reactable JS API (default: NULL)
+#' @param selection Selection type: "single", "multiple", or NULL (default: NULL)
+#' @param searchable Enable the internal search box (default: TRUE)
 #'
-#' @return Objeto reactable
+#' @return A reactable object
 #'
 #' @examples
 #' \dontrun{
-#' # Desde archivo
+#' # From a file
 #' tbl <- results_list_reactable("results/VolcanoPlot_Input_cycloess_Impseq_min.tsv")
 #'
-#' # Con protein_quant para Description y Quant_Pepts
+#' # With protein_quant for Description and Quant_Pepts
 #' tbl <- results_list_reactable(de_res, protein_quant = preprocessing$protein_quant)
 #'
-#' # En Shiny
+#' # In Shiny
 #' # output$tabla <- renderReactable({
 #' #   results_list_reactable(data(), protein_quant = pq, element_id = "tabla")
 #' # })
@@ -551,13 +552,13 @@ results_list_reactable <- function(
     searchable = TRUE
 ) {
 
-  # --- Carga y validacion ---
+  # --- Load and validate ---
   df <- .rl_load_data(data)
 
-  # --- Join con protein_quant ---
+  # --- Join with protein_quant ---
   df <- .rl_join_protein_info(df, protein_quant)
 
-  # --- Filtrado ---
+  # --- Filtering ---
   if (!is.null(ain) && "Assay" %in% names(df)) {
     df <- df[df$Assay %in% ain, , drop = FALSE]
   }
@@ -565,15 +566,15 @@ results_list_reactable <- function(
     df <- df[df$Comparison %in% comparisons, , drop = FALSE]
   }
   if (nrow(df) == 0) {
-    stop("No hay datos tras aplicar los filtros de comparaciones/assays")
+    stop("No data left after applying the comparison/assay filters")
   }
 
   if (nrow(df) > 15000 && is.null(comparisons)) {
-    message("Nota: ", format(nrow(df), big.mark = "."),
-            " filas. Considera filtrar por 'comparisons' para mejor rendimiento.")
+    message("Note: ", format(nrow(df), big.mark = ","),
+            " rows. Consider filtering by 'comparisons' for better performance.")
   }
 
-  # --- Detectar columnas opcionales ---
+  # --- Detect the optional columns ---
   has_missing <- all(c("MissingGlobal", "MissingPCT1", "MissingPCT2") %in% names(df))
   show_missing <- show_missing && has_missing
   has_assay <- "Assay" %in% names(df)
@@ -587,7 +588,7 @@ results_list_reactable <- function(
   cols <- .rl_build_columns(max_abs_lfc, alpha, has_assay, single_assay,
                              show_missing, has_description, has_quant_pepts)
 
-  # --- Reordenar columnas del data frame (reactable usa este orden visual) ---
+  # --- Reorder the data frame columns (reactable uses this visual order) ---
   desired_order <- c("Comparison", "Protein.IDs", "Description", "Gene.Names",
                      "Quant_Pepts", "Change", "logFC", "P.Value", "adj.P.Val",
                      "Assay", "MissingGlobal", "MissingPCT1", "MissingPCT2")
@@ -641,24 +642,24 @@ results_list_reactable <- function(
 # Wrapper standalone / Quarto
 # =============================================================================
 
-#' Widget Completo con Filtros, Busqueda, Export y CSS
+#' Full Widget with Filters, Search, Export and CSS
 #'
-#' Envuelve \code{results_list_reactable()} con filtros interactivos crosstalk
-#' (Comparison, Change, Method), campo de busqueda, boton de exportar a Excel
-#' y CSS embebido. El resultado es browsable: al imprimirlo en consola se abre
-#' automaticamente en el Viewer de RStudio o en el navegador.
+#' Wraps \code{results_list_reactable()} with interactive crosstalk filters
+#' (Comparison, Change, Method), a search box, an export-to-Excel button and
+#' embedded CSS. The result is browsable: printing it at the console opens it
+#' automatically in the RStudio Viewer or in the browser.
 #'
 #' @inheritParams results_list_reactable
-#' @param element_id ID del elemento (default: "deps_table")
+#' @param element_id Element ID (default: "deps_table")
 #'
-#' @return Objeto htmltools browsable
+#' @return A browsable htmltools object
 #'
 #' @examples
 #' \dontrun{
-#' # Uso standalone
+#' # Standalone use
 #' results_list_widget("results/VolcanoPlot_Input_cycloess_Impseq_min.tsv")
 #'
-#' # Con protein_quant
+#' # With protein_quant
 #' results_list_widget(de_res, protein_quant = preprocessing$protein_quant)
 #' }
 #' @export
@@ -678,11 +679,11 @@ results_list_widget <- function(
 ) {
 
   if (!requireNamespace("crosstalk", quietly = TRUE)) {
-    stop("El paquete 'crosstalk' es necesario para filtros interactivos. ",
-         "Inst\u00e1lalo con install.packages('crosstalk')")
+    stop("The 'crosstalk' package is required for the interactive filters. ",
+         "Install it with install.packages('crosstalk')")
   }
 
-  # --- Carga, join y filtrado previo ---
+  # --- Load, join and pre-filter ---
   df <- .rl_load_data(data)
   df <- .rl_join_protein_info(df, protein_quant)
 
@@ -693,10 +694,10 @@ results_list_widget <- function(
     df <- df[df$Comparison %in% comparisons, , drop = FALSE]
   }
   if (nrow(df) == 0) {
-    stop("No hay datos tras aplicar los filtros de comparaciones/assays")
+    stop("No data left after applying the comparison/assay filters")
   }
 
-  # --- Detectar columnas opcionales ---
+  # --- Detect the optional columns ---
   has_missing <- all(c("MissingGlobal", "MissingPCT1", "MissingPCT2") %in% names(df))
   show_missing_cols <- show_missing && has_missing
   has_assay <- "Assay" %in% names(df)
@@ -707,26 +708,26 @@ results_list_widget <- function(
   max_abs_lfc <- max(abs(df$logFC), na.rm = TRUE)
   if (max_abs_lfc == 0) max_abs_lfc <- 1
 
-  # --- Reordenar columnas del data frame (reactable usa este orden visual) ---
+  # --- Reorder the data frame columns (reactable uses this visual order) ---
   desired_order <- c("Comparison", "Protein.IDs", "Description", "Gene.Names",
                      "Quant_Pepts", "Change", "logFC", "P.Value", "adj.P.Val",
                      "Assay", "MissingGlobal", "MissingPCT1", "MissingPCT2")
   desired_order <- intersect(desired_order, names(df))
   df <- df[, c(desired_order, setdiff(names(df), desired_order)), drop = FALSE]
 
-  # --- SharedData para crosstalk ---
+  # --- SharedData for crosstalk ---
   shared_data <- crosstalk::SharedData$new(df)
 
   # --- CSS ---
   css <- .rl_css()
 
-  # --- CDN scripts para ExcelJS y PapaParse ---
+  # --- CDN scripts for ExcelJS and PapaParse ---
   cdn_scripts <- tagList(
     tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"),
     tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js")
   )
 
-  # --- JavaScript: toggle filtros, limpiar filtros, exportar Excel ---
+  # --- JavaScript: toggle filters, clear filters, export to Excel ---
   js_code <- tags$script(HTML(sprintf("
     var rlFiltersVisible = false;
 
@@ -853,12 +854,12 @@ results_list_widget <- function(
         a.click();
         window.URL.revokeObjectURL(url);
       } catch(e) {
-        console.error('Error exportando:', e);
+        console.error('Error while exporting:', e);
       }
     }
   ", element_id, element_id, element_id, element_id)))
 
-  # --- Barra de busqueda + botones de accion ---
+  # --- Search bar + action buttons ---
   search_actions <- div(class = "rl-search-actions",
     tags$input(
       type = "search",
@@ -888,7 +889,7 @@ results_list_widget <- function(
     )
   )
 
-  # --- Panel de filtros crosstalk + numericos ---
+  # --- Crosstalk + numeric filter panel ---
   filter_items <- list(
     div(class = "rl-filter-item",
       tags$label(class = "rl-filter-label", "Comparison"),
@@ -918,7 +919,7 @@ results_list_widget <- function(
     ))
   }
 
-  # --- Filtros numericos (misma fila, mismos estilos) ---
+  # --- Numeric filters (same row, same styles) ---
   .make_numeric_filter <- function(label, column_id, placeholder) {
     div(class = "rl-filter-item",
       tags$label(class = "rl-filter-label", label),
@@ -956,11 +957,11 @@ results_list_widget <- function(
     div(class = "rl-filters-row", filter_items)
   )
 
-  # --- Columnas ---
+  # --- Columns ---
   cols <- .rl_build_columns(max_abs_lfc, alpha, has_assay, single_assay,
                              show_missing_cols, has_description, has_quant_pepts)
 
-  # --- Tabla reactable con SharedData ---
+  # --- Reactable table with SharedData ---
   tbl <- reactable(
     shared_data,
     elementId     = element_id,
@@ -1019,13 +1020,13 @@ results_list_widget <- function(
 # =============================================================================
 # =============================================================================
 
-#' Cargar y validar archivo Protein_ID
-#' @param input Data frame o ruta a TSV/CSV/Parquet con formato Protein_ID
-#' @return Data frame validado
+#' Load and validate a Protein_ID file
+#' @param input Data frame or path to a TSV/CSV/Parquet file in Protein_ID format
+#' @return Validated data frame
 #' @noRd
 .pl_load_data <- function(input) {
   if (is.character(input) && length(input) == 1) {
-    if (!file.exists(input)) stop("Archivo no encontrado: ", input)
+    if (!file.exists(input)) stop("File not found: ", input)
     ext <- tolower(tools::file_ext(input))
     if (ext %in% c("tsv", "txt")) {
       if (requireNamespace("readr", quietly = TRUE)) {
@@ -1041,31 +1042,31 @@ results_list_widget <- function(
       }
     } else if (ext == "parquet") {
       if (!requireNamespace("arrow", quietly = TRUE)) {
-        stop("El paquete 'arrow' es necesario para leer archivos Parquet")
+        stop("The 'arrow' package is required to read Parquet files")
       }
       input <- arrow::read_parquet(input)
     } else {
-      stop("Formato no soportado: ", ext, ". Usa TSV, CSV o Parquet.")
+      stop("Unsupported format: ", ext, ". Use TSV, CSV or Parquet.")
     }
   }
 
   df <- as.data.frame(input)
 
   if (!"PG.ProteinGroups" %in% names(df)) {
-    stop("Columna requerida 'PG.ProteinGroups' no encontrada. ",
-         "El archivo debe ser un Protein_ID exportado por preprocess_spectronaut().")
+    stop("Required column 'PG.ProteinGroups' not found. ",
+         "The file must be a Protein_ID exported by preprocess_spectronaut().")
   }
   if (!any(grepl("^PG\\.NrOfPrecursorsIdentified_", names(df)))) {
-    stop("No se detectaron columnas de muestra (PG.NrOfPrecursorsIdentified_*). ",
-         "Verifica que el archivo sea un Protein_ID válido.")
+    stop("No sample columns were detected (PG.NrOfPrecursorsIdentified_*). ",
+         "Check that the file really is a Protein_ID.")
   }
   df
 }
 
 
-#' Parsear nombres de columnas Protein_ID en (metric, condition, replicate)
-#' @param colnames_vec Vector de nombres de columnas del data frame
-#' @return Data frame ordenado: column, metric, condition, replicate, coding
+#' Parse Protein_ID column names into (metric, condition, replicate)
+#' @param colnames_vec Vector of data frame column names
+#' @return Sorted data frame: column, metric, condition, replicate, coding
 #' @noRd
 .pl_parse_samples <- function(colnames_vec) {
   metrics <- c(
@@ -1109,9 +1110,9 @@ results_list_widget <- function(
 }
 
 
-#' Paleta de colores por condicion
-#' @param conditions Vector de codigos de condicion (e.g., c("A","B","C","D"))
-#' @return Vector nombrado hex
+#' Colour palette per condition
+#' @param conditions Vector of condition codes (e.g., c("A","B","C","D"))
+#' @return Named vector of hex colours
 #' @noRd
 .pl_condition_palette <- function(conditions) {
   defaults <- c(
@@ -1136,10 +1137,10 @@ results_list_widget <- function(
 }
 
 
-#' Construir colDefs para la tabla Protein_ID
-#' @param sample_map Salida de .pl_parse_samples()
-#' @param max_per_col Vector numerico nombrado con max por columna (para data bars)
-#' @return Lista de colDef
+#' Build the colDefs for the Protein_ID table
+#' @param sample_map Output of .pl_parse_samples()
+#' @param max_per_col Named numeric vector with the per-column maximum (for the data bars)
+#' @return List of colDef
 #' @noRd
 .pl_build_columns <- function(sample_map, max_per_col) {
   cols <- list()
@@ -1193,7 +1194,7 @@ results_list_widget <- function(
     }")
   )
 
-  # Primera columna de cada metrica -> ancla para borde y filtro agregado
+  # First column of each metric -> anchor for the border and the aggregated filter
   first_cols_by_metric <- vapply(
     split(sample_map$column, sample_map$metric),
     function(x) x[1], character(1)
@@ -1216,7 +1217,7 @@ results_list_widget <- function(
 
     cell_js <- JS(sprintf("function(cellInfo) {
       var val = cellInfo.value;
-      if (val == null || isNaN(val)) return '<span class=\"pl-plain-value pl-bar-empty\">–</span>';
+      if (val == null || isNaN(val)) return '<span class=\"pl-plain-value pl-bar-empty\">\u2013</span>';
       return '<span class=\"pl-plain-value\">' + (%s) + '</span>';
     }", fmt_js))
 
@@ -1247,10 +1248,10 @@ results_list_widget <- function(
 }
 
 
-#' Construir columnGroups para la tabla Protein_ID
-#' @param sample_map Salida de .pl_parse_samples()
-#' @param static_cols Vector de nombres de columnas estaticas presentes
-#' @return Lista de colGroup
+#' Build the columnGroups for the Protein_ID table
+#' @param sample_map Output of .pl_parse_samples()
+#' @param static_cols Vector of the static column names that are present
+#' @return List of colGroup
 #' @noRd
 .pl_build_column_groups <- function(sample_map, static_cols) {
   groups <- list()
@@ -1283,8 +1284,8 @@ results_list_widget <- function(
 }
 
 
-#' Detail row expandible para Protein_ID
-#' @return Objeto JS
+#' Expandable detail row for Protein_ID
+#' @return A JS object
 #' @noRd
 .pl_detail_row <- function() {
   JS("function(rowInfo) {
@@ -1311,17 +1312,17 @@ results_list_widget <- function(
 }
 
 
-#' Filtro numerico agregado OR sobre varias columnas
-#' @description Genera un filterMethod que evalua la expresion numerica (>=, <=, >, <,
-#'   =, !=) contra CUALQUIERA de las columnas indicadas: basta con que una cumpla
-#'   para conservar la fila. Soporta operadores compuestos AND (coma) y OR (barra),
-#'   igual que \code{.numeric_filter_method}.
-#' @param col_ids Vector de nombres de columnas sobre las que aplicar OR.
-#' @return Objeto JS para usar como filterMethod en colDef.
+#' Aggregated OR numeric filter across several columns
+#' @description Builds a filterMethod that evaluates the numeric expression
+#'   (>=, <=, >, <, =, !=) against ANY of the given columns: a single column
+#'   satisfying it is enough to keep the row. It supports the compound AND
+#'   (comma) and OR (pipe) operators, just like \code{.numeric_filter_method}.
+#' @param col_ids Vector of column names over which the OR is applied.
+#' @return A JS object to be used as filterMethod in colDef.
 #' @noRd
 .pl_agg_filter_method <- function(col_ids) {
   if (!requireNamespace("jsonlite", quietly = TRUE)) {
-    stop("'jsonlite' es necesario para filtros agregados.")
+    stop("'jsonlite' is required for the aggregated filters.")
   }
   cols_json <- jsonlite::toJSON(col_ids)
   JS(sprintf("function(rows, columnId, filterValue) {
@@ -1361,13 +1362,13 @@ results_list_widget <- function(
 # Helpers Protein_QUANT (quant_list_widget)
 # =============================================================================
 
-#' Cargar y validar archivo Protein_QUANT
-#' @param input Data frame o ruta a TSV/CSV/Parquet con formato Protein_QUANT
-#' @return Data frame validado
+#' Load and validate a Protein_QUANT file
+#' @param input Data frame or path to a TSV/CSV/Parquet file in Protein_QUANT format
+#' @return Validated data frame
 #' @noRd
 .ql_load_quant <- function(input) {
   if (is.character(input) && length(input) == 1) {
-    if (!file.exists(input)) stop("Archivo Protein_QUANT no encontrado: ", input)
+    if (!file.exists(input)) stop("Protein_QUANT file not found: ", input)
     ext <- tolower(tools::file_ext(input))
     if (ext %in% c("tsv", "txt")) {
       if (requireNamespace("readr", quietly = TRUE)) {
@@ -1383,35 +1384,35 @@ results_list_widget <- function(
       }
     } else if (ext == "parquet") {
       if (!requireNamespace("arrow", quietly = TRUE)) {
-        stop("El paquete 'arrow' es necesario para leer archivos Parquet")
+        stop("The 'arrow' package is required to read Parquet files")
       }
       input <- arrow::read_parquet(input)
     } else {
-      stop("Formato no soportado: ", ext, ". Usa TSV, CSV o Parquet.")
+      stop("Unsupported format: ", ext, ". Use TSV, CSV or Parquet.")
     }
   }
 
   df <- as.data.frame(input)
 
   if (!"PG.ProteinGroups" %in% names(df)) {
-    stop("Columna requerida 'PG.ProteinGroups' no encontrada. ",
-         "El archivo debe ser un Protein_QUANT exportado por preprocess_spectronaut().")
+    stop("Required column 'PG.ProteinGroups' not found. ",
+         "The file must be a Protein_QUANT exported by preprocess_spectronaut().")
   }
   if (!any(grepl("^PG\\.NrOfPrecursorsUsedForQuantification_", names(df)))) {
-    stop("No se detectaron columnas de muestra (PG.NrOfPrecursorsUsedForQuantification_*). ",
-         "Verifica que el archivo sea un Protein_QUANT valido.")
+    stop("No sample columns were detected (PG.NrOfPrecursorsUsedForQuantification_*). ",
+         "Check that the file really is a Protein_QUANT.")
   }
   df
 }
 
 
-#' Cargar matriz log2 normalizada/imputada
-#' @param input Data frame o ruta a TSV/CSV/Parquet con columna ProteinGroups + samples
-#' @return Data frame validado
+#' Load the normalized/imputed log2 matrix
+#' @param input Data frame or path to a TSV/CSV/Parquet file with a ProteinGroups column + samples
+#' @return Validated data frame
 #' @noRd
 .ql_load_matrix <- function(input) {
   if (is.character(input) && length(input) == 1) {
-    if (!file.exists(input)) stop("Archivo de matriz no encontrado: ", input)
+    if (!file.exists(input)) stop("Matrix file not found: ", input)
     ext <- tolower(tools::file_ext(input))
     if (ext %in% c("tsv", "txt")) {
       if (requireNamespace("readr", quietly = TRUE)) {
@@ -1427,34 +1428,34 @@ results_list_widget <- function(
       }
     } else if (ext == "parquet") {
       if (!requireNamespace("arrow", quietly = TRUE)) {
-        stop("El paquete 'arrow' es necesario para leer archivos Parquet")
+        stop("The 'arrow' package is required to read Parquet files")
       }
       input <- arrow::read_parquet(input)
     } else {
-      stop("Formato no soportado: ", ext, ". Usa TSV, CSV o Parquet.")
+      stop("Unsupported format: ", ext, ". Use TSV, CSV or Parquet.")
     }
   }
 
   df <- as.data.frame(input)
 
   if (!"ProteinGroups" %in% names(df)) {
-    stop("Columna requerida 'ProteinGroups' no encontrada en la matriz. ",
-         "Verifica que sea una matrix_log2_<...>.tsv valida.")
+    stop("Required column 'ProteinGroups' not found in the matrix. ",
+         "Check that it is a valid matrix_log2_<...>.tsv.")
   }
 
   sample_cols <- setdiff(names(df), "ProteinGroups")
   ok <- grepl("^[A-Za-z0-9]+_\\d+$", sample_cols)
   if (!any(ok)) {
-    stop("La matriz no contiene columnas de muestra con patron <cond>_<rep>.")
+    stop("The matrix has no sample columns following the <cond>_<rep> pattern.")
   }
   df
 }
 
 
-#' Left-join de la matriz log2 sobre Protein_QUANT por Protein Groups
-#' @param quant_df Data frame Protein_QUANT
-#' @param matrix_df Data frame matriz log2
-#' @return quant_df con 16 columnas adicionales `NormImp.Log2_<cond>_<rep>`
+#' Left-join the log2 matrix onto Protein_QUANT by Protein Groups
+#' @param quant_df Protein_QUANT data frame
+#' @param matrix_df log2 matrix data frame
+#' @return quant_df with 16 extra `NormImp.Log2_<cond>_<rep>` columns
 #' @noRd
 .ql_join_matrix <- function(quant_df, matrix_df) {
   sample_cols <- setdiff(names(matrix_df), "ProteinGroups")
@@ -1470,9 +1471,9 @@ results_list_widget <- function(
 }
 
 
-#' Parsear columnas Protein_QUANT en (metric, condition, replicate)
-#' @param colnames_vec Vector de nombres de columnas
-#' @return Data frame ordenado: column, metric, condition, replicate, coding
+#' Parse Protein_QUANT column names into (metric, condition, replicate)
+#' @param colnames_vec Vector of column names
+#' @return Sorted data frame: column, metric, condition, replicate, coding
 #' @noRd
 .ql_parse_samples <- function(colnames_vec) {
   metrics <- c(
@@ -1516,10 +1517,10 @@ results_list_widget <- function(
 }
 
 
-#' Construir colDefs para tabla Protein_QUANT
-#' @param sample_map Salida de .ql_parse_samples()
-#' @param df Data frame final (para detectar columnas globales presentes)
-#' @return Lista de colDef indexada por nombre de columna
+#' Build the colDefs for the Protein_QUANT table
+#' @param sample_map Output of .ql_parse_samples()
+#' @param df Final data frame (used to detect which global columns are present)
+#' @return List of colDef indexed by column name
 #' @noRd
 .ql_build_columns <- function(sample_map, df) {
   cols <- list()
@@ -1573,7 +1574,7 @@ results_list_widget <- function(
     }")
   )
 
-  # Globales (single-col, plain values con filtro individual)
+  # Global columns (single-col, plain values with an individual filter)
   global_specs <- list(
     list(id = "PG.NrOfPrecursorsIdentified.Global",        name = "# PSMs",       fmt = "Math.round(val)", width = 95),
     list(id = "PG.NrOfStrippedSequencesIdentified.Global", name = "# Uniq Pepts", fmt = "Math.round(val)", width = 115),
@@ -1653,11 +1654,11 @@ results_list_widget <- function(
 }
 
 
-#' Construir columnGroups para tabla Protein_QUANT
-#' @param sample_map Salida de .ql_parse_samples()
-#' @param static_cols Vector de columnas estaticas presentes
-#' @param global_cols Vector de columnas globales presentes
-#' @return Lista de colGroup
+#' Build the columnGroups for the Protein_QUANT table
+#' @param sample_map Output of .ql_parse_samples()
+#' @param static_cols Vector of the static columns that are present
+#' @param global_cols Vector of the global columns that are present
+#' @return List of colGroup
 #' @noRd
 .ql_build_column_groups <- function(sample_map, static_cols, global_cols) {
   groups <- list()
@@ -1700,13 +1701,13 @@ results_list_widget <- function(
 # Helpers Summary-List (Metadata) widget
 # =============================================================================
 
-#' Cargar y validar metadata de muestras
-#' @param input Data frame o ruta a archivo TSV/CSV
-#' @return Data frame validado con columnas display
+#' Load and validate the sample metadata
+#' @param input Data frame or path to a TSV/CSV file
+#' @return Validated data frame with the display columns
 #' @noRd
 .sl_load_metadata <- function(input) {
   if (is.character(input) && length(input) == 1) {
-    if (!file.exists(input)) stop("Archivo no encontrado: ", input)
+    if (!file.exists(input)) stop("File not found: ", input)
     ext <- tolower(tools::file_ext(input))
     if (ext %in% c("tsv", "txt")) {
       if (requireNamespace("readr", quietly = TRUE)) {
@@ -1721,19 +1722,19 @@ results_list_widget <- function(
         df <- read.csv(input, stringsAsFactors = FALSE, check.names = FALSE)
       }
     } else {
-      stop("Extension no soportada: ", ext)
+      stop("Unsupported extension: ", ext)
     }
   } else if (is.data.frame(input)) {
     df <- as.data.frame(input)
   } else {
-    stop("Input debe ser data.frame o ruta a archivo")
+    stop("input must be a data.frame or a file path")
   }
 
-  # Obligatorias: presentes en cualquier fuente (Spectronaut, LFQ, TMT).
+  # Mandatory: present in every source (Spectronaut, LFQ, TMT).
   required <- c("R.FileName", "R.Condition", "R.Replicate", "Coding")
   missing_cols <- setdiff(required, names(df))
   if (length(missing_cols) > 0) {
-    stop("Columnas faltantes en metadata: ", paste(missing_cols, collapse = ", "))
+    stop("Missing columns in the metadata: ", paste(missing_cols, collapse = ", "))
   }
 
   out <- data.frame(
@@ -1745,8 +1746,8 @@ results_list_widget <- function(
     stringsAsFactors = FALSE
   )
 
-  # Columnas de conteo opcionales: solo existen en metadata de Spectronaut. Para
-  # LFQ/TMT no estan y el widget se degrada mostrando solo las columnas base.
+  # Optional count columns: they only exist in Spectronaut metadata. They are
+  # absent for LFQ/TMT, and the widget degrades to showing just the base columns.
   count_map <- list(
     `# Unique PSMs`     = "R.PrecursorsIdentified",
     `# Unique Peptides` = "R.StrippedSequencesIdentified",
@@ -1763,10 +1764,10 @@ results_list_widget <- function(
 }
 
 
-#' Tinta clara de un color hex (para tintar filas)
-#' @param hex Color hex base (ej: "#4F81BD")
-#' @param alpha Opacidad del color sobre fondo blanco (0-1). Defecto 0.12.
-#' @return String hex tintado "#RRGGBB"
+#' Light tint of a hex colour (used to tint rows)
+#' @param hex Base hex colour (e.g. "#4F81BD")
+#' @param alpha Colour opacity over a white background (0-1). Default 0.12.
+#' @return Tinted hex string "#RRGGBB"
 #' @noRd
 .sl_tint_color <- function(hex, alpha = 0.12) {
   if (is.null(hex) || is.na(hex) || !nzchar(hex)) return("#FFFFFF")
@@ -1782,8 +1783,8 @@ results_list_widget <- function(
 }
 
 
-#' Tema reactable estilo negro (Summary widget)
-#' @return Objeto reactableTheme
+#' Black reactable theme (Summary widget)
+#' @return A reactableTheme object
 #' @noRd
 .sl_theme <- function() {
   reactableTheme(
@@ -1799,10 +1800,10 @@ results_list_widget <- function(
 }
 
 
-#' Construir colDefs para la tabla Summary
-#' @param df Data frame de metadata (output de .sl_load_metadata())
-#' @param palette Vector nombrado: condicion -> color hex fuerte
-#' @return Lista de colDef
+#' Build the colDefs for the Summary table
+#' @param df Metadata data frame (output of .sl_load_metadata())
+#' @param palette Named vector: condition -> strong hex colour
+#' @return List of colDef
 #' @noRd
 .sl_build_columns <- function(df, palette) {
   palette_json <- jsonlite::toJSON(as.list(palette), auto_unbox = TRUE)
@@ -1885,7 +1886,7 @@ results_list_widget <- function(
     filterable = FALSE
   )
 
-  # Solo las columnas de conteo presentes (ausentes en metadata LFQ/TMT)
+  # Only the count columns that are present (absent from LFQ/TMT metadata)
   for (nm in intersect(c("# Unique PSMs", "# Unique Peptides", "# Protein Groups"),
                        names(df))) {
     cols[[nm]] <- colDef(
@@ -1903,8 +1904,8 @@ results_list_widget <- function(
 }
 
 
-#' rowStyle JS function que tinta filas por condicion
-#' @return Objeto JS para reactable::rowStyle
+#' rowStyle JS function that tints the rows by condition
+#' @return A JS object for reactable::rowStyle
 #' @noRd
 .sl_build_row_style <- function() {
   reactable::JS("
@@ -1921,26 +1922,26 @@ results_list_widget <- function(
 
 
 # =============================================================================
-# Funcion principal Protein_ID
+# Main function -- Protein_ID
 # =============================================================================
 
-#' Tabla Reactable Interactiva para datos Protein_ID (post-Spectronaut)
+#' Interactive Reactable Table for Protein_ID Data (post-Spectronaut)
 #'
-#' Genera una tabla reactable con cabeceras agrupadas de 2 niveles, columnas
-#' estaticas fijas (sticky) a la izquierda y data bars coloreadas por condicion
-#' dentro de cada celda numerica. Reproduce el formato Excel habitual y lo mejora.
+#' Builds a reactable table with 2-level grouped headers, static columns pinned
+#' (sticky) to the left and data bars coloured by condition inside each numeric
+#' cell. It reproduces the usual Excel layout and improves on it.
 #'
-#' @param data Data frame o ruta a TSV/CSV/Parquet de Protein_ID (salida de
+#' @param data Data frame or path to a Protein_ID TSV/CSV/Parquet file (output of
 #'   preprocess_spectronaut() -> protein_id).
-#' @param metadata Opcional: data frame de metadata (run_summary) con columna
-#'   Coding para fijar el orden de las columnas de muestra.
-#' @param page_size Filas por pagina (default 15).
-#' @param height Altura de la tabla en px (default 720).
-#' @param element_id ID del elemento Reactable (default NULL).
+#' @param metadata Optional: metadata data frame (run_summary) with a Coding
+#'   column that fixes the order of the sample columns.
+#' @param page_size Rows per page (default 15).
+#' @param height Table height in px (default 720).
+#' @param element_id Reactable element ID (default NULL).
 #' @param selection "single" | "multiple" | NULL.
-#' @param searchable Habilitar busqueda (default TRUE).
+#' @param searchable Enable the search box (default TRUE).
 #'
-#' @return Objeto reactable.
+#' @return A reactable object.
 #'
 #' @examples
 #' \dontrun{
@@ -1964,8 +1965,8 @@ protein_list_reactable <- function(
   sample_map <- .pl_parse_samples(names(df))
 
   if (nrow(sample_map) == 0) {
-    stop("No se encontraron columnas de muestra en el data frame. ",
-         "Formato esperado: PG.<metric>_<condition>_<replicate>")
+    stop("No sample columns were found in the data frame. ",
+         "Expected format: PG.<metric>_<condition>_<replicate>")
   }
 
   if (!is.null(metadata) && is.data.frame(metadata) && "Coding" %in% names(metadata)) {
@@ -2036,22 +2037,22 @@ protein_list_reactable <- function(
 
 
 # =============================================================================
-# Wrapper standalone / Quarto para Protein_ID
+# Standalone / Quarto wrapper for Protein_ID
 # =============================================================================
 
-#' Widget Completo para tabla Protein_ID con filtros, busqueda y export Excel
+#' Full Widget for the Protein_ID Table with Filters, Search and Excel Export
 #'
-#' Envuelve \code{protein_list_reactable()} con:
-#'  - Barra de busqueda y botones (toggle filtros, limpiar, export a Excel).
-#'  - Chips por condicion que ocultan/muestran los 16 columnas asociadas.
-#'  - Filtro numerico sobre MW en Da con operadores AND/OR.
-#'  - Export a Excel con cabeceras de 2 niveles (grupos mergeados + sub-labels)
-#'    y tinte por condicion, reproduciendo el formato manual.
+#' Wraps \code{protein_list_reactable()} with:
+#'  - A search bar and buttons (toggle filters, clear, export to Excel).
+#'  - Per-condition chips that hide/show the 16 associated columns.
+#'  - A numeric filter on MW in Da with AND/OR operators.
+#'  - Excel export with 2-level headers (merged groups + sub-labels) and a
+#'    per-condition tint, reproducing the manual layout.
 #'
 #' @inheritParams protein_list_reactable
-#' @param element_id ID del elemento (default "protein_id_table").
+#' @param element_id Element ID (default "protein_id_table").
 #'
-#' @return Objeto htmltools browsable.
+#' @return A browsable htmltools object.
 #'
 #' @examples
 #' \dontrun{
@@ -2072,7 +2073,7 @@ protein_list_widget <- function(
   sample_map <- .pl_parse_samples(names(df))
 
   if (nrow(sample_map) == 0) {
-    stop("No se encontraron columnas de muestra en el data frame.")
+    stop("No sample columns were found in the data frame.")
   }
 
   if (!is.null(metadata) && is.data.frame(metadata) && "Coding" %in% names(metadata)) {
@@ -2107,9 +2108,9 @@ protein_list_widget <- function(
   conditions <- unique(sample_map$condition)
   palette    <- .pl_condition_palette(conditions)
 
-  # --- Estructuras JSON para el cliente ---
+  # --- JSON structures for the client side ---
   if (!requireNamespace("jsonlite", quietly = TRUE)) {
-    stop("El paquete 'jsonlite' es necesario para protein_list_widget().")
+    stop("The 'jsonlite' package is required by protein_list_widget().")
   }
 
   cond_struct <- setNames(
@@ -2152,7 +2153,7 @@ protein_list_widget <- function(
 
   palette_json <- jsonlite::toJSON(as.list(palette), auto_unbox = TRUE)
 
-  # --- CSS + scripts CDN ---
+  # --- CSS + CDN scripts ---
   css <- .rl_css()
   cdn_scripts <- tagList(
     tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"),
@@ -2332,13 +2333,13 @@ protein_list_widget <- function(
         a.click();
         window.URL.revokeObjectURL(url);
       } catch(e) {
-        console.error('Error exportando:', e);
+        console.error('Error while exporting:', e);
       }
     }
   ", cond_struct_json, group_struct_json, palette_json,
       element_id, element_id, element_id, element_id, element_id, element_id)))
 
-  # --- Barra de busqueda + botones ---
+  # --- Search bar + buttons ---
   search_actions <- div(class = "rl-search-actions",
     tags$input(
       type = "search",
@@ -2368,7 +2369,7 @@ protein_list_widget <- function(
     )
   )
 
-  # --- Panel de filtros ---
+  # --- Filter panel ---
   cond_chips <- lapply(conditions, function(cc) {
     tags$span(
       class = "pl-cond-chip",
@@ -2379,16 +2380,16 @@ protein_list_widget <- function(
     )
   })
 
-  # --- Anclas de filtro agregado (primera columna de cada metrica) ---
+  # --- Aggregated filter anchors (first column of each metric) ---
   .first_of <- function(mm) {
     cc <- sample_map$column[sample_map$metric == mm]
     if (length(cc) == 0) NA_character_ else cc[1]
   }
   metric_filters <- list(
-    list(label = "# Uniq. PSMs Identified",  anchor = .first_of("PG.NrOfPrecursorsIdentified"),        placeholder = "≥ 2 ..."),
-    list(label = "# Uniq. Pepts Identified", anchor = .first_of("PG.NrOfStrippedSequencesIdentified"), placeholder = "≥ 2 ..."),
-    list(label = "Coverage [%]",             anchor = .first_of("PG.Coverage"),                        placeholder = "≥ 10 ..."),
-    list(label = "Spectronaut Cscore",       anchor = .first_of("PG.Cscore.RunWise"),                  placeholder = "≥ 2 ...")
+    list(label = "# Uniq. PSMs Identified",  anchor = .first_of("PG.NrOfPrecursorsIdentified"),        placeholder = "\u2265 2 ..."),
+    list(label = "# Uniq. Pepts Identified", anchor = .first_of("PG.NrOfStrippedSequencesIdentified"), placeholder = "\u2265 2 ..."),
+    list(label = "Coverage [%]",             anchor = .first_of("PG.Coverage"),                        placeholder = "\u2265 10 ..."),
+    list(label = "Spectronaut Cscore",       anchor = .first_of("PG.Cscore.RunWise"),                  placeholder = "\u2265 2 ...")
   )
   metric_filter_items <- lapply(Filter(function(f) !is.na(f$anchor), metric_filters), function(f) {
     div(class = "rl-filter-item",
@@ -2400,7 +2401,7 @@ protein_list_widget <- function(
         placeholder = f$placeholder,
         oninput = sprintf("plApplyNumericFilter('%s', this.value)", f$anchor)
       ),
-      tags$span(class = "rl-filter-hint", "OR entre las muestras del bloque")
+      tags$span(class = "rl-filter-hint", "OR across the samples in the block")
     )
   })
 
@@ -2414,7 +2415,7 @@ protein_list_widget <- function(
     )
   )
 
-  # --- Tabla ---
+  # --- Table ---
   tbl <- reactable(
     df,
     elementId     = element_id,
@@ -2463,28 +2464,28 @@ protein_list_widget <- function(
 
 
 # =============================================================================
-# Funcion principal Protein_QUANT (quant_list_widget)
+# Main function -- Protein_QUANT (quant_list_widget)
 # =============================================================================
 
-#' Widget Completo para tabla Protein_QUANT con matriz log2 anexada
+#' Full Widget for the Protein_QUANT Table with the log2 Matrix Appended
 #'
-#' Tabla reactable que reproduce el layout del Excel Protein-List_QUANT con
-#' cabeceras de 2 niveles, sticky cols, paleta azul, filtros agregados y export
-#' Excel. Anexa al Protein_QUANT las 16 columnas de la matriz normalizada/imputada
-#' log2, cruzando por Protein Groups.
+#' Reactable table that reproduces the layout of the Protein-List_QUANT Excel
+#' sheet, with 2-level headers, sticky columns, a blue palette, aggregated
+#' filters and Excel export. It appends to Protein_QUANT the 16 columns of the
+#' normalized/imputed log2 matrix, matching by Protein Groups.
 #'
-#' @param data Data frame o ruta a TSV/CSV/Parquet de Protein_QUANT.
-#' @param matrix_data Data frame o ruta a TSV/CSV/Parquet de la matriz log2
-#'   normalizada/imputada (con columna ProteinGroups + samples <cond>_<rep>).
-#' @param metadata Opcional: data frame de metadata con columna Coding para
-#'   fijar el orden de muestras.
-#' @param page_size Filas por pagina (default 15).
-#' @param height Altura de la tabla en px (default 720).
-#' @param element_id ID del elemento Reactable.
+#' @param data Data frame or path to a Protein_QUANT TSV/CSV/Parquet file.
+#' @param matrix_data Data frame or path to a TSV/CSV/Parquet file with the
+#'   normalized/imputed log2 matrix (a ProteinGroups column + <cond>_<rep> samples).
+#' @param metadata Optional: metadata data frame with a Coding column that fixes
+#'   the sample order.
+#' @param page_size Rows per page (default 15).
+#' @param height Table height in px (default 720).
+#' @param element_id Reactable element ID.
 #' @param selection "single" | "multiple" | NULL.
-#' @param searchable Habilitar busqueda (default TRUE).
+#' @param searchable Enable the search box (default TRUE).
 #'
-#' @return Objeto browsable.
+#' @return A browsable object.
 #'
 #' @examples
 #' \dontrun{
@@ -2512,7 +2513,7 @@ quant_list_widget <- function(
   sample_map <- .ql_parse_samples(names(df))
 
   if (nrow(sample_map) == 0) {
-    stop("No se encontraron columnas de muestra en el data frame combinado.")
+    stop("No sample columns were found in the combined data frame.")
   }
 
   if (!is.null(metadata) && is.data.frame(metadata) && "Coding" %in% names(metadata)) {
@@ -2550,7 +2551,7 @@ quant_list_widget <- function(
   palette    <- .pl_condition_palette(conditions)
 
   if (!requireNamespace("jsonlite", quietly = TRUE)) {
-    stop("El paquete 'jsonlite' es necesario para quant_list_widget().")
+    stop("The 'jsonlite' package is required by quant_list_widget().")
   }
 
   cond_struct <- setNames(
@@ -2786,7 +2787,7 @@ quant_list_widget <- function(
         a.click();
         window.URL.revokeObjectURL(url);
       } catch(e) {
-        console.error('Error exportando:', e);
+        console.error('Error while exporting:', e);
       }
     }
   ", cond_struct_json, group_struct_json, palette_json,
@@ -2851,7 +2852,7 @@ quant_list_widget <- function(
         placeholder = f$placeholder,
         oninput = sprintf("qlApplyNumericFilter('%s', this.value)", f$anchor)
       ),
-      tags$span(class = "rl-filter-hint", "OR entre las muestras del bloque")
+      tags$span(class = "rl-filter-hint", "OR across the samples in the block")
     )
   })
 
@@ -2913,27 +2914,27 @@ quant_list_widget <- function(
 
 
 # =============================================================================
-# Funcion principal Summary (summary_list_widget)
+# Main function -- Summary (summary_list_widget)
 # =============================================================================
 
-#' Tabla Reactable Interactiva para Metadata de muestras
+#' Interactive Reactable Table for the Sample Metadata
 #'
-#' Genera una tabla reactable que reproduce el layout del Excel de metadata
-#' (FileName, Condition, Replicate, Coding, # Unique PSMs, # Unique Peptides,
-#' # Protein Groups). Header negro, filas tintadas por condicion en tonos
-#' claros y celdas Condition/Coding con chip de color fuerte (mismo esquema
-#' usado por protein_list_widget() / quant_list_widget()).
+#' Builds a reactable table that reproduces the layout of the metadata Excel
+#' sheet (FileName, Condition, Replicate, Coding, # Unique PSMs, # Unique
+#' Peptides, # Protein Groups). Black header, rows tinted by condition in light
+#' shades and Condition/Coding cells with a strong colour chip (the same scheme
+#' used by protein_list_widget() / quant_list_widget()).
 #'
-#' @param data Data frame o ruta a TSV/CSV de metadata. Debe tener las columnas
-#'   R.FileName, R.Condition, R.Replicate, Coding, R.PrecursorsIdentified,
+#' @param data Data frame or path to a metadata TSV/CSV file. It must have the
+#'   columns R.FileName, R.Condition, R.Replicate, Coding, R.PrecursorsIdentified,
 #'   R.StrippedSequencesIdentified, R.ProteinGroupsIdentified.
-#' @param page_size Tamano de pagina (defecto 16, todas las filas).
-#' @param height Altura en px del contenedor de tabla (defecto 540).
-#' @param element_id Id del widget en el DOM (defecto "summary_table").
-#' @param selection Tipo de seleccion ("multiple" o NULL).
-#' @param searchable Habilitar busqueda global (defecto FALSE).
+#' @param page_size Page size (default 16, i.e. all the rows).
+#' @param height Height in px of the table container (default 540).
+#' @param element_id Widget id in the DOM (default "summary_table").
+#' @param selection Selection type ("multiple" or NULL).
+#' @param searchable Enable the global search box (default FALSE).
 #'
-#' @return Objeto htmltools (tagList con browsable) listo para ser renderizado.
+#' @return An htmltools object (browsable tagList) ready to be rendered.
 #'
 #' @examples
 #' \dontrun{
@@ -2961,13 +2962,13 @@ summary_list_widget <- function(
   rstyle <- .sl_build_row_style()
 
   if (!requireNamespace("jsonlite", quietly = TRUE)) {
-    stop("El paquete 'jsonlite' es necesario para summary_list_widget().")
+    stop("The 'jsonlite' package is required by summary_list_widget().")
   }
   palette_json      <- jsonlite::toJSON(as.list(palette), auto_unbox = TRUE)
   tint_palette_json <- jsonlite::toJSON(as.list(tint_palette), auto_unbox = TRUE)
   conditions_json   <- jsonlite::toJSON(as.list(conditions), auto_unbox = FALSE)
 
-  # Columnas a exportar (solo las presentes; LFQ/TMT no traen las de conteo)
+  # Columns to export (only the ones present; LFQ/TMT do not carry the counts)
   sl_width_map <- c(FileName = 45, Condition = 14, Replicate = 12, Coding = 14,
                     `# Unique PSMs` = 18, `# Unique Peptides` = 18,
                     `# Protein Groups` = 18)
@@ -2977,14 +2978,14 @@ summary_list_widget <- function(
   export_cols_json   <- jsonlite::toJSON(sl_export_cols)
   export_widths_json <- jsonlite::toJSON(sl_export_widths)
 
-  # --- CSS + scripts CDN ---
+  # --- CSS + CDN scripts ---
   css <- .rl_css()
   cdn_scripts <- tagList(
     tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"),
     tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js")
   )
 
-  # --- JavaScript embebido (slToggleFilters / slToggleCondition / slClearFilters / slExportExcel) ---
+  # --- Embedded JavaScript (slToggleFilters / slToggleCondition / slClearFilters / slExportExcel) ---
   js_code <- tags$script(HTML(sprintf("
     var slFiltersVisible = false;
     var slHiddenConditions = {};
@@ -3078,7 +3079,7 @@ summary_list_widget <- function(
         var colWidths = SL_EXPORT_WIDTHS;
         flatCols.forEach(function(c, i) { ws.getColumn(i + 1).width = colWidths[i]; });
 
-        // Row 1: header (negro / blanco bold)
+        // Row 1: header (black / white bold)
         flatCols.forEach(function(c, i) {
           var cell = ws.getCell(1, i + 1);
           cell.value = c;
@@ -3088,7 +3089,7 @@ summary_list_widget <- function(
         });
         ws.getRow(1).height = 28;
 
-        // Data rows: tinte por fila + chip fuerte en Condition + Coding
+        // Data rows: per-row tint + strong chip on Condition + Coding
         var nextRow = 2;
         rows.forEach(function(row) {
           var cond = String(row['Condition'] || '');
@@ -3108,11 +3109,11 @@ summary_list_widget <- function(
                 cell.value = v;
               }
             }
-            // fondo tintado en toda la fila
+            // tinted background across the whole row
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: tintArgb } };
             cell.alignment = { vertical: 'middle',
                                horizontal: (i === 0 ? 'left' : (i >= 4 ? 'right' : 'center')) };
-            // override en Condition + Coding (i = 1 o 3)
+            // override on Condition + Coding (i = 1 or 3)
             if (i === 1 || i === 3) {
               cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: strongArgb } };
               cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -3146,14 +3147,14 @@ summary_list_widget <- function(
         a.click();
         window.URL.revokeObjectURL(url);
       } catch(e) {
-        console.error('Error exportando:', e);
+        console.error('Error while exporting:', e);
       }
     }
   ", palette_json, tint_palette_json, conditions_json,
       export_cols_json, export_widths_json,
       element_id, element_id, element_id, element_id, element_id, element_id)))
 
-  # --- Barra de busqueda + botones ---
+  # --- Search bar + buttons ---
   search_input <- if (isTRUE(searchable)) {
     tags$input(
       type = "search",
@@ -3187,7 +3188,7 @@ summary_list_widget <- function(
     )
   )
 
-  # --- Panel de filtros: chips de condicion + 3 inputs numericos ---
+  # --- Filter panel: condition chips + 3 numeric inputs ---
   cond_chips <- lapply(conditions, function(cc) {
     tags$span(
       class = "pl-cond-chip sl-cond-chip",
@@ -3203,7 +3204,7 @@ summary_list_widget <- function(
     list(label = "# Unique Peptides", col = "# Unique Peptides", placeholder = ">= 90000 ..."),
     list(label = "# Protein Groups",  col = "# Protein Groups",  placeholder = ">= 9000 ...")
   )
-  # Solo filtros para columnas de conteo presentes (ausentes en LFQ/TMT)
+  # Only keep filters for the count columns present (absent for LFQ/TMT)
   numeric_filters <- Filter(function(f) f$col %in% names(df), numeric_filters)
   numeric_filter_items <- lapply(numeric_filters, function(f) {
     div(class = "rl-filter-item",
@@ -3215,21 +3216,21 @@ summary_list_widget <- function(
         placeholder = f$placeholder,
         oninput = sprintf("slApplyNumericFilter('%s', this.value)", f$col)
       ),
-      tags$span(class = "rl-filter-hint", "Operadores: >=, <=, >, <, =, !=")
+      tags$span(class = "rl-filter-hint", "Operators: >=, <=, >, <, =, !=")
     )
   })
 
   filters_panel <- div(class = "rl-filters-container sl-filters-container",
     div(class = "rl-filters-row",
       div(class = "rl-filter-item", style = "flex: 2 1 300px;",
-        tags$label(class = "rl-filter-label", "Conditions (click para mostrar/ocultar filas)"),
+        tags$label(class = "rl-filter-label", "Conditions (click to show/hide rows)"),
         div(class = "pl-cond-chips sl-cond-chips", cond_chips)
       ),
       numeric_filter_items
     )
   )
 
-  # --- Filtro Condition (oculto): excluye filas cuya condicion este en la lista ---
+  # --- Condition filter (hidden): drops rows whose condition is in the list ---
   cols$Condition$filterable   <- TRUE
   cols$Condition$filterInput  <- .numeric_filter_hidden
   cols$Condition$filterMethod <- reactable::JS("
@@ -3243,7 +3244,7 @@ summary_list_widget <- function(
     }
   ")
 
-  # --- Tabla ---
+  # --- Table ---
   tbl <- reactable(
     df,
     elementId           = element_id,

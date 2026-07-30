@@ -18,6 +18,6 @@ Numeric matrix in log2 scale
 }
 \description{
 Internal helper that calls the appropriate \verb{.norm_*()} function.
-For Grupo A methods, converts log2 back to raw (2^x) before calling.
+For Group A methods, converts log2 back to raw (2^x) before calling.
 }
 \keyword{internal}

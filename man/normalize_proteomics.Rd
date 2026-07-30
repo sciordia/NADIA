@@ -27,9 +27,9 @@ normalize_proteomics(
 
 \item{norm_method}{Normalization method (default: "cycloess"). One of:
 \itemize{
-\item Grupo A (input: raw intensities): "log2Norm", "GlobalMedian",
+\item Group A (input: raw intensities): "log2Norm", "GlobalMedian",
 "GlobalMean", "eqmedians", "vsn"
-\item Grupo B (input: log2 assay): "log2" (no extra normalization),
+\item Group B (input: log2 assay): "log2" (no extra normalization),
 "quantile", "Rlr", "MAD", "cycloess",
 "medianNorm", "meanNorm", "quantile.robust"
 }}

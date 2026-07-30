@@ -2,24 +2,24 @@
 % Please edit documentation in R/Pattern_Profiler_Analysis.R
 \name{build_long_output}
 \alias{build_long_output}
-\title{Construir tabla de salida en formato LONG}
+\title{Build the output table in LONG format}
 \usage{
 build_long_output(cl, eset_std, conditions, min_membership)
 }
 \arguments{
-\item{cl}{Objeto de clustering Mfuzz}
+\item{cl}{Mfuzz clustering object}
 
-\item{eset_std}{ExpressionSet estandarizado (con z-scores)}
+\item{eset_std}{Standardised ExpressionSet (with z-scores)}
 
-\item{conditions}{Vector de nombres de condiciones}
+\item{conditions}{Vector of condition names}
 
-\item{min_membership}{Umbral mínimo de membership}
+\item{min_membership}{Minimum membership threshold}
 }
 \value{
-DataFrame en formato long
+DataFrame in long format
 }
 \description{
-Crea una fila por cada combinación FeatureID-Cluster donde
-membership >= min_membership. Esto permite que una proteína
-aparezca en múltiples clusters (soft-clustering).
+Creates one row per FeatureID-Cluster combination where
+membership >= min_membership. This lets a protein appear in several clusters
+(soft clustering).
 }

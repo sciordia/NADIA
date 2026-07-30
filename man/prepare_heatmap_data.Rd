@@ -2,7 +2,7 @@
 % Please edit documentation in R/Heatmap_tidyHeatmap.R
 \name{prepare_heatmap_data}
 \alias{prepare_heatmap_data}
-\title{Preparar datos en formato largo para tidyHeatmap}
+\title{Prepare Long-Format Data for tidyHeatmap}
 \usage{
 prepare_heatmap_data(
   data,
@@ -16,34 +16,34 @@ prepare_heatmap_data(
 )
 }
 \arguments{
-\item{data}{Data frame en formato largo con columnas:
+\item{data}{Data frame in long format with columns:
 \itemize{
-\item SampleID: Identificador de muestra
-\item FeatureID: Identificador de proteína/feature
-\item Intensity: Valor de intensidad (log2)
-\item Condition: Condición experimental
-\item Replicate: Número de réplica
-\item sig_any: Lógico indicando significancia (para mode="any")
-\item adjP_*: Columnas de p-valores ajustados (para mode="target")
+\item SampleID: sample identifier
+\item FeatureID: protein/feature identifier
+\item Intensity: intensity value (log2)
+\item Condition: experimental condition
+\item Replicate: replicate number
+\item sig_any: logical flagging significance (for mode="any")
+\item adjP_*: adjusted p-value columns (for mode="target")
 }}
 
-\item{mode}{Modo de filtrado: "all", "any", o "target"}
+\item{mode}{Filtering mode: "all", "any", or "target"}
 
-\item{alpha}{Umbral de significancia para modo "target" (default: 0.05)}
+\item{alpha}{Significance threshold for mode "target" (default: 0.05)}
 
-\item{comparison}{Nombre de la comparación para modo "target" (ej: "B-A")}
+\item{comparison}{Name of the comparison for mode "target" (e.g. "B-A")}
 
-\item{feature_ids}{Vector de FeatureIDs específicos (si se proporciona, ignora mode/alpha)}
+\item{feature_ids}{Vector of specific FeatureIDs (when supplied, mode/alpha are ignored)}
 
-\item{scale_data}{Tipo de escalado: "none", "row", "column" (default: "row")}
+\item{scale_data}{Scaling type: "none", "row", "column" (default: "row")}
 
-\item{sample_order}{Orden de muestras: "clustering", "condition", o vector personalizado}
+\item{sample_order}{Sample order: "clustering", "condition", or a custom vector}
 
-\item{condition_order}{Orden de condiciones cuando sample_order = "condition"}
+\item{condition_order}{Condition order when sample_order = "condition"}
 }
 \value{
-Data frame en formato largo listo para tidyHeatmap
+Data frame in long format, ready for tidyHeatmap
 }
 \description{
-Preparar datos en formato largo para tidyHeatmap
+Prepare Long-Format Data for tidyHeatmap
 }

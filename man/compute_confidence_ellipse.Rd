@@ -2,7 +2,7 @@
 % Please edit documentation in R/PCA_Highcharts_Final.R
 \name{compute_confidence_ellipse}
 \alias{compute_confidence_ellipse}
-\title{Calcular elipse de confianza por grupo}
+\title{Compute the confidence ellipse per group}
 \usage{
 compute_confidence_ellipse(
   scores_df,
@@ -12,18 +12,18 @@ compute_confidence_ellipse(
 )
 }
 \arguments{
-\item{scores_df}{Data frame con columnas PC1, PC2 y la columna de grupo}
+\item{scores_df}{Data frame with columns PC1, PC2 and the grouping column}
 
-\item{group_col}{Nombre de la columna de agrupación (default: "Condition")}
+\item{group_col}{Name of the grouping column (default: "Condition")}
 
-\item{level}{Nivel de confianza (default: 0.95)}
+\item{level}{Confidence level (default: 0.95)}
 
-\item{npoints}{Número de puntos para dibujar la elipse (default: 100)}
+\item{npoints}{Number of points used to draw the ellipse (default: 100)}
 }
 \value{
-Lista de data frames, cada uno con columnas: group, x, y
+List of data frames, each one with columns: group, x, y
 }
 \description{
-Calcula las coordenadas de una elipse de confianza basada en la distribución
-chi-cuadrado, similar a FactoMineR::coord.ellipse y ggplot2::stat_ellipse.
+Computes the coordinates of a confidence ellipse based on the chi-squared
+distribution, similar to FactoMineR::coord.ellipse and ggplot2::stat_ellipse.
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/Preprocessing_LFQ.R
 \name{preprocess_lfq}
 \alias{preprocess_lfq}
-\title{Preprocesa exports LFQ de Proteome Discoverer}
+\title{Preprocess Proteome Discoverer LFQ exports}
 \usage{
 preprocess_lfq(
   file_path,
@@ -14,38 +14,39 @@ preprocess_lfq(
 )
 }
 \arguments{
-\item{file_path}{Ruta al TSV de datos exportado de Proteome Discoverer.}
+\item{file_path}{Path to the data TSV exported from Proteome Discoverer.}
 
-\item{annot_path}{Ruta al TSV de anotación con columnas \code{Column}, \code{Condition}
-(obligatorias) y \code{Experiment} (opcional).}
+\item{annot_path}{Path to the annotation TSV with columns \code{Column},
+\code{Condition} (mandatory) and \code{Experiment} (optional).}
 
-\item{condition_order}{Vector de caracteres con el orden de las condiciones.
-Si es \code{NULL} (default), se deriva de \code{Condition} (orden de aparición). Si se
-provee, fija los niveles del factor y descarta muestras cuya condición no
-esté en la lista.}
+\item{condition_order}{Character vector with the order of the conditions. If
+\code{NULL} (default), it is derived from \code{Condition} (order of appearance). If
+supplied, it fixes the factor levels and discards samples whose condition is
+not in the list.}
 
-\item{export_dir}{Directorio para exportar TSVs. \code{NULL} (default) = no exporta.}
+\item{export_dir}{Directory to export the TSVs to. \code{NULL} (default) = no
+export.}
 
-\item{timestamp_suffix}{Lógico. Si \code{TRUE} (default), añade timestamp a los
-archivos exportados.}
+\item{timestamp_suffix}{Logical. If \code{TRUE} (default), appends a timestamp to
+the exported files.}
 
-\item{verbose}{Lógico. Si \code{TRUE} (default), muestra mensajes de progreso.}
+\item{verbose}{Logical. If \code{TRUE} (default), shows progress messages.}
 }
 \value{
-Lista con clase \code{c("lfq_data", "proteomics_data", "list")} conteniendo
-\code{metadata}, \code{protein_id} y \code{protein_quant}.
+A list with class \code{c("lfq_data", "proteomics_data", "list")}
+containing \code{metadata}, \code{protein_id} and \code{protein_quant}.
 }
 \description{
-Convierte un export de proteínas LFQ de Proteome Discoverer (formato TSV ancho)
-a la misma estructura de salida que \code{preprocess_spectronaut()} /
-\code{preprocess_tmt()}: tres data.frames (\code{metadata}, \code{protein_id}, \code{protein_quant})
-listos para el pipeline downstream (\code{process_proteomics()}).
+Converts a Proteome Discoverer LFQ protein export (wide TSV format) into the
+same output structure as \code{preprocess_spectronaut()} / \code{preprocess_tmt()}:
+three data.frames (\code{metadata}, \code{protein_id}, \code{protein_quant}) ready for the
+downstream pipeline (\code{process_proteomics()}).
 
-El diseño experimental (muestra -> condición) se toma del archivo de anotación
-\code{annot_path} (columnas \code{Column}, \code{Condition}, y opcional \code{Experiment}). Las
-intensidades (\verb{Abundance: <muestra>}) y las métricas por muestra
-(\verb{# PSMs (by Search Engine)}, \verb{# Peptides (by Search Engine)}, \verb{Score Mascot})
-se mapean POR NOMBRE de muestra.
+The experimental design (sample -> condition) is taken from the annotation
+file \code{annot_path} (columns \code{Column}, \code{Condition}, and optionally
+\code{Experiment}). The intensities (\verb{Abundance: <sample>}) and the per-sample
+metrics (\verb{# PSMs (by Search Engine)}, \verb{# Peptides (by Search Engine)},
+\verb{Score Mascot}) are mapped BY SAMPLE NAME.
 }
 \examples{
 \dontrun{

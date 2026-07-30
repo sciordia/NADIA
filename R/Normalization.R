@@ -73,14 +73,14 @@
   data <- as.matrix(data)
 
   if (!grouping_column %in% names(metadata)) {
-    stop("La columna '", grouping_column, "' no existe en metadata")
+    stop("Column '", grouping_column, "' does not exist in metadata")
   }
 
   # Align samples
   if (!is.null(rownames(metadata))) {
     common_samples <- intersect(colnames(data), rownames(metadata))
     if (length(common_samples) == 0) {
-      stop("No hay muestras en comun entre data y metadata")
+      stop("No samples in common between data and metadata")
     }
     data <- data[, common_samples, drop = FALSE]
     metadata <- metadata[common_samples, , drop = FALSE]
@@ -143,18 +143,18 @@
     label_column = "Column"
 ) {
   if (!requireNamespace("SummarizedExperiment", quietly = TRUE)) {
-    stop("Se requiere el paquete 'SummarizedExperiment'")
+    stop("Package 'SummarizedExperiment' is required")
   }
 
   # Validate required columns
   if (!protein_column %in% names(data)) {
-    stop("Columna '", protein_column, "' no encontrada en data")
+    stop("Column '", protein_column, "' not found in data")
   }
   if (!label_column %in% names(metadata)) {
-    stop("Columna '", label_column, "' no encontrada en metadata")
+    stop("Column '", label_column, "' not found in metadata")
   }
   if (!condition_column %in% names(metadata)) {
-    stop("Columna '", condition_column, "' no encontrada en metadata")
+    stop("Column '", condition_column, "' not found in metadata")
   }
 
   # Identify intensity columns
@@ -178,7 +178,7 @@
   common_samples <- intersect(colnames(intensity), rownames(metadata))
 
   if (length(common_samples) == 0) {
-    stop("No hay muestras en comun entre data y metadata")
+    stop("No samples in common between data and metadata")
   }
 
   intensity <- intensity[, common_samples, drop = FALSE]
@@ -224,7 +224,7 @@
   stopifnot(inherits(se, "SummarizedExperiment"))
 
   if (!assay_name %in% SummarizedExperiment::assayNames(se)) {
-    stop("Assay '", assay_name, "' no encontrado")
+    stop("Assay '", assay_name, "' not found")
   }
 
   x <- SummarizedExperiment::assay(se, assay_name)
@@ -262,12 +262,12 @@
 # All functions return a numeric matrix in log2 scale with the same
 # rownames/colnames as the input.
 #
-# Grupo A (.norm_log2norm .. .norm_vsn): receive x_raw (linear).
-# Grupo B (.norm_quantile .. .norm_quantile_robust): receive x_log2.
+# Group A (.norm_log2norm .. .norm_vsn): receive x_raw (linear).
+# Group B (.norm_quantile .. .norm_quantile_robust): receive x_log2.
 #
-# Note: eqmedians belongs to Grupo A (receives x_raw) but applies log2() internally.
+# Note: eqmedians belongs to Group A (receives x_raw) but applies log2() internally.
 
-# --- Grupo A: x_raw → log2 ---
+# --- Group A: x_raw -> log2 ---
 
 .norm_log2norm <- function(x_raw) {
   x <- log2(x_raw)
@@ -275,14 +275,14 @@
   x
 }
 
-# NOTA: "GlobalMedian" (.norm_ginorm) y "GlobalMean" (.norm_globalmean)
-# normalizan por la SUMA de cada columna, escalada a la mediana / media de las
-# sumas. No usan la mediana/media de columna (ese es medianNorm/meanNorm). Ambos
-# metodos difieren unicamente en la constante global log2(median(S)) vs
-# log2(mean(S)); como toda metrica aguas abajo (varianza, correlacion, PCA/MDS
-# centrados, PCV/PMAD/PEV) es invariante a un desplazamiento global, producen
-# resultados practicamente identicos en el benchmark. Se mantienen ambos por
-# compatibilidad, pero se documenta la redundancia.
+# NOTE: "GlobalMedian" (.norm_ginorm) and "GlobalMean" (.norm_globalmean)
+# normalize by the column SUM, rescaled to the median / mean of those sums.
+# They do not use the column median/mean (that is medianNorm/meanNorm). Both
+# methods differ only in the global constant log2(median(S)) vs log2(mean(S));
+# since every downstream metric (variance, correlation, centred PCA/MDS,
+# PCV/PMAD/PEV) is invariant to a global shift, they produce practically
+# identical results in the benchmark. Both are kept for backward
+# compatibility, but the redundancy is documented here.
 .norm_ginorm <- function(x_raw) {
   col_sums <- colSums(x_raw, na.rm = TRUE)
   x <- log2(sweep(x_raw, 2, col_sums / median(col_sums), "/"))
@@ -310,21 +310,21 @@
 
 .norm_vsn <- function(x_raw) {
   if (!requireNamespace("vsn", quietly = TRUE)) {
-    stop("Se requiere 'vsn' para el metodo vsn. ",
-         "Instalalo con BiocManager::install('vsn')")
+    stop("Package 'vsn' is required for the vsn method. ",
+         "Install it with BiocManager::install('vsn')")
   }
   vsn::justvsn(x_raw)
 }
 
-# --- Grupo B: x_log2 → log2 ---
+# --- Group B: x_log2 -> log2 ---
 
 .norm_quantile <- function(x_log2) {
-  # limma::normalizeQuantiles maneja NA de forma consistente (interpola los
-  # cuantiles por columna sobre una rejilla comun), a diferencia de
-  # preprocessCore::normalize.quantiles que propaga NaN con datos DIA.
+  # limma::normalizeQuantiles handles NA consistently (it interpolates the
+  # per-column quantiles onto a common grid), unlike
+  # preprocessCore::normalize.quantiles, which propagates NaN with DIA data.
   if (!requireNamespace("limma", quietly = TRUE)) {
-    stop("Se requiere 'limma' para el metodo quantile. ",
-         "Instalalo con BiocManager::install('limma')")
+    stop("Package 'limma' is required for the quantile method. ",
+         "Install it with BiocManager::install('limma')")
   }
   res <- limma::normalizeQuantiles(x_log2)
   dimnames(res) <- dimnames(x_log2)
@@ -333,8 +333,8 @@
 
 .norm_rlr <- function(x_log2) {
   if (!requireNamespace("MASS", quietly = TRUE)) {
-    stop("Se requiere 'MASS' para el metodo Rlr. ",
-         "Instalalo con install.packages('MASS')")
+    stop("Package 'MASS' is required for the Rlr method. ",
+         "Install it with install.packages('MASS')")
   }
   row_medians <- apply(x_log2, 1, median, na.rm = TRUE)
   x <- x_log2
@@ -365,7 +365,7 @@
 }
 
 .norm_mediannorm <- function(x_raw) {
-  # NormalyzerDE/PRONE: (x_raw / colMedian) * mean(colMedians) → log2
+  # NormalyzerDE/PRONE: (x_raw / colMedian) * mean(colMedians) -> log2
   col_medians <- apply(x_raw, 2, median, na.rm = TRUE)
   x <- log2(sweep(x_raw, 2, col_medians / mean(col_medians), "/"))
   x[is.infinite(x)] <- NA
@@ -373,7 +373,7 @@
 }
 
 .norm_meannorm <- function(x_raw) {
-  # NormalyzerDE/PRONE: (x_raw / colMean) * mean(colMeans) → log2
+  # NormalyzerDE/PRONE: (x_raw / colMean) * mean(colMeans) -> log2
   col_means <- colMeans(x_raw, na.rm = TRUE)
   x <- log2(sweep(x_raw, 2, col_means / mean(col_means), "/"))
   x[is.infinite(x)] <- NA
@@ -381,21 +381,21 @@
 }
 
 .norm_quantile_robust <- function(x_log2) {
-  # Quantile normalization robusta — base R, sin dependencias externas.
-  # Usa la mediana (en lugar de la media) de los valores ordenados como
-  # distribucion de referencia, haciendola robusta frente a muestras con
-  # valores extremos.
+  # Robust quantile normalization -- base R, no external dependencies.
+  # Uses the median (instead of the mean) of the sorted values as the
+  # reference distribution, which makes it robust to samples with extreme
+  # values.
   #
-  # Con NA, cada columna se interpola primero sobre una rejilla comun de n_row
-  # cuantiles [0,1] antes de tomar la mediana por fila; asi no se mezclan
-  # cuantiles distintos entre columnas con distinto numero de observaciones
-  # (el bug de sort(na.last=TRUE): la posicion i era el cuantil i/m, no i/n).
+  # With NA, each column is first interpolated onto a common grid of n_row
+  # quantiles in [0,1] before taking the per-row median; this prevents mixing
+  # different quantiles across columns with a different number of observations
+  # (the sort(na.last=TRUE) bug: position i was quantile i/m, not i/n).
   n_row <- nrow(x_log2)
   n_col <- ncol(x_log2)
   x_norm <- x_log2
   grid   <- if (n_row > 1L) (seq_len(n_row) - 1L) / (n_row - 1L) else 0
 
-  # Referencia: mediana por posicion de cuantil sobre columnas interpoladas.
+  # Reference: median per quantile position across the interpolated columns.
   interp_cols <- vapply(seq_len(n_col), function(j) {
     obs <- sort(x_log2[!is.na(x_log2[, j]), j])
     m   <- length(obs)
@@ -405,7 +405,7 @@
   }, numeric(n_row))
   ref <- apply(interp_cols, 1, median, na.rm = TRUE)
 
-  # Mapeo por columna: rango del valor -> posicion en la rejilla -> referencia.
+  # Per-column mapping: value rank -> grid position -> reference value.
   for (j in seq_len(n_col)) {
     col   <- x_log2[, j]
     valid <- !is.na(col)
@@ -434,9 +434,9 @@
 #' @param min_groups Minimum groups meeting min_reps (default: 1)
 #' @param norm_method Normalization method (default: "cycloess"). One of:
 #'   \itemize{
-#'     \item Grupo A (input: raw intensities): "log2Norm", "GlobalMedian",
+#'     \item Group A (input: raw intensities): "log2Norm", "GlobalMedian",
 #'       "GlobalMean", "eqmedians", "vsn"
-#'     \item Grupo B (input: log2 assay): "log2" (no extra normalization),
+#'     \item Group B (input: log2 assay): "log2" (no extra normalization),
 #'       "quantile", "Rlr", "MAD", "cycloess",
 #'       "medianNorm", "meanNorm", "quantile.robust"
 #'   }
@@ -485,15 +485,15 @@ normalize_proteomics <- function(
 
   # Validate required packages
   if (!requireNamespace("SummarizedExperiment", quietly = TRUE)) {
-    stop("Se requiere el paquete 'SummarizedExperiment'. ",
-         "Instalalo con BiocManager::install('SummarizedExperiment')")
+    stop("Package 'SummarizedExperiment' is required. ",
+         "Install it with BiocManager::install('SummarizedExperiment')")
   }
 
   # =========================================================================
   # 1. ZERO TO NA CONVERSION
   # =========================================================================
 
-  if (verbose) cat("\n=== CONVIRTIENDO CEROS A NA ===\n")
+  if (verbose) cat("\n=== CONVERTING ZEROS TO NA ===\n")
 
   annotation_cols <- c("ProteinGroups", "GeneNames", "UniqPepts")
   intensity_cols <- setdiff(names(data), annotation_cols)
@@ -503,13 +503,13 @@ normalize_proteomics <- function(
   intensity_mat <- .zero_to_missing(intensity_mat)
   rownames(intensity_mat) <- data$ProteinGroups
 
-  if (verbose) cat("- Ceros convertidos a NA:", n_zeros, "\n")
+  if (verbose) cat("- Zeros converted to NA:", n_zeros, "\n")
 
   # =========================================================================
   # 2. FILTER PROTEINS BY GROUP PRESENCE
   # =========================================================================
 
-  if (verbose) cat("\n=== FILTRANDO PROTEINAS POR PRESENCIA ===\n")
+  if (verbose) cat("\n=== FILTERING PROTEINS BY PRESENCE ===\n")
 
   filtered <- .filter_proteins_by_group(
     data = intensity_mat,
@@ -520,11 +520,11 @@ normalize_proteomics <- function(
   )
 
   if (verbose) {
-    cat("- Proteinas antes:", filtered$summary$n_total, "\n")
-    cat("- Proteinas despues:", filtered$summary$n_keep, "\n")
-    cat("- Proteinas eliminadas:", filtered$summary$n_drop, "\n")
-    cat("- Min replicas:", filtered$summary$min_reps, "\n")
-    cat("- Min grupos:", filtered$summary$min_groups, "\n")
+    cat("- Proteins before:", filtered$summary$n_total, "\n")
+    cat("- Proteins after:", filtered$summary$n_keep, "\n")
+    cat("- Proteins removed:", filtered$summary$n_drop, "\n")
+    cat("- Min replicates:", filtered$summary$min_reps, "\n")
+    cat("- Min groups:", filtered$summary$min_groups, "\n")
   }
 
   # Filter protein_data
@@ -537,7 +537,7 @@ normalize_proteomics <- function(
   # 3. CREATE SUMMARIZEDEXPERIMENT
   # =========================================================================
 
-  if (verbose) cat("\n=== CREANDO SUMMARIZEDEXPERIMENT ===\n")
+  if (verbose) cat("\n=== CREATING SUMMARIZEDEXPERIMENT ===\n")
 
   se <- .load_proteomics_data(
     data = protein_data_filtered,
@@ -552,7 +552,7 @@ normalize_proteomics <- function(
   if (verbose) {
     na_overview <- .get_NA_overview(se, "log2")
     global_na <- attr(na_overview, "global")
-    cat("- NA global:", global_na$NA.Percentage, "%\n")
+    cat("- Global NA:", global_na$NA.Percentage, "%\n")
   }
 
   # =========================================================================
@@ -561,7 +561,7 @@ normalize_proteomics <- function(
 
   # Methods that accept x_raw as input.
   # (eqmedians applies log2 internally but still receives x_raw to stay
-  #  consistent with the other Grupo A methods.)
+  #  consistent with the other Group A methods.)
   .raw_methods <- c(
     "log2Norm", "GlobalMedian", "GlobalMean",
     "eqmedians",
@@ -579,10 +579,10 @@ normalize_proteomics <- function(
   x_raw  <- SummarizedExperiment::assay(se, "raw")
   x_log2 <- SummarizedExperiment::assay(se, "log2")
 
-  if (verbose) cat("\n=== NORMALIZANDO (metodo:", norm_method, ") ===\n")
+  if (verbose) cat("\n=== NORMALIZING (method:", norm_method, ") ===\n")
 
   if (norm_method == "log2") {
-    if (verbose) cat("- Metodo 'log2': sin normalizacion adicional\n")
+    if (verbose) cat("- Method 'log2': no additional normalization\n")
   } else {
     x_input <- if (norm_method %in% .raw_methods) x_raw else x_log2
 
@@ -596,8 +596,8 @@ normalize_proteomics <- function(
       "MAD"             = .norm_mad(x_input),
       "cycloess"        = {
                             if (!requireNamespace("limma", quietly = TRUE))
-                              stop("Se requiere 'limma' para el metodo cycloess. ",
-                                   "Instalalo con BiocManager::install('limma')")
+                              stop("Package 'limma' is required for the cycloess method. ",
+                                   "Install it with BiocManager::install('limma')")
                             limma::normalizeCyclicLoess(
                               x_input,
                               method     = cyclic_loess_method,
@@ -615,7 +615,7 @@ normalize_proteomics <- function(
     SummarizedExperiment::assay(se, norm_method) <- x_norm
   }
 
-  if (verbose) cat("- Assays disponibles:",
+  if (verbose) cat("- Available assays:",
                    paste(SummarizedExperiment::assayNames(se), collapse = ", "), "\n")
 
   # Compute NA overview if not done yet

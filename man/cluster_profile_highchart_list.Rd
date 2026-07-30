@@ -2,7 +2,7 @@
 % Please edit documentation in R/Pattern_Profiler_Highcharts.R
 \name{cluster_profile_highchart_list}
 \alias{cluster_profile_highchart_list}
-\title{Lista de Gráficos de Perfil de Clusters con Highcharts}
+\title{List of cluster profile plots with Highcharts}
 \usage{
 cluster_profile_highchart_list(
   data,
@@ -19,33 +19,33 @@ cluster_profile_highchart_list(
 )
 }
 \arguments{
-\item{data}{DataFrame de Pattern Profiler (formato LONG)}
+\item{data}{Pattern Profiler DataFrame (LONG format)}
 
-\item{conditions}{Vector de nombres de condiciones}
+\item{conditions}{Vector of condition names}
 
-\item{clusters}{Vector de clusters a visualizar (NULL = todos)}
+\item{clusters}{Vector of clusters to plot (NULL = all)}
 
-\item{min_membership}{Filtro de membership mínima}
+\item{min_membership}{Minimum membership filter}
 
-\item{show_centroid}{Mostrar línea central (default: TRUE)}
+\item{show_centroid}{Show the centroid line (default: TRUE)}
 
-\item{centroid_summary}{Método para centroide: "mean" o "median"}
+\item{centroid_summary}{Method for the centroid: "mean" or "median"}
 
-\item{palette}{Paleta para colores de clusters}
+\item{palette}{Palette for the cluster colours}
 
-\item{line_width}{Ancho de líneas de perfil (default: 1)}
+\item{line_width}{Width of the profile lines (default: 1)}
 
-\item{line_opacity}{Opacidad de líneas (default: 0.4)}
+\item{line_opacity}{Opacity of the lines (default: 0.4)}
 
-\item{centroid_width}{Ancho de línea del centroide (default: 3)}
+\item{centroid_width}{Width of the centroid line (default: 3)}
 
-\item{height}{Altura de cada gráfico en píxeles}
+\item{height}{Height of each plot in pixels}
 }
 \value{
-Lista nombrada de objetos highchart
+Named list of highchart objects
 }
 \description{
-Genera una lista de gráficos interactivos para todos los clusters.
+Builds a list of interactive plots for all the clusters.
 }
 \examples{
 \dontrun{

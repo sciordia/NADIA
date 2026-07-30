@@ -33,8 +33,8 @@ preprocessing <- preprocess_spectronaut(
 # )
 
 # ----- Alternativa: datos LFQ (Proteome Discoverer) -----
-# El diseño experimental (muestra -> condición) se toma del archivo _Annot
-# (columnas Column, Condition, Experiment). Las intensidades y métricas por
+# The experimental design (sample -> condition) comes from the _Annot file
+# (columns Column, Condition, Experiment). Per-sample intensities and metrics
 # muestra se mapean POR NOMBRE. El resto del pipeline funciona sin cambios.
 #
 # source("R/Preprocessing_LFQ.R")
@@ -182,7 +182,7 @@ hm <- proteomics_heatmap(
 # Pattern profiling analysis and visualization
 
 # =============================================================================
-# PASO 1: ANÁLISIS DE CLUSTERING (Mfuzz soft-clustering)
+# STEP 1: CLUSTERING ANALYSIS (Mfuzz soft clustering)
 # =============================================================================
 
 
@@ -196,33 +196,33 @@ pp_result <- pattern_profiler_analysis(
   filter_mode     = "any",                 # "any", "all", o "specific"
   alpha           = 0.05,                  # umbral de significancia
   condition_order = conditions,            # orden del eje X
-  aggregate       = "median",              # agregación por condición
+  aggregate       = "median",              # aggregation per condition
   c_range         = 2:8,                   # rango de clusters a evaluar
-  auto_select_c   = TRUE,                  # selección automática de c
+  auto_select_c   = TRUE,                  # automatic choice of c
   selection_method = "xb",                 # "xb", "consensus", o "elbow"
-  min_membership  = 0.25,                  # umbral de membresía
+  min_membership  = 0.25,                  # membership threshold
   output_file     = "data-raw/Pattern_Profiler_Input.parquet"
 )
 
 # Inspeccionar resultados
-pp_result$optimal_c          # número óptimo de clusters
-pp_result$selection_metrics  # métricas de evaluación (XB, FPC, AMM, Dmin)
-pp_result$cluster_counts     # proteínas por cluster
+pp_result$optimal_c          # optimal number of clusters
+pp_result$selection_metrics  # evaluation metrics (XB, FPC, AMM, Dmin)
+pp_result$cluster_counts     # proteins per cluster
 
 
 # =============================================================================
-# PASO 2: VISUALIZACIÓN INTERACTIVA (Highcharts)
+# STEP 2: INTERACTIVE VISUALIZATION (Highcharts)
 # =============================================================================
 
 
 # Leer datos desde el parquet generado
 data <- read_pattern_profiler_data("data-raw/Pattern_Profiler_Input.parquet")
 
-# Ver resumen estadístico
+# Statistical summary
 summary <- summarize_pattern_profiler(data)
 print(summary$cluster_summary)
 
-# --- Opción A: Gráfico de UN cluster específico ---
+# --- Option A: plot for ONE specific cluster ---
 hc_c1 <- cluster_profile_highchart(data,
                                    cluster = 3,
                                    conditions = conditions,
@@ -232,7 +232,7 @@ hc_c1 <- cluster_profile_highchart(data,
 hc_c1
 
 
-# --- Opción B: Lista de gráficos para TODOS los clusters ---
+# --- Option B: list of plots for ALL clusters ---
 hc_profiles <- cluster_profile_highchart_list(
   data       = data,
   conditions = conditions,
@@ -241,7 +241,7 @@ hc_profiles <- cluster_profile_highchart_list(
 hc_profiles[["Cluster_1"]]
 hc_profiles[["Cluster_2"]]
 
-# --- Opción C: Gráfico comparativo de CENTROIDES ---
+# --- Option C: comparative plot of CENTROIDS ---
 hc_centroids <- cluster_centroids_highchart(
   data       = data,
   conditions = conditions

@@ -2,16 +2,16 @@
 % Please edit documentation in R/Pattern_Profiler_Analysis.R
 \name{standardize_eset}
 \alias{standardize_eset}
-\title{Estandarizar ExpressionSet (z-score por fila)}
+\title{Standardise an ExpressionSet (row-wise z-score)}
 \usage{
 standardize_eset(eset)
 }
 \arguments{
-\item{eset}{Objeto ExpressionSet}
+\item{eset}{ExpressionSet object}
 }
 \value{
-ExpressionSet estandarizado
+Standardised ExpressionSet
 }
 \description{
-Estandarizar ExpressionSet (z-score por fila)
+Standardise an ExpressionSet (row-wise z-score)
 }

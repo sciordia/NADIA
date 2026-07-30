@@ -20,10 +20,11 @@
 \arguments{
 \item{x}{Numeric matrix (proteins x samples, log2) with NAs}
 
-\item{mar_method}{MAR imputation method (default: "Impseqrob", determinista y
-sin dependencias adicionales; el wrapper impute_proteomics pasa este valor).
-Nota: si se elige un metodo MAR/MNAR estocastico (p.ej. "missForest"),
-softHybrid no fija semilla propia — pasa una via method_args para reproducir.}
+\item{mar_method}{MAR imputation method (default: "Impseqrob", deterministic
+and with no additional dependencies; the impute_proteomics wrapper passes
+this value). Note: if a stochastic MAR/MNAR method is chosen (e.g.
+"missForest"), softHybrid does not set a seed of its own -- pass one via
+method_args for reproducibility.}
 
 \item{mnar_method}{MNAR imputation method (default: "min")}
 
@@ -33,9 +34,9 @@ softHybrid no fija semilla propia — pasa una via method_args para reproducir.}
 
 \item{a}{Steepness of sigmoid for missing rate (default: 10)}
 
-\item{b}{Steepness of sigmoid for mean intensity, en unidades de SD (default: 5)}
+\item{b}{Steepness of sigmoid for mean intensity, in SD units (default: 5)}
 
-\item{lambda}{Balance between missing rate and intensity signals (default: 0.5, en el rango 0-1)}
+\item{lambda}{Balance between missing rate and intensity signals (default: 0.5, in the range 0-1)}
 
 \item{r0}{Elbow point for missing rate sigmoid (NULL = auto-detect)}
 

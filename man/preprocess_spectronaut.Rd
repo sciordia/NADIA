@@ -2,7 +2,7 @@
 % Please edit documentation in R/Preprocessing.R
 \name{preprocess_spectronaut}
 \alias{preprocess_spectronaut}
-\title{Preprocesa reportes de Spectronaut}
+\title{Preprocess Spectronaut reports}
 \usage{
 preprocess_spectronaut(
   file_path,
@@ -17,56 +17,57 @@ preprocess_spectronaut(
 )
 }
 \arguments{
-\item{file_path}{Ruta al archivo TSV de Spectronaut.}
+\item{file_path}{Path to the Spectronaut TSV file.}
 
-\item{condition_order}{Vector de caracteres con el orden de las condiciones
-experimentales (ej: \code{c("Control", "Tratado")}).}
+\item{condition_order}{Character vector with the order of the experimental
+conditions (e.g. \code{c("Control", "Treated")}).}
 
-\item{export_dir}{Directorio para exportar archivos TSV. Si es \code{NULL} (default),
-no se exportan archivos.}
+\item{export_dir}{Directory to export the TSV files to. If \code{NULL} (default),
+no files are exported.}
 
-\item{agg_coverage_run}{Método de agregación para PG.Coverage por muestra.
-Opciones: "max" (default), "mean", "median", "min".}
+\item{agg_coverage_run}{Aggregation method for the per-sample PG.Coverage.
+Options: "max" (default), "mean", "median", "min".}
 
-\item{agg_coverage_global}{Método de agregación para PG.Coverage.Global.
-Opciones: "max" (default), "mean", "median", "min".}
+\item{agg_coverage_global}{Aggregation method for PG.Coverage.Global.
+Options: "max" (default), "mean", "median", "min".}
 
-\item{agg_mw}{Método de agregación para PG.MolecularWeight.
-Opciones: "max" (default), "mean", "median", "min".}
+\item{agg_mw}{Aggregation method for PG.MolecularWeight.
+Options: "max" (default), "mean", "median", "min".}
 
-\item{agg_cscore_runwise}{Método de agregación para PG.Cscore.RunWise.
-Opciones: "mean" (default), "max", "median", "min".}
+\item{agg_cscore_runwise}{Aggregation method for PG.Cscore.RunWise.
+Options: "mean" (default), "max", "median", "min".}
 
-\item{timestamp_suffix}{Lógico. Si \code{TRUE} (default), añade timestamp a nombres
-de archivos exportados.}
+\item{timestamp_suffix}{Logical. If \code{TRUE} (default), appends a timestamp to
+the names of the exported files.}
 
-\item{verbose}{Lógico. Si \code{TRUE} (default), muestra mensajes de progreso.}
+\item{verbose}{Logical. If \code{TRUE} (default), shows progress messages.}
 }
 \value{
-Lista con clase \code{spectronaut_data} conteniendo:
+A list with class \code{spectronaut_data} containing:
 \describe{
-\item{metadata}{Data frame con información de runs (1 fila por muestra)}
-\item{protein_id}{Data frame con métricas de identificación por proteína}
-\item{protein_quant}{Data frame con métricas de cuantificación por proteína}
+\item{metadata}{Data frame with the run information (1 row per sample)}
+\item{protein_id}{Data frame with the identification metrics per protein}
+\item{protein_quant}{Data frame with the quantification metrics per
+protein}
 }
 }
 \description{
-Convierte un reporte de Spectronaut (formato TSV largo) a tres tablas
-estructuradas: metadata de runs, identificación de proteínas y cuantificación.
+Converts a Spectronaut report (long TSV format) into three structured tables:
+run metadata, protein identification and protein quantification.
 }
 \examples{
 \dontrun{
-# Uso básico
+# Basic usage
 result <- preprocess_spectronaut(
   file_path = "data-raw/Spectronaut_Report.tsv",
   condition_order = c("Control", "Treatment")
 )
 
-# Acceder a componentes
+# Access the components
 head(result$metadata)
 head(result$protein_quant)
 
-# Con exportación
+# With export
 result <- preprocess_spectronaut(
   file_path = "data-raw/Spectronaut_Report.tsv",
   condition_order = c("A", "B", "C", "D"),

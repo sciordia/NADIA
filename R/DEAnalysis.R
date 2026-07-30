@@ -40,14 +40,14 @@
 
   cd <- as.data.frame(SummarizedExperiment::colData(se))
   if (!condition_column %in% names(cd)) {
-    stop("Columna '", condition_column, "' no encontrada en colData")
+    stop("Column '", condition_column, "' not found in colData")
   }
 
   conditions <- unique(as.character(cd[[condition_column]]))
 
   if (!is.null(control)) {
     if (!control %in% conditions) {
-      stop("Control '", control, "' no esta en las condiciones: ",
+      stop("Control '", control, "' is not among the conditions: ",
            paste(conditions, collapse = ", "))
     }
     # Comparisons vs control
@@ -82,7 +82,7 @@
                            block = NULL,
                            eBayes_trend = TRUE, eBayes_robust = TRUE) {
   if (!requireNamespace("limma", quietly = TRUE)) {
-    stop("Se requiere el paquete 'limma'")
+    stop("The 'limma' package is required")
   }
 
   condition <- factor(condition_vector)
@@ -155,7 +155,7 @@
                                block = NULL,
                                eBayes_trend = FALSE, eBayes_robust = FALSE) {
   if (!requireNamespace("limpa", quietly = TRUE)) {
-    stop("Para de_method='limpa' necesitas 'limpa'.\n",
+    stop("de_method='limpa' requires the 'limpa' package.\n",
          "  BiocManager::install('limpa')")
   }
 
@@ -166,7 +166,7 @@
 
   condition <- factor(condition_vector)
 
-  # Design matrix (mismo patron que limma)
+  # Design matrix (same pattern as limma)
   if (is.null(covariate)) {
     design <- model.matrix(~ 0 + condition)
     colnames(design) <- levels(condition)
@@ -187,10 +187,10 @@
     levels = design
   )
 
-  # dpcDE: ajuste con precision weights de SEs
-  # voomaLmFitWithImputation ya modela la tendencia de varianza via vooma,
-  # por lo que eBayes defaults son FALSE/FALSE (vignette Li, Cobbold, Smyth 2025).
-  # Se exponen como configurables para usuarios avanzados (como hace msdap).
+  # dpcDE: fit using precision weights derived from the SEs.
+  # voomaLmFitWithImputation already models the variance trend via vooma,
+  # hence the eBayes defaults are FALSE/FALSE (vignette Li, Cobbold, Smyth 2025).
+  # They are exposed as configurable for advanced users (as msdap does).
   fit <- limpa::dpcDE(elist, design, plot = FALSE)
   fit <- limma::contrasts.fit(fit, contrast_matrix)
   fit <- limma::eBayes(fit, trend = eBayes_trend, robust = eBayes_robust)
@@ -232,9 +232,9 @@
     # Classify changes
     p_col <- if (p_adj) "adj.P.Val" else "P.Value"
     df$Change <- "No Change"
-    # Guarda por signo: con logFC_up = logFC_down = 0, una proteina con
-    # logFC == 0 cumpliria >= 0 y <= 0 (marcada Up y luego sobrescrita a Down).
-    # Exigir signo estricto la deja como "No Change" (sin direccion).
+    # Sign guard: with logFC_up = logFC_down = 0, a protein with logFC == 0
+    # would satisfy both >= 0 and <= 0 (flagged Up and then overwritten as Down).
+    # Requiring a strict sign leaves it as "No Change" (no direction).
     df$Change[df$logFC > 0 & df$logFC >= logFC_up   & df[[p_col]] < alpha] <- "Up"
     df$Change[df$logFC < 0 & df$logFC <= logFC_down & df[[p_col]] < alpha] <- "Down"
     df$Change <- factor(df$Change, levels = c("Up", "Down", "No Change"))
@@ -291,7 +291,7 @@
   }
 
   if (!assay_name %in% SummarizedExperiment::assayNames(se)) {
-    stop("Assay '", assay_name, "' no encontrado")
+    stop("Assay '", assay_name, "' not found")
   }
 
   # Get data
@@ -306,17 +306,17 @@
 
   condition_vec <- cd[[condition_column]]
 
-  # makeContrasts evalua las comparaciones como expresiones (p.ej. "Trt-Ctrl");
-  # si un nombre de condicion contiene '-', espacios u otros caracteres no
-  # sintacticos (o empieza por digito) el contraste se interpreta mal o falla.
-  # Validar temprano con un mensaje claro.
+  # makeContrasts evaluates the comparisons as expressions (e.g. "Trt-Ctrl"); if a
+  # condition name contains '-', spaces or other non-syntactic characters (or
+  # starts with a digit) the contrast is misparsed or fails outright.
+  # Validate early with a clear message.
   cond_levels <- unique(as.character(condition_vec))
   bad_levels  <- cond_levels[cond_levels != make.names(cond_levels)]
   if (length(bad_levels) > 0) {
-    stop("Nombres de condicion no validos para makeContrasts (contienen '-', ",
-         "espacios, u otros caracteres no sintacticos, o empiezan por digito): ",
+    stop("Condition names invalid for makeContrasts (they contain '-', spaces, ",
+         "or other non-syntactic characters, or start with a digit): ",
          paste(bad_levels, collapse = ", "),
-         ". Renombralos (p.ej. con make.names) antes del analisis diferencial.")
+         ". Rename them (e.g. with make.names) before differential analysis.")
   }
 
   # Covariate extraction (supports single or multiple columns)
@@ -324,16 +324,16 @@
   if (!is.null(covariate_column)) {
     missing_cols <- setdiff(covariate_column, names(cd))
     if (length(missing_cols) > 0) {
-      stop("Columna(s) de covariable no encontrada(s) en colData del SE: ",
+      stop("Covariate column(s) not found in the colData of the SE: ",
            paste(missing_cols, collapse = ", "))
     }
-    # model.matrix hace na.omit por defecto: un NA en la covariable dejaria el
-    # design con menos filas que columnas tiene la matriz -> lmFit aborta con
-    # un error de dimension poco informativo. Validar explicitamente.
+    # model.matrix applies na.omit by default: an NA in the covariate would leave
+    # the design with fewer rows than the matrix has columns -> lmFit aborts with
+    # an uninformative dimension error. Validate explicitly.
     if (anyNA(cd[, covariate_column, drop = FALSE])) {
-      stop("La(s) covariable(s) '", paste(covariate_column, collapse = ", "),
-           "' contienen NA en colData. Elimina o imputa esos valores antes del ",
-           "analisis diferencial (model.matrix las descartaria y lmFit fallaria).")
+      stop("Covariate(s) '", paste(covariate_column, collapse = ", "),
+           "' contain NAs in colData. Remove or impute those values before ",
+           "differential analysis (model.matrix would drop them and lmFit would fail).")
     }
     if (length(covariate_column) == 1) {
       covariate <- factor(cd[[covariate_column]])
@@ -348,8 +348,8 @@
     if (!bio_replicate_column %in% names(cd))
       stop("bio_replicate_column '", bio_replicate_column, "' not found in colData")
     if (anyNA(cd[[bio_replicate_column]]))
-      stop("bio_replicate_column '", bio_replicate_column, "' contiene NA en ",
-           "colData; elimina o imputa esos valores antes del analisis diferencial.")
+      stop("bio_replicate_column '", bio_replicate_column, "' contains NAs in ",
+           "colData; remove or impute those values before differential analysis.")
     block_vec <- cd[[bio_replicate_column]]
     if (length(unique(block_vec)) < length(block_vec)) {
       block <- factor(block_vec)
@@ -357,7 +357,7 @@
               "' (", length(unique(block)), " unique blocks, ", length(block), " samples)")
     } else {
       message("bio_replicate_column '", bio_replicate_column,
-              "' \u2014 all values unique, skipping blocking")
+              "' -- all values unique, skipping blocking")
     }
   }
 
@@ -365,13 +365,13 @@
   if (de_method == "limpa") {
     elist <- S4Vectors::metadata(se)$limpa_elist
     if (is.null(elist)) {
-      stop("de_method='limpa' requiere imp_method='limpa'. ",
-           "No se encontro limpa_elist en metadata del SE.")
+      stop("de_method='limpa' requires imp_method='limpa'. ",
+           "limpa_elist was not found in the metadata of the SE.")
     }
-    # limpa DE corre sobre el EList guardado en metadata, NO sobre 'assay_name'
-    # (que solo etiqueta el resultado). Avisar si el assay elegido no coincide
-    # con la imputacion limpa (p.ej. tras una transformacion posterior que creo
-    # un nuevo assay), para que la etiqueta results$Assay no sea enganosa.
+    # limpa DE runs on the EList stored in metadata, NOT on 'assay_name' (which
+    # only labels the result). Warn if the chosen assay does not match the limpa
+    # imputation (e.g. after a later transformation that created a new assay), so
+    # that the results$Assay label is not misleading.
     limpa_mismatch <- tryCatch({
       a <- as.matrix(SummarizedExperiment::assay(se, assay_name))
       common <- intersect(rownames(elist$E), rownames(a))
@@ -381,10 +381,10 @@
                           check.attributes = FALSE))
     }, error = function(e) TRUE)
     if (isTRUE(limpa_mismatch)) {
-      warning("de_method='limpa': el DE usa el EList de limpa (metadata), no el ",
-              "assay '", assay_name, "'; el resultado se etiquetara con ese nombre ",
-              "aunque no se haya usado. Selecciona el assay de limpa para evitar ",
-              "ambiguedad.", call. = FALSE)
+      warning("de_method='limpa': the DE uses the limpa EList (metadata), not the ",
+              "assay '", assay_name, "'; the result will be labelled with that name ",
+              "even though it was not used. Select the limpa assay to avoid ",
+              "ambiguity.", call. = FALSE)
     }
     fit <- .perform_limpa_de(elist, condition_vec, comparisons, covariate = covariate,
                               block = block,
@@ -413,8 +413,8 @@
   if ("Gene.Names" %in% names(rd)) {
     gene_map <- rd[, c("Protein.IDs", "Gene.Names"), drop = FALSE]
     names(gene_map) <- c("Protein.IDs", "Gene.Names")
-    # Deduplicar por Protein.IDs (un mismo ID con dos Gene.Names distintos
-    # duplicaria filas del resultado de DE en el merge). Se conserva el primero.
+    # Deduplicate by Protein.IDs (the same ID carrying two different Gene.Names
+    # would duplicate DE result rows in the merge). The first one is kept.
     gene_map <- gene_map[!duplicated(gene_map$Protein.IDs), , drop = FALSE]
     results <- merge(results, gene_map, by = "Protein.IDs", all.x = TRUE, sort = FALSE)
   }
@@ -497,19 +497,19 @@ de_analysis_proteomics <- function(
   # Validate de_method
   de_method <- match.arg(de_method, c("limma", "limpa"))
 
-  # Defaults de eBayes segun de_method (NULL = sin fijar por el usuario):
-  # limpa usa trend/robust = FALSE (vooma ya modela la tendencia y
-  # voomaLmFitWithImputation maneja las proteinas imputadas); limma usa TRUE.
-  # Se resuelve aqui (no con missing()) para que funcione tambien cuando el
-  # pipeline pasa los argumentos explicitamente.
+  # eBayes defaults according to de_method (NULL = not set by the user):
+  # limpa uses trend/robust = FALSE (vooma already models the trend and
+  # voomaLmFitWithImputation handles the imputed proteins); limma uses TRUE.
+  # Resolved here (not via missing()) so that it also works when the pipeline
+  # passes the arguments explicitly.
   default_eb <- de_method != "limpa"
   if (is.null(eBayes_trend))  eBayes_trend  <- default_eb
   if (is.null(eBayes_robust)) eBayes_robust <- default_eb
 
   # Validate required packages
   if (!requireNamespace("limma", quietly = TRUE)) {
-    stop("Se requiere el paquete 'limma'. ",
-         "Instalalo con BiocManager::install('limma')")
+    stop("The 'limma' package is required. ",
+         "Install it with BiocManager::install('limma')")
   }
 
   # Determine assay name
@@ -518,7 +518,7 @@ de_analysis_proteomics <- function(
     assay_name <- available_assays[length(available_assays)]
   }
 
-  if (verbose) cat("\n=== ANALISIS DIFERENCIAL (", de_method, ") ===\n")
+  if (verbose) cat("\n=== DIFFERENTIAL ANALYSIS (", de_method, ") ===\n")
 
   # Generate comparisons if not specified
   if (is.null(comparisons)) {
@@ -526,7 +526,7 @@ de_analysis_proteomics <- function(
                                         control = control)
   }
 
-  if (verbose) cat("- Comparaciones:", paste(comparisons, collapse = ", "), "\n")
+  if (verbose) cat("- Comparisons:", paste(comparisons, collapse = ", "), "\n")
 
   # Run DE analysis
   DEPs_results <- .run_DE(
@@ -548,7 +548,7 @@ de_analysis_proteomics <- function(
 
   if (verbose) {
     n_sig <- sum(DEPs_results$Change != "No Change")
-    cat("- Proteinas diferenciales (total):", n_sig, "\n")
+    cat("- Differential proteins (total):", n_sig, "\n")
 
     for (comp in unique(DEPs_results$Comparison)) {
       subset <- DEPs_results[DEPs_results$Comparison == comp, ]

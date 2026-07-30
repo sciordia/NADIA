@@ -2,7 +2,7 @@
 % Please edit documentation in R/Preprocessing_TMT.R
 \name{preprocess_tmt}
 \alias{preprocess_tmt}
-\title{Preprocesa exports TMT de Proteome Discoverer}
+\title{Preprocess Proteome Discoverer TMT exports}
 \usage{
 preprocess_tmt(
   file_path,
@@ -13,42 +13,42 @@ preprocess_tmt(
 )
 }
 \arguments{
-\item{file_path}{Ruta al TSV exportado de Proteome Discoverer.}
+\item{file_path}{Path to the TSV exported from Proteome Discoverer.}
 
-\item{condition_order}{Vector de caracteres con el orden de las condiciones
-experimentales (ej: \code{c("A","B","C","D","IS")}). Solo se conservan los
-canales cuya condición esté en este vector — útil para excluir Internal
-Standards omitiendo \code{"IS"}.}
+\item{condition_order}{Character vector with the order of the experimental
+conditions (e.g. \code{c("A","B","C","D","IS")}). Only the channels whose
+condition is in this vector are kept -- handy for excluding Internal
+Standards by omitting \code{"IS"}.}
 
-\item{export_dir}{Directorio para exportar archivos TSV. Si es \code{NULL}
-(default), no se exportan archivos.}
+\item{export_dir}{Directory to export the TSV files to. If \code{NULL} (default),
+no files are exported.}
 
-\item{timestamp_suffix}{Lógico. Si \code{TRUE} (default), añade timestamp a los
-nombres de los archivos exportados.}
+\item{timestamp_suffix}{Logical. If \code{TRUE} (default), appends a timestamp to
+the names of the exported files.}
 
-\item{verbose}{Lógico. Si \code{TRUE} (default), muestra mensajes de progreso.}
+\item{verbose}{Logical. If \code{TRUE} (default), shows progress messages.}
 }
 \value{
-Lista con clase \code{c("tmt_data", "proteomics_data", "list")}
-conteniendo:
+A list with class \code{c("tmt_data", "proteomics_data", "list")}
+containing:
 \describe{
-\item{metadata}{Data frame con un registro por canal/muestra}
-\item{protein_id}{Data frame con métricas de identificación por proteína
-(formato wide, métricas globales replicadas por canal)}
-\item{protein_quant}{Data frame con métricas de cuantificación por
-proteína (incluye \verb{PG.Quantity_<Coding>})}
+\item{metadata}{Data frame with one record per channel/sample}
+\item{protein_id}{Data frame with the identification metrics per protein
+(wide format, global metrics replicated per channel)}
+\item{protein_quant}{Data frame with the quantification metrics per
+protein (includes \verb{PG.Quantity_<Coding>})}
 }
 }
 \description{
-Convierte un export de proteínas de Proteome Discoverer (formato TSV ancho,
-con columnas \verb{Abundance: <Condicion>_<Replicado>}) a la misma estructura de
-salida que \code{preprocess_spectronaut()}: tres data.frames (\code{metadata},
-\code{protein_id}, \code{protein_quant}) listos para el pipeline downstream
-(\code{process_proteomics()} y módulos asociados).
+Converts a Proteome Discoverer protein export (wide TSV format, with
+\verb{Abundance: <Condition>_<Replicate>} columns) into the same output structure
+as \code{preprocess_spectronaut()}: three data.frames (\code{metadata}, \code{protein_id},
+\code{protein_quant}) ready for the downstream pipeline (\code{process_proteomics()}
+and the associated modules).
 
-Las métricas globales de identificación de PD (\verb{# PSMs}, \verb{# Peptides},
-\verb{# Unique Peptides}, \verb{Coverage [\%]}) se replican en columnas por canal para
-encajar con el contrato wide de Spectronaut.
+The global PD identification metrics (\verb{# PSMs}, \verb{# Peptides},
+\verb{# Unique Peptides}, \verb{Coverage [\%]}) are replicated into per-channel columns
+to fit the wide Spectronaut contract.
 }
 \examples{
 \dontrun{

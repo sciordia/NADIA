@@ -112,11 +112,11 @@ categorical covariates for BERT batch correction (default: NULL)}
 
 \item{alpha}{Adjusted p-value threshold (default: 0.05)}
 
-\item{eBayes_trend}{Use trend estimation in eBayes. If NULL (default), se
-resuelve segun de_method: TRUE para "limma", FALSE para "limpa".}
+\item{eBayes_trend}{Use trend estimation in eBayes. If NULL (default), it is
+resolved from de_method: TRUE for "limma", FALSE for "limpa".}
 
-\item{eBayes_robust}{Use robust estimation in eBayes. If NULL (default), se
-resuelve segun de_method: TRUE para "limma", FALSE para "limpa".}
+\item{eBayes_robust}{Use robust estimation in eBayes. If NULL (default), it is
+resolved from de_method: TRUE for "limma", FALSE for "limpa".}
 
 \item{de_method}{DE method: "limma" (default) or "limpa" (probabilistic, requires imp_method="limpa")}
 

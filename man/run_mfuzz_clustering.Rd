@@ -2,22 +2,22 @@
 % Please edit documentation in R/Pattern_Profiler_Analysis.R
 \name{run_mfuzz_clustering}
 \alias{run_mfuzz_clustering}
-\title{Ejecutar clustering Mfuzz}
+\title{Run Mfuzz clustering}
 \usage{
 run_mfuzz_clustering(eset_std, c, m, seed = 42)
 }
 \arguments{
-\item{eset_std}{ExpressionSet estandarizado}
+\item{eset_std}{Standardised ExpressionSet}
 
-\item{c}{Número de clusters}
+\item{c}{Number of clusters}
 
-\item{m}{Parámetro de fuzziness}
+\item{m}{Fuzziness parameter}
 
-\item{seed}{Semilla para reproducibilidad}
+\item{seed}{Seed for reproducibility}
 }
 \value{
-Objeto de clustering Mfuzz
+Mfuzz clustering object
 }
 \description{
-Ejecutar clustering Mfuzz
+Run Mfuzz clustering
 }

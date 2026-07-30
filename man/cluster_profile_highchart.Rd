@@ -2,7 +2,7 @@
 % Please edit documentation in R/Pattern_Profiler_Highcharts.R
 \name{cluster_profile_highchart}
 \alias{cluster_profile_highchart}
-\title{Gráfico de Perfil de Cluster con Highcharts}
+\title{Cluster profile plot with Highcharts}
 \usage{
 cluster_profile_highchart(
   data,
@@ -20,36 +20,36 @@ cluster_profile_highchart(
 )
 }
 \arguments{
-\item{data}{DataFrame de Pattern Profiler (formato LONG)}
+\item{data}{Pattern Profiler DataFrame (LONG format)}
 
-\item{cluster}{Número de cluster a visualizar}
+\item{cluster}{Number of the cluster to plot}
 
-\item{conditions}{Vector de nombres de condiciones (orden para eje X)}
+\item{conditions}{Vector of condition names (order for the X axis)}
 
-\item{min_membership}{Filtro adicional de membership (NULL = sin filtro)}
+\item{min_membership}{Additional membership filter (NULL = no filter)}
 
-\item{show_centroid}{Mostrar línea del centroide (default: TRUE)}
+\item{show_centroid}{Show the centroid line (default: TRUE)}
 
-\item{centroid_summary}{Método para centroide: "mean" o "median"}
+\item{centroid_summary}{Method for the centroid: "mean" or "median"}
 
-\item{cluster_color}{Color del cluster (NULL = automático)}
+\item{cluster_color}{Cluster colour (NULL = automatic)}
 
-\item{line_width}{Ancho de líneas de perfil (default: 1)}
+\item{line_width}{Width of the profile lines (default: 1)}
 
-\item{line_opacity}{Opacidad de líneas (default: 0.4)}
+\item{line_opacity}{Opacity of the lines (default: 0.4)}
 
-\item{centroid_width}{Ancho de línea del centroide (default: 3)}
+\item{centroid_width}{Width of the centroid line (default: 3)}
 
-\item{title}{Título personalizado (opcional)}
+\item{title}{Custom title (optional)}
 
-\item{height}{Altura del gráfico en píxeles}
+\item{height}{Plot height in pixels}
 }
 \value{
-Objeto highchart
+highchart object
 }
 \description{
-Genera un gráfico interactivo mostrando los perfiles de expresión
-de las proteínas en un cluster específico.
+Builds an interactive plot showing the expression profiles of the proteins in
+a given cluster.
 }
 \examples{
 \dontrun{

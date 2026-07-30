@@ -2,7 +2,7 @@
 % Please edit documentation in R/Results_List_reactable.R
 \name{protein_list_widget}
 \alias{protein_list_widget}
-\title{Widget Completo para tabla Protein_ID con filtros, busqueda y export Excel}
+\title{Full Widget for the Protein_ID Table with Filters, Search and Excel Export}
 \usage{
 protein_list_widget(
   data,
@@ -15,33 +15,33 @@ protein_list_widget(
 )
 }
 \arguments{
-\item{data}{Data frame o ruta a TSV/CSV/Parquet de Protein_ID (salida de
+\item{data}{Data frame or path to a Protein_ID TSV/CSV/Parquet file (output of
 preprocess_spectronaut() -> protein_id).}
 
-\item{metadata}{Opcional: data frame de metadata (run_summary) con columna
-Coding para fijar el orden de las columnas de muestra.}
+\item{metadata}{Optional: metadata data frame (run_summary) with a Coding
+column that fixes the order of the sample columns.}
 
-\item{page_size}{Filas por pagina (default 15).}
+\item{page_size}{Rows per page (default 15).}
 
-\item{height}{Altura de la tabla en px (default 720).}
+\item{height}{Table height in px (default 720).}
 
-\item{element_id}{ID del elemento (default "protein_id_table").}
+\item{element_id}{Element ID (default "protein_id_table").}
 
 \item{selection}{"single" | "multiple" | NULL.}
 
-\item{searchable}{Habilitar busqueda (default TRUE).}
+\item{searchable}{Enable the search box (default TRUE).}
 }
 \value{
-Objeto htmltools browsable.
+A browsable htmltools object.
 }
 \description{
-Envuelve \code{protein_list_reactable()} con:
+Wraps \code{protein_list_reactable()} with:
 \itemize{
-\item Barra de busqueda y botones (toggle filtros, limpiar, export a Excel).
-\item Chips por condicion que ocultan/muestran los 16 columnas asociadas.
-\item Filtro numerico sobre MW en Da con operadores AND/OR.
-\item Export a Excel con cabeceras de 2 niveles (grupos mergeados + sub-labels)
-y tinte por condicion, reproduciendo el formato manual.
+\item A search bar and buttons (toggle filters, clear, export to Excel).
+\item Per-condition chips that hide/show the 16 associated columns.
+\item A numeric filter on MW in Da with AND/OR operators.
+\item Excel export with 2-level headers (merged groups + sub-labels) and a
+per-condition tint, reproducing the manual layout.
 }
 }
 \examples{

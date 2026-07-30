@@ -2,7 +2,7 @@
 % Please edit documentation in R/Normalization_Metrics.R
 \name{nm_rank_pcv}
 \alias{nm_rank_pcv}
-\title{Rank normalization methods by median PCV (ascending — lower is better)}
+\title{Rank normalization methods by median PCV (ascending -- lower is better)}
 \usage{
 nm_rank_pcv(
   se,
@@ -24,5 +24,5 @@ nm_rank_pcv(
 A \code{data.frame} with columns \code{Method}, \code{Median_PCV}, \code{Rank}.
 }
 \description{
-Rank normalization methods by median PCV (ascending — lower is better)
+Rank normalization methods by median PCV (ascending -- lower is better)
 }

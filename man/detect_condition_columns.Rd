@@ -2,16 +2,16 @@
 % Please edit documentation in R/Pattern_Profiler_Highcharts.R
 \name{detect_condition_columns}
 \alias{detect_condition_columns}
-\title{Detectar columnas de condiciones (z-scores)}
+\title{Detect the condition columns (z-scores)}
 \usage{
 detect_condition_columns(data)
 }
 \arguments{
-\item{data}{DataFrame de Pattern Profiler}
+\item{data}{Pattern Profiler DataFrame}
 }
 \value{
-Vector de nombres de columnas de condiciones
+Vector with the names of the condition columns
 }
 \description{
-Detectar columnas de condiciones (z-scores)
+Detect the condition columns (z-scores)
 }

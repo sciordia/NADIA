@@ -2,16 +2,16 @@
 % Please edit documentation in R/Pattern_Profiler_Highcharts.R
 \name{summarize_pattern_profiler}
 \alias{summarize_pattern_profiler}
-\title{Resumen de datos de Pattern Profiler}
+\title{Summary of the Pattern Profiler data}
 \usage{
 summarize_pattern_profiler(data)
 }
 \arguments{
-\item{data}{DataFrame de Pattern Profiler}
+\item{data}{Pattern Profiler DataFrame}
 }
 \value{
-Lista con estadísticas resumidas
+List with summary statistics
 }
 \description{
-Resumen de datos de Pattern Profiler
+Summary of the Pattern Profiler data
 }

@@ -1,57 +1,58 @@
 # =============================================================================
-# Documentación de los datos que acompañan al paquete
+# Documentation of the data shipped with the package
 # =============================================================================
 
-#' Experimento DIA de ejemplo, ya preprocesado
+#' Example DIA experiment, already preprocessed
 #'
-#' Salida de [preprocess_spectronaut()] sobre un report de Spectronaut recortado,
-#' lista para alimentar [process_proteomics()] y el resto del pipeline sin tener
-#' que volver a leer el fichero de partida.
+#' Output of [preprocess_spectronaut()] on a trimmed Spectronaut report, ready to
+#' feed [process_proteomics()] and the rest of the pipeline without having to
+#' read the source file again.
 #'
-#' @format Objeto S3 de clase `c("spectronaut_data", "proteomics_data", "list")`
-#'   con tres elementos:
+#' @format An S3 object of class `c("spectronaut_data", "proteomics_data",
+#'   "list")` with three elements:
 #'   \describe{
-#'     \item{`metadata`}{Data frame de 12 filas y 7 columnas, una por inyección:
-#'       `R.FileName`, `R.Condition`, `R.Replicate`, `Coding` y los tres
-#'       recuentos de identificaciones que reporta Spectronaut
+#'     \item{`metadata`}{Data frame of 12 rows and 7 columns, one row per
+#'       injection: `R.FileName`, `R.Condition`, `R.Replicate`, `Coding` and the
+#'       three identification counts reported by Spectronaut
 #'       (`R.PrecursorsIdentified`, `R.StrippedSequencesIdentified`,
 #'       `R.ProteinGroupsIdentified`).}
-#'     \item{`protein_id`}{Data frame de 2.000 filas por 56 columnas con la
-#'       información de identificación de cada grupo de proteínas.}
-#'     \item{`protein_quant`}{Data frame de 2.000 filas por 44 columnas: ocho de
-#'       anotación más, por cada una de las 12 muestras, el número de precursores
-#'       y de secuencias usados para cuantificar y la intensidad
-#'       (`PG.Quantity_<condición>_<réplica>`).}
+#'     \item{`protein_id`}{Data frame of 2,000 rows by 56 columns holding the
+#'       identification information of every protein group.}
+#'     \item{`protein_quant`}{Data frame of 2,000 rows by 44 columns: eight
+#'       annotation columns plus, for each of the 12 samples, the number of
+#'       precursors and of stripped sequences used for quantification and the
+#'       intensity (`PG.Quantity_<condition>_<replicate>`).}
 #'   }
 #'
 #' @details
-#' Procede de un experimento de proteómica cuantitativa adquirido en un Orbitrap
-#' Exploris en el Servicio de Proteómica del Centro Nacional de Biotecnología
-#' (CNB-CSIC) y procesado con Spectronaut v20. El experimento original tiene 16
-#' inyecciones del mismo digerido repartidas en cuatro condiciones (A-D) de
-#' cuatro réplicas, y 10.437 grupos de proteínas.
+#' The data come from a quantitative proteomics experiment acquired on an
+#' Orbitrap Exploris at the Proteomics Facility of the Centro Nacional de
+#' Biotecnologia (CNB-CSIC) and processed with Spectronaut v20. The original
+#' experiment has 16 injections of the same digest split across four conditions
+#' (A-D) of four replicates each, and 10,437 protein groups.
 #'
-#' Para que los ejemplos del paquete se ejecuten con rapidez se conservan tres
-#' condiciones (A, B y D) y las 2.000 proteínas con más valores cuantificados. Se
-#' mantienen tres y no dos condiciones porque el soft-clustering de
-#' [pattern_profiler_analysis()] agrupa perfiles a lo largo de las condiciones, y
-#' con solo dos puntos por perfil no hay patrón que agrupar.
+#' So that the package examples run quickly, three conditions (A, B and D) and
+#' the 2,000 proteins with the most quantified values are kept. Three and not
+#' two conditions are retained because the soft-clustering in
+#' [pattern_profiler_analysis()] groups profiles across conditions, and with
+#' only two points per profile there is no pattern left to cluster.
 #'
-#' La receta completa está en `system.file("scripts", "make_extdata.R", package =
-#' "NADIA")`. El report recortado del que sale este objeto se distribuye también
-#' como fichero, en `system.file("extdata", "nadia_dia_report.tsv.gz", package =
-#' "NADIA")`, para poder ejecutar [preprocess_spectronaut()] de principio a fin.
+#' The full recipe is in `system.file("scripts", "make_extdata.R", package =
+#' "NADIA")`. The trimmed report this object is derived from is also
+#' distributed as a file, in `system.file("extdata", "nadia_dia_report.tsv.gz",
+#' package = "NADIA")`, so that [preprocess_spectronaut()] can be run end to
+#' end.
 #'
-#' @source Servicio de Proteómica, Centro Nacional de Biotecnología (CNB-CSIC).
+#' @source Proteomics Facility, Centro Nacional de Biotecnologia (CNB-CSIC).
 #'
 #' @examples
 #' data(nadia_dia)
 #' nadia_dia
 #'
-#' # Las tres condiciones y sus cuatro réplicas
+#' # The three conditions and their four replicates
 #' table(nadia_dia$metadata$R.Condition)
 #'
-#' # Proteínas y columnas de intensidad
+#' # Proteins and intensity columns
 #' dim(nadia_dia$protein_quant)
 #' grep("^PG.Quantity_", colnames(nadia_dia$protein_quant), value = TRUE)
 "nadia_dia"

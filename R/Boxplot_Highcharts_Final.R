@@ -1,10 +1,10 @@
 # =============================================================================
-# Boxplot Interactivo con Highcharts para Datos de Proteómica
+# Interactive Highcharts boxplots for proteomics data
 # =============================================================================
 
 
 # -----------------------------------------------------------------------------
-# Función para calcular estadísticas del boxplot
+# Helper to compute the boxplot statistics
 # -----------------------------------------------------------------------------
 
 calc_boxplot_stats <- function(x, coef = 1.5) {
@@ -17,7 +17,7 @@ calc_boxplot_stats <- function(x, coef = 1.5) {
   lower_fence <- q[1] - coef * iqr
   upper_fence <- q[3] + coef * iqr
 
-  # Valores dentro de los bigotes
+  # Values inside the whiskers
   whisker_low <- min(x[x >= lower_fence], na.rm = TRUE)
   whisker_high <- max(x[x <= upper_fence], na.rm = TRUE)
 
@@ -38,28 +38,28 @@ calc_boxplot_stats <- function(x, coef = 1.5) {
 
 
 # -----------------------------------------------------------------------------
-# Función principal: Boxplot interactivo con Highcharts
+# Main function: interactive Highcharts boxplot
 # -----------------------------------------------------------------------------
 
-#' Boxplot Interactivo con Highcharts para Proteómica
+#' Interactive Highcharts Boxplot for Proteomics
 #'
-#' @param data Data frame con columnas: Column, Assay, Intensity, Condition
-#' @param assays Vector de assays a incluir (NULL = todos)
-#' @param color_by Columna para colorear (default: "Condition")
-#' @param group_order Orden de los grupos/condiciones
-#' @param palette Paleta de colores: "ggsci::palette", "brewer:Name", o vector
-#' @param title Título del gráfico (opcional).
-#'   Usa \code{\{assay\}} como placeholder (ej: "Boxplot: \{assay\}" -> "Boxplot: ImpSeqRob_Min")
-#' @param subtitle Subtítulo del gráfico (opcional).
-#'   Usa \code{\{assay\}} como placeholder
-#' @param show_outliers Mostrar outliers fuera de los bigotes (default: TRUE)
-#' @param outlier_jitter Cantidad de jitter horizontal para los outliers (default: 0.15)
-#' @param outlier_size Radio de los puntos outliers (default: 3)
-#' @param box_width Ancho de las cajas del boxplot en píxeles (default: 20)
-#' @param horizontal Orientación horizontal (default: TRUE)
-#' @param height Altura del gráfico en píxeles
+#' @param data Data frame with columns: Column, Assay, Intensity, Condition
+#' @param assays Vector of assays to include (NULL = all of them)
+#' @param color_by Column used for colouring (default: "Condition")
+#' @param group_order Order of the groups/conditions
+#' @param palette Colour palette: "ggsci::palette", "brewer:Name", or a vector
+#' @param title Chart title (optional).
+#'   Use \code{\{assay\}} as a placeholder (e.g. "Boxplot: \{assay\}" -> "Boxplot: ImpSeqRob_Min")
+#' @param subtitle Chart subtitle (optional).
+#'   Use \code{\{assay\}} as a placeholder
+#' @param show_outliers Show outliers lying outside the whiskers (default: TRUE)
+#' @param outlier_jitter Amount of horizontal jitter applied to the outliers (default: 0.15)
+#' @param outlier_size Radius of the outlier points (default: 3)
+#' @param box_width Width of the boxplot boxes in pixels (default: 20)
+#' @param horizontal Horizontal orientation (default: TRUE)
+#' @param height Chart height in pixels
 #'
-#' @return Lista de objetos highchart (uno por assay)
+#' @return List of highchart objects (one per assay)
 #'
 #' @export
 boxplot_highchart_list <- function(
@@ -79,32 +79,32 @@ boxplot_highchart_list <- function(
 ) {
 
   # ---------------------------------------------------------------------------
-  # 1) Validación de inputs
+  # 1) Input validation
   # ---------------------------------------------------------------------------
   required_cols <- c("Column", "Assay", "Intensity")
   missing_cols <- setdiff(required_cols, names(data))
   if (length(missing_cols) > 0) {
-    stop("Columnas requeridas faltantes: ", paste(missing_cols, collapse = ", "))
+    stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
   }
 
-  # Verificar columna de color
+  # Check the colouring column
   if (!is.null(color_by) && !(color_by %in% names(data))) {
-    warning("'", color_by, "' no está en el data frame. Se ignorará.")
+    warning("'", color_by, "' is not in the data frame. It will be ignored.")
     color_by <- NULL
   }
 
-  # Filtrar assays
+  # Filter assays
   if (!is.null(assays)) {
     data <- data[data$Assay %in% assays, , drop = FALSE]
   }
 
-  # Eliminar NA e Inf
+  # Drop NA and Inf
   data <- data[is.finite(data$Intensity), , drop = FALSE]
 
   available_assays <- unique(data$Assay)
 
   # ---------------------------------------------------------------------------
-  # 2) Configurar orden de grupos
+  # 2) Set up the group order
   # ---------------------------------------------------------------------------
   if (!is.null(color_by)) {
     if (!is.null(group_order)) {
@@ -120,7 +120,7 @@ boxplot_highchart_list <- function(
   }
 
   # ---------------------------------------------------------------------------
-  # 3) Configurar paleta de colores
+  # 3) Set up the colour palette
   # ---------------------------------------------------------------------------
   default_palette <- c(
     "#457B9D",
@@ -137,7 +137,7 @@ boxplot_highchart_list <- function(
     pal <- default_palette
   } else if (is.character(palette) && length(palette) == 1 && grepl("::", palette)) {
     if (!requireNamespace("paletteer", quietly = TRUE)) {
-      stop("Para usar paletteer, instala con: install.packages('paletteer')")
+      stop("To use paletteer, install it with: install.packages('paletteer')")
     }
     pal <- as.character(paletteer::paletteer_d(palette))
   } else if (is.character(palette) && length(palette) == 1 && startsWith(palette, "brewer:")) {
@@ -155,7 +155,7 @@ boxplot_highchart_list <- function(
   }
   col_values <- stats::setNames(pal[seq_along(group_levels)], group_levels)
 
-  # Etiquetas de assay
+  # Assay labels
   assay_labels <- c(
     "log2" = "Log\u2082 Intensity",
     "LoessCyc" = "LOESS Cyclic Normalization",
@@ -165,14 +165,14 @@ boxplot_highchart_list <- function(
   )
 
   # ---------------------------------------------------------------------------
-  # 4) Generar un gráfico por cada assay
+  # 4) Build one chart per assay
   # ---------------------------------------------------------------------------
   hc_list <- lapply(available_assays, function(current_assay) {
 
     dt <- data[data$Assay == current_assay, , drop = FALSE]
     if (nrow(dt) == 0) return(NULL)
 
-    # Obtener samples únicos ordenados por grupo
+    # Get the unique samples ordered by group
     samples_df <- dt %>%
       select(Column, all_of(color_by)) %>%
       distinct() %>%
@@ -181,7 +181,7 @@ boxplot_highchart_list <- function(
     samples <- samples_df$Column
     sample_groups <- samples_df[[color_by]]
 
-    # Calcular estadísticas por sample
+    # Compute the statistics per sample
     box_data <- lapply(seq_along(samples), function(i) {
       sample_name <- samples[i]
       group <- as.character(sample_groups[i])
@@ -195,14 +195,14 @@ boxplot_highchart_list <- function(
         group = group,
         color = unname(col_values[group]),
         stats = stats,
-        index = i - 1  # índice 0-based para las categorías
+        index = i - 1  # 0-based index into the categories
       )
     })
 
     box_data <- Filter(Negate(is.null), box_data)
 
     # -------------------------------------------------------------------------
-    # Preparar series de boxplot POR GRUPO (para leyenda interactiva)
+    # Build one boxplot series PER GROUP (so the legend stays interactive)
     # -------------------------------------------------------------------------
     boxplot_series_list <- lapply(group_levels, function(grp) {
       grp_data <- Filter(function(x) x$group == grp, box_data)
@@ -243,7 +243,7 @@ boxplot_highchart_list <- function(
     boxplot_series_list <- Filter(Negate(is.null), boxplot_series_list)
 
     # -------------------------------------------------------------------------
-    # Preparar outliers (por grupo, vinculados a boxplots)
+    # Build the outliers (per group, linked to the boxplots)
     # -------------------------------------------------------------------------
     outlier_series_list <- list()
 
@@ -269,7 +269,7 @@ boxplot_highchart_list <- function(
           type = "scatter",
           data = points,
           color = grp_color,
-          linkedTo = paste0("boxplot_", grp),  # Vincular al boxplot del grupo
+          linkedTo = paste0("boxplot_", grp),  # Link to the boxplot of this group
           marker = list(
             symbol = "circle",
             radius = outlier_size,
@@ -280,14 +280,14 @@ boxplot_highchart_list <- function(
           tooltip = list(
             pointFormat = "<b>{point.name}</b><br/>Outlier: {point.y:.3f}"
           ),
-          showInLegend = FALSE  # No mostrar en leyenda (vinculado al boxplot)
+          showInLegend = FALSE  # Not shown in the legend (linked to the boxplot)
         )
       })
 
       outlier_series_list <- Filter(Negate(is.null), outlier_series_list)
     }
 
-    # Título del gráfico (asegurar que es string)
+    # Chart title (make sure it is a string)
     if (!is.null(title)) {
       chart_title <- gsub("{assay}", current_assay, as.character(title), fixed = TRUE)
     } else {
@@ -298,7 +298,7 @@ boxplot_highchart_list <- function(
       }
     }
 
-    # Construir highchart
+    # Build the highchart
     hc <- highchart() %>%
       hc_chart(
         type = "boxplot",
@@ -370,14 +370,14 @@ boxplot_highchart_list <- function(
       ) %>%
       hc_plotOptions(
         boxplot = list(
-          grouping = FALSE,  # IMPORTANTE: evita que se agrupen las series lado a lado
+          grouping = FALSE,  # IMPORTANT: keeps the series from being placed side by side
           groupPadding = 0.1,
           pointPadding = 0.05,
           borderRadius = 2,
           pointWidth = box_width
         ),
         scatter = list(
-          jitter = list(x = 0, y = 0)  # El jitter ya se aplica manualmente
+          jitter = list(x = 0, y = 0)  # The jitter is already applied manually
         )
       ) %>%
       hc_exporting(
@@ -390,7 +390,7 @@ boxplot_highchart_list <- function(
       )
 
     # -------------------------------------------------------------------------
-    # Añadir series boxplot (una por grupo para leyenda interactiva)
+    # Add the boxplot series (one per group so the legend stays interactive)
     # -------------------------------------------------------------------------
     for (box_series in boxplot_series_list) {
       hc <- hc %>% hc_add_series(
@@ -424,7 +424,7 @@ boxplot_highchart_list <- function(
     }
 
     # -------------------------------------------------------------------------
-    # Añadir series de outliers (vinculados a boxplots)
+    # Add the outlier series (linked to the boxplots)
     # -------------------------------------------------------------------------
     for (outlier_series in outlier_series_list) {
       hc <- hc %>% hc_add_series(
@@ -439,7 +439,7 @@ boxplot_highchart_list <- function(
       )
     }
 
-    # Subtítulo
+    # Subtitle
     if (!is.null(subtitle)) {
       sub_text <- gsub("{assay}", current_assay, as.character(subtitle), fixed = TRUE)
       hc <- hc %>% hc_subtitle(
@@ -460,12 +460,12 @@ boxplot_highchart_list <- function(
 
 
 # =============================================================================
-# EJEMPLOS DE USO
+# USAGE EXAMPLES
 # =============================================================================
 
-# --- Ejemplo básico (boxplots + outliers por defecto) ---
+# --- Basic example (boxplots + outliers by default) ---
 # hc_boxplots <- boxplot_highchart_list(
-#   data        = mi_dataframe,
+#   data        = my_dataframe,
 #   assays      = c("log2", "LoessCyc"),
 #   color_by    = "Condition",
 #   group_order = c("A", "B", "C", "D")
@@ -473,38 +473,38 @@ boxplot_highchart_list <- function(
 # hc_boxplots[["log2"]]
 # hc_boxplots[["LoessCyc"]]
 
-# --- Con título personalizado ---
+# --- With a custom title ---
 # hc_boxplots <- boxplot_highchart_list(
 #   data     = se_proc,
 #   assays   = "LoessCyc",
 #   color_by = "Condition",
-#   title    = "Distribución de Intensidades por Muestra",
-#   subtitle = "Normalización LOESS cíclica"
+#   title    = "Intensity Distribution per Sample",
+#   subtitle = "Cyclic LOESS normalization"
 # )
 # hc_boxplots[["LoessCyc"]]
 
-# --- Orientación vertical ---
+# --- Vertical orientation ---
 # hc_boxplots <- boxplot_highchart_list(
 #   data       = se_proc,
 #   color_by   = "Condition",
 #   horizontal = FALSE
 # )
 
-# --- Con paleta personalizada ---
+# --- With a custom palette ---
 # hc_boxplots <- boxplot_highchart_list(
-#   data     = mi_dataframe,
+#   data     = my_dataframe,
 #   color_by = "Condition",
 #   palette  = "ggsci::nrc_npg"
 # )
 
-# --- Sin outliers (solo boxplots) ---
+# --- Without outliers (boxplots only) ---
 # hc_boxplots <- boxplot_highchart_list(
-#   data          = mi_dataframe,
+#   data          = my_dataframe,
 #   color_by      = "Condition",
 #   show_outliers = FALSE
 # )
 
-# --- Personalizar tamaño y jitter de outliers ---
+# --- Customizing outlier size and jitter ---
 # hc_boxplots <- boxplot_highchart_list(
 #   data           = se_proc,
 #   color_by       = "Condition",
@@ -512,9 +512,9 @@ boxplot_highchart_list <- function(
 #   outlier_size   = 3
 # )
 
-# --- Personalizar ancho de las cajas (útil según número de muestras) ---
+# --- Customizing the box width (useful depending on the number of samples) ---
 # hc_boxplots <- boxplot_highchart_list(
-#   data      = mi_dataframe,
+#   data      = my_dataframe,
 #   color_by  = "Condition",
-#   box_width = 15  # Más estrecho para muchas muestras
+#   box_width = 15  # Narrower when there are many samples
 # )

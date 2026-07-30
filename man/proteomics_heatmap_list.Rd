@@ -2,7 +2,7 @@
 % Please edit documentation in R/Heatmap_tidyHeatmap.R
 \name{proteomics_heatmap_list}
 \alias{proteomics_heatmap_list}
-\title{Generar Lista de Heatmaps para Múltiples Subsets}
+\title{Build a List of Heatmaps for Several Subsets}
 \usage{
 proteomics_heatmap_list(
   data,
@@ -54,115 +54,115 @@ proteomics_heatmap_list(
 )
 }
 \arguments{
-\item{data}{Data frame en formato long (ver prepare_heatmap_data para estructura)}
+\item{data}{Data frame in long format (see prepare_heatmap_data for the structure)}
 
-\item{modes}{Vector de modos a generar: "all", "any", y/o nombres de comparaciones
+\item{modes}{Vector of modes to generate: "all", "any", and/or comparison names
 (default: c("all", "any"))}
 
-\item{alpha}{Umbral de significancia para proteínas DEPs (default: 0.05)}
+\item{alpha}{Significance threshold for DEP proteins (default: 0.05)}
 
-\item{feature_ids}{Vector de FeatureIDs específicos a mostrar (default: NULL)}
+\item{feature_ids}{Vector of specific FeatureIDs to show (default: NULL)}
 
-\item{row_annotation}{Anotaciones para filas (ruta TSV o data.frame)}
+\item{row_annotation}{Row annotations (TSV path or data.frame)}
 
-\item{row_annotation_cols}{Columnas a usar como anotaciones de fila}
+\item{row_annotation_cols}{Columns to use as row annotations}
 
-\item{row_annotation_palette}{Lista de paletas para anotaciones de fila}
+\item{row_annotation_palette}{List of palettes for the row annotations}
 
-\item{row_annotation_size}{Ancho de las barras de anotación de filas (número en cm o unit)}
+\item{row_annotation_size}{Width of the row annotation bars (a number in cm, or a unit)}
 
-\item{row_annotation_name_size}{Tamaño de fuente del nombre de anotaciones de fila (default: 8)}
+\item{row_annotation_name_size}{Font size of the row annotation names (default: 8)}
 
-\item{row_order_by}{Orden de filas: "clustering", columna(s) de anotación, o incluir "adjP" para mode="target"}
+\item{row_order_by}{Row order: "clustering", annotation column(s), or include "adjP" for mode="target"}
 
-\item{split_rows_by}{Columna de anotación para separar filas en grupos}
+\item{split_rows_by}{Annotation column used to split the rows into groups}
 
-\item{scale_data}{Tipo de escalado: "none", "row", "column" (default: "row")}
+\item{scale_data}{Scaling type: "none", "row", "column" (default: "row")}
 
-\item{sample_order}{Orden de muestras: "clustering", "condition", o vector personalizado}
+\item{sample_order}{Sample order: "clustering", "condition", or a custom vector}
 
-\item{condition_order}{Orden de condiciones cuando sample_order = "condition"}
+\item{condition_order}{Condition order when sample_order = "condition"}
 
-\item{cluster_rows}{Aplicar clustering a filas (default: FALSE)}
+\item{cluster_rows}{Cluster the rows (default: FALSE)}
 
-\item{cluster_columns}{Aplicar clustering a columnas (default: TRUE)}
+\item{cluster_columns}{Cluster the columns (default: TRUE)}
 
-\item{show_row_names}{Mostrar nombres de filas (default: auto)}
+\item{show_row_names}{Show the row names (default: auto)}
 
-\item{show_column_names}{Mostrar nombres de columnas (default: TRUE)}
+\item{show_column_names}{Show the column names (default: TRUE)}
 
-\item{palette_value}{Paleta para valores del heatmap}
+\item{palette_value}{Palette for the heatmap values}
 
-\item{palette_annotation}{Paleta para anotación de Condition}
+\item{palette_annotation}{Palette for the Condition annotation}
 
-\item{reverse_palette}{Invertir paleta de valores (default: FALSE)}
+\item{reverse_palette}{Reverse the value palette (default: FALSE)}
 
-\item{row_title_size}{Tamaño de fuente del título de filas (default: 10)}
+\item{row_title_size}{Font size of the row title (default: 10)}
 
-\item{column_title_size}{Tamaño de fuente del título de columnas (default: 10)}
+\item{column_title_size}{Font size of the column title (default: 10)}
 
-\item{show_row_title}{Mostrar título de filas (default: TRUE)}
+\item{show_row_title}{Show the row title (default: TRUE)}
 
-\item{show_column_title}{Mostrar título de columnas (default: TRUE)}
+\item{show_column_title}{Show the column title (default: TRUE)}
 
-\item{show_annotation}{Mostrar anotación de Condition (default: TRUE)}
+\item{show_annotation}{Show the Condition annotation (default: TRUE)}
 
-\item{split_by_condition}{Dividir el heatmap por condición (default: FALSE)}
+\item{split_by_condition}{Split the heatmap by condition (default: FALSE)}
 
-\item{show_adjp_annotation}{Mostrar anotación de adjP en filas para comparaciones (default: TRUE)}
+\item{show_adjp_annotation}{Show the adjP row annotation for comparisons (default: TRUE)}
 
-\item{palette_adjp}{Paleta para anotación de adjP (ver proteomics_heatmap)}
+\item{palette_adjp}{Palette for the adjP annotation (see proteomics_heatmap)}
 
-\item{row_names_size}{Tamaño de fuente de nombres de fila (default: 7)}
+\item{row_names_size}{Font size of the row names (default: 7)}
 
-\item{column_names_size}{Tamaño de fuente de nombres de columna (default: 9)}
+\item{column_names_size}{Font size of the column names (default: 9)}
 
-\item{column_names_rotation}{Rotación de nombres de columna (default: 45)}
+\item{column_names_rotation}{Rotation of the column names (default: 45)}
 
-\item{column_dend_height}{Altura del dendrograma de columnas (número en mm o unit)}
+\item{column_dend_height}{Height of the column dendrogram (a number in mm, or a unit)}
 
-\item{row_dend_width}{Ancho del dendrograma de filas (número en mm o unit)}
+\item{row_dend_width}{Width of the row dendrogram (a number in mm, or a unit)}
 
-\item{show_heatmap_legend}{Mostrar leyenda del heatmap (default: TRUE)}
+\item{show_heatmap_legend}{Show the heatmap legend (default: TRUE)}
 
-\item{show_annotation_legend}{Mostrar leyenda de las anotaciones (default: TRUE)}
+\item{show_annotation_legend}{Show the annotation legends (default: TRUE)}
 
-\item{border_color}{Color del borde de las celdas (NULL, TRUE, o color)}
+\item{border_color}{Border colour of the cells (NULL, TRUE, or a colour)}
 
-\item{heatmap_title}{Título principal del heatmap (default: NULL, sin título).
-Se puede usar "\{mode\}" como placeholder que será reemplazado por el nombre del modo}
+\item{heatmap_title}{Main heatmap title (default: NULL, no title).
+"\{mode\}" can be used as a placeholder, and is replaced by the mode name}
 
-\item{heatmap_title_size}{Tamaño de fuente del título principal (default: 14)}
+\item{heatmap_title_size}{Font size of the main title (default: 14)}
 
-\item{heatmap_title_face}{Estilo de fuente del título (default: "bold")}
+\item{heatmap_title_face}{Font face of the title (default: "bold")}
 
-\item{export_path}{Ruta base para exportar datos a TSV (default: NULL).
-Se añadirá el nombre del modo al archivo (ej: "export_all.tsv", "export_B-A.tsv")}
+\item{export_path}{Base path used to export the data to TSV (default: NULL).
+The mode name is appended to the file name (e.g. "export_all.tsv", "export_B-A.tsv")}
 
-\item{export_modes}{Vector de modos a exportar (default: NULL, exporta todos).
-Solo aplica si export_path está definido. Ejemplo: c("all", "B-A")}
+\item{export_modes}{Vector of modes to export (default: NULL, exports all of them).
+Only relevant when export_path is set. Example: c("all", "B-A")}
 
-\item{export_file}{Ruta base para exportar gráficos. Se añade el modo al nombre.
-El formato se detecta por extensión (.png, .svg, .pdf)}
+\item{export_file}{Base path used to export the plots. The mode is appended to the name.
+The format is taken from the extension (.png, .svg, .pdf)}
 
-\item{plot_width}{Ancho del gráfico en pulgadas (default: 10)}
+\item{plot_width}{Plot width in inches (default: 10)}
 
-\item{plot_height}{Alto del gráfico en pulgadas (default: 8)}
+\item{plot_height}{Plot height in inches (default: 8)}
 
-\item{export_dpi}{Resolución para PNG en puntos por pulgada (default: 300)}
+\item{export_dpi}{Resolution for PNG output in dots per inch (default: 300)}
 }
 \value{
-Lista nombrada de objetos tidyHeatmap
+Named list of tidyHeatmap objects
 }
 \description{
-Genera automáticamente heatmaps para "all", "any" y/o comparaciones específicas.
+Automatically builds heatmaps for "all", "any" and/or specific comparisons.
 }
 \examples{
 \dontrun{
-# Cargar datos
+# Load the data
 hm_input <- arrow::read_parquet("PCA_Input.parquet")
 
-# Generar heatmaps para all y any
+# Build heatmaps for all and any
 hm_list <- proteomics_heatmap_list(
   data = hm_input,
   modes = c("all", "any"),
@@ -170,11 +170,11 @@ hm_list <- proteomics_heatmap_list(
   condition_order = c("A", "B", "C", "D")
 )
 
-# Visualizar
+# Display them
 hm_list[["all"]]
 hm_list[["any"]]
 
-# Generar heatmaps incluyendo comparaciones específicas
+# Build heatmaps including specific comparisons
 hm_list <- proteomics_heatmap_list(
   data = hm_input,
   modes = c("all", "any", "B-A", "C-A"),
@@ -182,14 +182,14 @@ hm_list <- proteomics_heatmap_list(
 )
 hm_list[["B-A"]]
 
-# Con paleta personalizada de paletteer
+# With a custom paletteer palette
 hm_list <- proteomics_heatmap_list(
   data = hm_input,
   modes = c("all"),
   palette_value = "viridis::viridis"
 )
 
-# Con paleta de RColorBrewer
+# With an RColorBrewer palette
 hm_list <- proteomics_heatmap_list(
   data = hm_input,
   modes = c("all"),

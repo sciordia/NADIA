@@ -2,7 +2,7 @@
 % Please edit documentation in R/Pattern_Profiler_Analysis.R
 \name{filter_significant_features}
 \alias{filter_significant_features}
-\title{Filtrar features por significancia}
+\title{Filter features by significance}
 \usage{
 filter_significant_features(
   feature_info,
@@ -12,23 +12,23 @@ filter_significant_features(
 )
 }
 \arguments{
-\item{feature_info}{DataFrame con columnas de significancia}
+\item{feature_info}{DataFrame with significance columns}
 
-\item{filter_mode}{Modo de selección:
+\item{filter_mode}{Selection mode:
 \itemize{
-\item "any": features significativos en AL MENOS una comparación (usa sig_any).
-\item "all": TODOS los features, sin filtrar por significancia (no es "significativo
-en todas las comparaciones").
-\item "specific": significativos en la comparación indicada por \code{comparison}.
+\item "any": features significant in AT LEAST one comparison (uses sig_any).
+\item "all": ALL features, with no significance filtering (it does NOT mean
+"significant in every comparison").
+\item "specific": significant in the comparison given by \code{comparison}.
 }}
 
-\item{comparison}{Comparación específica (para mode="specific")}
+\item{comparison}{Specific comparison (for mode="specific")}
 
-\item{alpha}{Umbral de significancia}
+\item{alpha}{Significance threshold}
 }
 \value{
-Vector de FeatureIDs seleccionados
+Vector of the selected FeatureIDs
 }
 \description{
-Filtrar features por significancia
+Filter features by significance
 }

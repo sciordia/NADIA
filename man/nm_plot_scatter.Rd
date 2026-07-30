@@ -33,6 +33,6 @@ ggplot object.
 }
 \description{
 Plots log2-intensity of one sample against another, one point per protein,
-for each normalization method. A linear fit and the adjusted R² are overlaid.
+for each normalization method. A linear fit and the adjusted R^2 are overlaid.
 Default comparison uses the first two columns of the SE (as NormalyzerDE does).
 }

@@ -2,20 +2,20 @@
 % Please edit documentation in R/Pattern_Profiler_Highcharts.R
 \name{read_pattern_profiler_data}
 \alias{read_pattern_profiler_data}
-\title{Leer datos de Pattern Profiler desde parquet}
+\title{Read Pattern Profiler data from a parquet file}
 \usage{
 read_pattern_profiler_data(file_path, min_membership = NULL)
 }
 \arguments{
-\item{file_path}{Ruta al archivo parquet}
+\item{file_path}{Path to the parquet file}
 
-\item{min_membership}{Filtro opcional por membership mínima}
+\item{min_membership}{Optional filter by minimum membership}
 }
 \value{
-DataFrame con datos de clustering
+DataFrame with the clustering data
 }
 \description{
-Leer datos de Pattern Profiler desde parquet
+Read Pattern Profiler data from a parquet file
 }
 \examples{
 \dontrun{

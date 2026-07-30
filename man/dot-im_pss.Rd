@@ -2,7 +2,7 @@
 % Please edit documentation in R/Imputation_Metrics.R
 \name{.im_pss}
 \alias{.im_pss}
-\title{PSS — Procrustes Statistical Shape analysis}
+\title{PSS -- Procrustes Statistical Shape analysis}
 \usage{
 .im_pss(true_mat, imp_mat)
 }

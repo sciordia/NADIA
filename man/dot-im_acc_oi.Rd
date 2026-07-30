@@ -2,7 +2,7 @@
 % Please edit documentation in R/Imputation_Metrics.R
 \name{.im_acc_oi}
 \alias{.im_acc_oi}
-\title{ACC_OI — Correlation of Original and Imputed at masked positions}
+\title{ACC_OI -- Correlation of Original and Imputed at masked positions}
 \usage{
 .im_acc_oi(true_mat, imp_mat, na_mask)
 }
@@ -22,9 +22,9 @@ evaluated ONLY at the artificially masked cells (pooled across all
 features and columns). Higher is better.
 }
 \details{
-Nota: la version anterior correlacionaba la fila COMPLETA (verdadera vs
-imputada), que solo difiere en 1-2 celdas enmascaradas → correlacion ~1
-independientemente de la calidad de la imputacion, haciendo la metrica no
-discriminativa. Restringir a las celdas enmascaradas mide la accuracy real.
+Note: the previous version correlated the WHOLE row (true vs imputed),
+which differs in only 1-2 masked cells -> correlation ~1 regardless of the
+imputation quality, making the metric non-discriminative. Restricting it to
+the masked cells measures the real accuracy.
 }
 \keyword{internal}

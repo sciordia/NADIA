@@ -35,7 +35,7 @@
   required <- c("Protein.IDs", "logFC", "Comparison")
   missing <- setdiff(required, names(de_res))
   if (length(missing) > 0) {
-    stop("Columnas requeridas faltantes en de_res: ",
+    stop("Required columns missing from de_res: ",
          paste(missing, collapse = ", "))
   }
   invisible(TRUE)
@@ -81,8 +81,8 @@
   candidates <- c("adj.P.Val", "P.Value", "pvalue", "p.value", "padj")
   found <- intersect(candidates, names(df))
   if (length(found) == 0) {
-    stop("No se encontro columna de p-valor. ",
-         "Columnas disponibles: ", paste(names(df), collapse = ", "))
+    stop("No p-value column found. ",
+         "Available columns: ", paste(names(df), collapse = ", "))
   }
   found[1]
 }
@@ -141,8 +141,9 @@
   result
 }
 
-# .hex_to_rgba() vive en R/utils.R. La copia que había aquí era funcionalmente
-# idéntica: hacía en línea lo mismo que .normalize_hex() y luego col2rgb().
+# .hex_to_rgba() lives in R/utils.R. The copy that used to be here was
+# functionally identical: it inlined the same work as .normalize_hex() followed
+# by col2rgb().
 
 #' Compute trimmed SD and CV
 #'
@@ -206,13 +207,13 @@
 
   # Verify Species exists (from merge or preexisting)
   if (!"Species" %in% names(de_res))
-    stop("de_res no contiene columna 'Species'. ",
-         "Proporcione species_df o incluya Species en de_res.")
+    stop("de_res does not contain a 'Species' column. ",
+         "Supply species_df or include Species in de_res.")
 
   # Remove rows with NA Species (proteins without species mapping)
   na_species <- is.na(de_res$Species)
   if (any(na_species)) {
-    warning(sprintf("Se eliminaron %d filas con Species = NA (sin mapeo en species_df).",
+    warning(sprintf("Removed %d rows with Species = NA (no mapping in species_df).",
                     sum(na_species)))
     de_res <- de_res[!na_species, , drop = FALSE]
   }
@@ -232,8 +233,8 @@
     expected_values <- expected_values[expected_values$Comparison %in% comparisons, , drop = FALSE]
   }
 
-  if (nrow(de_res) == 0) stop("de_res vacio tras aplicar filtros.")
-  if (nrow(expected_values) == 0) stop("expected_values vacio tras aplicar filtros.")
+  if (nrow(de_res) == 0) stop("de_res is empty after applying the filters.")
+  if (nrow(expected_values) == 0) stop("expected_values is empty after applying the filters.")
 
   # Harmonize Change column
   de_res <- .harmonize_change(de_res)
@@ -247,7 +248,7 @@
   common_comps <- intersect(de_comps, ev_comps)
 
   if (length(common_comps) == 0) {
-    stop("No hay comparaciones en comun entre de_res y expected_values.\n",
+    stop("No comparisons in common between de_res and expected_values.\n",
          "  de_res: ", paste(de_comps, collapse = ", "), "\n",
          "  expected_values: ", paste(ev_comps, collapse = ", "))
   }
@@ -275,7 +276,7 @@
 #' - Species NOT in expected_values -> truth = 0 (background)
 #' - Positive species: predicted = 1 only if significant AND direction matches
 #'   expected_logFC sign (TP); significant with wrong sign stays predicted = 0
-#'   (FN, a detection failure — NOT relabelled as a false positive).
+#'   (FN, a detection failure -- NOT relabelled as a false positive).
 #' - Negative species: predicted = 1 if significant (any direction -> FP)
 #' `truth` is never modified by the prediction, so .compute_auc/.compute_pauc
 #' receive the biological ground truth (uncontaminated) for pROC.
@@ -292,8 +293,8 @@
   positive_species <- ev_comp$Species
   expected_lfc <- setNames(ev_comp$expected_logFC, ev_comp$Species)
 
-  # Assign truth: 1 = expected change (spike-in), 0 = background. INMUTABLE:
-  # refleja la identidad biologica, no la prediccion del test.
+  # Assign truth: 1 = expected change (spike-in), 0 = background. IMMUTABLE:
+  # it reflects the biological identity, not the prediction of the test.
   de_res_comp$truth <- ifelse(de_res_comp$Species %in% positive_species, 1L, 0L)
 
   # Assign predicted
@@ -315,11 +316,11 @@
   # Positive species: significant AND correct direction -> predicted 1 (TP)
   pos_mask <- de_res_comp$Species %in% positive_species
   de_res_comp$predicted[pos_mask & is_significant & correct_direction] <- 1L
-  # Positive species significant but WRONG direction: se deja predicted = 0 ->
-  # cuenta como FN (fallo de deteccion), NO como FP. NO se toca `truth`: un
-  # spike-in es un positivo por construccion (identidad de especie), y `truth`
-  # debe permanecer inmutable para que .compute_auc/.compute_pauc reciban la
-  # verdad biologica (no contaminada por la prediccion) en pROC.
+  # Positive species significant but WRONG direction: predicted is left at 0 ->
+  # it counts as an FN (a detection failure), NOT as an FP. `truth` is NOT
+  # touched: a spike-in is a positive by construction (species identity), and
+  # `truth` must stay immutable so that .compute_auc/.compute_pauc receive the
+  # biological ground truth (uncontaminated by the prediction) in pROC.
   # Negative species: any significant = predicted positive (potential FP)
   de_res_comp$predicted[negative_mask & is_significant] <- 1L
 
@@ -844,7 +845,7 @@ benchmark_heatmap_gg <- function(
   # Filter to available metrics
   available <- intersect(metrics_to_show, names(metrics_table))
   if (length(available) == 0) {
-    stop("Ninguna de las metricas solicitadas esta disponible en metrics_table")
+    stop("None of the requested metrics is available in metrics_table")
   }
 
   # Reshape to long format
@@ -921,7 +922,7 @@ benchmark_confusion_gg <- function(
 
   # Factorise Label: rev() so first comparison appears at top of Y axis;
 
-  # sort Species decreasing so ggplot Y (bottom→top) reads A→Z (top→bottom)
+  # sort Species decreasing so ggplot Y (bottom->top) reads A->Z (top->bottom)
   comp_levels <- rev(unique(confusion_df$Comparison))
   label_levels <- unlist(lapply(comp_levels, function(comp) {
     sp <- sort(unique(confusion_df$Species[confusion_df$Comparison == comp]),
@@ -953,7 +954,7 @@ benchmark_confusion_gg <- function(
     "TN" = "#457B9D"
   )
 
-  # Blend white → base color by intensity (direct hex, no alpha mixing)
+  # Blend white -> base color by intensity (direct hex, no alpha mixing)
   .blend_to_white <- function(hex, intensity) {
     rgb_base <- grDevices::col2rgb(hex)[, 1]
     rgb_out  <- round(255 + (rgb_base - 255) * intensity)
@@ -1044,7 +1045,7 @@ benchmark_confusion_overall_gg <- function(
     "TN" = "#457B9D"
   )
 
-  # Blend white → base color by intensity (direct hex, no alpha)
+  # Blend white -> base color by intensity (direct hex, no alpha)
   .blend_to_white <- function(hex, intensity) {
     rgb_base <- grDevices::col2rgb(hex)[, 1]
     rgb_out  <- round(255 + (rgb_base - 255) * intensity)
@@ -1111,14 +1112,14 @@ benchmark_auc_bars_gg <- function(
     bar_width = 0.7
 ) {
   if (!"AUC" %in% names(metrics_table)) {
-    stop("Columna 'AUC' no encontrada en metrics_table")
+    stop("Column 'AUC' not found in metrics_table")
   }
 
   plot_data <- metrics_table[, c("Comparison", "AUC"), drop = FALSE]
   plot_data <- plot_data[!is.na(plot_data$AUC), , drop = FALSE]
 
   if (nrow(plot_data) == 0) {
-    warning("No hay valores de AUC disponibles (requiere pROC)")
+    warning("No AUC values available (requires pROC)")
     return(NULL)
   }
 
@@ -1182,7 +1183,7 @@ benchmark_metrics_bars_gg <- function(
 ) {
   available <- intersect(metrics_to_show, names(metrics_table))
   if (length(available) == 0) {
-    stop("Ninguna de las metricas solicitadas esta disponible")
+    stop("None of the requested metrics is available")
   }
 
   plot_data <- metrics_table[, c("Comparison", available), drop = FALSE]
@@ -1269,7 +1270,7 @@ benchmark_signif_bars_gg <- function(
   sig_df <- classified_df[classified_df$predicted == 1, , drop = FALSE]
 
   if (nrow(sig_df) == 0) {
-    warning("No hay proteinas significativas para graficar")
+    warning("No significant proteins to plot")
     return(NULL)
   }
 
@@ -1291,7 +1292,7 @@ benchmark_signif_bars_gg <- function(
                                 levels = unique(classified_df$Comparison))
 
   if (nrow(count_df) == 0) {
-    warning("No hay datos para graficar tras el conteo")
+    warning("No data to plot after counting")
     return(NULL)
   }
 
@@ -1358,12 +1359,12 @@ benchmark_roc_gg <- function(
     palette = "Set1"
 ) {
   if (!requireNamespace("pROC", quietly = TRUE)) {
-    warning("Paquete 'pROC' no instalado. No se pueden generar curvas ROC.\n",
-            "Instalar con: install.packages('pROC')")
+    warning("Package 'pROC' is not installed. ROC curves cannot be generated.\n",
+            "Install it with: install.packages('pROC')")
     return(NULL)
   }
 
-  # Compute score: -log10(p-value) — higher = more significant
+  # Compute score: -log10(p-value) -- higher = more significant
   p_col <- .detect_p_col(classified_df, p_col)
   classified_df$score <- -log10(pmax(as.numeric(classified_df[[p_col]]), 1e-300))
 
@@ -1377,7 +1378,7 @@ benchmark_roc_gg <- function(
                                  drop = FALSE]
 
   if (nrow(classified_df) == 0) {
-    warning("No hay datos validos para generar curvas ROC")
+    warning("No valid data to generate ROC curves")
     return(NULL)
   }
 
@@ -1391,8 +1392,8 @@ benchmark_roc_gg <- function(
   roc_list <- lapply(comp_list, function(d) {
     if (length(unique(d$truth)) < 2 || nrow(d) < 10) return(NULL)
     tryCatch(
-      # direction="<": score alto (-log10 p) = caso; fija la dirección para que
-      # el ROC del gráfico sea consistente con el pAUC tabulado (no "auto").
+      # direction="<": a high score (-log10 p) = case; fixing the direction keeps
+      # the plotted ROC consistent with the tabulated pAUC (rather than "auto").
       pROC::roc(response = d$truth, predictor = d$score,
                 direction = "<", quiet = TRUE),
       error = function(e) NULL
@@ -1402,13 +1403,13 @@ benchmark_roc_gg <- function(
   roc_list <- Filter(Negate(is.null), roc_list)
 
   if (length(roc_list) == 0) {
-    warning("No se pudieron generar curvas ROC para ninguna comparacion")
+    warning("ROC curves could not be generated for any comparison")
     return(NULL)
   }
 
   # AUC / pAUC labels for legend
   if (zoom) {
-    # pAUC corregido (McClish) en la región FPR 0-5%
+    # McClish-corrected pAUC over the FPR 0-5% region
     aucs <- vapply(roc_list, function(r) {
       tryCatch(
         as.numeric(pROC::auc(r,
@@ -1417,7 +1418,7 @@ benchmark_roc_gg <- function(
         error = function(e) NA_real_
       )
     }, numeric(1))
-    # Ordenar la leyenda por pAUC decreciente
+    # Sort the legend by decreasing pAUC
     ord      <- order(aucs, decreasing = TRUE, na.last = TRUE)
     roc_list <- roc_list[ord]
     aucs     <- aucs[ord]
@@ -1436,7 +1437,7 @@ benchmark_roc_gg <- function(
     ggplot2::labs(
       title = title,
       subtitle = if (zoom) {
-        "Zoom: low FPR region (axis 0-10%) · legend pAUC at 5% FPR"
+        "Zoom: low FPR region (axis 0-10%) - legend pAUC at 5% FPR"
       } else {
         "Diagonal = random classifier"
       },
@@ -1479,7 +1480,7 @@ benchmark_roc_gg <- function(
 
 
 # =============================================================================
-# BENCHMARK VOLCANO PLOT — HIGHCHARTER
+# BENCHMARK VOLCANO PLOT -- HIGHCHARTER
 # =============================================================================
 
 #' Benchmark Volcano Plot (Highcharter)
@@ -1513,7 +1514,7 @@ benchmark_volcano_hc <- function(
     height = NULL
 ) {
   if (!requireNamespace("highcharter", quietly = TRUE)) {
-    stop("Se requiere el paquete 'highcharter'")
+    stop("The 'highcharter' package is required")
   }
 
   p_col <- .detect_p_col(de_res_comp, p_col)
@@ -1885,7 +1886,7 @@ benchmark_volcano_hc_list <- function(
         height = height
       )
     }, error = function(e) {
-      warning(sprintf("Error generando volcano para %s: %s", comp, e$message))
+      warning(sprintf("Error generating the volcano plot for %s: %s", comp, e$message))
       NULL
     })
   })
@@ -1977,7 +1978,7 @@ benchmark_volcano_hc_list <- function(
     }
   } else if (format == "parquet") {
     if (!requireNamespace("arrow", quietly = TRUE)) {
-      warning("Paquete 'arrow' no instalado. Exportando como TSV.")
+      warning("Package 'arrow' is not installed. Exporting as TSV instead.")
       filepath <- sub("\\.parquet$", ".tsv", filepath)
       write.table(data, filepath, sep = "\t", quote = FALSE, row.names = FALSE)
     } else {
@@ -2003,7 +2004,7 @@ benchmark_volcano_hc_list <- function(
     ggplot2::ggsave(filepath, plot = gg, width = width, height = height,
                     dpi = dpi, bg = "white")
   }, error = function(e) {
-    warning("Error exportando grafico a ", filepath, ": ", e$message)
+    warning("Error exporting the plot to ", filepath, ": ", e$message)
   })
 
   invisible(filepath)
@@ -2098,8 +2099,8 @@ benchmarking_proteomics <- function(
   comps <- prep$comparisons
 
   if (verbose) {
-    cat("- Comparaciones:", paste(comps, collapse = ", "), "\n")
-    cat("- Especies en datos:", paste(unique(de_res$Species), collapse = ", "), "\n")
+    cat("- Comparisons:", paste(comps, collapse = ", "), "\n")
+    cat("- Species in the data:", paste(unique(de_res$Species), collapse = ", "), "\n")
     cat("- Alpha:", alpha, "| LFC threshold:", lfc_thr, "\n")
     cat("- P-value column:", p_col, "\n")
   }
@@ -2124,12 +2125,12 @@ benchmarking_proteomics <- function(
   }
 
   # === STEP 3: Metrics ===
-  if (verbose) cat("\n--- Metricas de clasificacion ---\n")
+  if (verbose) cat("\n--- Classification metrics ---\n")
   metrics_table <- compute_benchmark_metrics(de_res, ev, alpha, lfc_thr, p_col,
                                              comparisons = comps, assay = assay)
 
   if (!requireNamespace("pROC", quietly = TRUE) && verbose) {
-    cat("  [NOTA] Paquete 'pROC' no instalado. AUC = NA.\n")
+    cat("  [NOTE] Package 'pROC' is not installed. AUC = NA.\n")
     cat("  Instalar con: install.packages('pROC')\n")
   }
 
@@ -2152,7 +2153,7 @@ benchmarking_proteomics <- function(
                                          comparisons = comps, assay = assay)
 
   if (!requireNamespace("pROC", quietly = TRUE) && verbose) {
-    cat("  [NOTA] Paquete 'pROC' no instalado. pAUC = NA.\n")
+    cat("  [NOTE] Package 'pROC' is not installed. pAUC = NA.\n")
   }
 
   if (verbose) {
@@ -2177,7 +2178,7 @@ benchmarking_proteomics <- function(
   # === STEP 4b: Significant proteins summary ===
   signif_summary_df <- .summarize_significant_proteins(classified_df, alpha, p_col)
   if (verbose) {
-    cat("\n--- Resumen de proteinas significativas ---\n")
+    cat("\n--- Summary of significant proteins ---\n")
     for (i in seq_len(nrow(signif_summary_df))) {
       cat(sprintf("  %s: %d/%d significativas (%.1f%%)\n",
                   signif_summary_df$Comparison[i],
@@ -2188,7 +2189,7 @@ benchmarking_proteomics <- function(
   }
 
   # === STEP 5: Dispersion ===
-  if (verbose) cat("\n--- Metricas de dispersion ---\n")
+  if (verbose) cat("\n--- Dispersion metrics ---\n")
   dispersion_df <- compute_dispersion_metrics(de_res, ev, alpha, lfc_thr, p_col,
                                               comparisons = comps, assay = assay)
 
@@ -2206,30 +2207,30 @@ benchmarking_proteomics <- function(
   }
 
   # === STEP 6: Visualizations ===
-  if (verbose) cat("\n--- Generando visualizaciones ---\n")
+  if (verbose) cat("\n--- Generating visualizations ---\n")
 
   # ggplot2 charts
   gg_heatmap <- tryCatch({
-    if (verbose) cat("  - Heatmap de metricas (ggplot2)\n")
+    if (verbose) cat("  - Metrics heatmap (ggplot2)\n")
     benchmark_heatmap_gg(metrics_table)
   }, error = function(e) {
-    warning("Error generando heatmap: ", e$message)
+    warning("Error generating the heatmap: ", e$message)
     NULL
   })
 
   gg_confusion_by_species <- tryCatch({
-    if (verbose) cat("  - Heatmap de confusion by species (ggplot2)\n")
+    if (verbose) cat("  - Confusion heatmap by species (ggplot2)\n")
     benchmark_confusion_gg(confusion_by_species_df)
   }, error = function(e) {
-    warning("Error generando confusion heatmap: ", e$message)
+    warning("Error generating the confusion heatmap: ", e$message)
     NULL
   })
 
   gg_confusion_overall <- tryCatch({
-    if (verbose) cat("  - Heatmap de confusion overall (ggplot2)\n")
+    if (verbose) cat("  - Overall confusion heatmap (ggplot2)\n")
     benchmark_confusion_overall_gg(confusion_overall_df)
   }, error = function(e) {
-    warning("Error generando confusion overall heatmap: ", e$message)
+    warning("Error generating the overall confusion heatmap: ", e$message)
     NULL
   })
 
@@ -2237,23 +2238,23 @@ benchmarking_proteomics <- function(
     if (verbose) cat("  - Barras AUC (ggplot2)\n")
     benchmark_auc_bars_gg(metrics_table)
   }, error = function(e) {
-    warning("Error generando AUC bars: ", e$message)
+    warning("Error generating the AUC bars: ", e$message)
     NULL
   })
 
   gg_metrics_bars <- tryCatch({
-    if (verbose) cat("  - Barras de metricas agrupadas (ggplot2)\n")
+    if (verbose) cat("  - Grouped metrics bars (ggplot2)\n")
     benchmark_metrics_bars_gg(metrics_table)
   }, error = function(e) {
-    warning("Error generando metrics bars: ", e$message)
+    warning("Error generating the metrics bars: ", e$message)
     NULL
   })
 
   gg_signif_bars <- tryCatch({
-    if (verbose) cat("  - Barras de significativas por especie (ggplot2)\n")
+    if (verbose) cat("  - Significant-protein bars by species (ggplot2)\n")
     benchmark_signif_bars_gg(classified_df, ev, species_colors = sp_colors)
   }, error = function(e) {
-    warning("Error generando signif bars: ", e$message)
+    warning("Error generating the significance bars: ", e$message)
     NULL
   })
 
@@ -2267,7 +2268,7 @@ benchmarking_proteomics <- function(
       species_colors = sp_colors, point_size = 3
     )
   }, error = function(e) {
-    warning("Error generando volcano plots: ", e$message)
+    warning("Error generating the volcano plots: ", e$message)
     list()
   })
 
@@ -2278,7 +2279,7 @@ benchmarking_proteomics <- function(
     if (verbose) cat("  - Curvas ROC (ggplot2 + pROC)\n")
     benchmark_roc_gg(classified_df, p_col = p_col, comparisons = comps)
   }, error = function(e) {
-    warning("Error generando curvas ROC: ", e$message)
+    warning("Error generating the ROC curves: ", e$message)
     NULL
   })
 
@@ -2288,7 +2289,7 @@ benchmarking_proteomics <- function(
                      title = "ROC Curves by Comparison (Zoom)",
                      zoom = TRUE)
   }, error = function(e) {
-    warning("Error generando curvas ROC zoom: ", e$message)
+    warning("Error generating the zoomed ROC curves: ", e$message)
     NULL
   })
 
@@ -2303,7 +2304,7 @@ benchmarking_proteomics <- function(
 
   # === STEP 8: Export ===
   if (!is.null(output_dir)) {
-    if (verbose) cat("\n--- Exportando resultados ---\n")
+    if (verbose) cat("\n--- Exporting results ---\n")
 
     if (!dir.exists(output_dir)) {
       dir.create(output_dir, recursive = TRUE)

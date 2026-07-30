@@ -2,22 +2,22 @@
 % Please edit documentation in R/Heatmap_tidyHeatmap.R
 \name{wrap_heatmap_with_title}
 \alias{wrap_heatmap_with_title}
-\title{Crear wrapper para heatmap con título}
+\title{Wrap a Heatmap Together With Its Title}
 \usage{
 wrap_heatmap_with_title(hm, title, title_size = 14, title_face = "bold")
 }
 \arguments{
-\item{hm}{Objeto tidyHeatmap (InputHeatmap)}
+\item{hm}{tidyHeatmap object (InputHeatmap)}
 
-\item{title}{Título del heatmap}
+\item{title}{Heatmap title}
 
-\item{title_size}{Tamaño de fuente del título}
+\item{title_size}{Font size of the title}
 
-\item{title_face}{Estilo de fuente del título}
+\item{title_face}{Font face of the title}
 }
 \value{
-Objeto proteomics_heatmap (lista S3)
+proteomics_heatmap object (S3 list)
 }
 \description{
-Crear wrapper para heatmap con título
+Wrap a Heatmap Together With Its Title
 }

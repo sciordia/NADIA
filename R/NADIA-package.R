@@ -1,45 +1,45 @@
 # =============================================================================
-# Documentación del paquete e importaciones
+# Package documentation and imports
 # =============================================================================
 #
-# Todas las directivas `@importFrom` del paquete viven aquí. El código ya estaba
-# mayoritariamente cualificado con `pkg::` (976 llamadas, entre ellas las 528 de
-# ggplot2 y las 102 de SummarizedExperiment, que están al 100 %), así que solo
-# hace falta importar los nombres que se usan sin cualificar. Concentrarlos en un
-# único bloque evita reescribir 450 sitios de llamada.
+# Every `@importFrom` directive in the package lives here. The code was already
+# largely qualified with `pkg::` (976 calls, among them the 528 ggplot2 and the
+# 102 SummarizedExperiment ones, which are qualified 100 %), so only the names
+# used unqualified need to be imported. Concentrating them in a single block
+# avoids rewriting 450 call sites.
 #
-# Los paquetes que solo hacen falta para un método concreto están en `Suggests:`
-# y se comprueban en el punto de uso con `requireNamespace()`; sus llamadas van
-# siempre cualificadas con `pkg::`, nunca importadas aquí.
+# Packages needed only for one specific method are listed in `Suggests:` and
+# checked at the point of use with `requireNamespace()`; their calls are always
+# qualified with `pkg::`, never imported here.
 #
 # Author: Sergio Ciordia
 # License: MIT
 # =============================================================================
 
-#' NADIA: análisis de proteómica DIA consciente de los valores ausentes
+#' NADIA: Missing Value-Aware DIA Proteomics Analysis
 #'
-#' Pipeline completo para el análisis de expresión diferencial de proteínas, con
-#' especial atención al tratamiento de los valores ausentes característicos de la
-#' adquisición independiente de datos. Cubre el recorrido íntegro desde el report
-#' crudo hasta la figura interactiva.
+#' A complete pipeline for differential protein expression analysis, with
+#' particular attention to the missing values that characterise
+#' data-independent acquisition. It covers the whole journey from the raw report
+#' to the interactive figure.
 #'
-#' El paquete se organiza en cuatro bloques:
+#' The package is organised in four blocks:
 #'
 #' \describe{
-#'   \item{Preprocesado}{[preprocess_spectronaut()] para Spectronaut/DIA-NN,
-#'     [preprocess_tmt()] y [preprocess_lfq()] para Proteome Discoverer. Los tres
-#'     devuelven el mismo objeto S3 `proteomics_data`, de modo que el resto del
-#'     pipeline los consume sin cambios.}
-#'   \item{Procesado}{[process_proteomics()] coordina normalización (13 métodos),
-#'     corrección de lote opcional, imputación (19 métodos, incluidos los híbridos
-#'     MAR/MNAR) y expresión diferencial con limma o limpa.}
-#'   \item{Métricas y benchmarking}{[normalization_metrics()],
-#'     [imputation_metrics()], [benchmarking_proteomics()] y
-#'     [benchmarking_multiple()] evalúan y ordenan las combinaciones de métodos.}
-#'   \item{Visualización}{gráficos interactivos con Highcharts
+#'   \item{Preprocessing}{[preprocess_spectronaut()] for Spectronaut/DIA-NN,
+#'     [preprocess_tmt()] and [preprocess_lfq()] for Proteome Discoverer. All
+#'     three return the same `proteomics_data` S3 object, so the rest of the
+#'     pipeline consumes them unchanged.}
+#'   \item{Processing}{[process_proteomics()] coordinates normalization (13
+#'     methods), optional batch correction, imputation (19 methods, including
+#'     the MAR/MNAR hybrids) and differential expression with limma or limpa.}
+#'   \item{Metrics and benchmarking}{[normalization_metrics()],
+#'     [imputation_metrics()], [benchmarking_proteomics()] and
+#'     [benchmarking_multiple()] evaluate and rank method combinations.}
+#'   \item{Visualization}{interactive plots with Highcharts
 #'     ([boxplot_highchart_list()], [volcano_highchart_list()],
-#'     [pca_highchart_list()]), estáticos con ggplot2 y ComplexHeatmap
-#'     ([proteomics_heatmap()]), y tablas con reactable
+#'     [pca_highchart_list()]), static ones with ggplot2 and ComplexHeatmap
+#'     ([proteomics_heatmap()]), and tables with reactable
 #'     ([results_list_reactable()]).}
 #' }
 #'
@@ -65,19 +65,19 @@
 #' @importFrom reactable colDef colGroup reactable reactableLang reactableTheme
 "_PACKAGE"
 
-# Nota: `JS` lo reexportan tanto highcharter como htmlwidgets. Se importa solo de
-# htmlwidgets para no provocar un conflicto de nombres en el NAMESPACE.
+# Note: `JS` is re-exported by both highcharter and htmlwidgets. It is imported
+# only from htmlwidgets so as not to cause a name clash in the NAMESPACE.
 
 
 # =============================================================================
-# Nombres de columna usados con evaluación no estándar
+# Column names used with non-standard evaluation
 # =============================================================================
 #
-# Los verbos de dplyr/tidyr y las estéticas de ggplot2 reciben nombres de columna
-# sin entrecomillar, así que `R CMD check` los toma por variables globales no
-# definidas y emite una NOTE por cada uno (327 en total, 78 nombres distintos).
-# Declararlos aquí es la solución habitual; la alternativa —prefijar los 327
-# sitios con `.data$`— no cambia el comportamiento y sí el riesgo.
+# The dplyr/tidyr verbs and the ggplot2 aesthetics receive unquoted column
+# names, so `R CMD check` takes them for undefined global variables and emits a
+# NOTE for each one (327 in total, 78 distinct names). Declaring them here is
+# the usual solution; the alternative -- prefixing the 327 sites with `.data$`
+# -- does not change the behaviour but does add risk.
 utils::globalVariables(c(
   ".val_num", "ACC_OI", "AUC", "Assay", "Category", "Change", "Cluster",
   "Coding", "Column", "Comparison", "Condition", "Correlation", "Count",

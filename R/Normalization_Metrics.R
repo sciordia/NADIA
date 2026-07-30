@@ -23,7 +23,7 @@
 #   - readr    : fast TSV reading (fallback: read.delim)
 #   - ggdendro : dendrogram via ggplot2 (fallback: base R dendrogram)
 #   - RColorBrewer / viridis : palettes (fallback: ggplot2 defaults)
-#   - vegan    : PERMANOVA R² (fallback: NA)
+#   - vegan    : PERMANOVA R^2 (fallback: NA)
 #   - cluster  : silhouette width (fallback: NA)
 #
 # Author: Sergio Ciordia
@@ -40,7 +40,7 @@
   "quantile.robust"
 )
 
-# Methods that require x_raw (Grupo A) — rest use x_log2 (Grupo B)
+# Methods that require x_raw (Group A) -- rest use x_log2 (Group B)
 .NM_RAW_METHODS <- c(
   "log2Norm", "GlobalMedian", "GlobalMean", "eqmedians",
   "vsn", "medianNorm", "meanNorm"
@@ -102,9 +102,9 @@
       100 * sd(x) / abs(m)
     })
   }, numeric(nrow(mat)))
-  # sapply apila los resultados de apply(sub, 1, ...) por columnas, dando una
-  # matriz [proteinas x grupos]; hay que promediar por fila (rowMeans) para
-  # obtener un valor por proteina, no por grupo.
+  # vapply stacks the results of apply(sub, 1, ...) as columns, giving a
+  # [proteins x groups] matrix; the average must be taken per row (rowMeans) to
+  # get one value per protein, not per group.
   if (is.null(dim(cv_mat))) cv_mat else rowMeans(cv_mat, na.rm = TRUE)
 }
 
@@ -127,7 +127,7 @@
       median(abs(x - median(x)))
     })
   }, numeric(nrow(mat)))
-  # Matriz [proteinas x grupos]: promedio por fila para un valor por proteina.
+  # [proteins x groups] matrix: average per row for one value per protein.
   if (is.null(dim(mad_mat))) mad_mat else rowMeans(mad_mat, na.rm = TRUE)
 }
 
@@ -150,7 +150,7 @@
       var(x)
     })
   }, numeric(nrow(mat)))
-  # Matriz [proteinas x grupos]: promedio por fila para un valor por proteina.
+  # [proteins x groups] matrix: average per row for one value per protein.
   if (is.null(dim(var_mat))) var_mat else rowMeans(var_mat, na.rm = TRUE)
 }
 
@@ -218,7 +218,7 @@
   (ss_b / df_b) / (ss_w / df_w)
 }
 
-#' PERMANOVA R² via vegan::adonis2
+#' PERMANOVA R^2 via vegan::adonis2
 #'
 #' Proportion of variance in Euclidean distances explained by the grouping.
 #' Requires the vegan package (optional).
@@ -368,9 +368,9 @@
   if (n < 3 || ncol(x) < 1) return(NA_real_)
   m <- min(n_sample, n - 1L)
 
-  # Fijar la semilla ANTES de generar cualquier valor aleatorio (rand_pts e
-  # idx) para que el estadistico de Hopkins sea reproducible entre llamadas,
-  # restaurando despues el RNG del usuario.
+  # Set the seed BEFORE generating any random value (rand_pts and idx) so the
+  # Hopkins statistic is reproducible across calls, restoring the user's RNG
+  # state afterwards.
   old_rng <- .rng_state()
   on.exit(.rng_restore(old_rng), add = TRUE)
   set.seed(seed)
@@ -427,7 +427,7 @@
 #' Dispatch a single normalization method on a log2 matrix
 #'
 #' Internal helper that calls the appropriate `.norm_*()` function.
-#' For Grupo A methods, converts log2 back to raw (2^x) before calling.
+#' For Group A methods, converts log2 back to raw (2^x) before calling.
 #'
 #' @param x_log2 Numeric matrix in log2 scale (proteins x samples)
 #' @param method Character scalar: normalization method name
@@ -435,7 +435,7 @@
 #' @return Numeric matrix in log2 scale
 #' @keywords internal
 .nm_dispatch_normalization <- function(x_log2, method, method_args = list()) {
-  # Grupo A methods need raw (linear) scale input
+  # Group A methods need raw (linear) scale input
   if (method %in% .NM_RAW_METHODS) {
     x_input <- 2^x_log2
   } else {
@@ -476,7 +476,7 @@
 #' Convenience wrapper that extracts metadata and protein data from a
 #' `proteomics_data` object (output of `preprocess_spectronaut()` or
 #' `preprocess_tmt()`), performs zero-to-NA conversion, protein filtering,
-#' and returns a SE with assays `"raw"` and `"log2"` — ready for
+#' and returns a SE with assays `"raw"` and `"log2"` -- ready for
 #' `nm_run_normalizations()` or `normalization_metrics(..., methods = "all")`.
 #'
 #' Internally calls `normalize_proteomics()` with `norm_method = "log2"`
@@ -508,8 +508,8 @@ nm_prepare_se <- function(preprocessing,
     stop("'preprocessing' must be a proteomics_data object ",
          "(output of preprocess_spectronaut() or preprocess_tmt()).")
 
-  # .prepare_metadata() y .prepare_protein_data() están en Processing.R, que
-  # comparte namespace con este archivo.
+  # .prepare_metadata() and .prepare_protein_data() live in Processing.R,
+  # which shares its namespace with this file.
   metadata     <- .prepare_metadata(preprocessing, covariate_df = covariate_df)
   protein_data <- .prepare_protein_data(preprocessing)
 
@@ -579,7 +579,7 @@ nm_run_normalizations <- function(se,
 
   x_log2 <- SummarizedExperiment::assay(se, assay_name)
 
-  # log2Norm is identical to log2 baseline — drop it when baseline is included
+  # log2Norm is identical to log2 baseline -- drop it when baseline is included
   if (include_baseline && "log2Norm" %in% methods) {
     methods <- setdiff(methods, "log2Norm")
     if (verbose) message("  Skipping 'log2Norm' (identical to baseline '",
@@ -753,7 +753,7 @@ import_norm_matrices <- function(tsv_dir,
     rowData = row_data
   )
 
-  message("import_norm_matrices: loaded ", length(files), " assay(s) — ",
+  message("import_norm_matrices: loaded ", length(files), " assay(s) -- ",
           paste(method_names, collapse = ", "))
   message("  Proteins: ", nrow(se), " | Samples: ", ncol(se))
   se
@@ -779,7 +779,7 @@ import_norm_matrices <- function(tsv_dir,
   }
 }
 
-# Helper: resolve assay_names (NULL → all)
+# Helper: resolve assay_names (NULL -> all)
 .nm_assay_names <- function(se, assay_names) {
   assay_names %||% SummarizedExperiment::assayNames(se)
 }
@@ -797,7 +797,7 @@ import_norm_matrices <- function(tsv_dir,
 }
 
 # --------------------------------------------------------------------------
-# 1. Boxplot — intensity distribution per sample
+# 1. Boxplot -- intensity distribution per sample
 # --------------------------------------------------------------------------
 
 #' Intensity boxplot per method
@@ -831,7 +831,7 @@ nm_plot_boxplot <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 2. Density — KDE curves per sample
+# 2. Density -- KDE curves per sample
 # --------------------------------------------------------------------------
 
 #' Density plot per method
@@ -857,8 +857,8 @@ nm_plot_density <- function(se, assay_names = NULL,
     ggplot2::theme(strip.text = ggplot2::element_text(face = "bold"))
 }
 
-# Calcula los límites Tukey de los bigotes por grupo y devuelve un rango
-# con padding para usar en coord_cartesian(ylim = ...).
+# Computes the Tukey whisker limits per group and returns a padded range to be
+# used in coord_cartesian(ylim = ...).
 .nm_axis_limits <- function(x, groups, mult = 1.5, padding = 0.05) {
   bounds <- tapply(x, groups, function(vals) {
     vals <- vals[!is.na(vals)]
@@ -876,7 +876,7 @@ nm_plot_density <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 3. PCV — percentage coefficient of variation
+# 3. PCV -- percentage coefficient of variation
 # --------------------------------------------------------------------------
 
 #' PCV boxplot per method (PRONE-style)
@@ -927,7 +927,7 @@ nm_plot_pcv <- function(se, assay_names = NULL,
                           fill = "white", show.legend = FALSE, color = "black") +
       ggplot2::scale_fill_manual(name = "Normalization Method",
                                  values = col_vector) +
-      ggplot2::labs(title = "PCV — % reduction vs baseline",
+      ggplot2::labs(title = "PCV \u2014 % reduction vs baseline",
                     x = "Normalization Method", y = "") +
       ggplot2::theme_bw() +
       ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90,
@@ -949,7 +949,7 @@ nm_plot_pcv <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 4. PMAD — percentage median absolute deviation
+# 4. PMAD -- percentage median absolute deviation
 # --------------------------------------------------------------------------
 
 #' PMAD boxplot per method (PRONE-style)
@@ -997,7 +997,7 @@ nm_plot_pmad <- function(se, assay_names = NULL,
                           fill = "white", show.legend = FALSE, color = "black") +
       ggplot2::scale_fill_manual(name = "Normalization Method",
                                  values = col_vector) +
-      ggplot2::labs(title = "PMAD — % reduction vs baseline",
+      ggplot2::labs(title = "PMAD \u2014 % reduction vs baseline",
                     x = "Normalization Method", y = "") +
       ggplot2::theme_bw() +
       ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90,
@@ -1019,7 +1019,7 @@ nm_plot_pmad <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 5. PEV — percentage explained variance
+# 5. PEV -- percentage explained variance
 # --------------------------------------------------------------------------
 
 #' PEV boxplot per method (PRONE-style)
@@ -1067,7 +1067,7 @@ nm_plot_pev <- function(se, assay_names = NULL,
                           fill = "white", show.legend = FALSE, color = "black") +
       ggplot2::scale_fill_manual(name = "Normalization Method",
                                  values = col_vector) +
-      ggplot2::labs(title = "PEV — % reduction vs baseline",
+      ggplot2::labs(title = "PEV \u2014 % reduction vs baseline",
                     x = "Normalization Method", y = "") +
       ggplot2::theme_bw() +
       ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90,
@@ -1089,7 +1089,7 @@ nm_plot_pev <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 6. PCA — principal component analysis
+# 6. PCA -- principal component analysis
 # --------------------------------------------------------------------------
 
 #' PCA scatter plot per method
@@ -1151,13 +1151,13 @@ nm_plot_pca <- function(se, assay_names = NULL,
     ggplot2::aes(x = PC1, y = PC2, color = Condition, label = Sample)) +
     ggplot2::geom_point(size = 3) +
     ggplot2::facet_wrap(~ Facet, ncol = 2, scales = pca_scales) +
-    ggplot2::labs(title = "PCA — PC1 vs PC2", x = "PC1", y = "PC2") +
+    ggplot2::labs(title = "PCA \u2014 PC1 vs PC2", x = "PC1", y = "PC2") +
     ggplot2::theme_bw() +
     ggplot2::theme(strip.text = ggplot2::element_text(face = "bold", size = 8))
 }
 
 # --------------------------------------------------------------------------
-# 7. Correlation — intra-group correlation distribution
+# 7. Correlation -- intra-group correlation distribution
 # --------------------------------------------------------------------------
 
 #' Intra-group correlation boxplot per method (PRONE-style)
@@ -1205,7 +1205,7 @@ nm_plot_correlation <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 8. MDS — multidimensional scaling
+# 8. MDS -- multidimensional scaling
 # --------------------------------------------------------------------------
 
 #' MDS 2D scatter per method
@@ -1257,13 +1257,13 @@ nm_plot_mds <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 9. Scatter — sample-vs-sample (NormalyzerDE style)
+# 9. Scatter -- sample-vs-sample (NormalyzerDE style)
 # --------------------------------------------------------------------------
 
 #' Sample-vs-sample scatter plot per method (NormalyzerDE style)
 #'
 #' Plots log2-intensity of one sample against another, one point per protein,
-#' for each normalization method. A linear fit and the adjusted R² are overlaid.
+#' for each normalization method. A linear fit and the adjusted R^2 are overlaid.
 #' Default comparison uses the first two columns of the SE (as NormalyzerDE does).
 #'
 #' @inheritParams nm_plot_boxplot
@@ -1311,7 +1311,7 @@ nm_plot_scatter <- function(se, assay_names = NULL,
   scat_df <- do.call(rbind, rows)
   scat_df <- .nm_method_factor(scat_df, assay_names)
 
-  # R² annotation per facet
+  # R^2 annotation per facet
   r2_df <- unique(scat_df[, c("Method", "R2")])
   r2_df$label <- ifelse(is.na(r2_df$R2), "",
                         paste0("R\u00b2 = ", round(r2_df$R2, 3)))
@@ -1340,7 +1340,7 @@ nm_plot_scatter <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 10. Q-Q — quantile-quantile normality check (NormalyzerDE style)
+# 10. Q-Q -- quantile-quantile normality check (NormalyzerDE style)
 # --------------------------------------------------------------------------
 
 #' Q-Q plot per method (NormalyzerDE style)
@@ -1392,7 +1392,7 @@ nm_plot_qq <- function(se, assay_names = NULL,
 }
 
 # --------------------------------------------------------------------------
-# 11. Metrics — quantitative group-separation metrics
+# 11. Metrics -- quantitative group-separation metrics
 # --------------------------------------------------------------------------
 
 #' Compute quantitative group-separation metrics per normalization method
@@ -1441,9 +1441,9 @@ nm_compute_metrics <- function(se, assay_names = NULL,
 
   # Inform about optional packages
   if (!requireNamespace("vegan", quietly = TRUE))
-    message("nm_compute_metrics: 'vegan' not installed — PERMANOVA columns will be NA.")
+    message("nm_compute_metrics: 'vegan' not installed -- PERMANOVA columns will be NA.")
   if (!requireNamespace("cluster", quietly = TRUE))
-    message("nm_compute_metrics: 'cluster' not installed — Silhouette column will be NA.")
+    message("nm_compute_metrics: 'cluster' not installed -- Silhouette column will be NA.")
 
   rows <- vector("list", length(assay_names))
   for (i in seq_along(assay_names)) {
@@ -1694,7 +1694,7 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
 # 14. Metric-based rankings (PCV, PMAD, PEV, Correlation)
 # --------------------------------------------------------------------------
 
-#' Rank normalization methods by median PCV (ascending — lower is better)
+#' Rank normalization methods by median PCV (ascending -- lower is better)
 #'
 #' @inheritParams nm_plot_boxplot
 #' @param verbose Logical. Print progress messages. Default `TRUE`.
@@ -1718,7 +1718,7 @@ nm_rank_pcv <- function(se, assay_names = NULL, condition_col = "Condition",
   df
 }
 
-#' Rank normalization methods by median PMAD (ascending — lower is better)
+#' Rank normalization methods by median PMAD (ascending -- lower is better)
 #'
 #' @inheritParams nm_plot_boxplot
 #' @param verbose Logical. Print progress messages. Default `TRUE`.
@@ -1742,7 +1742,7 @@ nm_rank_pmad <- function(se, assay_names = NULL, condition_col = "Condition",
   df
 }
 
-#' Rank normalization methods by median PEV (ascending — lower is better)
+#' Rank normalization methods by median PEV (ascending -- lower is better)
 #'
 #' @inheritParams nm_plot_boxplot
 #' @param verbose Logical. Print progress messages. Default `TRUE`.
@@ -1767,7 +1767,7 @@ nm_rank_pev <- function(se, assay_names = NULL, condition_col = "Condition",
 }
 
 #' Rank normalization methods by median intragroup correlation
-#' (descending — higher is better)
+#' (descending -- higher is better)
 #'
 #' @inheritParams nm_plot_boxplot
 #' @param cor_method Correlation method: "pearson", "spearman", or "kendall".
@@ -1908,7 +1908,7 @@ nm_plot_final_ranking <- function(se, assay_names = NULL,
   if (is.null(output_dir)) return(invisible(NULL))
   if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
-  # Tablas
+  # Tables
   if (export_tables) {
     if (!is.null(result$metrics_table))
       utils::write.table(result$metrics_table,
@@ -2105,7 +2105,7 @@ normalization_metrics <- function(se,
     pev         = function() nm_plot_pev(se, assay_names, condition_col),
     correlation = function() nm_plot_correlation(se, assay_names, condition_col,
                                                  cor_method = cor_method),
-    #mds — set conditionally below
+    #mds -- set conditionally below
     scatter     = function() nm_plot_scatter(se, assay_names, condition_col),
     qq          = function() nm_plot_qq(se, assay_names, condition_col),
     metrics     = function() nm_plot_metrics(se, assay_names, condition_col),
@@ -2137,10 +2137,10 @@ normalization_metrics <- function(se,
   if (identical(plots, "all")) {
     selected <- all_plot_names
   } else {
-    # Expand "pca" → "pca_free" + "pca_fixed" when pca_scales == "both"
+    # Expand "pca" -> "pca_free" + "pca_fixed" when pca_scales == "both"
     if (pca_scales == "both" && "pca" %in% plots)
       plots <- c(setdiff(plots, "pca"), "pca_free", "pca_fixed")
-    # Expand "mds" → "mds_free" + "mds_fixed" when mds_scales == "both"
+    # Expand "mds" -> "mds_free" + "mds_fixed" when mds_scales == "both"
     if (mds_scales == "both" && "mds" %in% plots)
       plots <- c(setdiff(plots, "mds"), "mds_free", "mds_fixed")
     unknown <- setdiff(plots, all_plot_names)

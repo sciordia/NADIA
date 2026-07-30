@@ -2,18 +2,18 @@
 % Please edit documentation in R/Pattern_Profiler_Analysis.R
 \name{create_expression_set}
 \alias{create_expression_set}
-\title{Crear ExpressionSet para Mfuzz}
+\title{Create an ExpressionSet for Mfuzz}
 \usage{
 create_expression_set(mat, feature_info = NULL)
 }
 \arguments{
-\item{mat}{Matriz de expresión (features x conditions)}
+\item{mat}{Expression matrix (features x conditions)}
 
-\item{feature_info}{DataFrame con info de features (opcional)}
+\item{feature_info}{DataFrame with feature information (optional)}
 }
 \value{
-Objeto ExpressionSet
+ExpressionSet object
 }
 \description{
-Crear ExpressionSet para Mfuzz
+Create an ExpressionSet for Mfuzz
 }

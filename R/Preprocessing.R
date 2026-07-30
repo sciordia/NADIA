@@ -1,21 +1,21 @@
 # =============================================================================
-# Preprocesamiento de Datos de Spectronaut
+# Spectronaut Data Preprocessing
 # =============================================================================
 #
-# Convierte reportes de Spectronaut a formato estructurado para análisis
-# proteómico downstream.
+# Converts Spectronaut reports into a structured format for downstream
+# proteomics analysis.
 #
 # Copyright 2025 Sergio Ciordia
 # Licensed under MIT
 # =============================================================================
 
-# --- Dependencias ---
+# --- Dependencies ---
 
 # =============================================================================
-# Funciones Auxiliares Internas
+# Internal Helper Functions
 # =============================================================================
 
-#' Obtiene función agregadora por nombre
+#' Get an aggregating function by name
 #' @noRd
 .get_aggregator <- function(name) {
   nm <- tolower(name %||% "")
@@ -24,11 +24,11 @@
     "mean"   = function(x) mean(x, na.rm = TRUE),
     "median" = function(x) stats::median(x, na.rm = TRUE),
     "min"    = function(x) min(x, na.rm = TRUE),
-    stop("Agregador no soportado: '", name, "'. Usa: max, mean, median, min.")
+    stop("Unsupported aggregator: '", name, "'. Use: max, mean, median, min.")
   )
 }
 
-#' Retorna el primer valor no-NA de un vector
+#' Return the first non-NA value of a vector
 #' @noRd
 .first_non_na <- function(x) {
 
@@ -36,8 +36,9 @@
   if (length(y) == 0) NA else y[1]
 }
 
-#' Limpia campos con valores separados por punto y coma
-#' @description Convierte campos tipo "16,8%;16.8%" a numérico y agrega por grupos
+#' Clean fields holding semicolon-separated values
+#' @description Converts fields such as "16,8%;16.8%" to numeric and aggregates
+#'   them by group
 #' @noRd
 .clean_semicolon_numeric <- function(df, value_col, group_cols, out_col = value_col,
                                      agg_fun = .get_aggregator("max")) {
@@ -57,8 +58,8 @@
     )
 }
 
-#' Normaliza nombres de columnas de Spectronaut
-#' @description Estandariza variantes de nombres de columnas a formato consistente
+#' Normalize Spectronaut column names
+#' @description Standardises column-name variants to a consistent format
 #' @noRd
 .normalize_column_names <- function(df) {
   nm <- names(df)
@@ -75,7 +76,7 @@
   }
 
 
-  # Columnas globales/experiment-wide
+  # Global / experiment-wide columns
   global_mappings <- list(
     "PG.NrOfPrecursorsIdentified..Experiment.wide." = "PG.NrOfPrecursorsIdentified.Global",
     "PG.NrOfStrippedSequencesIdentified..Experiment.wide." = "PG.NrOfStrippedSequencesIdentified.Global",
@@ -92,7 +93,7 @@
   df
 }
 
-#' Construye columna Coding y ordena por condición/replicado
+#' Build the Coding column and sort by condition/replicate
 #' @noRd
 .make_coding <- function(df, cond_order) {
   df %>%
@@ -104,21 +105,21 @@
     arrange(R.Condition, R.Replicate)
 }
 
-#' Valida columnas requeridas en dataframe
+#' Validate the required columns in a data frame
 #' @noRd
 .validate_spectronaut_columns <- function(df, required_cols) {
   missing <- setdiff(required_cols, names(df))
   if (length(missing) > 0) {
     stop(
-      "Columnas requeridas faltantes en el archivo:\n",
+      "Required columns missing from the file:\n",
       "  - ", paste(missing, collapse = "\n  - "), "\n",
-      "Verifica que el archivo sea un reporte válido de Spectronaut."
+      "Check that the file is a valid Spectronaut report."
     )
   }
   invisible(TRUE)
 }
 
-#' Extrae información base de proteínas (estática, 1 fila por proteína)
+#' Extract the base protein information (static, 1 row per protein)
 #' @noRd
 .extract_base_info <- function(df, mw_clean) {
   static_cols <- c("PG.ProteinGroups", "PG.ProteinDescriptions", "PG.Genes", "PG.MolecularWeight")
@@ -137,52 +138,53 @@
 }
 
 # =============================================================================
-# Función Principal
+# Main Function
 # =============================================================================
 
-#' Preprocesa reportes de Spectronaut
+#' Preprocess Spectronaut reports
 #'
 #' @description
-#' Convierte un reporte de Spectronaut (formato TSV largo) a tres tablas
-#' estructuradas: metadata de runs, identificación de proteínas y cuantificación.
+#' Converts a Spectronaut report (long TSV format) into three structured tables:
+#' run metadata, protein identification and protein quantification.
 #'
-#' @param file_path Ruta al archivo TSV de Spectronaut.
-#' @param condition_order Vector de caracteres con el orden de las condiciones
-#'   experimentales (ej: `c("Control", "Tratado")`).
-#' @param export_dir Directorio para exportar archivos TSV. Si es `NULL` (default),
-#'   no se exportan archivos.
-#' @param agg_coverage_run Método de agregación para PG.Coverage por muestra.
-#'   Opciones: "max" (default), "mean", "median", "min".
-#' @param agg_coverage_global Método de agregación para PG.Coverage.Global.
-#'   Opciones: "max" (default), "mean", "median", "min".
-#' @param agg_mw Método de agregación para PG.MolecularWeight.
-#'   Opciones: "max" (default), "mean", "median", "min".
-#' @param agg_cscore_runwise Método de agregación para PG.Cscore.RunWise.
-#'   Opciones: "mean" (default), "max", "median", "min".
-#' @param timestamp_suffix Lógico. Si `TRUE` (default), añade timestamp a nombres
-#'   de archivos exportados.
-#' @param verbose Lógico. Si `TRUE` (default), muestra mensajes de progreso.
+#' @param file_path Path to the Spectronaut TSV file.
+#' @param condition_order Character vector with the order of the experimental
+#'   conditions (e.g. `c("Control", "Treated")`).
+#' @param export_dir Directory to export the TSV files to. If `NULL` (default),
+#'   no files are exported.
+#' @param agg_coverage_run Aggregation method for the per-sample PG.Coverage.
+#'   Options: "max" (default), "mean", "median", "min".
+#' @param agg_coverage_global Aggregation method for PG.Coverage.Global.
+#'   Options: "max" (default), "mean", "median", "min".
+#' @param agg_mw Aggregation method for PG.MolecularWeight.
+#'   Options: "max" (default), "mean", "median", "min".
+#' @param agg_cscore_runwise Aggregation method for PG.Cscore.RunWise.
+#'   Options: "mean" (default), "max", "median", "min".
+#' @param timestamp_suffix Logical. If `TRUE` (default), appends a timestamp to
+#'   the names of the exported files.
+#' @param verbose Logical. If `TRUE` (default), shows progress messages.
 #'
-#' @return Lista con clase `spectronaut_data` conteniendo:
+#' @return A list with class `spectronaut_data` containing:
 #'   \describe{
-#'     \item{metadata}{Data frame con información de runs (1 fila por muestra)}
-#'     \item{protein_id}{Data frame con métricas de identificación por proteína}
-#'     \item{protein_quant}{Data frame con métricas de cuantificación por proteína}
+#'     \item{metadata}{Data frame with the run information (1 row per sample)}
+#'     \item{protein_id}{Data frame with the identification metrics per protein}
+#'     \item{protein_quant}{Data frame with the quantification metrics per
+#'       protein}
 #'   }
 #'
 #' @examples
 #' \dontrun{
-#' # Uso básico
+#' # Basic usage
 #' result <- preprocess_spectronaut(
 #'   file_path = "data-raw/Spectronaut_Report.tsv",
 #'   condition_order = c("Control", "Treatment")
 #' )
 #'
-#' # Acceder a componentes
+#' # Access the components
 #' head(result$metadata)
 #' head(result$protein_quant)
 #'
-#' # Con exportación
+#' # With export
 #' result <- preprocess_spectronaut(
 #'   file_path = "data-raw/Spectronaut_Report.tsv",
 #'   condition_order = c("A", "B", "C", "D"),
@@ -205,22 +207,22 @@ preprocess_spectronaut <- function(
     verbose = TRUE
 ) {
 
-  # --- Validación de argumentos ---
+  # --- Argument validation ---
   agg_coverage_run <- match.arg(agg_coverage_run)
   agg_coverage_global <- match.arg(agg_coverage_global)
   agg_mw <- match.arg(agg_mw)
   agg_cscore_runwise <- match.arg(agg_cscore_runwise)
 
   if (!file.exists(file_path)) {
-    stop("Archivo no encontrado: ", file_path)
+    stop("File not found: ", file_path)
   }
 
   if (length(condition_order) == 0 || !is.character(condition_order)) {
-    stop("condition_order debe ser un vector de caracteres no vacío.")
+    stop("condition_order must be a non-empty character vector.")
   }
 
-  # --- Lectura del archivo ---
-  if (verbose) message("Leyendo archivo: ", basename(file_path))
+  # --- Reading the file ---
+  if (verbose) message("Reading file: ", basename(file_path))
 
   df <- read.delim(
     file_path,
@@ -230,28 +232,28 @@ preprocess_spectronaut <- function(
     check.names = TRUE
   )
 
-  # Normalizar nombres de columnas
+  # Normalize the column names
 
   df <- .normalize_column_names(df)
 
-  # Validar columnas requeridas
+  # Validate the required columns
   required_cols <- c(
     "R.FileName", "R.Condition", "R.Replicate",
     "PG.ProteinGroups", "PG.Quantity"
   )
   .validate_spectronaut_columns(df, required_cols)
 
-  # Crear columna Coding
+  # Create the Coding column
   df <- .make_coding(df, condition_order)
 
-  # Obtener niveles de Coding ordenados (calculado una sola vez)
+  # Get the sorted Coding levels (computed only once)
   coding_levels <- df %>%
     distinct(R.Condition, R.Replicate, Coding) %>%
     arrange(R.Condition, R.Replicate) %>%
     pull(Coding)
 
-  # --- Crear run_summary (metadata) ---
-  if (verbose) message("Generando metadata de runs...")
+  # --- Create run_summary (metadata) ---
+  if (verbose) message("Generating run metadata...")
 
   summary_cols <- c(
     "R.FileName", "R.Condition", "R.Replicate", "Coding",
@@ -271,13 +273,13 @@ preprocess_spectronaut <- function(
 
   rownames(run_summary) <- run_summary$Coding
 
-  # --- Preparar agregadores ---
+  # --- Prepare the aggregators ---
   cov_fun_run <- .get_aggregator(agg_coverage_run)
   cov_fun_global <- .get_aggregator(agg_coverage_global)
   mw_fun <- .get_aggregator(agg_mw)
   cscore_agg <- .get_aggregator(agg_cscore_runwise)
 
-  # --- MW limpio (compartido entre protein_ID y protein_QUANT) ---
+  # --- Cleaned MW (shared between protein_ID and protein_QUANT) ---
   mw_clean <- .clean_semicolon_numeric(
     df, "PG.MolecularWeight",
     group_cols = "PG.ProteinGroups",
@@ -288,9 +290,9 @@ preprocess_spectronaut <- function(
   # ==========================================================================
   # protein_ID
   # ==========================================================================
-  if (verbose) message("Procesando protein_ID...")
+  if (verbose) message("Processing protein_ID...")
 
-  # Coverage run-wise limpio
+  # Cleaned run-wise coverage
 
   coverage_clean <- .clean_semicolon_numeric(
     df, "PG.Coverage",
@@ -299,7 +301,7 @@ preprocess_spectronaut <- function(
     agg_fun = cov_fun_run
   )
 
-  # Integrar coverage limpio y tipar numéricos
+  # Merge in the cleaned coverage and cast the numeric columns
   df2 <- df %>%
     select(-PG.Coverage) %>%
     left_join(coverage_clean, by = c("PG.ProteinGroups", "Coding")) %>%
@@ -309,10 +311,10 @@ preprocess_spectronaut <- function(
       PG.Cscore.RunWise = suppressWarnings(as.numeric(PG.Cscore.RunWise))
     )
 
-  # Información base
+  # Base information
   base_info <- .extract_base_info(df2, mw_clean)
 
-  # Métricas run-wise a formato ancho
+  # Run-wise metrics to wide format
   runwise_cols <- c(
     "PG.NrOfPrecursorsIdentified", "PG.NrOfStrippedSequencesIdentified",
     "PG.Coverage", "PG.Cscore.RunWise"
@@ -336,11 +338,11 @@ preprocess_spectronaut <- function(
     select(PG.ProteinGroups, metric_coding, value) %>%
     pivot_wider(names_from = metric_coding, values_from = value, names_repair = "unique")
 
-  # Ensamblar protein_ID
+  # Assemble protein_ID
   protein_ID <- base_info %>%
     left_join(runwise_wide, by = "PG.ProteinGroups")
 
-  # Ordenar columnas
+  # Order the columns
   static_cols <- c("PG.ProteinGroups", "PG.ProteinDescriptions", "PG.Genes", "PG.MolecularWeight")
   metric_order <- c(
     "PG.NrOfPrecursorsIdentified", "PG.NrOfStrippedSequencesIdentified",
@@ -353,20 +355,20 @@ preprocess_spectronaut <- function(
     select(all_of(final_cols)) %>%
     arrange(PG.ProteinGroups)
 
-  # Validar unicidad
+  # Check uniqueness
   if (n_distinct(protein_ID$PG.ProteinGroups) != nrow(protein_ID)) {
     stop(
-      "Error de integridad: protein_ID contiene filas duplicadas por PG.ProteinGroups. ",
-      "Revisa los datos de entrada."
+      "Integrity error: protein_ID contains duplicated rows per PG.ProteinGroups. ",
+      "Check the input data."
     )
   }
 
   # ==========================================================================
   # protein_QUANT
   # ==========================================================================
-  if (verbose) message("Procesando protein_QUANT...")
+  if (verbose) message("Processing protein_QUANT...")
 
-  # Coverage.Global limpio
+  # Cleaned Coverage.Global
   coverage_global_clean <- .clean_semicolon_numeric(
     df, "PG.Coverage.Global",
     group_cols = "PG.ProteinGroups",
@@ -374,7 +376,7 @@ preprocess_spectronaut <- function(
     agg_fun = cov_fun_global
   )
 
-  # Preparar df para QUANT
+  # Prepare the df for QUANT
   df4 <- df %>%
     select(-any_of("PG.Coverage.Global")) %>%
     left_join(coverage_global_clean, by = "PG.ProteinGroups") %>%
@@ -387,10 +389,10 @@ preprocess_spectronaut <- function(
       PG.Cscore = suppressWarnings(as.numeric(PG.Cscore))
     )
 
-  # Información base (reutiliza mw_clean)
+  # Base information (reuses mw_clean)
   base_info2 <- .extract_base_info(df4, mw_clean)
 
-  # Métricas globales
+  # Global metrics
   global_metrics <- df4 %>%
     group_by(PG.ProteinGroups) %>%
     summarise(
@@ -401,7 +403,7 @@ preprocess_spectronaut <- function(
       .groups = "drop"
     )
 
-  # Métricas por muestra a formato ancho
+  # Per-sample metrics to wide format
   pivot_metrics <- c(
     "PG.NrOfPrecursorsUsedForQuantification",
     "PG.NrOfStrippedSequencesUsedForQuantification",
@@ -424,12 +426,12 @@ preprocess_spectronaut <- function(
     select(PG.ProteinGroups, metric_coding, value) %>%
     pivot_wider(names_from = metric_coding, values_from = value, names_repair = "unique")
 
-  # Ensamblar protein_QUANT
+  # Assemble protein_QUANT
   protein_QUANT <- base_info2 %>%
     left_join(global_metrics, by = "PG.ProteinGroups") %>%
     left_join(runwise_wide2, by = "PG.ProteinGroups")
 
-  # Ordenar columnas
+  # Order the columns
   static_cols2 <- c("PG.ProteinGroups", "PG.ProteinDescriptions", "PG.Genes", "PG.MolecularWeight")
   global_cols <- c(
     "PG.NrOfPrecursorsIdentified.Global",
@@ -444,19 +446,19 @@ preprocess_spectronaut <- function(
     select(all_of(final_cols2)) %>%
     arrange(PG.ProteinGroups)
 
-  # Validar unicidad
+  # Check uniqueness
   if (n_distinct(protein_QUANT$PG.ProteinGroups) != nrow(protein_QUANT)) {
     stop(
-      "Error de integridad: protein_QUANT contiene filas duplicadas por PG.ProteinGroups. ",
-      "Revisa los datos de entrada."
+      "Integrity error: protein_QUANT contains duplicated rows per PG.ProteinGroups. ",
+      "Check the input data."
     )
   }
 
   # ==========================================================================
-  # Exportación opcional
+  # Optional export
   # ==========================================================================
   if (!is.null(export_dir)) {
-    if (verbose) message("Exportando archivos a: ", export_dir)
+    if (verbose) message("Exporting files to: ", export_dir)
 
     if (!dir.exists(export_dir)) {
       dir.create(export_dir, recursive = TRUE)
@@ -484,18 +486,18 @@ preprocess_spectronaut <- function(
       na = ""
     )
 
-    if (verbose) message("Archivos exportados exitosamente.")
+    if (verbose) message("Files exported successfully.")
   }
 
   # ==========================================================================
-  # Construir resultado
+  # Build the result
   # ==========================================================================
   if (verbose) {
     message(
-      "Procesamiento completado:\n",
+      "Processing complete:\n",
       "  - Runs: ", nrow(run_summary), "\n",
-      "  - Proteínas (ID): ", nrow(protein_ID), "\n",
-      "  - Proteínas (QUANT): ", nrow(protein_QUANT)
+      "  - Proteins (ID): ", nrow(protein_ID), "\n",
+      "  - Proteins (QUANT): ", nrow(protein_QUANT)
     )
   }
 
@@ -510,16 +512,16 @@ preprocess_spectronaut <- function(
 }
 
 # =============================================================================
-# Métodos para clase spectronaut_data
+# Methods for the spectronaut_data class
 # =============================================================================
 
 #' @export
 print.spectronaut_data <- function(x, ...) {
-  cat("Datos de Spectronaut preprocesados\n")
-  cat("----------------------------------\n")
+  cat("Preprocessed Spectronaut data\n")
+  cat("-----------------------------\n")
   cat("Runs (metadata):", nrow(x$metadata), "\n")
-  cat("Proteínas (ID):", nrow(x$protein_id), "\n")
-  cat("Proteínas (QUANT):", nrow(x$protein_quant), "\n")
-  cat("\nCondiciones:", paste(unique(x$metadata$R.Condition), collapse = ", "), "\n")
+  cat("Proteins (ID):", nrow(x$protein_id), "\n")
+  cat("Proteins (QUANT):", nrow(x$protein_quant), "\n")
+  cat("\nConditions:", paste(unique(x$metadata$R.Condition), collapse = ", "), "\n")
   invisible(x)
 }

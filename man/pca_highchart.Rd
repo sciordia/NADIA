@@ -2,7 +2,7 @@
 % Please edit documentation in R/PCA_Highcharts_Final.R
 \name{pca_highchart}
 \alias{pca_highchart}
-\title{PCA Plot Interactivo con Highcharts}
+\title{Interactive PCA Plot with Highcharts}
 \usage{
 pca_highchart(
   scores_df,
@@ -22,42 +22,42 @@ pca_highchart(
 )
 }
 \arguments{
-\item{scores_df}{Data frame generado por build_pca_scores() con columnas:
+\item{scores_df}{Data frame produced by build_pca_scores() with columns:
 PC1, PC2, PC1_Perc, PC2_Perc, Subset, Condition, Replicate, SampleID}
 
-\item{color_by}{Columna para colorear los puntos (default: "Condition")}
+\item{color_by}{Column used to colour the points (default: "Condition")}
 
-\item{group_order}{Vector con el orden de los grupos/condiciones (opcional)}
+\item{group_order}{Vector with the order of the groups/conditions (optional)}
 
-\item{palette}{Vector nombrado de colores o NULL para paleta automática}
+\item{palette}{Named vector of colours, or NULL for an automatic palette}
 
-\item{title}{Título del gráfico (opcional, usa Subset por defecto)}
+\item{title}{Chart title (optional, defaults to Subset)}
 
-\item{addEllipses}{Mostrar elipses/hulls alrededor de los grupos (default: TRUE)}
+\item{addEllipses}{Show ellipses/hulls around the groups (default: TRUE)}
 
-\item{ellipse_type}{Tipo de elipse: "convex" para convex hull o "confidence"
-para elipse de confianza basada en distribución normal (default: "convex")}
+\item{ellipse_type}{Ellipse type: "convex" for a convex hull or "confidence"
+for a confidence ellipse based on the normal distribution (default: "convex")}
 
-\item{ellipse_level}{Nivel de confianza para ellipse_type = "confidence"
-(default: 0.95). Valores típicos: 0.95, 0.90, 0.68}
+\item{ellipse_level}{Confidence level for ellipse_type = "confidence"
+(default: 0.95). Typical values: 0.95, 0.90, 0.68}
 
-\item{ellipse_fill_opacity}{Opacidad del relleno (0-1, default: 0.12)}
+\item{ellipse_fill_opacity}{Fill opacity (0-1, default: 0.12)}
 
-\item{ellipse_line_width}{Ancho de línea del contorno (default: 1)}
+\item{ellipse_line_width}{Outline line width (default: 1)}
 
-\item{ellipse_npoints}{Número de puntos para dibujar la elipse de confianza
-(default: 100). Solo aplica para ellipse_type = "confidence"}
+\item{ellipse_npoints}{Number of points used to draw the confidence ellipse
+(default: 100). Only applies to ellipse_type = "confidence"}
 
-\item{point_size}{Radio de los puntos (default: 5)}
+\item{point_size}{Point radius (default: 5)}
 
-\item{show_labels}{Mostrar etiquetas de los puntos (SampleID) (default: FALSE)}
+\item{show_labels}{Show the point labels (SampleID) (default: FALSE)}
 
-\item{label_size}{Tamaño de fuente de las etiquetas en px (default: 10)}
+\item{label_size}{Label font size in px (default: 10)}
 }
 \value{
-Objeto highchart
+A highchart object
 }
 \description{
-Genera un scatter plot de PCA con opción de mostrar elipses o convex hulls
-por grupo, similar a factoextra::fviz_pca_ind.
+Builds a PCA scatter plot with the option of showing per-group ellipses or
+convex hulls, similar to factoextra::fviz_pca_ind.
 }

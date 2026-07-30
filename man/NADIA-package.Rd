@@ -4,31 +4,31 @@
 \name{NADIA-package}
 \alias{NADIA-package}
 \alias{NADIA}
-\title{NADIA: análisis de proteómica DIA consciente de los valores ausentes}
+\title{NADIA: Missing Value-Aware DIA Proteomics Analysis}
 \description{
-Pipeline completo para el análisis de expresión diferencial de proteínas, con
-especial atención al tratamiento de los valores ausentes característicos de la
-adquisición independiente de datos. Cubre el recorrido íntegro desde el report
-crudo hasta la figura interactiva.
+A complete pipeline for differential protein expression analysis, with
+particular attention to the missing values that characterise
+data-independent acquisition. It covers the whole journey from the raw report
+to the interactive figure.
 }
 \details{
-El paquete se organiza en cuatro bloques:
+The package is organised in four blocks:
 
 \describe{
-\item{Preprocesado}{\code{\link[=preprocess_spectronaut]{preprocess_spectronaut()}} para Spectronaut/DIA-NN,
-\code{\link[=preprocess_tmt]{preprocess_tmt()}} y \code{\link[=preprocess_lfq]{preprocess_lfq()}} para Proteome Discoverer. Los tres
-devuelven el mismo objeto S3 \code{proteomics_data}, de modo que el resto del
-pipeline los consume sin cambios.}
-\item{Procesado}{\code{\link[=process_proteomics]{process_proteomics()}} coordina normalización (13 métodos),
-corrección de lote opcional, imputación (19 métodos, incluidos los híbridos
-MAR/MNAR) y expresión diferencial con limma o limpa.}
-\item{Métricas y benchmarking}{\code{\link[=normalization_metrics]{normalization_metrics()}},
-\code{\link[=imputation_metrics]{imputation_metrics()}}, \code{\link[=benchmarking_proteomics]{benchmarking_proteomics()}} y
-\code{\link[=benchmarking_multiple]{benchmarking_multiple()}} evalúan y ordenan las combinaciones de métodos.}
-\item{Visualización}{gráficos interactivos con Highcharts
+\item{Preprocessing}{\code{\link[=preprocess_spectronaut]{preprocess_spectronaut()}} for Spectronaut/DIA-NN,
+\code{\link[=preprocess_tmt]{preprocess_tmt()}} and \code{\link[=preprocess_lfq]{preprocess_lfq()}} for Proteome Discoverer. All
+three return the same \code{proteomics_data} S3 object, so the rest of the
+pipeline consumes them unchanged.}
+\item{Processing}{\code{\link[=process_proteomics]{process_proteomics()}} coordinates normalization (13
+methods), optional batch correction, imputation (19 methods, including
+the MAR/MNAR hybrids) and differential expression with limma or limpa.}
+\item{Metrics and benchmarking}{\code{\link[=normalization_metrics]{normalization_metrics()}},
+\code{\link[=imputation_metrics]{imputation_metrics()}}, \code{\link[=benchmarking_proteomics]{benchmarking_proteomics()}} and
+\code{\link[=benchmarking_multiple]{benchmarking_multiple()}} evaluate and rank method combinations.}
+\item{Visualization}{interactive plots with Highcharts
 (\code{\link[=boxplot_highchart_list]{boxplot_highchart_list()}}, \code{\link[=volcano_highchart_list]{volcano_highchart_list()}},
-\code{\link[=pca_highchart_list]{pca_highchart_list()}}), estáticos con ggplot2 y ComplexHeatmap
-(\code{\link[=proteomics_heatmap]{proteomics_heatmap()}}), y tablas con reactable
+\code{\link[=pca_highchart_list]{pca_highchart_list()}}), static ones with ggplot2 and ComplexHeatmap
+(\code{\link[=proteomics_heatmap]{proteomics_heatmap()}}), and tables with reactable
 (\code{\link[=results_list_reactable]{results_list_reactable()}}).}
 }
 }

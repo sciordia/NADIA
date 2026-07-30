@@ -2,18 +2,18 @@
 % Please edit documentation in R/Heatmap_tidyHeatmap.R
 \name{get_annotation_palette}
 \alias{get_annotation_palette}
-\title{Obtener paleta de colores para anotaciones categóricas}
+\title{Build the Colour Palette for Categorical Annotations}
 \usage{
 get_annotation_palette(levels, palette = NULL)
 }
 \arguments{
-\item{levels}{Vector de niveles (categorías)}
+\item{levels}{Vector of levels (categories)}
 
-\item{palette}{Especificación de paleta (mismo formato que get_heatmap_palette)}
+\item{palette}{Palette specification (same format as get_heatmap_palette)}
 }
 \value{
-Vector nombrado de colores
+Named vector of colours
 }
 \description{
-Obtener paleta de colores para anotaciones categóricas
+Build the Colour Palette for Categorical Annotations
 }

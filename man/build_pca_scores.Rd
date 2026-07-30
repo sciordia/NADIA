@@ -2,7 +2,7 @@
 % Please edit documentation in R/PCA_Highcharts_Final.R
 \name{build_pca_scores}
 \alias{build_pca_scores}
-\title{Construir dataframe de scores de PCA desde datos en formato long}
+\title{Build a PCA scores data frame from data in long format}
 \usage{
 build_pca_scores(
   pca_input,
@@ -17,38 +17,38 @@ build_pca_scores(
 )
 }
 \arguments{
-\item{pca_input}{Data frame en formato long con columnas:
+\item{pca_input}{Data frame in long format with columns:
 \itemize{
-\item SampleID: Identificador de muestra
-\item FeatureID: Identificador de proteína/feature
-\item Intensity: Valor de intensidad (log2)
-\item Condition: Condición experimental
-\item Replicate: Número de réplica (opcional)
-\item sig_any: Lógico indicando significancia en cualquier comparación (para mode="any")
-\item adjP_*: Columnas de p-valores ajustados por comparación (para mode="specific")
+\item SampleID: Sample identifier
+\item FeatureID: Protein/feature identifier
+\item Intensity: Intensity value (log2)
+\item Condition: Experimental condition
+\item Replicate: Replicate number (optional)
+\item sig_any: Logical flagging significance in any comparison (for mode="any")
+\item adjP_*: Adjusted p-value columns, one per comparison (for mode="specific")
 }}
 
-\item{mode}{Modo de filtrado de proteínas: "all", "any", o "specific"}
+\item{mode}{Protein filtering mode: "all", "any", or "specific"}
 
-\item{alpha}{Umbral de significancia para modo "specific" (default: 0.05)}
+\item{alpha}{Significance threshold for mode "specific" (default: 0.05)}
 
-\item{comparison}{Nombre de la comparación para modo "specific" (ej: "B-A")}
+\item{comparison}{Name of the comparison for mode "specific" (e.g. "B-A")}
 
-\item{subset_label}{Etiqueta personalizada para el subset (opcional)}
+\item{subset_label}{Custom label for the subset (optional)}
 
-\item{center}{Centrar datos antes de PCA (default: TRUE)}
+\item{center}{Center the data before PCA (default: TRUE)}
 
-\item{scale.}{Escalar datos antes de PCA (default: TRUE)}
+\item{scale.}{Scale the data before PCA (default: TRUE)}
 
-\item{filter_samples_to_comparison}{Filtrar muestras solo a las condiciones
-de la comparación específica (default: FALSE)}
+\item{filter_samples_to_comparison}{Restrict samples to the conditions
+involved in the specific comparison (default: FALSE)}
 
-\item{cond_col}{Nombre de la columna de condición (default: "Condition")}
+\item{cond_col}{Name of the condition column (default: "Condition")}
 }
 \value{
-Data frame con columnas: SampleID, PC1, PC2, PC1_Perc, PC2_Perc,
+Data frame with columns: SampleID, PC1, PC2, PC1_Perc, PC2_Perc,
 Subset, Condition, Replicate
 }
 \description{
-Construir dataframe de scores de PCA desde datos en formato long
+Build a PCA scores data frame from data in long format
 }

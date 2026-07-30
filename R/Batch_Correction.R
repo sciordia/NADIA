@@ -1,5 +1,5 @@
 # =============================================================================
-# Batch Correction — PVCA + BERT
+# Batch Correction -- PVCA + BERT
 # =============================================================================
 #
 # Two complementary modules for batch effect analysis:
@@ -188,15 +188,16 @@
   # Initialize accumulator for weighted variance proportions
   varcomp_accum <- setNames(rep(0, length(all_terms) + 1),
                             c(all_terms, "resid"))
-  # Peso efectivo de los PCs realmente usados (para renormalizar si alguno se
-  # salta por fallo de lmer o varianza total nula; asi los pesos suman 1).
+  # Effective weight of the PCs actually used (to renormalize if any is skipped
+  # because lmer failed or the total variance was zero; this way the weights
+  # sum to 1).
   used_weight <- 0
 
   for (k in seq_len(n_pcs)) {
     fit_df$y <- pc_scores[, k]
     formula_str <- paste0("y ~ 1 + ", re_formula_str)
-    # tryCatch: un fallo de convergencia en un solo PC no debe abortar toda la
-    # descomposicion de varianza; se salta ese PC y se sigue con el resto.
+    # tryCatch: a convergence failure on a single PC must not abort the whole
+    # variance decomposition; that PC is skipped and the rest proceed.
     fm <- tryCatch(
       lme4::lmer(as.formula(formula_str), data = fit_df,
                  REML = TRUE,
@@ -207,8 +208,8 @@
                  )),
       error = function(e) {
         if (verbose)
-          message("  PVCA: lmer fallo en PC", k, " (", conditionMessage(e),
-                  "); se omite este PC.")
+          message("  PVCA: lmer failed on PC", k, " (", conditionMessage(e),
+                  "); this PC is skipped.")
         NULL
       }
     )
@@ -234,8 +235,8 @@
     used_weight <- used_weight + pc_weights[k]
   }
 
-  # Renormalizar sobre el peso efectivo de los PCs usados para que los pesos
-  # sumen 1 aunque se hayan omitido PCs.
+  # Renormalize over the effective weight of the PCs used so that the weights
+  # sum to 1 even if some PCs were skipped.
   if (used_weight > 0 && used_weight < 1) {
     varcomp_accum <- varcomp_accum / used_weight
   }
@@ -506,7 +507,7 @@ pvca_plot <- function(pvca_res,
 }
 
 
-#' PVCA Analysis — Orchestrator
+#' PVCA Analysis -- Orchestrator
 #'
 #' Runs the full PVCA workflow: compute variance components, generate plot,
 #' and optionally export results.
@@ -714,7 +715,7 @@ pvca_analysis <- function(se,
 
 
 # =============================================================================
-# SECTION 3: BATCH CORRECTION — INTERNAL HELPERS
+# SECTION 3: BATCH CORRECTION -- INTERNAL HELPERS
 # =============================================================================
 
 #' Check that BERT is available
@@ -743,7 +744,7 @@ pvca_analysis <- function(se,
   if (n_na > 0)
     stop("Batch column '", batch_column, "' has ", n_na,
          " sample(s) with NA batch. Assign a batch to every sample (or remove ",
-         "those samples) before batch correction — BERT/ComBat cannot handle ",
+         "those samples) before batch correction -- BERT/ComBat cannot handle ",
          "NA batch labels.")
 
   n_batch <- length(unique(batch_vals))
@@ -807,7 +808,7 @@ pvca_analysis <- function(se,
   n_samples  <- ncol(mat)
   n_features <- nrow(mat)
 
-  # Transpose: proteins x samples → samples x features (BERT format)
+  # Transpose: proteins x samples -> samples x features (BERT format)
   bert_input <- as.data.frame(t(mat))
 
   # Add Batch column (integer required by BERT)
@@ -815,8 +816,8 @@ pvca_analysis <- function(se,
 
   # Add covariate columns if provided (Cov_1, Cov_2, ...)
   if (!is.null(covariates)) {
-    # Realinear por nombre de muestra antes del cbind (defensivo: no depender
-    # de que el orden de filas de covariates coincida con colnames(mat)).
+    # Realign by sample name before the cbind (defensive: do not rely on the
+    # row order of covariates matching colnames(mat)).
     if (!is.null(rownames(covariates)) &&
         all(orig_colnames %in% rownames(covariates))) {
       covariates <- covariates[orig_colnames, , drop = FALSE]
@@ -832,13 +833,13 @@ pvca_analysis <- function(se,
                qualitycontrol = qualitycontrol)
   )
 
-  # Extract corrected matrix (remove Batch, Cov_* y nombres reservados de BERT)
+  # Extract corrected matrix (remove Batch, Cov_* and BERT's reserved names)
   meta_cols <- c("Batch", "Label", "Sample", "Reference", "Cov",
                  grep("^Cov_", colnames(result), value = TRUE))
   corrected <- as.matrix(result[, !colnames(result) %in% meta_cols,
                                 drop = FALSE])
 
-  # Transpose back: samples x features → proteins x samples
+  # Transpose back: samples x features -> proteins x samples
   corrected <- t(corrected)
 
   # Verify dimensions
@@ -855,7 +856,7 @@ pvca_analysis <- function(se,
 
 
 # =============================================================================
-# SECTION 4: BATCH CORRECTION — PUBLIC FUNCTION
+# SECTION 4: BATCH CORRECTION -- PUBLIC FUNCTION
 # =============================================================================
 
 #' Batch Correction with BERT
@@ -879,10 +880,10 @@ pvca_analysis <- function(se,
 #' @param covariates Character vector of column names from colData(se) to
 #'   use as categorical covariates for batch correction (default NULL).
 #'   These are mapped to BERT's Cov_1, Cov_2, ... format internally.
-#'   IMPORTANTE: para ComBat/limma, incluye aqui la variable biologica de
-#'   interes (p.ej. la condicion) para PRESERVARLA; de lo contrario ComBat
-#'   elimina toda la varianza del batch y puede borrar senal biologica si
-#'   condicion y batch estan confundidos. Deben ser covariables categoricas.
+#'   IMPORTANT: for ComBat/limma, include here the biological variable of
+#'   interest (e.g. the condition) in order to PRESERVE it; otherwise ComBat
+#'   removes all batch-associated variance and can erase biological signal when
+#'   condition and batch are confounded. They must be categorical covariates.
 #' @param qualitycontrol Logical. Compute ASW (Average Silhouette Width)
 #'   quality metrics for raw vs corrected data (default FALSE).
 #' @param verbose Logical (default TRUE).
@@ -975,14 +976,14 @@ batch_correct_proteomics <- function(
            paste(missing_covs, collapse = ", "))
     cov_df <- cd[, covariates, drop = FALSE]
     colnames(cov_df) <- paste0("Cov_", seq_along(covariates))
-    rownames(cov_df) <- colnames(mat)  # para el realineado por nombre en .bc_run_bert
+    rownames(cov_df) <- colnames(mat)  # for the by-name realignment in .bc_run_bert
   } else if (algorithm %in% c("ComBat", "limma")) {
-    warning("batch_correct_proteomics: 'covariates = NULL' con algorithm='",
-            algorithm, "'. ComBat/limma eliminan TODA la varianza asociada al ",
-            "batch; si la condicion biologica esta (parcialmente) confundida con ",
-            "el batch, se perdera senal biologica real. Se recomienda pasar la ",
-            "variable de condicion en 'covariates' (batch_covariates) para ",
-            "preservarla.", call. = FALSE)
+    warning("batch_correct_proteomics: 'covariates = NULL' with algorithm='",
+            algorithm, "'. ComBat/limma remove ALL batch-associated variance; ",
+            "if the biological condition is (partially) confounded with the ",
+            "batch, real biological signal will be lost. Passing the condition ",
+            "variable in 'covariates' (batch_covariates) is recommended in order ",
+            "to preserve it.", call. = FALSE)
   }
 
   # --- Apart features ComBat cannot fit (zero within-batch variance) ---
@@ -993,8 +994,8 @@ batch_correct_proteomics <- function(
   combat_bad <- logical(nrow(mat))
   if (algorithm == "ComBat") combat_bad <- .bc_combat_unfittable(mat, batch_vals)
   if (any(combat_bad) && verbose)
-    cat("- Features no corregibles (varianza intra-batch nula):", sum(combat_bad),
-        "-> se mantienen sin ajustar\n")
+    cat("- Uncorrectable features (zero within-batch variance):", sum(combat_bad),
+        "-> kept unadjusted\n")
 
   # --- Run BERT ---
   if (verbose) cat("- Running BERT ...\n")
@@ -1057,7 +1058,7 @@ batch_correct_proteomics <- function(
     cat("- New assay added: '", corrected_assay_name, "'\n", sep = "")
     cat("- Assays in SE:", paste(SummarizedExperiment::assayNames(se),
                                  collapse = ", "), "\n")
-    cat("=== BATCH CORRECTION COMPLETADA ===\n")
+    cat("=== BATCH CORRECTION COMPLETE ===\n")
   }
 
   se

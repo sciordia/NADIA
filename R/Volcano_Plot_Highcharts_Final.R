@@ -1,24 +1,24 @@
 
-# Cargar las librerias
+# Load the libraries
 
 
-#' Volcano Plot Interactivo con Highcharter
+#' Interactive Volcano Plot with Highcharter
 #'
-#' @param de_res Data frame con resultados de expresión diferencial
-#' @param ain Vector de assays a filtrar (opcional)
-#' @param comparisons Vector de comparaciones a incluir (opcional)
-#' @param lfc_thr Umbral de log2 fold-change (default: 0)
-#' @param alpha Umbral de significancia (default: 0.05)
-#' @param p_col Columna de p-valores a usar
-#' @param point_size Tamaño de los puntos (default: 4)
-#' @param colors Lista con colores para "up", "down", "ns" (ignorado si se usa palette)
-#' @param palette Nombre de paleta de paletteer (ej: "ggsci::default_jco"). Usa 3 colores: up, down, ns
-#' @param show_top_genes Número de genes top a etiquetar por significancia (default: 0)
-#' @param highlight_genes Vector de nombres de genes a resaltar manualmente (default: NULL)
-#' @param title Título personalizado del gráfico (default: NULL, usa "Comparison (Assay)").
-#'   Usa \code{\{comparison\}} como placeholder (ej: "Volcano Plot: \{comparison\}" -> "Volcano Plot: B-A")
+#' @param de_res Data frame with differential expression results
+#' @param ain Vector of assays to filter on (optional)
+#' @param comparisons Vector of comparisons to include (optional)
+#' @param lfc_thr log2 fold-change threshold (default: 0)
+#' @param alpha Significance threshold (default: 0.05)
+#' @param p_col Column of p-values to use
+#' @param point_size Point size (default: 4)
+#' @param colors List of colours for "up", "down", "ns" (ignored when palette is used)
+#' @param palette Name of a paletteer palette (e.g. "ggsci::default_jco"). Uses 3 colours: up, down, ns
+#' @param show_top_genes Number of top genes to label by significance (default: 0)
+#' @param highlight_genes Vector of gene names to highlight manually (default: NULL)
+#' @param title Custom chart title (default: NULL, uses "Comparison (Assay)").
+#'   Use \code{\{comparison\}} as a placeholder (e.g. "Volcano Plot: \{comparison\}" -> "Volcano Plot: B-A")
 #'
-#' @return Lista de objetos highchart
+#' @return List of highchart objects
 #' @export
 volcano_highchart_list <- function(
     de_res,
@@ -35,10 +35,10 @@ volcano_highchart_list <- function(
     title = NULL
 ) {
   
-  # --- Gestión de colores ---
+  # --- Colour handling ---
   if (!is.null(palette)) {
     if (!requireNamespace("paletteer", quietly = TRUE)) {
-      stop("El paquete 'paletteer' es necesario para usar paletas. Instálalo con install.packages('paletteer')")
+      stop("The 'paletteer' package is required to use palettes. Install it with install.packages('paletteer')")
     }
     pal_colors <- as.character(paletteer::paletteer_d(palette, n = 3))
     colors <- list(
@@ -55,18 +55,18 @@ volcano_highchart_list <- function(
     colors <- modifyList(default_colors, colors %||% list())
   }
   
-  # --- Validación de columnas requeridas ---
+  # --- Validation of the required columns ---
   validate_columns <- function(df) {
     required <- c("logFC", "Comparison")
     missing <- setdiff(required, names(df))
     if (length(missing) > 0) {
-      stop("Columnas requeridas faltantes: ", paste(missing, collapse = ", "))
+      stop("Missing required columns: ", paste(missing, collapse = ", "))
     }
   }
   
   validate_columns(de_res)
   
-  # --- Filtrado por Assay y Comparison ---
+  # --- Filtering by Assay and Comparison ---
   if (!is.null(ain) && "Assay" %in% names(de_res)) {
     de_res <- de_res[de_res$Assay %in% ain, , drop = FALSE]
   }
@@ -78,17 +78,17 @@ volcano_highchart_list <- function(
   }
   
   if (nrow(de_res) == 0) {
-    stop("El data frame está vacío tras aplicar filtros.")
+    stop("The data frame is empty after applying the filters.")
   }
   
   p_col <- detect_pvalue_col(de_res, p_col)
   
-  # --- Función auxiliar para asignar categoría de cambio ---
+  # --- Helper that assigns the change category ---
   assign_change <- function(dt) {
     pvals <- suppressWarnings(as.numeric(dt[[p_col]]))
     lfc <- as.numeric(dt$logFC)
 
-    # Usar vector independiente para evitar problemas con factores/tibbles
+    # Use a standalone vector to avoid problems with factors/tibbles
     change_vec <- rep("Not Significant", nrow(dt))
     significant <- !is.na(pvals) & pvals < alpha & abs(lfc) >= lfc_thr
     change_vec[significant & lfc > 0] <- "Up"
@@ -104,14 +104,15 @@ volcano_highchart_list <- function(
     "Down"            = colors$down
   )
   
-  # --- Generar lista de plots ---
+  # --- Build the list of plots ---
   hclist <- lapply(comparisons, function(comp) {
     
     dt <- de_res[de_res$Comparison == comp, , drop = FALSE]
     if (nrow(dt) == 0) return(NULL)
 
-    # Filtrar filas con p-valor NA (colocarlas arriba del volcano por el
-    # reemplazo -log10(NA) seria enganoso). Se conserva p=0 (Inf -> tope real).
+    # Drop rows with an NA p-value: replacing -log10(NA) would push them to the
+    # top of the volcano, which would be misleading. p = 0 is kept (Inf is
+    # mapped to the real ceiling below).
     dt <- dt[!is.na(suppressWarnings(as.numeric(dt[[p_col]]))), , drop = FALSE]
     if (nrow(dt) == 0) return(NULL)
 
@@ -123,7 +124,7 @@ volcano_highchart_list <- function(
     max_finite <- if (length(finite_ml) > 0) max(finite_ml) else 1
     dt$minusLog10P[!is.finite(dt$minusLog10P)] <- max_finite * 1.1
     
-    # --- Identificar genes a destacar ---
+    # --- Identify the genes to highlight ---
     dt$Highlight <- FALSE
     
     if (show_top_genes > 0) {
@@ -139,11 +140,11 @@ volcano_highchart_list <- function(
       dt$Highlight[dt$Gene.Names %in% highlight_genes] <- TRUE
     }
     
-    # --- Separar datos: normales vs destacados ---
+    # --- Split the data: regular vs highlighted points ---
     dt_normal <- dt[!dt$Highlight, ]
     dt_highlighted <- dt[dt$Highlight, ]
     
-    # --- Título del plot ---
+    # --- Plot title ---
     if (!is.null(title)) {
       title_txt <- gsub("{comparison}", comp, title, fixed = TRUE)
     } else {
@@ -166,7 +167,7 @@ volcano_highchart_list <- function(
       ))
     }
     
-    # --- Construir highchart base con puntos normales ---
+    # --- Build the base highchart with the regular points ---
     hc <- highcharter::hchart(
       dt_normal,
       type = "scatter",
@@ -218,7 +219,7 @@ volcano_highchart_list <- function(
             dashStyle = "Dash",
             zIndex = 2,
             label = list(
-              text = paste0("α = ", alpha),
+              text = paste0("\u03b1 = ", alpha),
               style = list(color = "#6C757D", fontSize = "10px"),
               align = "right",
               x = -10,
@@ -240,7 +241,7 @@ volcano_highchart_list <- function(
           "<div style='padding: 4px;'>",
           "<b style='font-size: 13px; color: #1D3557;'>{point.gene}</b><br/>",
           "<span style='color: #6C757D;'>Protein:</span> {point.protein}<br/>",
-          "<span style='color: #6C757D;'>log₂FC:</span> <b>{point.x:.3f}</b><br/>",
+          "<span style='color: #6C757D;'>log\u2082FC:</span> <b>{point.x:.3f}</b><br/>",
           "<span style='color: #6C757D;'>", p_col, ":</span> <b>{point.pval}</b>",
           "</div>"
         )
@@ -274,17 +275,17 @@ volcano_highchart_list <- function(
         buttons = list(contextButton = list(menuItems = c("downloadPNG", "downloadSVG", "downloadPDF")))
       )
     
-    # --- Añadir serie de puntos destacados ---
+    # --- Add the series of highlighted points ---
     if (nrow(dt_highlighted) > 0) {
-      
-      # Determinar color del borde según el tipo de cambio
+
+      # Pick the border colour according to the change category
       dt_highlighted$borderColor <- vapply(dt_highlighted$Change, function(ch) {
         if (ch == "Up") colors$up
         else if (ch == "Down") colors$down
         else colors$ns
       }, character(1))
       
-      # Crear lista de puntos con formato individual
+      # Build the list of points with per-point formatting
       highlighted_points <- lapply(seq_len(nrow(dt_highlighted)), function(i) {
         row <- dt_highlighted[i, ]
         list(
@@ -330,10 +331,10 @@ volcano_highchart_list <- function(
             pointFormat = paste0(
               "<div style='padding: 6px;'>",
               "<b style='font-size: 14px; color: #1D3557;'>{point.gene}</b>",
-              "<span style='background: #E63946; color: white; padding: 2px 6px; border-radius: 3px; margin-left: 8px; font-size: 10px; position: relative; top: -2px;'>★ Highlighted</span>",
+              "<span style='background: #E63946; color: white; padding: 2px 6px; border-radius: 3px; margin-left: 8px; font-size: 10px; position: relative; top: -2px;'>\u2605 Highlighted</span>",
               "<br/>",
               "<span style='color: #6C757D;'>Protein:</span> {point.protein}<br/>",
-              "<span style='color: #6C757D;'>log₂FC:</span> <b>{point.x:.3f}</b><br/>",
+              "<span style='color: #6C757D;'>log\u2082FC:</span> <b>{point.x:.3f}</b><br/>",
               "<span style='color: #6C757D;'>", p_col, ":</span> <b>{point.pval}</b>",
               "</div>"
             )
@@ -349,13 +350,13 @@ volcano_highchart_list <- function(
   Filter(Negate(is.null), hclist)
 }
 
-# --- Funciones auxiliares ---
+# --- Helper functions ---
 
 detect_pvalue_col <- function(df, preferred) {
   if (preferred %in% names(df)) return(preferred)
   candidates <- c("adj.P.Val", "P.Value", "pvalue", "p.value", "padj")
   found <- intersect(candidates, names(df))
-  if (length(found) == 0) stop("No se encontró columna de p-valor.")
+  if (length(found) == 0) stop("No p-value column found.")
   found[1]
 }
 
@@ -367,15 +368,15 @@ get_assay_label <- function(dt) {
 
 
 # =============================================================================
-# EJEMPLOS DE USO
+# USAGE EXAMPLES
 # =============================================================================
 
 # DEPs_results <- read_tsv("DEPs_results.tsv")
 # DEPs_results <- arrow::read_parquet("./data-raw/VolcanoPlot_Input.parquet")
 
-# --- Ejemplo básico ---
+# --- Basic example ---
 # hc_volcanos <- volcano_highchart_list(
-#   de_res      = mi_dataframe,
+#   de_res      = my_dataframe,
 #   ain         = "LoessCyc",
 #   comparisons = c("B-A"),
 #   alpha       = 0.05,
@@ -383,9 +384,9 @@ get_assay_label <- function(dt) {
 #   point_size  = 3
 # )
 
-# --- Con top genes ---
+# --- With top genes ---
 # hc_volcanos <- volcano_highchart_list(
-#   de_res         = mi_dataframe,
+#   de_res         = my_dataframe,
 #   ain            = "LoessCyc",
 #   comparisons    = c("B-A"),
 #   alpha          = 0.05,
@@ -393,9 +394,9 @@ get_assay_label <- function(dt) {
 #   show_top_genes = 10
 # )
 
-# --- Con genes personalizados ---
+# --- With hand-picked genes ---
 # hc_volcanos <- volcano_highchart_list(
-#   de_res          = mi_dataframe,
+#   de_res          = my_dataframe,
 #   ain             = "LoessCyc",
 #   comparisons     = c("B-A"),
 #   alpha           = 0.05,
@@ -403,19 +404,19 @@ get_assay_label <- function(dt) {
 #   highlight_genes = c("EGFR", "TP53", "BRCA1")
 # )
 
-# --- Con título personalizado ---
+# --- With a custom title ---
 # hc_volcanos <- volcano_highchart_list(
-#   de_res      = mi_dataframe,
+#   de_res      = my_dataframe,
 #   ain         = "LoessCyc",
 #   comparisons = c("B-A"),
 #   alpha       = 0.05,
 #   point_size  = 3,
-#   title       = "Tratamiento vs Control"
+#   title       = "Treatment vs Control"
 # )
 
-# --- Con paleta de paletteer ---
+# --- With a paletteer palette ---
 # hc_volcanos <- volcano_highchart_list(
-#   de_res      = mi_dataframe,
+#   de_res      = my_dataframe,
 #   ain         = "LoessCyc",
 #   comparisons = c("B-A"),
 #   alpha       = 0.05,
@@ -423,9 +424,9 @@ get_assay_label <- function(dt) {
 #   palette     = "ggsci::default_jco"
 # )
 
-# --- Combinando todas las opciones ---
+# --- Combining every option ---
 # hc_volcanos <- volcano_highchart_list(
-#   de_res          = mi_dataframe,
+#   de_res          = my_dataframe,
 #   ain             = "LoessCyc",
 #   comparisons     = c("B-A", "C-A", "D-A"),
 #   lfc_thr         = 0,
@@ -433,9 +434,9 @@ get_assay_label <- function(dt) {
 #   point_size      = 3,
 #   show_top_genes  = 5,
 #   highlight_genes = c("EGFR", "plaP", "SEC6"),
-#   title           = "Análisis Diferencial",
+#   title           = "Differential Analysis",
 #   palette         = "ggsci::nrc_npg"
 # )
 
-# --- Visualizar ---
+# --- Display ---
 # hc_volcanos[["B-A"]]

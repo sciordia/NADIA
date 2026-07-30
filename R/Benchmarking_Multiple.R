@@ -680,11 +680,12 @@ bm_compute_ranking_by_comparison <- function(opdea_combined,
 #' then ranks methods in descending order (higher = better for all metrics).
 #' Final rank = mean of the 11 individual ranks.
 #'
-#' Nota: este ranking extendido puede desalinearse del ranking OpDEA canónico
-#' (`bm_compute_ranking`, basado en nMCC/G_mean/pAUC). `Performance` es colineal
-#' con F1 (por lo que F1 pesa doble), y `Accuracy`/`NPV` en spike-ins están
-#' dominadas por el fondo (TN >> ) → poco poder discriminativo. Úsese como vista
-#' complementaria, no como sustituto del ranking OpDEA.
+#' Note: this extended ranking can drift away from the canonical OpDEA ranking
+#' (`bm_compute_ranking`, based on nMCC/G_mean/pAUC). `Performance` is collinear
+#' with F1 (so F1 effectively counts twice), and in spike-in designs
+#' `Accuracy`/`NPV` are dominated by the background (TN >> ), hence they have
+#' little discriminative power. Use it as a complementary view, not as a
+#' substitute for the OpDEA ranking.
 #'
 #' @param opdea_combined data.frame from import_opdea_results()
 #' @param bench_metrics_combined data.frame from import_benchmark_metrics()
@@ -1411,8 +1412,8 @@ bm_plot_roc <- function(classified_combined,
   roc_list <- lapply(assay_list, function(d) {
     if (length(unique(d$truth)) < 2 || nrow(d) < 10) return(NULL)
     tryCatch(
-      # direction="<": score alto (-log10 p) = caso; fija la dirección (no "auto")
-      # para consistencia con el pAUC tabulado.
+      # direction="<": a high score (-log10 p) = case; the direction is fixed
+      # (not "auto") for consistency with the tabulated pAUC.
       pROC::roc(response = d$truth, predictor = d$score,
                 direction = "<", quiet = TRUE),
       error = function(e) NULL
@@ -1427,7 +1428,7 @@ bm_plot_roc <- function(classified_combined,
 
   # AUC / pAUC labels
   if (zoom) {
-    # pAUC corregido (McClish) en la región FPR 0-5%
+    # McClish-corrected pAUC over the FPR 0-5% region
     aucs <- vapply(roc_list, function(r) {
       tryCatch(
         as.numeric(pROC::auc(r,
@@ -1436,7 +1437,7 @@ bm_plot_roc <- function(classified_combined,
         error = function(e) NA_real_
       )
     }, numeric(1))
-    # Ordenar la leyenda por pAUC decreciente
+    # Sort the legend by decreasing pAUC
     ord      <- order(aucs, decreasing = TRUE, na.last = TRUE)
     roc_list <- roc_list[ord]
     aucs     <- aucs[ord]
@@ -1461,7 +1462,7 @@ bm_plot_roc <- function(classified_combined,
     ggplot2::labs(
       title    = title_text,
       subtitle = if (zoom) {
-        "Low FPR region (axis 0-10%) · legend pAUC at 5% FPR"
+        "Low FPR region (axis 0-10%) - legend pAUC at 5% FPR"
       } else {
         "Diagonal = random classifier"
       },
@@ -1481,7 +1482,7 @@ bm_plot_roc <- function(classified_combined,
       panel.grid.minor = ggplot2::element_blank()
     )
 
-  # Apply palette — use hcl.colors to support any number of methods
+  # Apply palette -- use hcl.colors to support any number of methods
   n_methods <- length(roc_list)
   pal_colors <- if (requireNamespace("RColorBrewer", quietly = TRUE) &&
                     n_methods <= RColorBrewer::brewer.pal.info[palette, "maxcolors"]) {
@@ -1723,9 +1724,9 @@ benchmarking_multiple <- function(opdea_combined            = NULL,
     })
   }
 
-  # --- Normalizar Assay: quitar prefijo de carpeta (p.ej. "benchmark_") ---
-  # En modo results_dir el Assay = nombre de carpeta (benchmark_<metodo>); esto
-  # lo deja igual que en modo in-memory. Inocuo si el Assay no lleva el prefijo.
+  # --- Normalize Assay: drop the folder prefix (e.g. "benchmark_") ---
+  # In results_dir mode Assay = folder name (benchmark_<method>); this makes it
+  # match the in-memory mode. Harmless if the Assay carries no such prefix.
   if (!is.null(strip_prefix) && nzchar(strip_prefix)) {
     .strip_assay <- function(df) {
       if (!is.null(df) && "Assay" %in% names(df))

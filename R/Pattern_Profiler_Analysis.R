@@ -1,23 +1,23 @@
 # =============================================================================
-# Pattern Profiler Analysis: Mfuzz Clustering desde SummarizedExperiment
+# Pattern Profiler Analysis: Mfuzz clustering from a SummarizedExperiment
 # =============================================================================
 #
-# Este script procesa un objeto SummarizedExperiment junto con resultados de
-# expresión diferencial (DEPs_results) para realizar soft-clustering con Mfuzz.
+# This script processes a SummarizedExperiment object together with differential
+# expression results (DEPs_results) to perform soft clustering with Mfuzz.
 #
 # Input:
-#   - se_proc: SummarizedExperiment con assays de intensidad
-#   - DEPs_results: DataFrame con adj.P.Val por comparación
+#   - se_proc: SummarizedExperiment with intensity assays
+#   - DEPs_results: DataFrame with adj.P.Val per comparison
 #
 # Output:
-#   - Pattern_Profiler_Input.parquet: Tabla en formato LONG
+#   - Pattern_Profiler_Input.parquet: table in LONG format
 #
-# Autor: Sergio Ciordia
-# Licencia: MIT
+# Author: Sergio Ciordia
+# License: MIT
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# DEPENDENCIAS
+# DEPENDENCIES
 # -----------------------------------------------------------------------------
 
 
@@ -25,61 +25,61 @@
 
 
 # =============================================================================
-# FUNCIONES DE EXTRACCIÓN DE DATOS
+# DATA EXTRACTION FUNCTIONS
 # =============================================================================
 
-#' Extraer datos de SummarizedExperiment
+#' Extract data from a SummarizedExperiment
 #'
-#' Obtiene la matriz de intensidades, IDs de features y metadatos de muestras
-#' desde un objeto SummarizedExperiment.
+#' Retrieves the intensity matrix, the feature IDs and the sample metadata from a
+#' SummarizedExperiment object.
 #'
-#' @param se_proc Objeto SummarizedExperiment
-#' @param assay_name Nombre del assay a usar (NULL = primero disponible)
+#' @param se_proc SummarizedExperiment object
+#' @param assay_name Name of the assay to use (NULL = first available)
 #'
-#' @return Lista con:
-#'   - intensity_matrix: Matriz features x samples
-#'   - feature_ids: Vector de IDs de proteínas
-#'   - sample_metadata: DataFrame con SampleID, Condition, etc.
+#' @return List with:
+#'   - intensity_matrix: features x samples matrix
+#'   - feature_ids: vector of protein IDs
+#'   - sample_metadata: DataFrame with SampleID, Condition, etc.
 extract_se_data <- function(se_proc, assay_name = NULL) {
 
 
-  # Validar input
+  # Validate input
 
   if (!inherits(se_proc, "SummarizedExperiment")) {
-    stop("'se_proc' debe ser un objeto SummarizedExperiment")
+    stop("'se_proc' must be a SummarizedExperiment object")
   }
 
 
-  # Obtener nombre del assay
+  # Get the assay name
 
   available_assays <- SummarizedExperiment::assayNames(se_proc)
   if (length(available_assays) == 0) {
-    stop("El SummarizedExperiment no tiene assays")
+    stop("The SummarizedExperiment has no assays")
   }
 
   if (is.null(assay_name)) {
     assay_name <- available_assays[1]
-    message(sprintf("Usando assay: '%s'", assay_name))
+    message(sprintf("Using assay: '%s'", assay_name))
   } else if (!(assay_name %in% available_assays)) {
-    stop(sprintf("Assay '%s' no encontrado. Disponibles: %s",
+    stop(sprintf("Assay '%s' not found. Available: %s",
                  assay_name, paste(available_assays, collapse = ", ")))
   }
 
-  # Extraer matriz de intensidades
+  # Extract the intensity matrix
   intensity_matrix <- SummarizedExperiment::assay(se_proc, assay_name)
 
-  # Obtener IDs de features desde rowData
+  # Get the feature IDs from rowData
 
   row_data <- as.data.frame(SummarizedExperiment::rowData(se_proc))
 
-  # Buscar columna de ID (varios nombres posibles)
+  # Look for the ID column (several possible names)
   id_candidates <- c("FeatureID", "Protein.IDs", "ID", "protein_id", "ProteinID")
   id_col <- intersect(id_candidates, names(row_data))[1]
 
   if (!is.na(id_col)) {
     feature_ids <- as.character(row_data[[id_col]])
   } else {
-    # Usar rownames si no hay columna de ID
+    # Fall back to the rownames if there is no ID column
     feature_ids <- rownames(intensity_matrix)
     if (is.null(feature_ids)) {
       feature_ids <- paste0("Feature_", seq_len(nrow(intensity_matrix)))
@@ -87,22 +87,22 @@ extract_se_data <- function(se_proc, assay_name = NULL) {
   }
   rownames(intensity_matrix) <- feature_ids
 
-  # Obtener metadatos de muestras desde colData
+  # Get the sample metadata from colData
   sample_metadata <- as.data.frame(SummarizedExperiment::colData(se_proc))
   sample_metadata$SampleID <- rownames(sample_metadata)
 
-  # Validar que existe columna Condition
+  # Check that the Condition column exists
 
   if (!("Condition" %in% names(sample_metadata))) {
-    # Intentar encontrar alternativas
+    # Try to find alternatives
     cond_candidates <- c("condition", "Group", "group", "Treatment", "treatment")
     cond_col <- intersect(cond_candidates, names(sample_metadata))[1]
 
     if (!is.na(cond_col)) {
       sample_metadata$Condition <- sample_metadata[[cond_col]]
-      message(sprintf("Usando '%s' como columna de condición", cond_col))
+      message(sprintf("Using '%s' as the condition column", cond_col))
     } else {
-      stop("No se encontró columna 'Condition' en colData")
+      stop("Column 'Condition' not found in colData")
     }
   }
 
@@ -115,40 +115,40 @@ extract_se_data <- function(se_proc, assay_name = NULL) {
 }
 
 
-#' Fusionar información de significancia desde DEPs_results
+#' Merge significance information from DEPs_results
 #'
-#' Convierte DEPs_results (formato largo) a formato ancho con columnas
-#' adjP_* por cada comparación, y calcula sig_any.
+#' Converts DEPs_results (long format) into wide format with one adjP_* column
+#' per comparison, and computes sig_any.
 #'
-#' @param feature_ids Vector de IDs de features
-#' @param DEPs_results DataFrame con columnas Protein.IDs, adj.P.Val, Comparison, Assay
-#' @param assay_name Nombre del assay para filtrar DEPs_results
-#' @param alpha Umbral de significancia (default: 0.05)
+#' @param feature_ids Vector of feature IDs
+#' @param DEPs_results DataFrame with columns Protein.IDs, adj.P.Val, Comparison, Assay
+#' @param assay_name Name of the assay used to filter DEPs_results
+#' @param alpha Significance threshold (default: 0.05)
 #'
-#' @return DataFrame con FeatureID, adjP_*, sig_any
+#' @return DataFrame with FeatureID, adjP_*, sig_any
 merge_significance_info <- function(feature_ids, DEPs_results, assay_name, alpha = 0.05) {
 
   DEPs_results <- as.data.frame(DEPs_results)
 
-  # Validar columnas requeridas
+  # Validate the required columns
   required_cols <- c("Protein.IDs", "adj.P.Val", "Comparison", "Assay")
   missing_cols <- setdiff(required_cols, names(DEPs_results))
   if (length(missing_cols) > 0) {
-    stop("Columnas faltantes en DEPs_results: ", paste(missing_cols, collapse = ", "))
+    stop("Missing columns in DEPs_results: ", paste(missing_cols, collapse = ", "))
   }
 
-  # Filtrar por Assay
+  # Filter by Assay
   available_assays <- unique(DEPs_results$Assay)
   if (!(assay_name %in% available_assays)) {
-    stop(sprintf("Assay '%s' no encontrado en DEPs_results. Disponibles: %s",
+    stop(sprintf("Assay '%s' not found in DEPs_results. Available: %s",
                  assay_name, paste(available_assays, collapse = ", ")))
   }
 
   DEPs_results <- DEPs_results[DEPs_results$Assay == assay_name, ]
-  message(sprintf("   - Filtrado DEPs_results por Assay = '%s' (%d filas)",
+  message(sprintf("   - Filtered DEPs_results by Assay = '%s' (%d rows)",
                   assay_name, nrow(DEPs_results)))
 
-  # Pivotar a formato ancho: una fila por proteína, columnas adjP_* por comparación
+  # Pivot to wide format: one row per protein, one adjP_* column per comparison
   sig_wide <- DEPs_results %>%
     dplyr::select(Protein.IDs, Comparison, adj.P.Val) %>%
     dplyr::distinct() %>%
@@ -158,14 +158,14 @@ merge_significance_info <- function(feature_ids, DEPs_results, assay_name, alpha
       names_prefix = "adjP_"
     )
 
-  # Crear DataFrame base con todos los feature_ids
+  # Build the base DataFrame with all the feature_ids
 
   feature_info <- data.frame(
     FeatureID = feature_ids,
     stringsAsFactors = FALSE
   )
 
-  # Fusionar con significancia
+  # Merge with the significance information
   feature_info <- merge(
     feature_info,
     sig_wide,
@@ -174,7 +174,7 @@ merge_significance_info <- function(feature_ids, DEPs_results, assay_name, alpha
     all.x = TRUE
   )
 
-  # Calcular sig_any (significativo en cualquier comparación)
+  # Compute sig_any (significant in any comparison)
   adjP_cols <- grep("^adjP_", names(feature_info), value = TRUE)
 
   if (length(adjP_cols) > 0) {
@@ -184,28 +184,28 @@ merge_significance_info <- function(feature_ids, DEPs_results, assay_name, alpha
     )
   } else {
     feature_info$sig_any <- FALSE
-    warning("No se encontraron columnas adjP_* en DEPs_results")
+    warning("No adjP_* columns found in DEPs_results")
   }
 
-  # Reemplazar NA en sig_any con FALSE
+  # Replace NA in sig_any with FALSE
   feature_info$sig_any[is.na(feature_info$sig_any)] <- FALSE
 
   feature_info
 }
 
 
-#' Filtrar features por significancia
+#' Filter features by significance
 #'
-#' @param feature_info DataFrame con columnas de significancia
-#' @param filter_mode Modo de selección:
-#'   - "any": features significativos en AL MENOS una comparación (usa sig_any).
-#'   - "all": TODOS los features, sin filtrar por significancia (no es "significativo
-#'            en todas las comparaciones").
-#'   - "specific": significativos en la comparación indicada por `comparison`.
-#' @param comparison Comparación específica (para mode="specific")
-#' @param alpha Umbral de significancia
+#' @param feature_info DataFrame with significance columns
+#' @param filter_mode Selection mode:
+#'   - "any": features significant in AT LEAST one comparison (uses sig_any).
+#'   - "all": ALL features, with no significance filtering (it does NOT mean
+#'            "significant in every comparison").
+#'   - "specific": significant in the comparison given by `comparison`.
+#' @param comparison Specific comparison (for mode="specific")
+#' @param alpha Significance threshold
 #'
-#' @return Vector de FeatureIDs seleccionados
+#' @return Vector of the selected FeatureIDs
 filter_significant_features <- function(feature_info,
                                          filter_mode = c("any", "all", "specific"),
                                          comparison = NULL,
@@ -219,45 +219,45 @@ filter_significant_features <- function(feature_info,
 
   if (filter_mode == "any") {
     if (!("sig_any" %in% names(feature_info))) {
-      stop("Columna 'sig_any' no encontrada. Ejecutar merge_significance_info() primero.")
+      stop("Column 'sig_any' not found. Run merge_significance_info() first.")
     }
     selected <- feature_info$FeatureID[feature_info$sig_any == TRUE]
-    message(sprintf("Filtro 'any': %d de %d features significativos",
+    message(sprintf("Filter 'any': %d of %d features are significant",
                     length(selected), nrow(feature_info)))
     return(selected)
   }
 
   # filter_mode == "specific"
   if (is.null(comparison)) {
-    stop("El argumento 'comparison' es requerido para filter_mode = 'specific'")
+    stop("Argument 'comparison' is required for filter_mode = 'specific'")
   }
 
   adjP_col <- paste0("adjP_", comparison)
   if (!(adjP_col %in% names(feature_info))) {
     available <- grep("^adjP_", names(feature_info), value = TRUE)
-    stop(sprintf("Comparación '%s' no encontrada. Disponibles: %s",
+    stop(sprintf("Comparison '%s' not found. Available: %s",
                  comparison, paste(gsub("^adjP_", "", available), collapse = ", ")))
   }
 
   selected <- feature_info$FeatureID[
     !is.na(feature_info[[adjP_col]]) & feature_info[[adjP_col]] <= alpha
   ]
-  message(sprintf("Filtro específico '%s' (alpha=%.3f): %d features",
+  message(sprintf("Specific filter '%s' (alpha=%.3f): %d features",
                   comparison, alpha, length(selected)))
 
   selected
 }
 
 
-#' Construir matriz de clustering agregada por condición
+#' Build the clustering matrix aggregated by condition
 #'
-#' @param intensity_matrix Matriz de intensidades (features x samples)
-#' @param sample_metadata DataFrame con SampleID, Condition
-#' @param selected_features Vector de features a incluir
-#' @param condition_order Orden de condiciones (NULL = orden alfabético)
-#' @param aggregate Método de agregación: "median" o "mean"
+#' @param intensity_matrix Intensity matrix (features x samples)
+#' @param sample_metadata DataFrame with SampleID, Condition
+#' @param selected_features Vector of features to include
+#' @param condition_order Condition order (NULL = alphabetical order)
+#' @param aggregate Aggregation method: "median" or "mean"
 #'
-#' @return Matriz de intensidades agregadas (features x conditions)
+#' @return Matrix of aggregated intensities (features x conditions)
 build_clustering_matrix <- function(intensity_matrix,
                                      sample_metadata,
                                      selected_features,
@@ -267,24 +267,24 @@ build_clustering_matrix <- function(intensity_matrix,
   aggregate <- match.arg(aggregate)
   agg_fun <- if (aggregate == "median") median else mean
 
-  # Filtrar features seleccionados
+  # Keep only the selected features
   intensity_matrix <- intensity_matrix[selected_features, , drop = FALSE]
 
-  # Obtener condiciones únicas
+  # Get the unique conditions
   conditions <- unique(sample_metadata$Condition)
 
   if (is.null(condition_order)) {
     condition_order <- sort(conditions)
-    message(sprintf("Orden de condiciones: %s", paste(condition_order, collapse = " -> ")))
+    message(sprintf("Condition order: %s", paste(condition_order, collapse = " -> ")))
   } else {
-    # Validar que todas las condiciones existen
+    # Check that every condition exists
     missing <- setdiff(condition_order, conditions)
     if (length(missing) > 0) {
-      stop("Condiciones no encontradas: ", paste(missing, collapse = ", "))
+      stop("Conditions not found: ", paste(missing, collapse = ", "))
     }
   }
 
-  # Agregar por condición
+  # Aggregate by condition
   agg_matrix <- matrix(
     NA_real_,
     nrow = length(selected_features),
@@ -297,7 +297,7 @@ build_clustering_matrix <- function(intensity_matrix,
     samples_in_cond <- intersect(samples_in_cond, colnames(intensity_matrix))
 
     if (length(samples_in_cond) == 0) {
-      warning(sprintf("No hay muestras para condición '%s'", cond))
+      warning(sprintf("No samples for condition '%s'", cond))
       next
     }
 
@@ -312,21 +312,21 @@ build_clustering_matrix <- function(intensity_matrix,
 
 
 # =============================================================================
-# FUNCIONES DE CLUSTERING (Mfuzz)
+# CLUSTERING FUNCTIONS (Mfuzz)
 # =============================================================================
 
-#' Crear ExpressionSet para Mfuzz
+#' Create an ExpressionSet for Mfuzz
 #'
-#' @param mat Matriz de expresión (features x conditions)
-#' @param feature_info DataFrame con info de features (opcional)
+#' @param mat Expression matrix (features x conditions)
+#' @param feature_info DataFrame with feature information (optional)
 #'
-#' @return Objeto ExpressionSet
+#' @return ExpressionSet object
 create_expression_set <- function(mat, feature_info = NULL) {
 
-  # Asegurar que es matriz
+  # Make sure it is a matrix
   mat <- as.matrix(mat)
 
-  # Crear AnnotatedDataFrame para features
+  # Create the AnnotatedDataFrame for the features
   if (!is.null(feature_info) && nrow(feature_info) == nrow(mat)) {
     rownames(feature_info) <- rownames(mat)
     fData <- Biobase::AnnotatedDataFrame(data = feature_info)
@@ -337,13 +337,13 @@ create_expression_set <- function(mat, feature_info = NULL) {
     ))
   }
 
-  # Crear AnnotatedDataFrame para condiciones
+  # Create the AnnotatedDataFrame for the conditions
   pData <- Biobase::AnnotatedDataFrame(data = data.frame(
     Condition = colnames(mat),
     row.names = colnames(mat)
   ))
 
-  # Crear ExpressionSet
+  # Create the ExpressionSet
   Biobase::ExpressionSet(
     assayData = mat,
     featureData = fData,
@@ -352,35 +352,35 @@ create_expression_set <- function(mat, feature_info = NULL) {
 }
 
 
-#' Estandarizar ExpressionSet (z-score por fila)
+#' Standardise an ExpressionSet (row-wise z-score)
 #'
-#' @param eset Objeto ExpressionSet
+#' @param eset ExpressionSet object
 #'
-#' @return ExpressionSet estandarizado
+#' @return Standardised ExpressionSet
 standardize_eset <- function(eset) {
 
-  # Filtrar filas con muchos NAs
+  # Drop rows with too many NAs
   eset_filtered <- Mfuzz::filter.NA(eset, thres = 0.25)
 
   n_removed <- nrow(eset) - nrow(eset_filtered)
   if (n_removed > 0) {
-    message(sprintf("Eliminadas %d features con >25%% NAs", n_removed))
+    message(sprintf("Removed %d features with >25%% NAs", n_removed))
   }
 
-  # Imputar NAs restantes
+  # Impute the remaining NAs
   eset_filled <- Mfuzz::fill.NA(eset_filtered, mode = "knn")
 
-  # Estandarizar por filas (z-score)
+  # Standardise row-wise (z-score)
   eset_std <- Mfuzz::standardise(eset_filled)
 
-  # Descartar features constantes: sd = 0 produce (x - media)/0 = NaN tras
-  # standardise, y esas filas romperian o degenerarian mfuzz. Se detectan por
-  # filas no finitas en la matriz estandarizada.
+  # Discard constant features: sd = 0 yields (x - mean)/0 = NaN after
+  # standardise, and those rows would break or degenerate mfuzz. They are
+  # detected as non-finite rows in the standardised matrix.
   X_std <- Biobase::exprs(eset_std)
   finite_rows <- apply(X_std, 1, function(r) all(is.finite(r)))
   n_const <- sum(!finite_rows)
   if (n_const > 0) {
-    message(sprintf("Eliminadas %d features constantes (sd = 0) tras estandarizar",
+    message(sprintf("Removed %d constant features (sd = 0) after standardising",
                     n_const))
     eset_std <- eset_std[finite_rows, ]
   }
@@ -390,18 +390,18 @@ standardize_eset <- function(eset) {
 
 
 # -----------------------------------------------------------------------------
-# Métricas de evaluación de clusters
+# Cluster evaluation metrics
 # -----------------------------------------------------------------------------
 
-#' Índice Xie-Beni
+#' Xie-Beni index
 #'
-#' Mide compacidad frente a separación entre clusters. Menor es mejor.
+#' Measures compactness against separation between clusters. Lower is better.
 #'
-#' @param X Matriz de datos (features x condiciones).
-#' @param U Matriz de pertenencias (features x clusters).
-#' @param centers Matriz de centroides (clusters x condiciones).
-#' @param m Exponente de difuminado (fuzzifier).
-#' @return Valor numérico del índice.
+#' @param X Data matrix (features x conditions).
+#' @param U Membership matrix (features x clusters).
+#' @param centers Centroid matrix (clusters x conditions).
+#' @param m Fuzzifier exponent.
+#' @return Numeric value of the index.
 #' @keywords internal
 #' @noRd
 .xie_beni_index <- function(X, U, centers, m = 2) {
@@ -409,7 +409,7 @@ standardize_eset <- function(eset) {
   n <- nrow(X)
   c <- nrow(centers)
 
-  # Compactness: suma ponderada de distancias intra-cluster
+  # Compactness: weighted sum of the within-cluster distances
   compactness <- 0
   for (i in seq_len(n)) {
     for (j in seq_len(c)) {
@@ -418,7 +418,7 @@ standardize_eset <- function(eset) {
     }
   }
 
-  # Separation: mínima distancia entre centroides
+  # Separation: minimum distance between centroids
   min_sep <- Inf
   for (j1 in seq_len(c - 1)) {
     for (j2 in (j1 + 1):c) {
@@ -436,10 +436,10 @@ standardize_eset <- function(eset) {
 
 #' Fuzzy Partition Coefficient (FPC)
 #'
-#' Mide la nitidez de la partición difusa. Mayor es mejor.
+#' Measures the crispness of the fuzzy partition. Higher is better.
 #'
-#' @param U Matriz de pertenencias (features x clusters).
-#' @return Valor numérico del coeficiente.
+#' @param U Membership matrix (features x clusters).
+#' @return Numeric value of the coefficient.
 #' @keywords internal
 #' @noRd
 .fpc_index <- function(U) {
@@ -450,10 +450,10 @@ standardize_eset <- function(eset) {
 
 #' Average Maximum Membership (AMM)
 #'
-#' Promedio de la pertenencia máxima de cada feature. Mayor es mejor.
+#' Mean of the maximum membership of each feature. Higher is better.
 #'
-#' @param U Matriz de pertenencias (features x clusters).
-#' @return Valor numérico del promedio.
+#' @param U Membership matrix (features x clusters).
+#' @return Numeric value of the mean.
 #' @keywords internal
 #' @noRd
 .amm_index <- function(U) {
@@ -461,40 +461,40 @@ standardize_eset <- function(eset) {
 }
 
 
-#' Evaluar rango de números de clusters
+#' Evaluate a range of cluster numbers
 #'
-#' @param eset_std ExpressionSet estandarizado
-#' @param c_range Vector de números de clusters a evaluar
-#' @param m Parámetro de fuzziness
-#' @param seeds Semillas para reproducibilidad
-#' @param verbose Mostrar progreso
+#' @param eset_std Standardised ExpressionSet
+#' @param c_range Vector of cluster numbers to evaluate
+#' @param m Fuzziness parameter
+#' @param seeds Seeds for reproducibility
+#' @param verbose Show progress
 #'
-#' @return DataFrame con métricas por número de clusters
+#' @return DataFrame with the metrics per number of clusters
 evaluate_cluster_range <- function(eset_std,
                                     c_range = 2:10,
                                     m = NULL,
                                     seeds = c(42, 123, 456),
                                     verbose = TRUE) {
 
-  # Estimar m si no se proporciona
+  # Estimate m if it is not supplied
   if (is.null(m)) {
     m <- Mfuzz::mestimate(eset_std)
-    if (verbose) message(sprintf("Parámetro m estimado: %.3f", m))
+    if (verbose) message(sprintf("Estimated m parameter: %.3f", m))
   }
 
   X <- Biobase::exprs(eset_std)
   results <- list()
 
-  # Se fija una semilla por réplica dentro del bucle; el RNG del usuario se
-  # restaura al salir de la función.
+  # One seed is set per replicate inside the loop; the user's RNG is restored on
+  # exit from the function.
   old_rng <- .rng_state()
   on.exit(.rng_restore(old_rng), add = TRUE)
 
   for (c in c_range) {
-    if (verbose) message(sprintf("Evaluando c = %d...", c))
+    if (verbose) message(sprintf("Evaluating c = %d...", c))
 
-    # NA (no 0): una semilla que falla no debe contar como 0 en la media,
-    # porque XB se minimiza y un 0 espurio sesgaria la seleccion de c.
+    # NA (not 0): a seed that fails must not count as 0 in the mean, because XB
+    # is minimised and a spurious 0 would bias the choice of c.
     xb_vals <- rep(NA_real_, length(seeds))
     fpc_vals <- rep(NA_real_, length(seeds))
     amm_vals <- rep(NA_real_, length(seeds))
@@ -516,7 +516,7 @@ evaluate_cluster_range <- function(eset_std,
       fpc_vals[s] <- .fpc_index(U)
       amm_vals[s] <- .amm_index(U)
 
-      # Dmin: distancia mínima entre centroides
+      # Dmin: minimum distance between centroids
       dists <- as.matrix(dist(centers))
       diag(dists) <- Inf
       dmin_vals[s] <- min(dists)
@@ -536,15 +536,15 @@ evaluate_cluster_range <- function(eset_std,
 }
 
 
-#' Seleccionar número óptimo de clusters
+#' Select the optimal number of clusters
 #'
-#' @param eset_std ExpressionSet estandarizado
-#' @param c_range Rango de clusters a evaluar
-#' @param m Parámetro de fuzziness
-#' @param method Método: "xb", "consensus", "elbow"
-#' @param verbose Mostrar progreso
+#' @param eset_std Standardised ExpressionSet
+#' @param c_range Range of cluster numbers to evaluate
+#' @param m Fuzziness parameter
+#' @param method Method: "xb", "consensus", "elbow"
+#' @param verbose Show progress
 #'
-#' @return Lista con optimal_c, metrics, m
+#' @return List with optimal_c, metrics, m
 select_optimal_clusters <- function(eset_std,
                                      c_range = 2:10,
                                      m = NULL,
@@ -560,17 +560,17 @@ select_optimal_clusters <- function(eset_std,
   metrics <- evaluate_cluster_range(eset_std, c_range, m, verbose = verbose)
 
   if (method == "xb") {
-    # Mínimo Xie-Beni
+    # Minimum Xie-Beni
     optimal_c <- metrics$c[which.min(metrics$XB)]
 
   } else if (method == "elbow") {
-    # Método del codo sobre Dmin
+    # Elbow method on Dmin
     dmin_diff <- -diff(metrics$Dmin)
     elbow_idx <- which.max(dmin_diff) + 1
     optimal_c <- metrics$c[min(elbow_idx, nrow(metrics))]
 
   } else {
-    # Consensus: promedio de rankings
+    # Consensus: mean of the rankings
     metrics$rank_XB <- rank(metrics$XB)
     metrics$rank_FPC <- rank(-metrics$FPC)
     metrics$rank_AMM <- rank(-metrics$AMM)
@@ -581,7 +581,7 @@ select_optimal_clusters <- function(eset_std,
   }
 
   if (verbose) {
-    message(sprintf("\nMétodo '%s': c óptimo = %d", method, optimal_c))
+    message(sprintf("\nMethod '%s': optimal c = %d", method, optimal_c))
   }
 
   list(
@@ -592,17 +592,17 @@ select_optimal_clusters <- function(eset_std,
 }
 
 
-#' Ejecutar clustering Mfuzz
+#' Run Mfuzz clustering
 #'
-#' @param eset_std ExpressionSet estandarizado
-#' @param c Número de clusters
-#' @param m Parámetro de fuzziness
-#' @param seed Semilla para reproducibilidad
+#' @param eset_std Standardised ExpressionSet
+#' @param c Number of clusters
+#' @param m Fuzziness parameter
+#' @param seed Seed for reproducibility
 #'
-#' @return Objeto de clustering Mfuzz
+#' @return Mfuzz clustering object
 run_mfuzz_clustering <- function(eset_std, c, m, seed = 42) {
 
-  # El RNG del usuario se restaura al salir (mfuzz depende de la semilla).
+  # The user's RNG is restored on exit (mfuzz depends on the seed).
   old_rng <- .rng_state()
   on.exit(.rng_restore(old_rng), add = TRUE)
 
@@ -614,21 +614,21 @@ run_mfuzz_clustering <- function(eset_std, c, m, seed = 42) {
 
 
 # =============================================================================
-# CONSTRUCCIÓN DE SALIDA EN FORMATO LONG
+# BUILDING THE OUTPUT IN LONG FORMAT
 # =============================================================================
 
-#' Construir tabla de salida en formato LONG
+#' Build the output table in LONG format
 #'
-#' Crea una fila por cada combinación FeatureID-Cluster donde
-#' membership >= min_membership. Esto permite que una proteína
-#' aparezca en múltiples clusters (soft-clustering).
+#' Creates one row per FeatureID-Cluster combination where
+#' membership >= min_membership. This lets a protein appear in several clusters
+#' (soft clustering).
 #'
-#' @param cl Objeto de clustering Mfuzz
-#' @param eset_std ExpressionSet estandarizado (con z-scores)
-#' @param conditions Vector de nombres de condiciones
-#' @param min_membership Umbral mínimo de membership
+#' @param cl Mfuzz clustering object
+#' @param eset_std Standardised ExpressionSet (with z-scores)
+#' @param conditions Vector of condition names
+#' @param min_membership Minimum membership threshold
 #'
-#' @return DataFrame en formato long
+#' @return DataFrame in long format
 build_long_output <- function(cl, eset_std, conditions, min_membership) {
 
   mem_matrix <- cl$membership  # n_proteins x n_clusters
@@ -637,7 +637,7 @@ build_long_output <- function(cl, eset_std, conditions, min_membership) {
   n_proteins <- nrow(mem_matrix)
   n_clusters <- ncol(mem_matrix)
 
-  # Preallocar lista para eficiencia
+  # Preallocate the list for efficiency
 
   long_rows <- vector("list", n_proteins * n_clusters)
   row_idx <- 0
@@ -646,20 +646,20 @@ build_long_output <- function(cl, eset_std, conditions, min_membership) {
     feature_id <- rownames(mem_matrix)[i]
     memberships <- mem_matrix[i, ]
 
-    # Encontrar clusters donde membership >= umbral
+    # Find the clusters where membership >= threshold
     qualifying_clusters <- which(memberships >= min_membership)
 
     for (k in qualifying_clusters) {
       row_idx <- row_idx + 1
 
-      # Crear fila base
+      # Build the base row
       row_data <- list(
         FeatureID = feature_id,
         Cluster = as.integer(k),
         Membership = round(memberships[k], 6)
       )
 
-      # Añadir z-scores por condición
+      # Add the z-scores per condition
       for (cond in conditions) {
         row_data[[cond]] <- round(zscores[i, cond], 6)
       }
@@ -668,10 +668,10 @@ build_long_output <- function(cl, eset_std, conditions, min_membership) {
     }
   }
 
-  # Combinar todas las filas
+  # Combine all the rows
   result <- do.call(rbind, long_rows[seq_len(row_idx)])
 
-  # Ordenar por Cluster y Membership descendente
+  # Sort by Cluster and by decreasing Membership
   result <- result[order(result$Cluster, -result$Membership), ]
   rownames(result) <- NULL
 
@@ -680,38 +680,38 @@ build_long_output <- function(cl, eset_std, conditions, min_membership) {
 
 
 # =============================================================================
-# FUNCIÓN PRINCIPAL: PATTERN PROFILER ANALYSIS
+# MAIN FUNCTION: PATTERN PROFILER ANALYSIS
 # =============================================================================
 
 #' Pattern Profiler Analysis
 #'
-#' Pipeline completo de clustering desde SummarizedExperiment.
-#' Genera archivo parquet en formato LONG para visualización.
+#' Complete clustering pipeline starting from a SummarizedExperiment.
+#' Writes a parquet file in LONG format for visualisation.
 #'
-#' @param se_proc SummarizedExperiment con datos de intensidad
-#' @param DEPs_results DataFrame con resultados de expresión diferencial (debe tener columna 'Assay')
-#' @param assay_name Nombre del assay a usar (default: "LoessCyc"). Se usa para filtrar DEPs_results también.
-#' @param filter_mode Modo de filtrado: "any" (signif. en alguna comparación),
-#'   "all" (TODOS los features, sin filtrar por significancia), "specific"
-#'   (signif. en la comparación de `comparison`)
-#' @param alpha Umbral de significancia (default: 0.05)
-#' @param comparison Comparación específica (para filter_mode="specific")
-#' @param condition_order Orden de condiciones para los perfiles
-#' @param aggregate Método de agregación: "median" o "mean"
-#' @param c_range Rango de clusters a evaluar
-#' @param auto_select_c Selección automática de clusters (default: TRUE)
-#' @param c Número fijo de clusters (si auto_select_c=FALSE)
-#' @param selection_method Método de selección: "xb", "consensus", "elbow"
-#' @param min_membership Umbral mínimo de membership para incluir en salida
-#' @param output_file Ruta del archivo parquet de salida. Por defecto `NULL`,
-#'   que no escribe nada en disco; los datos en formato largo se devuelven
-#'   igualmente en el elemento `long_output` del resultado.
-#' @param verbose Mostrar mensajes de progreso
+#' @param se_proc SummarizedExperiment with intensity data
+#' @param DEPs_results DataFrame with differential expression results (must have an 'Assay' column)
+#' @param assay_name Name of the assay to use (default: "LoessCyc"). It is also used to filter DEPs_results.
+#' @param filter_mode Filtering mode: "any" (significant in at least one
+#'   comparison), "all" (ALL features, with no significance filtering),
+#'   "specific" (significant in the comparison given by `comparison`)
+#' @param alpha Significance threshold (default: 0.05)
+#' @param comparison Specific comparison (for filter_mode="specific")
+#' @param condition_order Condition order for the profiles
+#' @param aggregate Aggregation method: "median" or "mean"
+#' @param c_range Range of cluster numbers to evaluate
+#' @param auto_select_c Automatic selection of the number of clusters (default: TRUE)
+#' @param c Fixed number of clusters (if auto_select_c=FALSE)
+#' @param selection_method Selection method: "xb", "consensus", "elbow"
+#' @param min_membership Minimum membership threshold for inclusion in the output
+#' @param output_file Path of the output parquet file. `NULL` by default, which
+#'   writes nothing to disk; the long-format data is returned regardless in the
+#'   `long_output` element of the result.
+#' @param verbose Show progress messages
 #'
-#' @return Lista (invisible) con los resultados del clustering: `optimal_c`, `m`,
-#'   `conditions`, recuentos de features, `selection_metrics`, `cluster_counts`,
-#'   el objeto `cl` de Mfuzz, el `eset_std` estandarizado y `long_output`, el
-#'   data.frame en formato largo que se escribe cuando se indica `output_file`.
+#' @return List (invisible) with the clustering results: `optimal_c`, `m`,
+#'   `conditions`, feature counts, `selection_metrics`, `cluster_counts`, the
+#'   Mfuzz `cl` object, the standardised `eset_std` and `long_output`, the
+#'   long-format data.frame that is written when `output_file` is given.
 #'
 #' @examples
 #' \dontrun{
@@ -745,32 +745,32 @@ pattern_profiler_analysis <- function(se_proc,
   aggregate <- match.arg(aggregate)
   selection_method <- match.arg(selection_method)
 
-  # Mfuzz llama a exprs() y cmeans() sin cualificar, así que necesita Biobase y
-  # e1071 adjuntados en la ruta de búsqueda. Se adjuntan aquí y se sueltan al
-  # salir, de modo que la sesión del usuario queda como estaba.
-  .pp_adjuntados <- .mfuzz_deps_attach()
-  on.exit(.mfuzz_deps_detach(.pp_adjuntados), add = TRUE)
+  # Mfuzz calls exprs() and cmeans() unqualified, so it needs Biobase and e1071
+  # attached on the search path. They are attached here and released on exit, so
+  # that the user's session is left as it was.
+  .pp_attached <- .mfuzz_deps_attach()
+  on.exit(.mfuzz_deps_detach(.pp_attached), add = TRUE)
 
   if (verbose) message("=== Pattern Profiler Analysis ===\n")
 
   # -------------------------------------------------------------------------
-  # 1) Extraer datos del SummarizedExperiment
+  # 1) Extract the data from the SummarizedExperiment
   # -------------------------------------------------------------------------
-  if (verbose) message("1. Extrayendo datos del SummarizedExperiment...")
+  if (verbose) message("1. Extracting data from the SummarizedExperiment...")
 
   se_data <- extract_se_data(se_proc, assay_name)
 
   if (verbose) {
     message(sprintf("   - Features: %d", length(se_data$feature_ids)))
-    message(sprintf("   - Muestras: %d", nrow(se_data$sample_metadata)))
-    message(sprintf("   - Condiciones: %s",
+    message(sprintf("   - Samples: %d", nrow(se_data$sample_metadata)))
+    message(sprintf("   - Conditions: %s",
                     paste(unique(se_data$sample_metadata$Condition), collapse = ", ")))
   }
 
   # -------------------------------------------------------------------------
-  # 2) Fusionar información de significancia
+  # 2) Merge the significance information
   # -------------------------------------------------------------------------
-  if (verbose) message("\n2. Fusionando información de significancia...")
+  if (verbose) message("\n2. Merging significance information...")
 
   feature_info <- merge_significance_info(
     se_data$feature_ids,
@@ -781,13 +781,13 @@ pattern_profiler_analysis <- function(se_proc,
 
   n_sig <- sum(feature_info$sig_any, na.rm = TRUE)
   if (verbose) {
-    message(sprintf("   - Features significativos (alpha=%.3f): %d", alpha, n_sig))
+    message(sprintf("   - Significant features (alpha=%.3f): %d", alpha, n_sig))
   }
 
   # -------------------------------------------------------------------------
-  # 3) Filtrar features
+  # 3) Filter the features
   # -------------------------------------------------------------------------
-  if (verbose) message("\n3. Filtrando features...")
+  if (verbose) message("\n3. Filtering features...")
 
   selected_features <- filter_significant_features(
     feature_info,
@@ -797,13 +797,13 @@ pattern_profiler_analysis <- function(se_proc,
   )
 
   if (length(selected_features) < 10) {
-    stop("Muy pocos features seleccionados (< 10). Ajustar filtros.")
+    stop("Too few features selected (< 10). Adjust the filters.")
   }
 
   # -------------------------------------------------------------------------
-  # 4) Construir matriz de clustering
+  # 4) Build the clustering matrix
   # -------------------------------------------------------------------------
-  if (verbose) message("\n4. Construyendo matriz de clustering...")
+  if (verbose) message("\n4. Building the clustering matrix...")
 
   clustering_matrix <- build_clustering_matrix(
     se_data$intensity_matrix,
@@ -813,32 +813,32 @@ pattern_profiler_analysis <- function(se_proc,
     aggregate
   )
 
-  # Guardar orden de condiciones
+  # Keep the condition order
   conditions <- colnames(clustering_matrix)
 
   if (verbose) {
-    message(sprintf("   - Matriz: %d features x %d condiciones",
+    message(sprintf("   - Matrix: %d features x %d conditions",
                     nrow(clustering_matrix), ncol(clustering_matrix)))
   }
 
   # -------------------------------------------------------------------------
-  # 5) Crear y estandarizar ExpressionSet
+  # 5) Create and standardise the ExpressionSet
   # -------------------------------------------------------------------------
-  if (verbose) message("\n5. Estandarizando datos (z-score)...")
+  if (verbose) message("\n5. Standardising the data (z-score)...")
 
   eset <- create_expression_set(clustering_matrix)
   eset_std <- standardize_eset(eset)
 
   n_final <- nrow(eset_std)
   if (verbose) {
-    message(sprintf("   - Features finales (post-filtro NA): %d", n_final))
+    message(sprintf("   - Final features (after NA filtering): %d", n_final))
   }
 
   # -------------------------------------------------------------------------
-  # 6) Seleccionar número de clusters
+  # 6) Select the number of clusters
   # -------------------------------------------------------------------------
   if (auto_select_c) {
-    if (verbose) message("\n6. Seleccionando número óptimo de clusters...")
+    if (verbose) message("\n6. Selecting the optimal number of clusters...")
 
     selection <- select_optimal_clusters(
       eset_std,
@@ -853,41 +853,41 @@ pattern_profiler_analysis <- function(se_proc,
 
   } else {
     if (is.null(c)) {
-      stop("Debe especificar 'c' cuando auto_select_c = FALSE")
+      stop("'c' must be specified when auto_select_c = FALSE")
     }
     optimal_c <- c
     m <- Mfuzz::mestimate(eset_std)
     selection_metrics <- NULL
 
     if (verbose) {
-      message(sprintf("\n6. Usando c = %d (fijo), m = %.3f", optimal_c, m))
+      message(sprintf("\n6. Using c = %d (fixed), m = %.3f", optimal_c, m))
     }
   }
 
   # -------------------------------------------------------------------------
-  # 7) Ejecutar clustering
+  # 7) Run the clustering
   # -------------------------------------------------------------------------
-  if (verbose) message(sprintf("\n7. Ejecutando Mfuzz clustering (c=%d)...", optimal_c))
+  if (verbose) message(sprintf("\n7. Running Mfuzz clustering (c=%d)...", optimal_c))
 
   cl <- run_mfuzz_clustering(eset_std, c = optimal_c, m = m)
 
-  # Contar proteínas por cluster (asignación hard)
+  # Count the proteins per cluster (hard assignment)
   hard_assignment <- apply(cl$membership, 1, which.max)
   cluster_counts <- table(hard_assignment)
 
   if (verbose) {
-    message("   Distribución de clusters (asignación hard):")
+    message("   Cluster distribution (hard assignment):")
     for (k in seq_len(optimal_c)) {
       count <- ifelse(as.character(k) %in% names(cluster_counts),
                       cluster_counts[[as.character(k)]], 0)
-      message(sprintf("     Cluster %d: %d proteínas", k, count))
+      message(sprintf("     Cluster %d: %d proteins", k, count))
     }
   }
 
   # -------------------------------------------------------------------------
-  # 8) Construir salida en formato LONG
+  # 8) Build the output in LONG format
   # -------------------------------------------------------------------------
-  if (verbose) message(sprintf("\n8. Construyendo tabla LONG (membership >= %.2f)...",
+  if (verbose) message(sprintf("\n8. Building the LONG table (membership >= %.2f)...",
                                min_membership))
 
   long_output <- build_long_output(cl, eset_std, conditions, min_membership)
@@ -897,21 +897,21 @@ pattern_profiler_analysis <- function(se_proc,
   multi_cluster <- n_rows - n_unique_features
 
   if (verbose) {
-    message(sprintf("   - Filas totales: %d", n_rows))
-    message(sprintf("   - Features únicos: %d", n_unique_features))
-    message(sprintf("   - Features en múltiples clusters: %d", multi_cluster))
+    message(sprintf("   - Total rows: %d", n_rows))
+    message(sprintf("   - Unique features: %d", n_unique_features))
+    message(sprintf("   - Features in several clusters: %d", multi_cluster))
   }
 
   # -------------------------------------------------------------------------
-  # 9) Guardar archivo parquet (solo si se ha indicado una ruta)
+  # 9) Write the parquet file (only if a path has been given)
   # -------------------------------------------------------------------------
-  # Con output_file = NULL no se escribe nada: la función no debe crear archivos
-  # en el espacio de trabajo del usuario sin que este indique dónde. El
-  # data.frame en formato largo se devuelve igualmente en el resultado.
+  # With output_file = NULL nothing is written: the function must not create
+  # files in the user's workspace unless the user says where. The long-format
+  # data.frame is returned in the result regardless.
   if (is.null(output_file)) {
-    if (verbose) message("\n9. Sin output_file: no se guarda ningún archivo")
+    if (verbose) message("\n9. No output_file: no file is written")
   } else {
-    if (verbose) message(sprintf("\n9. Guardando archivo: %s", output_file))
+    if (verbose) message(sprintf("\n9. Writing file: %s", output_file))
 
     output_dir <- dirname(output_file)
     if (output_dir != "." && !dir.exists(output_dir)) {
@@ -921,10 +921,10 @@ pattern_profiler_analysis <- function(se_proc,
     arrow::write_parquet(long_output, output_file)
   }
 
-  if (verbose) message("\n=== Análisis completado ===")
+  if (verbose) message("\n=== Analysis complete ===")
 
   # -------------------------------------------------------------------------
-  # Retornar resultados (invisiblemente)
+  # Return the results (invisibly)
   # -------------------------------------------------------------------------
   result <- list(
     optimal_c = optimal_c,
@@ -949,20 +949,20 @@ pattern_profiler_analysis <- function(se_proc,
 
 
 # =============================================================================
-# EJEMPLOS DE USO
+# USAGE EXAMPLES
 # =============================================================================
 
-# --- Uso típico ---
-# Los objetos 'se_proc' (SummarizedExperiment) y 'DEPs_results' (dataframe)
-# ya están cargados en el environment desde pasos previos del pipeline.
+# --- Typical usage ---
+# The objects 'se_proc' (SummarizedExperiment) and 'DEPs_results' (dataframe)
+# are already loaded in the environment from previous pipeline steps.
 #
 # source("R/Pattern_Profiler_Analysis.R")
 #
-# # Ejecutar análisis (usa assay 'LoessCyc' por defecto)
+# # Run the analysis (uses assay 'LoessCyc' by default)
 # result <- pattern_profiler_analysis(
 #   se_proc = se_proc,
 #   DEPs_results = DEPs_results,
-#   assay_name = "LoessCyc",  # default, filtra también DEPs_results por esta columna
+#   assay_name = "LoessCyc",  # default; also filters DEPs_results by this column
 #   filter_mode = "any",
 #   condition_order = c("A", "B", "C", "D"),
 #   c_range = 2:8,
@@ -971,15 +971,15 @@ pattern_profiler_analysis <- function(se_proc,
 #   output_file = "data-raw/Pattern_Profiler_Input.parquet"
 # )
 #
-# # Ver resultados
+# # Inspect the results
 # result$optimal_c
 # result$selection_metrics
 #
-# --- Usar un assay diferente ---
+# --- Using a different assay ---
 # result <- pattern_profiler_analysis(
 #   se_proc = se_proc,
 #   DEPs_results = DEPs_results,
-#   assay_name = "log2",  # Usar log2 en lugar de LoessCyc
+#   assay_name = "log2",  # use log2 instead of LoessCyc
 #   filter_mode = "any",
 #   condition_order = c("A", "B", "C", "D")
 # )

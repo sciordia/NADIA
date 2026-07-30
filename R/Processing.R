@@ -1,20 +1,20 @@
 # =============================================================================
-# Procesamiento de Datos Proteomicos (Coordinador)
+# Proteomics Data Processing (Coordinator)
 # =============================================================================
 #
-# Funcion principal que coordina el pipeline completo:
-#   1. Normalization.R - Filtrado, multiples metodos de normalizacion
-#   2. Imputation.R   - 17 metodos de imputacion (combo MAR+MNAR + individuales)
-#   3. DEAnalysis.R   - Analisis diferencial con limma
+# Main function that coordinates the complete pipeline:
+#   1. Normalization.R - Filtering, multiple normalization methods
+#   2. Imputation.R   - 17 imputation methods (combo MAR+MNAR + individual)
+#   3. DEAnalysis.R   - Differential analysis with limma
 #
-# Dependencias: ver modulos individuales
+# Dependencies: see the individual modules
 #
-# Autor: Sergio Ciordia
-# Licencia: MIT
+# Author: Sergio Ciordia
+# License: MIT
 # =============================================================================
 
-# Normalization.R, Imputation.R, DEAnalysis.R y Batch_Correction.R comparten
-# namespace con este archivo, así que no hace falta cargarlos.
+# Normalization.R, Imputation.R, DEAnalysis.R and Batch_Correction.R share a
+# namespace with this file, so there is no need to load them.
 
 # =============================================================================
 # LINKER FUNCTIONS (internal)
@@ -41,12 +41,12 @@
 
   if (!is.null(covariate_df)) {
     if (!"Column" %in% names(covariate_df)) {
-      stop("covariate_df debe contener una columna 'Column'")
+      stop("covariate_df must contain a 'Column' column")
     }
-    # Ignorar columnas ya derivadas del preprocessing (Condition, Replicate, ...)
+    # Ignore columns already derived from the preprocessing (Condition, Replicate, ...)
     redundant <- setdiff(intersect(names(covariate_df), names(result)), "Column")
     if (length(redundant) > 0) {
-      message("Ignorando columnas de covariate_df ya presentes en metadata: ",
+      message("Ignoring covariate_df columns already present in metadata: ",
               paste(redundant, collapse = ", "))
       covariate_df <- covariate_df[, setdiff(names(covariate_df), redundant),
                                    drop = FALSE]
@@ -59,7 +59,7 @@
                          logical(1))
       if (any(na_check)) {
         missing_cols <- names(na_check)[na_check]
-        stop("covariate_df no cubre todas las muestras. NAs en: ",
+        stop("covariate_df does not cover all samples. NAs in: ",
              paste(missing_cols, collapse = ", "))
       }
     }
@@ -82,7 +82,7 @@
   # Identify quantity columns (PG.Quantity_*)
   quantity_cols <- grep("^PG\\.Quantity_", names(pq), value = TRUE)
   if (length(quantity_cols) == 0) {
-    stop("No se encontraron columnas PG.Quantity_* en protein_quant")
+    stop("No PG.Quantity_* columns found in protein_quant")
   }
 
   # Identify unique peptide columns
@@ -132,7 +132,7 @@
   } else {
     assay_names <- intersect(assay_names, available_assays)
     if (length(assay_names) == 0) {
-      stop("Ninguno de los assays especificados esta disponible")
+      stop("None of the specified assays is available")
     }
   }
 
@@ -185,7 +185,7 @@
   stopifnot(inherits(se, "SummarizedExperiment"))
 
   if (!assay_name %in% SummarizedExperiment::assayNames(se)) {
-    stop("Assay '", assay_name, "' no encontrado en SE")
+    stop("Assay '", assay_name, "' not found in SE")
   }
 
   mat <- SummarizedExperiment::assay(se, assay_name)
@@ -251,8 +251,8 @@
 
   if (format %in% c("parquet", "both")) {
     if (!requireNamespace("arrow", quietly = TRUE)) {
-      warning("Paquete 'arrow' no instalado. No se puede exportar a Parquet. ",
-              "Instalalo con: install.packages('arrow')")
+      warning("Package 'arrow' is not installed. Cannot export to Parquet. ",
+              "Install it with: install.packages('arrow')")
     } else {
       parquet_file <- paste0(filepath_base, ".parquet")
       arrow::write_parquet(data, parquet_file)
@@ -283,9 +283,9 @@
   known <- names(cond_samples)
   comps <- unique(as.character(DEPs_results$Comparison))
   pct_list <- lapply(comps, function(comp) {
-    # comp = "cond1-cond2" (numerador-denominador). Derivar cond1/cond2
-    # matcheando contra los nombres de condicion conocidos en vez de re-parsear
-    # a ciegas por "-" (robusto aunque un nombre contuviera un guion).
+    # comp = "cond1-cond2" (numerator-denominator). Derive cond1/cond2 by matching
+    # against the known condition names instead of blindly re-parsing on "-"
+    # (robust even if a name were to contain a hyphen).
     cond1 <- NA_character_
     cond2 <- NA_character_
     for (c1 in known) {
@@ -295,7 +295,7 @@
         if (rest %in% known) { cond1 <- c1; cond2 <- rest; break }
       }
     }
-    if (is.na(cond1)) {  # fallback: split simple por "-"
+    if (is.na(cond1)) {  # fallback: plain split on "-"
       parts <- trimws(strsplit(comp, "-")[[1]])
       cond1 <- parts[1]  # numerator (e.g. B in "B-A")
       cond2 <- parts[2]  # denominator (e.g. A in "B-A")
@@ -382,10 +382,10 @@
 #' @param control Control condition. If NULL, compares all
 #' @param logFC_threshold LogFC threshold for significance (default: 0)
 #' @param alpha Adjusted p-value threshold (default: 0.05)
-#' @param eBayes_trend Use trend estimation in eBayes. If NULL (default), se
-#'   resuelve segun de_method: TRUE para "limma", FALSE para "limpa".
-#' @param eBayes_robust Use robust estimation in eBayes. If NULL (default), se
-#'   resuelve segun de_method: TRUE para "limma", FALSE para "limpa".
+#' @param eBayes_trend Use trend estimation in eBayes. If NULL (default), it is
+#'   resolved from de_method: TRUE for "limma", FALSE for "limpa".
+#' @param eBayes_robust Use robust estimation in eBayes. If NULL (default), it is
+#'   resolved from de_method: TRUE for "limma", FALSE for "limpa".
 #' @param de_method DE method: "limma" (default) or "limpa" (probabilistic, requires imp_method="limpa")
 #' @param covariate_df Data frame with Column + covariate column(s) for paired/blocked design (default: NULL)
 #' @param covariate_column Name(s) of the covariate column(s) for the DE model.
@@ -480,13 +480,13 @@ process_proteomics <- function(
   # =========================================================================
 
   if (!inherits(preprocessing, "proteomics_data")) {
-    stop("El argumento 'preprocessing' debe ser resultado de preprocess_spectronaut() o preprocess_tmt()")
+    stop("The 'preprocessing' argument must be the result of preprocess_spectronaut() or preprocess_tmt()")
   }
 
-  # Sin export_dir no se escribe nada en disco. La función no debe crear
-  # archivos ni directorios en el espacio de trabajo del usuario a menos que se
-  # le indique explícitamente dónde (requisito de Bioconductor). Desactivar aquí
-  # los flags basta para cubrir todos los bloques de exportación posteriores.
+  # Without export_dir nothing is written to disk. The function must not create
+  # files or directories in the user's workspace unless explicitly told where
+  # (a Bioconductor requirement). Turning the flags off here is enough to cover
+  # all the later export blocks.
   if (is.null(export_dir)) {
     export_normalized <- FALSE
     export_imputed    <- FALSE
@@ -501,14 +501,14 @@ process_proteomics <- function(
   # 1. PREPARE DATA FROM PREPROCESSING
   # =========================================================================
 
-  if (verbose) cat("=== PREPARANDO DATOS ===\n")
+  if (verbose) cat("=== PREPARING DATA ===\n")
 
   metadata <- .prepare_metadata(preprocessing, covariate_df = covariate_df)
   protein_data <- .prepare_protein_data(preprocessing)
 
   if (verbose) {
-    cat("- Metadatos:", nrow(metadata), "muestras\n")
-    cat("- Proteinas:", nrow(protein_data), "proteinas iniciales\n")
+    cat("- Metadata:", nrow(metadata), "samples\n")
+    cat("- Proteins:", nrow(protein_data), "initial proteins\n")
   }
 
   # =========================================================================
@@ -544,11 +544,11 @@ process_proteomics <- function(
         norm_file, sep = "\t", quote = FALSE, row.names = FALSE
       )
     }
-    if (verbose) cat("- Exportado:", basename(norm_file), "\n")
+    if (verbose) cat("- Exported:", basename(norm_file), "\n")
   }
 
   # =========================================================================
-  # 2b. BATCH CORRECTION (optional — Batch_Correction.R / BERT)
+  # 2b. BATCH CORRECTION (optional -- Batch_Correction.R / BERT)
   # =========================================================================
 
   input_to_imputation <- norm_method
@@ -590,7 +590,7 @@ process_proteomics <- function(
           bc_file, sep = "\t", quote = FALSE, row.names = FALSE
         )
       }
-      if (verbose) cat("- Exportado:", basename(bc_file), "\n")
+      if (verbose) cat("- Exported:", basename(bc_file), "\n")
     }
   }
 
@@ -646,7 +646,7 @@ process_proteomics <- function(
         imp_file, sep = "\t", quote = FALSE, row.names = FALSE
       )
     }
-    if (verbose) cat("- Exportado:", basename(imp_file), "\n")
+    if (verbose) cat("- Exported:", basename(imp_file), "\n")
   }
 
   # =========================================================================
@@ -685,9 +685,9 @@ process_proteomics <- function(
   # =========================================================================
 
   if (export_volcano || export_boxplot || export_pca) {
-    if (verbose) cat("\n=== EXPORTANDO ARCHIVOS PARA VISUALIZACION ===\n")
+    if (verbose) cat("\n=== EXPORTING FILES FOR VISUALIZATION ===\n")
 
-    # Sufijo con norm_method y assay_label (evitar redundancia si son iguales)
+    # Suffix with norm_method and assay_label (avoid redundancy if they are equal)
     viz_suffix <- if (identical(assay_label, norm_method)) {
       paste0("_", norm_method)
     } else {
@@ -698,7 +698,7 @@ process_proteomics <- function(
     if (export_volcano) {
       volcano_file <- file.path(export_dir, paste0("VolcanoPlot_Input", viz_suffix))
       .export_data(DEPs_results, volcano_file, export_format)
-      if (verbose) cat("- VolcanoPlot_Input exportado\n")
+      if (verbose) cat("- VolcanoPlot_Input exported\n")
     }
 
     # 5.2 BoxPlot_Input (SE -> long format)
@@ -706,7 +706,7 @@ process_proteomics <- function(
       boxplot_data <- .se_to_long(se_proc, assay_names = c("log2", assay_label))
       boxplot_file <- file.path(export_dir, paste0("BoxPlot_Input", viz_suffix))
       .export_data(boxplot_data, boxplot_file, export_format)
-      if (verbose) cat("- BoxPlot_Input exportado\n")
+      if (verbose) cat("- BoxPlot_Input exported\n")
     }
 
     # 5.3 PCA_Input (SE + DE in long format)
@@ -714,7 +714,7 @@ process_proteomics <- function(
       pca_data <- .prepare_pca_input(se_proc, DEPs_results, assay_label, alpha)
       pca_file <- file.path(export_dir, paste0("PCA_Input", viz_suffix))
       .export_data(pca_data, pca_file, export_format)
-      if (verbose) cat("- PCA_Input exportado\n")
+      if (verbose) cat("- PCA_Input exported\n")
     }
   }
 
@@ -762,7 +762,7 @@ process_proteomics <- function(
 
   class(result) <- c("proteomics_result", "list")
 
-  if (verbose) cat("\n=== PROCESAMIENTO COMPLETADO ===\n")
+  if (verbose) cat("\n=== PROCESSING COMPLETED ===\n")
 
   result
 }
@@ -777,24 +777,24 @@ process_proteomics <- function(
 #' @param ... Additional arguments (ignored)
 #' @export
 print.proteomics_result <- function(x, ...) {
-  cat("=== Resultado de Procesamiento Proteomico ===\n\n")
+  cat("=== Proteomics Processing Result ===\n\n")
 
   # SE summary
   se <- x$se_proc
   cat("SummarizedExperiment:\n")
-  cat("  - Proteinas:", nrow(se), "\n")
-  cat("  - Muestras:", ncol(se), "\n")
+  cat("  - Proteins:", nrow(se), "\n")
+  cat("  - Samples:", ncol(se), "\n")
   cat("  - Assays:", paste(SummarizedExperiment::assayNames(se), collapse = ", "), "\n")
 
   # Condition summary
   cd <- as.data.frame(SummarizedExperiment::colData(se))
   if ("Condition" %in% names(cd)) {
-    cat("  - Condiciones:", paste(unique(cd$Condition), collapse = ", "), "\n")
+    cat("  - Conditions:", paste(unique(cd$Condition), collapse = ", "), "\n")
   }
 
-  cat("\nResultados Diferenciales:\n")
-  cat("  - Total filas:", nrow(x$DEPs_results), "\n")
-  cat("  - Comparaciones:", paste(unique(x$DEPs_results$Comparison), collapse = ", "), "\n")
+  cat("\nDifferential Results:\n")
+  cat("  - Total rows:", nrow(x$DEPs_results), "\n")
+  cat("  - Comparisons:", paste(unique(x$DEPs_results$Comparison), collapse = ", "), "\n")
 
   for (comp in unique(x$DEPs_results$Comparison)) {
     subset <- x$DEPs_results[x$DEPs_results$Comparison == comp, ]
@@ -803,22 +803,22 @@ print.proteomics_result <- function(x, ...) {
     cat("    ", comp, ": Up=", n_up, ", Down=", n_down, "\n", sep = "")
   }
 
-  cat("\nParametros:\n")
-  cat("  - Normalizacion:", x$parameters$norm_method, "\n")
+  cat("\nParameters:\n")
+  cat("  - Normalization:", x$parameters$norm_method, "\n")
   if (identical(x$parameters$norm_method, "cycloess")) {
     cat("    - Cyclic Loess method:", x$parameters$cyclic_loess_method, "\n")
     cat("    - Cyclic Loess iterations:", x$parameters$cyclic_loess_iterations, "\n")
     cat("    - Cyclic Loess span:", x$parameters$cyclic_loess_span, "\n")
   }
-  cat("  - Imputacion:", x$parameters$imp_method, "\n")
+  cat("  - Imputation:", x$parameters$imp_method, "\n")
   if (identical(x$parameters$imp_method, "combo")) {
     cat("    - MAR method:", x$parameters$mar_method, "\n")
     cat("    - MNAR method:", x$parameters$mnar_method, "\n")
   }
   cat("  - Alpha:", x$parameters$alpha, "\n")
   cat("  - logFC threshold:", x$parameters$logFC_threshold, "\n")
-  cat("  - Directorio salida:",
-      x$parameters$export_dir %||% "(sin exportación)", "\n")
+  cat("  - Output directory:",
+      x$parameters$export_dir %||% "(no export)", "\n")
 
   invisible(x)
 }

@@ -2,18 +2,18 @@
 % Please edit documentation in R/PCA_Highcharts_Final.R
 \name{compute_hulls}
 \alias{compute_hulls}
-\title{Calcular convex hull (polígono envolvente) por grupo}
+\title{Compute the convex hull (enclosing polygon) per group}
 \usage{
 compute_hulls(scores_df, group_col = "Condition")
 }
 \arguments{
-\item{scores_df}{Data frame con columnas PC1, PC2 y la columna de grupo}
+\item{scores_df}{Data frame with columns PC1, PC2 and the grouping column}
 
-\item{group_col}{Nombre de la columna de agrupación (default: "Condition")}
+\item{group_col}{Name of the grouping column (default: "Condition")}
 }
 \value{
-Lista de data frames, cada uno con columnas: group, x, y
+List of data frames, each one with columns: group, x, y
 }
 \description{
-Calcular convex hull (polígono envolvente) por grupo
+Compute the convex hull (enclosing polygon) per group
 }

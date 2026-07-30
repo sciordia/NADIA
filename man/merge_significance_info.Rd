@@ -2,23 +2,23 @@
 % Please edit documentation in R/Pattern_Profiler_Analysis.R
 \name{merge_significance_info}
 \alias{merge_significance_info}
-\title{Fusionar información de significancia desde DEPs_results}
+\title{Merge significance information from DEPs_results}
 \usage{
 merge_significance_info(feature_ids, DEPs_results, assay_name, alpha = 0.05)
 }
 \arguments{
-\item{feature_ids}{Vector de IDs de features}
+\item{feature_ids}{Vector of feature IDs}
 
-\item{DEPs_results}{DataFrame con columnas Protein.IDs, adj.P.Val, Comparison, Assay}
+\item{DEPs_results}{DataFrame with columns Protein.IDs, adj.P.Val, Comparison, Assay}
 
-\item{assay_name}{Nombre del assay para filtrar DEPs_results}
+\item{assay_name}{Name of the assay used to filter DEPs_results}
 
-\item{alpha}{Umbral de significancia (default: 0.05)}
+\item{alpha}{Significance threshold (default: 0.05)}
 }
 \value{
-DataFrame con FeatureID, adjP_*, sig_any
+DataFrame with FeatureID, adjP_*, sig_any
 }
 \description{
-Convierte DEPs_results (formato largo) a formato ancho con columnas
-adjP_* por cada comparación, y calcula sig_any.
+Converts DEPs_results (long format) into wide format with one adjP_* column
+per comparison, and computes sig_any.
 }

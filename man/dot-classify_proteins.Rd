@@ -27,7 +27,7 @@ Assigns truth labels (immutable, biological identity) and predicted labels.
 \item Species NOT in expected_values -> truth = 0 (background)
 \item Positive species: predicted = 1 only if significant AND direction matches
 expected_logFC sign (TP); significant with wrong sign stays predicted = 0
-(FN, a detection failure — NOT relabelled as a false positive).
+(FN, a detection failure -- NOT relabelled as a false positive).
 \item Negative species: predicted = 1 if significant (any direction -> FP)
 \code{truth} is never modified by the prediction, so .compute_auc/.compute_pauc
 receive the biological ground truth (uncontaminated) for pROC.

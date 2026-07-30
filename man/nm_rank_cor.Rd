@@ -3,7 +3,7 @@
 \name{nm_rank_cor}
 \alias{nm_rank_cor}
 \title{Rank normalization methods by median intragroup correlation
-(descending — higher is better)}
+(descending -- higher is better)}
 \usage{
 nm_rank_cor(
   se,
@@ -29,5 +29,5 @@ A \code{data.frame} with columns \code{Method}, \code{Median_Cor}, \code{Rank}.
 }
 \description{
 Rank normalization methods by median intragroup correlation
-(descending — higher is better)
+(descending -- higher is better)
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/PCA_Highcharts_Final.R
 \name{pca_highchart_list}
 \alias{pca_highchart_list}
-\title{Generar Lista de PCA Plots para Múltiples Subsets}
+\title{Build a List of PCA Plots for Multiple Subsets}
 \usage{
 pca_highchart_list(
   pca_input,
@@ -26,65 +26,65 @@ pca_highchart_list(
 )
 }
 \arguments{
-\item{pca_input}{Data frame en formato long (ver build_pca_scores para estructura)}
+\item{pca_input}{Data frame in long format (see build_pca_scores for the structure)}
 
-\item{modes}{Vector de modos a generar: "all", "any", y/o nombres de comparaciones
+\item{modes}{Vector of modes to generate: "all", "any", and/or comparison names
 (default: c("all", "any"))}
 
-\item{alpha}{Umbral de significancia para proteínas DEPs (default: 0.05)}
+\item{alpha}{Significance threshold for DEPs (default: 0.05)}
 
-\item{color_by}{Columna para colorear (default: "Condition")}
+\item{color_by}{Column used to colour the points (default: "Condition")}
 
-\item{group_order}{Orden de grupos/condiciones (opcional)}
+\item{group_order}{Order of the groups/conditions (optional)}
 
-\item{palette}{Vector nombrado de colores o NULL para automático}
+\item{palette}{Named vector of colours, or NULL for an automatic palette}
 
-\item{addEllipses}{Mostrar elipses/hulls alrededor de los grupos (default: TRUE)}
+\item{addEllipses}{Show ellipses/hulls around the groups (default: TRUE)}
 
-\item{ellipse_type}{Tipo de elipse: "convex" o "confidence" (default: "convex")}
+\item{ellipse_type}{Ellipse type: "convex" or "confidence" (default: "convex")}
 
-\item{ellipse_level}{Nivel de confianza para ellipse_type = "confidence"
+\item{ellipse_level}{Confidence level for ellipse_type = "confidence"
 (default: 0.95)}
 
-\item{ellipse_fill_opacity}{Opacidad del relleno de elipses (0-1, default: 0.12)}
+\item{ellipse_fill_opacity}{Ellipse fill opacity (0-1, default: 0.12)}
 
-\item{ellipse_line_width}{Ancho de línea del contorno (default: 1)}
+\item{ellipse_line_width}{Outline line width (default: 1)}
 
-\item{ellipse_npoints}{Número de puntos para elipse de confianza (default: 100)}
+\item{ellipse_npoints}{Number of points for the confidence ellipse (default: 100)}
 
-\item{point_size}{Radio de los puntos (default: 5)}
+\item{point_size}{Point radius (default: 5)}
 
-\item{show_labels}{Mostrar etiquetas de los puntos (SampleID) (default: FALSE)}
+\item{show_labels}{Show the point labels (SampleID) (default: FALSE)}
 
-\item{label_size}{Tamaño de fuente de las etiquetas en px (default: 10)}
+\item{label_size}{Label font size in px (default: 10)}
 
-\item{center}{Centrar datos antes de PCA (default: TRUE)}
+\item{center}{Center the data before PCA (default: TRUE)}
 
-\item{scale.}{Escalar datos antes de PCA (default: TRUE)}
+\item{scale.}{Scale the data before PCA (default: TRUE)}
 
-\item{filter_samples_to_comparison}{Para comparaciones específicas, filtrar
-muestras solo a las condiciones involucradas (default: FALSE)}
+\item{filter_samples_to_comparison}{For specific comparisons, restrict the
+samples to the conditions involved (default: FALSE)}
 }
 \value{
-Lista nombrada de objetos highchart
+Named list of highchart objects
 }
 \description{
-Genera automáticamente PCA plots para "all", "any" y/o comparaciones específicas.
-Similar a factoextra::fviz_pca_ind con opciones de elipses.
+Automatically builds PCA plots for "all", "any" and/or specific comparisons.
+Similar to factoextra::fviz_pca_ind with ellipse options.
 }
 \examples{
 \dontrun{
-# Cargar datos
+# Load the data
 pca_input <- arrow::read_parquet("PCA_Input.parquet")
 
-# PCA con convex hull (default)
+# PCA with convex hull (default)
 hc_pcas <- pca_highchart_list(
   pca_input   = pca_input,
   modes       = c("all", "any"),
   group_order = c("A", "B", "C", "D")
 )
 
-# PCA con elipse de confianza 95\%
+# PCA with a 95\% confidence ellipse
 hc_pcas <- pca_highchart_list(
   pca_input     = pca_input,
   modes         = c("all"),
@@ -93,7 +93,7 @@ hc_pcas <- pca_highchart_list(
   ellipse_level = 0.95
 )
 
-# PCA con etiquetas visibles
+# PCA with visible labels
 hc_pcas <- pca_highchart_list(
   pca_input   = pca_input,
   modes       = c("all"),
@@ -101,7 +101,7 @@ hc_pcas <- pca_highchart_list(
   label_size  = 9
 )
 
-# Visualizar
+# Display
 hc_pcas[["all"]]
 }
 }

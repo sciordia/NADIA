@@ -2,7 +2,7 @@
 % Please edit documentation in R/Normalization_Metrics.R
 \name{.nm_permanova_r2}
 \alias{.nm_permanova_r2}
-\title{PERMANOVA R² via vegan::adonis2}
+\title{PERMANOVA R^2 via vegan::adonis2}
 \usage{
 .nm_permanova_r2(mat, groups)
 }

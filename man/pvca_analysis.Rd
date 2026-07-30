@@ -2,7 +2,7 @@
 % Please edit documentation in R/Batch_Correction.R
 \name{pvca_analysis}
 \alias{pvca_analysis}
-\title{PVCA Analysis — Orchestrator}
+\title{PVCA Analysis -- Orchestrator}
 \usage{
 pvca_analysis(
   se,
