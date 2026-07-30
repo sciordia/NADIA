@@ -7,114 +7,6 @@ library(dplyr)
 
 
 # -----------------------------------------------------------------------------
-# Función para normalizar color hex (eliminar canal alpha si existe)
-# -----------------------------------------------------------------------------
-
-normalize_hex <- function(hex) {
-  # Elimina # si existe
-  hex <- gsub("^#", "", hex)
-  # Si tiene 8 caracteres (RRGGBBAA), quedarse solo con los primeros 6 (RRGGBB)
-  if (nchar(hex) == 8) {
-    hex <- substr(hex, 1, 6)
-  }
-  paste0("#", hex)
-}
-
-
-# -----------------------------------------------------------------------------
-# Función para convertir color hex a rgba
-# -----------------------------------------------------------------------------
-
-hex_to_rgba <- function(hex, alpha = 0.12) {
-  hex <- normalize_hex(hex)
-  hex <- gsub("^#", "", hex)
-  r <- strtoi(substr(hex, 1, 2), base = 16)
-  g <- strtoi(substr(hex, 3, 4), base = 16)
-  b <- strtoi(substr(hex, 5, 6), base = 16)
-  sprintf("rgba(%d, %d, %d, %.2f)", r, g, b, alpha)
-}
-
-
-# -----------------------------------------------------------------------------
-# Función para oscurecer un color hex
-# -----------------------------------------------------------------------------
-
-darken_hex <- function(hex, factor = 0.3) {
-  hex <- normalize_hex(hex)
-  hex <- gsub("^#", "", hex)
-  r <- strtoi(substr(hex, 1, 2), base = 16)
-  g <- strtoi(substr(hex, 3, 4), base = 16)
-  b <- strtoi(substr(hex, 5, 6), base = 16)
-
-  # Reducir cada canal por el factor (más oscuro)
-  r <- max(0, round(r * (1 - factor)))
-  g <- max(0, round(g * (1 - factor)))
-  b <- max(0, round(b * (1 - factor)))
-
-  sprintf("#%02X%02X%02X", r, g, b)
-}
-
-
-# -----------------------------------------------------------------------------
-# Funciones auxiliares para filtrado de proteínas
-# -----------------------------------------------------------------------------
-
-#' Construir nombre de columna adjP para una comparación
-#'
-#' @param comparison Nombre de la comparación (ej: "B-A")
-#' @return Nombre de la columna (ej: "adjP_B-A")
-adjp_col <- function(comparison) {
-  paste0("adjP_", comparison)
-}
-
-
-#' Obtener IDs de proteínas según el modo de filtrado
-#'
-#' @param pca_input Data frame en formato long con columnas FeatureID, sig_any, adjP_*
-#' @param mode Modo de filtrado: "all", "any", o "specific"
-#' @param alpha Umbral de significancia para modo "specific" (default: 0.05)
-#' @param comparison Nombre de la comparación para modo "specific"
-#'
-#' @return Vector de FeatureIDs que cumplen el criterio
-get_feature_ids <- function(pca_input,
-                            mode = c("all", "any", "specific"),
-                            alpha = 0.05,
-                            comparison = NULL) {
-
-  mode <- match.arg(mode)
-
-  # Convertir a data.frame para evitar problemas con tibbles
-  pca_input <- as.data.frame(pca_input)
-
-  # Obtener features únicos
-  feat <- pca_input[!duplicated(pca_input$FeatureID), , drop = FALSE]
-
-  if (mode == "all") {
-    return(feat$FeatureID)
-  }
-
-  if (mode == "any") {
-    if (!("sig_any" %in% names(feat))) {
-      stop("La columna 'sig_any' es requerida para mode = 'any'")
-    }
-    return(feat$FeatureID[feat$sig_any == TRUE])
-  }
-
-  # mode == "specific"
-  if (is.null(comparison)) {
-    stop("El argumento 'comparison' es requerido para mode = 'specific'")
-  }
-
-  col <- adjp_col(comparison)
-  if (!(col %in% names(feat))) {
-    stop("No existe la columna: ", col)
-  }
-
-  feat$FeatureID[feat[[col]] <= alpha]
-}
-
-
-# -----------------------------------------------------------------------------
 # Función para construir scores de PCA
 # -----------------------------------------------------------------------------
 
@@ -183,7 +75,7 @@ build_pca_scores <- function(pca_input,
   }
 
   # Obtener IDs de features según el modo
-  ids <- get_feature_ids(pca_input, mode = mode, alpha = alpha, comparison = comparison)
+  ids <- .get_feature_ids(pca_input, mode = mode, alpha = alpha, comparison = comparison)
   if (length(ids) < 2) {
     stop("Subset '", mode, "' sin suficientes proteínas para PCA (mínimo 2).")
   }
@@ -478,7 +370,7 @@ pca_highchart <- function(scores_df,
     pal <- tryCatch({
       raw_pal <- as.character(paletteer::paletteer_d(palette))
       # Normalizar colores (eliminar canal alpha si existe)
-      vapply(raw_pal, normalize_hex, character(1), USE.NAMES = FALSE)
+      vapply(raw_pal, .normalize_hex, character(1), USE.NAMES = FALSE)
     }, error = function(e) {
       stop("Error al cargar paleta '", palette, "': ", e$message)
     })
@@ -496,7 +388,7 @@ pca_highchart <- function(scores_df,
       maxc <- RColorBrewer::brewer.pal.info[nm, "maxcolors"]
       raw_pal <- RColorBrewer::brewer.pal(maxc, nm)
       # Normalizar colores por consistencia
-      vapply(raw_pal, normalize_hex, character(1), USE.NAMES = FALSE)
+      vapply(raw_pal, .normalize_hex, character(1), USE.NAMES = FALSE)
     }, error = function(e) {
       stop("Error al cargar paleta brewer '", nm, "': ", e$message)
     })
@@ -649,7 +541,7 @@ pca_highchart <- function(scores_df,
 
     # Obtener color del grupo y versión oscurecida para etiquetas
     group_color <- unname(palette[as.character(g)])
-    label_color <- darken_hex(group_color, factor = 0.3)
+    label_color <- .darken_hex(group_color, factor = 0.3)
 
     # Configurar dataLabels si show_labels = TRUE
     data_labels_config <- if (isTRUE(show_labels)) {
@@ -719,7 +611,7 @@ pca_highchart <- function(scores_df,
       g <- unique(poly$group)
       group_id <- paste0("scatter_", gsub("[^a-zA-Z0-9]", "_", as.character(g)))
       base_color <- unname(palette[as.character(g)])
-      rgba_color <- hex_to_rgba(base_color, ellipse_fill_opacity)
+      rgba_color <- .hex_to_rgba(base_color, ellipse_fill_opacity)
 
       pts <- lapply(seq_len(nrow(poly)), function(k) {
         list(x = poly$x[k], y = poly$y[k])

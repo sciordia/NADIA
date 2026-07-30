@@ -35,13 +35,8 @@ suppressPackageStartupMessages({
 # Funciones Auxiliares Internas
 # =============================================================================
 
-#' Extrae Gene Name de la columna Description (formato UniProt embebido)
-#' @description Busca el patrón `GN=<gene>` habitual en los exports de PD.
-#' @noRd
-.parse_gene_from_description <- function(x) {
-  m <- stringr::str_match(x, "GN=([^ ]+)")
-  m[, 2]
-}
+# .parse_gene_from_description() y .validate_pd_columns() viven en R/utils.R:
+# estaban duplicadas aquí y en Preprocessing_TMT.R.
 
 #' Extrae la especie (OS=...) de la columna Description
 #' @description Toma el texto entre `OS=` y el siguiente token `XX=` (p.ej. OX=).
@@ -71,21 +66,6 @@ suppressPackageStartupMessages({
 .pd_char_or_na <- function(df, col) {
   if (is.na(col) || !col %in% names(df)) return(rep(NA_character_, nrow(df)))
   as.character(df[[col]])
-}
-
-#' Valida columnas mínimas requeridas para un export de Proteome Discoverer
-#' @noRd
-.validate_pd_columns <- function(df) {
-  required <- c("Accession", "Description")
-  missing <- setdiff(required, names(df))
-  if (length(missing) > 0) {
-    stop(
-      "Columnas requeridas faltantes en el archivo de datos:\n  - ",
-      paste(missing, collapse = "\n  - "),
-      "\nVerifica que el archivo sea un export de proteínas de Proteome Discoverer."
-    )
-  }
-  invisible(TRUE)
 }
 
 #' Valida el archivo de anotación (diseño experimental)

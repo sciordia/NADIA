@@ -69,78 +69,6 @@ print.proteomics_heatmap <- function(x, ...) {
 }
 
 
-# -----------------------------------------------------------------------------
-# Función para normalizar color hex (eliminar canal alpha si existe)
-# -----------------------------------------------------------------------------
-
-normalize_hex <- function(hex) {
-  hex <- gsub("^#", "", hex)
-  if (nchar(hex) == 8) {
-    hex <- substr(hex, 1, 6)
-  }
-  paste0("#", hex)
-}
-
-
-# -----------------------------------------------------------------------------
-# Funciones auxiliares para filtrado de proteínas
-# -----------------------------------------------------------------------------
-
-#' Construir nombre de columna adjP para una comparación
-#'
-#' @param comparison Nombre de la comparación (ej: "B-A")
-#' @return Nombre de la columna (ej: "adjP_B-A")
-adjp_col <- function(comparison) {
-  paste0("adjP_", comparison)
-}
-
-
-#' Obtener IDs de proteínas según el modo de filtrado
-#'
-#' @param data Data frame en formato long con columnas FeatureID, sig_any, adjP_*
-#' @param mode Modo de filtrado: "all", "any", o "target"
-#' @param alpha Umbral de significancia para modo "target" (default: 0.05)
-#' @param comparison Nombre de la comparación para modo "target"
-#'
-#' @return Vector de FeatureIDs que cumplen el criterio
-get_feature_ids <- function(data,
-                            mode = c("all", "any", "target"),
-                            alpha = 0.05,
-                            comparison = NULL) {
-
-  mode <- match.arg(mode)
-  data <- as.data.frame(data)
-
-  # Obtener features únicos
-
-  feat <- data[!duplicated(data$FeatureID), , drop = FALSE]
-
-  if (mode == "all") {
-    return(feat$FeatureID)
-  }
-
-  if (mode == "any") {
-    if (!("sig_any" %in% names(feat))) {
-      stop("La columna 'sig_any' es requerida para mode = 'any'")
-    }
-    # which() evita colar FeatureID NA cuando sig_any tiene NA (a diferencia de
-    # feat$sig_any == TRUE, que devolveria filas NA).
-    return(feat$FeatureID[which(feat$sig_any)])
-  }
-
-  # mode == "target"
-  if (is.null(comparison)) {
-    stop("El argumento 'comparison' es requerido para mode = 'target'")
-  }
-
-  col <- adjp_col(comparison)
-  if (!(col %in% names(feat))) {
-    stop("No existe la columna: ", col)
-  }
-
-  feat$FeatureID[feat[[col]] <= alpha]
-}
-
 
 # -----------------------------------------------------------------------------
 # Función para obtener paleta de colores para el heatmap
@@ -178,12 +106,12 @@ get_heatmap_palette <- function(palette = NULL,
     # Intentar como paleta discreta primero
     colors <- tryCatch({
       raw_pal <- as.character(paletteer::paletteer_d(palette, n = n))
-      vapply(raw_pal, normalize_hex, character(1), USE.NAMES = FALSE)
+      vapply(raw_pal, .normalize_hex, character(1), USE.NAMES = FALSE)
     }, error = function(e) {
       # Intentar como paleta continua
       tryCatch({
         raw_pal <- as.character(paletteer::paletteer_c(palette, n = n))
-        vapply(raw_pal, normalize_hex, character(1), USE.NAMES = FALSE)
+        vapply(raw_pal, .normalize_hex, character(1), USE.NAMES = FALSE)
       }, error = function(e2) {
         stop("Error al cargar paleta '", palette, "': ", e2$message)
       })
@@ -265,7 +193,7 @@ get_annotation_palette <- function(levels, palette = NULL) {
     }
     colors <- tryCatch({
       raw_pal <- as.character(paletteer::paletteer_d(palette))
-      vapply(raw_pal, normalize_hex, character(1), USE.NAMES = FALSE)
+      vapply(raw_pal, .normalize_hex, character(1), USE.NAMES = FALSE)
     }, error = function(e) {
       stop("Error al cargar paleta '", palette, "': ", e$message)
     })
@@ -394,7 +322,7 @@ prepare_heatmap_data <- function(data,
     }
   } else {
     # Usar filtrado por mode
-    ids <- get_feature_ids(data, mode = mode, alpha = alpha, comparison = comparison)
+    ids <- .get_feature_ids(data, mode = mode, alpha = alpha, comparison = comparison)
   }
 
   if (length(ids) < 2) {
@@ -409,7 +337,7 @@ prepare_heatmap_data <- function(data,
   # Crear data frame largo para heatmap
   # Incluir adjP si mode = "target" para anotación de filas
   if (mode == "target" && !is.null(comparison)) {
-    adjp_colname <- adjp_col(comparison)
+    adjp_colname <- .adjp_col(comparison)
     if (adjp_colname %in% names(dt)) {
       hm_data <- dt %>%
         select(SampleID, FeatureID, Intensity, Condition, Replicate, all_of(adjp_colname)) %>%
@@ -1194,7 +1122,7 @@ proteomics_heatmap <- function(data,
               }, error = function(e2) NULL)
             })
             if (!is.null(raw_pal) && length(raw_pal) >= 3) {
-              adjp_colors <- vapply(raw_pal[seq_len(3)], normalize_hex,
+              adjp_colors <- vapply(raw_pal[seq_len(3)], .normalize_hex,
                                     character(1), USE.NAMES = FALSE)
             }
           }

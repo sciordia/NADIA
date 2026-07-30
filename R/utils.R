@@ -77,3 +77,188 @@ if (!exists("%||%", mode = "function")) {
   }
   invisible(NULL)
 }
+
+
+# =============================================================================
+# Helpers de color
+# =============================================================================
+#
+# Estaban duplicados en Boxplot_Highcharts_Final.R, PCA_Highcharts_Final.R,
+# Pattern_Profiler_Highcharts.R y Heatmap_tidyHeatmap.R (8 definiciones de 3
+# funciones). Al vivir todos los módulos en el entorno global, la copia activa
+# era la del último módulo cargado; en un paquete ganaría la del último archivo
+# por orden alfabético. Se unifican aquí.
+#
+# Verificado antes de unificar: para entradas hexadecimales las tres copias de
+# `hex_to_rgba` y las dos de `darken_hex` daban salidas idénticas a igual
+# alpha/factor. Solo diferían en el valor por defecto, y los 7 sitios de llamada
+# lo pasan siempre de forma explícita. Por eso aquí NO se declara default: una
+# llamada sin el argumento debe fallar de forma visible en vez de tomar un valor
+# arbitrario.
+
+
+#' Normalizar un color hexadecimal
+#'
+#' Quita el `#` inicial, descarta el canal alpha si el color viene en formato
+#' `RRGGBBAA` y devuelve `#RRGGBB` en mayúsculas.
+#'
+#' @param hex Color en formato hexadecimal, con o sin `#`.
+#' @return Cadena `#RRGGBB` en mayúsculas.
+#' @keywords internal
+#' @noRd
+.normalize_hex <- function(hex) {
+  hex <- gsub("^#", "", hex)
+  if (nchar(hex) == 8) {
+    hex <- substr(hex, 1, 6)
+  }
+  paste0("#", toupper(hex))
+}
+
+
+#' Convertir un color hexadecimal a cadena `rgba()`
+#'
+#' @param hex Color hexadecimal.
+#' @param alpha Opacidad entre 0 y 1. Sin valor por defecto a propósito: todos
+#'   los sitios de llamada lo especifican.
+#' @return Cadena `"rgba(r, g, b, a)"` apta para Highcharts.
+#' @keywords internal
+#' @noRd
+.hex_to_rgba <- function(hex, alpha) {
+  hex <- .normalize_hex(hex)
+  rgb_vals <- grDevices::col2rgb(hex)
+  sprintf("rgba(%d, %d, %d, %.2f)",
+          rgb_vals[1], rgb_vals[2], rgb_vals[3], alpha)
+}
+
+
+#' Oscurecer un color hexadecimal
+#'
+#' @param hex Color hexadecimal.
+#' @param factor Fracción de oscurecimiento entre 0 y 1. Sin valor por defecto a
+#'   propósito: todos los sitios de llamada lo especifican.
+#' @return Color `#RRGGBB` oscurecido.
+#' @keywords internal
+#' @noRd
+.darken_hex <- function(hex, factor) {
+  hex <- .normalize_hex(hex)
+  rgb_vals <- grDevices::col2rgb(hex)
+  rgb_dark <- pmax(0, rgb_vals * (1 - factor))
+  sprintf("#%02X%02X%02X",
+          round(rgb_dark[1]), round(rgb_dark[2]), round(rgb_dark[3]))
+}
+
+
+# =============================================================================
+# Helpers de filtrado de features
+# =============================================================================
+
+#' Construir el nombre de la columna de p-valor ajustado de una comparación
+#'
+#' @param comparison Nombre de la comparación, p.ej. `"B-A"`.
+#' @return Nombre de columna, p.ej. `"adjP_B-A"`.
+#' @keywords internal
+#' @noRd
+.adjp_col <- function(comparison) {
+  paste0("adjP_", comparison)
+}
+
+
+#' Obtener los IDs de features según el modo de filtrado
+#'
+#' Unifica las dos copias que había en `Heatmap_tidyHeatmap.R` y
+#' `PCA_Highcharts_Final.R`. Diferían en dos cosas:
+#'
+#' * El nombre del tercer modo: `"target"` en la del heatmap y `"specific"` en la
+#'   del PCA. Aquí se aceptan **ambos** como sinónimos, porque las funciones
+#'   públicas de cada módulo propagan su propio vocabulario y cualquiera de las
+#'   dos habría roto a la otra al fusionarse en un único namespace.
+#' * El filtrado de `mode = "any"`: la del PCA usaba `sig_any == TRUE`, que cuela
+#'   `FeatureID` `NA` cuando `sig_any` tiene `NA`. Se conserva el `which()` de la
+#'   del heatmap, que no lo hace.
+#'
+#' @param data Data frame en formato long con columnas `FeatureID`, `sig_any` y
+#'   `adjP_*`.
+#' @param mode `"all"` (todos), `"any"` (significativo en alguna comparación) o
+#'   `"target"`/`"specific"` (significativo en `comparison`).
+#' @param alpha Umbral de significancia para el modo dirigido.
+#' @param comparison Comparación a usar en el modo dirigido.
+#' @return Vector de `FeatureID` que cumplen el criterio.
+#' @keywords internal
+#' @noRd
+.get_feature_ids <- function(data,
+                             mode = c("all", "any", "target", "specific"),
+                             alpha = 0.05,
+                             comparison = NULL) {
+
+  mode <- match.arg(mode)
+  data <- as.data.frame(data)
+
+  feat <- data[!duplicated(data$FeatureID), , drop = FALSE]
+
+  if (mode == "all") {
+    return(feat$FeatureID)
+  }
+
+  if (mode == "any") {
+    if (!("sig_any" %in% names(feat))) {
+      stop("La columna 'sig_any' es requerida para mode = 'any'")
+    }
+    # which() evita colar FeatureID NA cuando sig_any tiene NA (a diferencia de
+    # feat$sig_any == TRUE, que devolvería filas NA).
+    return(feat$FeatureID[which(feat$sig_any)])
+  }
+
+  # modo dirigido: "target" y "specific" son sinónimos
+  if (is.null(comparison)) {
+    stop("El argumento 'comparison' es requerido para mode = '", mode, "'")
+  }
+
+  col <- .adjp_col(comparison)
+  if (!(col %in% names(feat))) {
+    stop("No existe la columna: ", col)
+  }
+
+  feat$FeatureID[which(feat[[col]] <= alpha)]
+}
+
+
+# =============================================================================
+# Helpers de Proteome Discoverer
+# =============================================================================
+#
+# Estaban duplicados entre Preprocessing_LFQ.R y Preprocessing_TMT.R. Las dos
+# copias de `.parse_gene_from_description` eran idénticas; las de
+# `.validate_pd_columns` solo diferían en el texto del mensaje de error.
+
+#' Extraer el Gene Name de la columna Description (formato UniProt embebido)
+#'
+#' Busca el patrón `GN=<gene>` habitual en los exports de Proteome Discoverer.
+#'
+#' @param x Vector de descripciones.
+#' @return Vector de nombres de gen, `NA` donde no haya coincidencia.
+#' @keywords internal
+#' @noRd
+.parse_gene_from_description <- function(x) {
+  m <- stringr::str_match(x, "GN=([^ ]+)")
+  m[, 2]
+}
+
+#' Validar las columnas mínimas de un export de Proteome Discoverer
+#'
+#' @param df Data frame leído del export.
+#' @return `TRUE` de forma invisible; aborta con un error si falta alguna
+#'   columna requerida.
+#' @keywords internal
+#' @noRd
+.validate_pd_columns <- function(df) {
+  required <- c("Accession", "Description")
+  missing <- setdiff(required, names(df))
+  if (length(missing) > 0) {
+    stop(
+      "Columnas requeridas faltantes en el archivo de datos:\n  - ",
+      paste(missing, collapse = "\n  - "),
+      "\nVerifica que el archivo sea un export de proteínas de Proteome Discoverer."
+    )
+  }
+  invisible(TRUE)
+}

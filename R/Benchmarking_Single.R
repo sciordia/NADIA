@@ -141,20 +141,8 @@
   result
 }
 
-#' Convert hex color to rgba string
-#'
-#' @param hex Hexadecimal color string
-#' @param alpha Opacity value (0-1)
-#' @return String in rgba() format
-#' @keywords internal
-.hex_to_rgba <- function(hex, alpha = 1) {
-  hex <- gsub("^#", "", hex)
-  if (nchar(hex) == 8) hex <- substr(hex, 1, 6)
-  hex <- paste0("#", toupper(hex))
-  rgb_vals <- col2rgb(hex)
-  sprintf("rgba(%d, %d, %d, %.2f)",
-          rgb_vals[1], rgb_vals[2], rgb_vals[3], alpha)
-}
+# .hex_to_rgba() vive en R/utils.R. La copia que había aquí era funcionalmente
+# idéntica: hacía en línea lo mismo que .normalize_hex() y luego col2rgb().
 
 #' Compute trimmed SD and CV
 #'

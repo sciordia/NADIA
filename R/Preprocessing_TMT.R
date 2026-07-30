@@ -23,14 +23,8 @@ suppressPackageStartupMessages({
 # Funciones Auxiliares Internas
 # =============================================================================
 
-#' Extrae Gene Name de la columna Description (formato UniProt embebido)
-#' @description Busca el patrón `GN=<gene>` (separado por espacios) habitual en
-#'   los exports de Proteome Discoverer.
-#' @noRd
-.parse_gene_from_description <- function(x) {
-  m <- stringr::str_match(x, "GN=([^ ]+)")
-  m[, 2]
-}
+# .parse_gene_from_description() y .validate_pd_columns() viven en R/utils.R:
+# estaban duplicadas aquí y en Preprocessing_LFQ.R.
 
 #' Detecta columnas `Abundance:` y deriva Coding / Condition / Replicate
 #' @noRd
@@ -58,21 +52,6 @@ suppressPackageStartupMessages({
     R.Replicate   = as.integer(m[, 3]),
     stringsAsFactors = FALSE
   )
-}
-
-#' Valida columnas mínimas requeridas para un export de Proteome Discoverer
-#' @noRd
-.validate_pd_columns <- function(df) {
-  required <- c("Accession", "Description")
-  missing <- setdiff(required, names(df))
-  if (length(missing) > 0) {
-    stop(
-      "Columnas requeridas faltantes en el archivo:\n  - ",
-      paste(missing, collapse = "\n  - "),
-      "\nVerifica que el archivo sea un export de proteínas de Proteome Discoverer."
-    )
-  }
-  invisible(TRUE)
 }
 
 #' Lookup tolerante a variantes habituales de nombres de columna de PD

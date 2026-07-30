@@ -8,23 +8,6 @@ library(tidyr)
 library(RColorBrewer)
 
 # -----------------------------------------------------------------------------
-# Función para convertir color hex a rgba
-# -----------------------------------------------------------------------------
-
-hex_to_rgba <- function(hex, alpha = 0.7) {
-  # Eliminar el # si existe
-
-  hex <- gsub("^#", "", hex)
-
-  # Convertir a RGB
-  r <- strtoi(substr(hex, 1, 2), base = 16)
-  g <- strtoi(substr(hex, 3, 4), base = 16)
-  b <- strtoi(substr(hex, 5, 6), base = 16)
-
-  sprintf("rgba(%d, %d, %d, %.2f)", r, g, b, alpha)
-}
-
-# -----------------------------------------------------------------------------
 # Función para calcular estadísticas del boxplot
 # -----------------------------------------------------------------------------
 
@@ -250,7 +233,7 @@ boxplot_highchart_list <- function(
         type = "boxplot",
         data = points,
         color = grp_color,
-        fillColor = hex_to_rgba(grp_color, 0.7),
+        fillColor = .hex_to_rgba(grp_color, 0.7),
         lineWidth = 1.5,
         whiskerLength = "50%",
         whiskerWidth = 2,

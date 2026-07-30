@@ -29,50 +29,6 @@ library(arrow)
 # FUNCIONES AUXILIARES DE COLOR
 # =============================================================================
 
-#' Normalizar color hexadecimal
-#'
-#' Elimina canal alpha si existe y asegura formato correcto.
-#'
-#' @param hex Color en formato hexadecimal
-#' @return Color hex normalizado (#RRGGBB)
-normalize_hex <- function(hex) {
-  hex <- gsub("^#", "", hex)
-  if (nchar(hex) == 8) {
-    hex <- substr(hex, 1, 6)
-  }
-  paste0("#", toupper(hex))
-}
-
-
-#' Convertir hex a rgba
-#'
-#' @param hex Color hexadecimal
-#' @param alpha Opacidad (0-1)
-#' @return String rgba()
-hex_to_rgba <- function(hex, alpha = 1) {
-  hex <- normalize_hex(hex)
-  rgb_vals <- col2rgb(hex)
-  sprintf("rgba(%d, %d, %d, %.2f)",
-          rgb_vals[1], rgb_vals[2], rgb_vals[3], alpha)
-}
-
-
-#' Oscurecer color hexadecimal
-#'
-#' @param hex Color hexadecimal
-#' @param factor Factor de oscurecimiento (0-1)
-#' @return Color hex oscurecido
-darken_hex <- function(hex, factor = 0.2) {
-  hex <- normalize_hex(hex)
-  rgb_vals <- col2rgb(hex)
-  rgb_dark <- pmax(0, rgb_vals * (1 - factor))
-  sprintf("#%02X%02X%02X",
-          round(rgb_dark[1]),
-          round(rgb_dark[2]),
-          round(rgb_dark[3]))
-}
-
-
 #' Configurar paleta de colores para clusters
 #'
 #' @param n_clusters Número de clusters
@@ -303,7 +259,7 @@ cluster_profile_highchart <- function(data,
   }
 
   # Color de líneas con opacidad
-  line_color <- hex_to_rgba(cluster_color, line_opacity)
+  line_color <- .hex_to_rgba(cluster_color, line_opacity)
 
   # Título
   if (is.null(title)) {
@@ -352,8 +308,8 @@ cluster_profile_highchart <- function(data,
     })
 
     # Colores limpios sin nombres
-    centroid_line_color <- darken_hex(cluster_color, 0.2)
-    centroid_marker_line <- darken_hex(cluster_color, 0.3)
+    centroid_line_color <- .darken_hex(cluster_color, 0.2)
+    centroid_marker_line <- .darken_hex(cluster_color, 0.3)
 
     centroid_series <- list(
       name = paste0("Centroid (", centroid_summary, ")"),
@@ -795,7 +751,7 @@ cluster_centroids_highchart <- function(data,
 
     # Color limpio sin nombres
     series_color <- unname(item$color)
-    darker_color <- darken_hex(series_color, 0.2)
+    darker_color <- .darken_hex(series_color, 0.2)
 
     hc <- hc |> hc_add_series(
       name = sprintf("Cluster %d (n=%d)", item$cluster, item$n_proteins),
