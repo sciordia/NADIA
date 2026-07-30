@@ -17,6 +17,8 @@ nm_rank_pc1(
 \item{assay_names}{Character vector of assay names to include. NULL = all.}
 
 \item{condition_col}{Column in colData with condition labels.}
+
+\item{verbose}{Logical. Print progress messages. Default \code{TRUE}.}
 }
 \value{
 A \code{data.frame} with columns \code{Method}, \code{PC1_VarPct}, \code{Rank},
@@ -29,7 +31,7 @@ order. Higher PC1 variance generally indicates stronger group separation.
 }
 \examples{
 \dontrun{
-se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+se_nm <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
 nm_rank_pc1(se_nm)
 }
 }

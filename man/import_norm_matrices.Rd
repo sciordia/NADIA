@@ -42,7 +42,7 @@ sample names matching the \code{sample_col} in the metadata file.
 \dontrun{
 se_nm <- import_norm_matrices(
   tsv_dir       = "./results",
-  metadata_path = "./data/metadata.tsv"
+  metadata_path = "./data-raw/metadata.tsv"
 )
 SummarizedExperiment::assayNames(se_nm)
 }

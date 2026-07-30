@@ -4,7 +4,7 @@
 # =========================================================
 
 # Cargar las funciones para el Heatmap-Plot
-source("./R/Processing.R")
+library(NADIA)
 
 # =============================================================================                                      
 # EJEMPLO COMPLETO: Pipeline de Procesamiento Proteómico                                                             
@@ -19,15 +19,13 @@ source("./R/Processing.R")
 # =============================================================================                                      
 
 # --- 1. Cargar scripts ---                                                                                          
-source("./R/Preprocessing.R")                                                                                        
-source("./R/Processing.R")                                                                                           
 
 # =============================================================================                                      
 # PASO 1: PREPROCESAMIENTO DE DATOS DE SPECTRONAUT                                                                   
 # =============================================================================                                      
 
 # Definir la ruta al archivo de Spectronaut                                                                          
-file_path <- "data/Curso_Q24_DIA_Spectronaut_v20_Report.tsv"                                                                         
+file_path <- "data-raw/Curso_Q24_DIA_Spectronaut_v20_Report.tsv"                                                                         
 
 # Definir el orden de las condiciones experimentales                                                                 
 # IMPORTANTE: El orden determina las comparaciones (primera condición suele ser control)                             
@@ -191,9 +189,6 @@ print(result$parameters)
 # =============================================================================                                      
 
 # Cargar funciones de visualización                                                                                  
-source("./R/Volcano_Plot_Highcharts_Final.R")                                                                              
-source("./R/Heatmap_tidyHeatmap.R")                                                                                  
-source("./R/Boxplot_Highcharts_Final.R")                                                                                   
 
 # --- 4.1 Volcano Plots ---                                                                                          
 volcano_plots <- volcano_highchart_list(                                                                             

@@ -54,8 +54,8 @@
 #' @importFrom tidyr pivot_longer pivot_wider separate_rows unite
 #' @importFrom tidyselect all_of any_of
 #'
-#' @importFrom stats aggregate as.dist complete.cases cor cmdscale dist ecdf median model.matrix na.omit p.adjust prcomp predict quantile rnorm runif sd setNames var
-#' @importFrom utils head modifyList read.csv read.delim tail write.table
+#' @importFrom stats aggregate approx as.dist as.formula cmdscale coef complete.cases cor cov dist ecdf IQR lm mad median model.matrix na.omit p.adjust prcomp predict quantile rnorm runif sd setNames var weights
+#' @importFrom utils combn head modifyList read.csv read.delim tail write.table
 #' @importFrom methods new
 #' @importFrom grDevices col2rgb colorRampPalette
 #'

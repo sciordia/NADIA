@@ -81,7 +81,7 @@ result <- benchmarking_proteomics(
   de_res = DEPs_results_with_species,
   expected_values = expected,
   alpha = 0.05,
-  output_dir = "data/benchmark"
+  output_dir = "data-raw/benchmark"
 )
 
 result$gg_heatmap

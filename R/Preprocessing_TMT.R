@@ -117,7 +117,7 @@
 #' @examples
 #' \dontrun{
 #' result <- preprocess_tmt(
-#'   file_path = "data/20260527_Q25_TMTpro_TMT1y2_10Fr_Static_3engines_onlyRAW.tsv",
+#'   file_path = "data-raw/20260527_Q25_TMTpro_TMT1y2_10Fr_Static_3engines_onlyRAW.tsv",
 #'   condition_order = c("A", "B", "C", "D", "IS"),
 #'   export_dir = "./results"
 #' )

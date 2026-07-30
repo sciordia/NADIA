@@ -21,6 +21,8 @@ nm_rank_final(
 \item{condition_col}{Column in colData with condition labels.}
 
 \item{cor_method}{Correlation method forwarded to \code{nm_rank_cor()}.}
+
+\item{verbose}{Logical. Print progress messages. Default \code{TRUE}.}
 }
 \value{
 A \code{data.frame} with columns: \code{Method}, \code{Rank_PCV}, \code{Rank_PMAD},

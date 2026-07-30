@@ -57,9 +57,11 @@ y CSS embebido. El resultado es browsable: al imprimirlo en consola se abre
 automaticamente en el Viewer de RStudio o en el navegador.
 }
 \examples{
+\dontrun{
 # Uso standalone
 results_list_widget("results/VolcanoPlot_Input_cycloess_Impseq_min.tsv")
 
 # Con protein_quant
 results_list_widget(de_res, protein_quant = preprocessing$protein_quant)
+}
 }

@@ -1,0 +1,21 @@
+^data-raw$
+^results$
+^\.claude$
+^\.Rproj\.user$
+^.*\.Rproj$
+^\.Rhistory$
+^CLAUDE\.md$
+^CODE_REVIEW_.*\.md$
+^install_dependencies\.R$
+^[0-9].*\.R$
+^example_workflow\.R$
+^\.github$
+^LICENSE\.md$
+^NADIA\.Rcheck$
+\.Rcheck$
+\.tar\.gz$
+# Copias de conflicto que crea iCloud Drive durante el build: "fichero 2.R",
+# "NADIA_0.99.0 2.tar.gz", ... Cualquier nombre con un espacio antes de la
+# extension no es portable y R CMD check lo marca.
+[ ][0-9]+\.
+

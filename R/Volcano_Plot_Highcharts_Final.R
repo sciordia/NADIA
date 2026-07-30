@@ -371,7 +371,7 @@ get_assay_label <- function(dt) {
 # =============================================================================
 
 # DEPs_results <- read_tsv("DEPs_results.tsv")
-# DEPs_results <- arrow::read_parquet("./data/VolcanoPlot_Input.parquet")
+# DEPs_results <- arrow::read_parquet("./data-raw/VolcanoPlot_Input.parquet")
 
 # --- Ejemplo básico ---
 # hc_volcanos <- volcano_highchart_list(

@@ -42,7 +42,7 @@ dentro de cada celda numerica. Reproduce el formato Excel habitual y lo mejora.
 \examples{
 \dontrun{
 res <- preprocess_spectronaut(
-  file_path = "data/Curso_Q24_DIA_Spectronaut_v20_Report.tsv",
+  file_path = "data-raw/Curso_Q24_DIA_Spectronaut_v20_Report.tsv",
   condition_order = c("A","B","C","D")
 )
 protein_list_reactable(res$protein_id, metadata = res$metadata)

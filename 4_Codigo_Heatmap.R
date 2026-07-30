@@ -7,7 +7,7 @@
 hm_input <- arrow::read_parquet("./results/processing/PCA_Input.parquet")
 
 # Cargar las funciones para el Heatmap-Plot
-source("./R/Heatmap_tidyHeatmap.R")
+library(NADIA)
 
 
 # --- Ejemplo básico: Heatmap de todas las proteínas ---

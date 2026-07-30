@@ -17,6 +17,8 @@ nm_rank_pcv(
 \item{assay_names}{Character vector of assay names to include. NULL = all.}
 
 \item{condition_col}{Column in colData with condition labels.}
+
+\item{verbose}{Logical. Print progress messages. Default \code{TRUE}.}
 }
 \value{
 A \code{data.frame} with columns \code{Method}, \code{Median_PCV}, \code{Rank}.

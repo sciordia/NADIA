@@ -2066,7 +2066,7 @@ benchmark_volcano_hc_list <- function(
 #'   de_res = DEPs_results_with_species,
 #'   expected_values = expected,
 #'   alpha = 0.05,
-#'   output_dir = "data/benchmark"
+#'   output_dir = "data-raw/benchmark"
 #' )
 #'
 #' result$gg_heatmap
@@ -2460,7 +2460,7 @@ benchmarking_proteomics <- function(
 #   expected_values = expected,
 #   alpha           = 0.05,
 #   lfc_thr         = 0,
-#   output_dir      = "data/benchmark",
+#   output_dir      = "data-raw/benchmark",
 #   verbose         = TRUE
 # )
 #

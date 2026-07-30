@@ -50,7 +50,7 @@ High values indicate multicollinearity or numerical instability.
 }
 \examples{
 \dontrun{
-se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+se_nm <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
 metrics_df <- nm_compute_metrics(se_nm)
 print(metrics_df)
 }

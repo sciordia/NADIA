@@ -3,12 +3,12 @@
 # Ejemplo: Benchmarking con datos spike-in 3 especies
 # =============================================================================                                      
 
-source("R/Benchmarking_Single.R")
+library(NADIA)
 
 library(dplyr)
 
 # --- 1. Cargar datos DE ---
-de_all <- read.delim("data/DE_ALL_with_LoessCyc_bySample_Candidates_FIXED.tsv",
+de_all <- read.delim("data-raw/DE_ALL_with_LoessCyc_bySample_Candidates_FIXED.tsv",
                      stringsAsFactors = FALSE)
 
 # --- 2. Preparar columnas para el módulo ---
@@ -145,7 +145,7 @@ benchmark_roc_gg(benchmarking$classified_df, p_col = "adj.P.Val", zoom = TRUE)
 #                                                                                                       expected_values, así que su truth = 0).
 # 3. comparisons: Solo incluí las vs control (A). Si quieres benchmarkear C / B o D / C, necesitas añadir sus
 # expected_logFC correspondientes a la tabla expected.
-# 4. Exportaciones: Con output_dir = "data/benchmark" se generan 4 TSV + 5 PNG automáticamente.
+# 4. Exportaciones: Con output_dir = "data-raw/benchmark" se generan 4 TSV + 5 PNG automáticamente.
 # 5. AUC/pAUC: Requiere install.packages("pROC"). Si no está instalado, AUC y pAUC serán NA pero el resto funciona.
 # 6. OpDEA metrics: nMCC y G_mean se calculan siempre (no requieren dependencias extra).
 #    pAUC usa corrección McClish (partial.auc.correct = TRUE en pROC). Rango normalizado: 0.5-1.

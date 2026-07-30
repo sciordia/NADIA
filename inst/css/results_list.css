@@ -1,0 +1,534 @@
+    /* Etiquetas de estado */
+    .tag {
+      display: inline-block;
+      padding: 0.1rem 0.5rem;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 14px;
+      background-color: #eee;
+      line-height: 1.5;
+    }
+    .status-green {
+      color: hsl(121, 33%, 23%);
+      background-color: hsl(121, 33%, 86%);
+    }
+    .status-red {
+      color: hsl(0, 75%, 32%);
+      background-color: hsl(0, 75%, 92%);
+    }
+    .status-grey {
+      color: hsl(0, 0%, 35%);
+      background-color: hsl(0, 0%, 90%);
+    }
+
+    /* Columnas ordenadas */
+    .sorted {
+      background: rgba(14, 102, 85, 0.1);
+    }
+
+    /* Tabla principal */
+    .rl-table {
+      width: 100% !important;
+      overflow-x: auto;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      margin-top: 0.25rem;
+      border: 1px solid hsl(213, 33%, 93%);
+      border-radius: 4px;
+      box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    /* Barra logFC */
+    .lfc-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+    }
+    .lfc-value {
+      min-width: 60px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+    .lfc-value.up       { color: #02905A; }
+    .lfc-value.down     { color: #E63946; }
+    .lfc-value.nochange { color: #6C757D; }
+    .lfc-bar-wrapper {
+      flex: 1;
+      height: 14px;
+      background: #f0f0f0;
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+    .lfc-bar {
+      height: 100%;
+      border-radius: 2px;
+      min-width: 2px;
+    }
+    .lfc-bar.up { background-color: #02905A; }
+    .lfc-bar.down { background-color: #E63946; }
+    .lfc-bar.nochange { background-color: #ADB5BD; }
+
+    /* Panel de detalle expandido */
+    .rl-detail {
+      padding: 12px 20px;
+      margin: 8px 40px;
+      background: #f8f9fa;
+      border-left: 4px solid rgba(204, 153, 0, 0.9);
+      border-radius: 4px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .rl-detail .detail-label {
+      font-weight: 600;
+      color: #0E6655;
+      margin-right: 6px;
+    }
+    .rl-detail .detail-row {
+      margin-bottom: 4px;
+    }
+    .rl-detail a {
+      color: #0E6655;
+      text-decoration: none;
+    }
+    .rl-detail a:hover {
+      text-decoration: underline;
+    }
+
+    /* Protein count badge */
+    .protein-count {
+      display: inline-block;
+      padding: 0 5px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #666;
+      background-color: #e9ecef;
+      margin-left: 4px;
+    }
+
+    /* Ocultar busqueda por defecto y fila de filtros inline de reactable */
+    .rt-search {
+      display: none !important;
+    }
+    .rl-table .rt-thead.-filters,
+    .rl-table .rt-tr.-filters,
+    .rl-table .rt-thead .rt-tr-filters,
+    .rl-table [class*='filterRow'],
+    .rl-table .rt-thead .rt-th.-filter {
+      display: none !important;
+      height: 0 !important;
+      overflow: hidden !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: none !important;
+    }
+
+    /* Contenedor de busqueda + botones de accion */
+    .rl-search-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+      align-items: center;
+      width: 100%;
+    }
+    .rl-search-input {
+      flex: 1;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      font-weight: 400;
+      font-size: 14px;
+      padding: 8px 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      background-color: #ffffff;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      height: 44px;
+      box-sizing: border-box;
+    }
+    .rl-search-input:focus {
+      border-color: #0E6655;
+      box-shadow: 0 0 8px rgba(14, 102, 85, 0.3);
+      outline: none;
+      background-color: #fafafa;
+    }
+    .rl-search-input:hover {
+      border-color: #0E6655;
+      box-shadow: 0 2px 8px rgba(14, 102, 85, 0.1);
+    }
+
+    /* Botones de accion (filtros, export, limpiar) */
+    .rl-action-buttons {
+      display: flex;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+    .rl-btn-action {
+      background-color: #ffffff;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: #495057;
+      position: relative;
+    }
+    .rl-btn-action:hover {
+      border-color: #0E6655;
+      color: #0E6655;
+      background-color: rgba(14, 102, 85, 0.05);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .rl-btn-action.filters-hidden {
+      opacity: 0.5;
+    }
+
+    /* Tooltip en botones */
+    .rl-btn-action:hover::before {
+      content: attr(title);
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 12px;
+      background-color: rgba(33, 37, 41, 0.9);
+      color: white;
+      font-size: 12px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    /* Contenedor de filtros (colapsable) */
+    .rl-filters-container {
+      background: #f8f9fa;
+      border: 0 solid #dee2e6;
+      border-radius: 8px;
+      padding: 0;
+      margin-bottom: 0;
+      box-shadow: none;
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height 0.4s ease, opacity 0.3s ease,
+                  margin-bottom 0.3s ease, padding 0.3s ease,
+                  border-width 0.3s ease, box-shadow 0.3s ease;
+    }
+    .rl-filters-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .rl-filters-row > .rl-filter-item {
+      flex: 1 1 0;
+      min-width: 100px;
+    }
+    .rl-filter-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      font-size: 12.5px;
+    }
+    .rl-filter-label {
+      font-weight: normal;
+      color: #495057;
+      font-size: 12.5px;
+      margin-bottom: 0.1rem;
+    }
+
+    /* Selectize dropdowns dentro de filtros */
+    .rl-filter-item .selectize-input {
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 12.5px;
+      min-height: 32px;
+      transition: all 0.3s ease;
+    }
+    .rl-filter-item .selectize-input:hover {
+      border-color: #0E6655;
+    }
+    .rl-filter-item .selectize-input.focus {
+      border-color: #0E6655;
+      box-shadow: 0 0 0 0.2rem rgba(14, 102, 85, 0.25);
+    }
+    .rl-filter-item .selectize-dropdown {
+      border: 2px solid #0E6655;
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      font-size: 12.5px;
+    }
+    .rl-filter-item .selectize-dropdown .active {
+      background-color: rgba(14, 102, 85, 0.1);
+      color: #0E6655;
+    }
+    .selectize-control.multi .selectize-input > div {
+      background: #0E6655;
+      color: white;
+      border-radius: 4px;
+      padding: 2px 8px;
+      margin-right: 5px;
+    }
+    .selectize-control.multi .selectize-input > div .remove {
+      color: rgba(255, 255, 255, 0.7);
+    }
+    .selectize-control.multi .selectize-input > div .remove:hover {
+      color: #ffa62d;
+    }
+
+    /* Radio buttons estilo teal */
+    .rl-table .rt-select-input[type='radio'] {
+      background-color: #ffffff;
+      border: 1px solid #0E6655;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+    }
+    .rl-table .rt-select-input[type='radio']:checked {
+      background-color: #0E6655;
+      border: 1px solid #0E6655;
+      box-shadow: inset 0 0 0 2px #fff;
+    }
+
+    /* Inputs numericos en panel de filtros */
+    .rl-numeric-input {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      font-size: 12.5px;
+      width: 100%;
+      padding: 5px 8px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      min-height: 32px;
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+      outline: none;
+    }
+    .rl-numeric-input:hover {
+      border-color: #0E6655;
+    }
+    .rl-numeric-input:focus {
+      border-color: #0E6655;
+      box-shadow: 0 0 0 0.2rem rgba(14, 102, 85, 0.25);
+    }
+    .rl-filter-hint {
+      font-size: 11px;
+      color: #999;
+      margin-top: 2px;
+    }
+
+    /* Centrado vertical en celdas Missing% */
+    .rl-table .rt-td.missing-cell {
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Pagination focus */
+    .rl-table .rt-page-size-select:focus {
+      border-color: #0E6655;
+      box-shadow: 0 0 5px #0E6655;
+      outline: none;
+    }
+
+    /* ==========================================================
+       Protein List (pl-*) — tabla Protein_ID (post-preprocessing)
+       ========================================================== */
+
+    /* Data bar + valor para celdas compactas de 64 muestras */
+    .pl-bar-wrapper {
+      position: relative;
+      width: 100%;
+      height: 24px;
+      background: #f5f5f7;
+      border-radius: 3px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    .pl-bar {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      border-radius: 3px;
+      opacity: 0.45;
+    }
+    .pl-bar-value {
+      position: relative;
+      z-index: 1;
+      padding: 0 6px;
+      font-variant-numeric: tabular-nums;
+      font-size: 14px;
+      font-weight: 400;
+      color: #212529;
+    }
+    .pl-plain-value {
+      font-variant-numeric: tabular-nums;
+      font-size: 14px;
+      font-weight: 400;
+      color: #212529;
+    }
+    .pl-bar-empty {
+      color: #bbb;
+      font-weight: 400;
+    }
+
+    /* Colores por condicion (default paleta Office) */
+    .pl-cond-A { background-color: #4F81BD; }
+    .pl-cond-B { background-color: #9BBB59; }
+    .pl-cond-C { background-color: #F79646; }
+    .pl-cond-D { background-color: #8064A2; }
+    .pl-cond-E { background-color: #4BACC6; }
+    .pl-cond-F { background-color: #C0504D; }
+    .pl-cond-G { background-color: #9F8A76; }
+    .pl-cond-H { background-color: #646464; }
+    .pl-cond-I { background-color: #FFC000; }
+    .pl-cond-J { background-color: #E377C2; }
+    .pl-cond-K { background-color: #2E7D32; }
+    .pl-cond-L { background-color: #6A1B9A; }
+
+    /* Header styling: primera fila (grupos) y segunda (muestras) */
+    .pl-table .rt-thead {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    }
+    .pl-table .rt-tr-groups .rt-th {
+      background: rgba(31, 78, 120, 0.9);
+      color: #ffffff;
+      font-weight: 600;
+      border-right: 1px solid rgba(255,255,255,0.15);
+    }
+    .pl-table .rt-tr-header .rt-th {
+      font-size: 14px;
+    }
+
+    /* Separador vertical entre bloques metricos */
+    .pl-table .rt-td.pl-group-boundary,
+    .pl-table .rt-th.pl-group-boundary {
+      border-left: 1px solid #1F5078 !important;
+    }
+    .pl-hdr-A { background: rgba(79, 129, 189, 0.85) !important; color: #ffffff !important; }
+    .pl-hdr-B { background: rgba(155, 187, 89, 0.85) !important; color: #ffffff !important; }
+    .pl-hdr-C { background: rgba(247, 150, 70, 0.85) !important; color: #ffffff !important; }
+    .pl-hdr-D { background: rgba(128, 100, 162, 0.85) !important; color: #ffffff !important; }
+    .pl-hdr-E { background: rgba(75, 172, 198, 0.85) !important; color: #ffffff !important; }
+    .pl-hdr-F { background: rgba(192, 80, 77, 0.85)  !important; color: #ffffff !important; }
+    .pl-hdr-G { background: rgba(159, 138, 118, 0.85) !important; color: #ffffff !important; }
+    .pl-hdr-H { background: rgba(100, 100, 100, 0.85) !important; color: #ffffff !important; }
+    .pl-hdr-I { background: rgba(255, 192,   0, 0.85) !important; color: #ffffff !important; }
+    .pl-hdr-J { background: rgba(227, 119, 194, 0.85) !important; color: #ffffff !important; }
+    .pl-hdr-K { background: rgba( 46, 125,  50, 0.85) !important; color: #ffffff !important; }
+    .pl-hdr-L { background: rgba(106,  27, 154, 0.85) !important; color: #ffffff !important; }
+
+    /* Sticky: sombra lateral para marcar separacion */
+    .pl-table .rt-td-sticky,
+    .pl-table .rt-th-sticky {
+      background-color: #ffffff !important;
+      box-shadow: 2px 0 6px -3px rgba(0, 0, 0, 0.2);
+    }
+    .pl-table .rt-tr-striped .rt-td-sticky,
+    .pl-table .rt-tr-striped-sticky {
+      background-color: #F0F4FA !important;
+    }
+    .pl-table .rt-tr:hover .rt-td-sticky,
+    .pl-table .rt-tr-highlight-sticky:hover {
+      background-color: #E8EDF2 !important;
+    }
+
+    /* Variante Protein_QUANT (rojo oscuro): override de paleta principal */
+    .ql-table .rt-tr-groups .rt-th {
+      background: rgba(102, 5, 5, 0.9) !important;
+    }
+    .ql-table .rt-td.pl-group-boundary,
+    .ql-table .rt-th.pl-group-boundary {
+      border-left: 1px solid #660505 !important;
+    }
+    .ql-table .rt-tr-striped .rt-td-sticky,
+    .ql-table .rt-tr-striped-sticky {
+      background-color: #FCF6F6 !important;
+    }
+    .ql-table .rt-tr:hover .rt-td-sticky,
+    .ql-table .rt-tr-highlight-sticky:hover {
+      background-color: #F0E6E6 !important;
+    }
+
+    /* Celdas de muestra compactas (menos padding horizontal para 64 columnas) */
+    .pl-table .rt-td.pl-sample-cell {
+      padding: 4px 4px !important;
+    }
+
+    /* Contenedor de chips para ocultar condiciones */
+    .pl-cond-chips {
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+    .pl-cond-chip {
+      cursor: pointer;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #ffffff;
+      border: 2px solid transparent;
+      user-select: none;
+      transition: all 0.15s ease;
+    }
+    .pl-cond-chip.off {
+      opacity: 0.35;
+      filter: grayscale(0.4);
+    }
+    .pl-cond-chip:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+
+    /* ========================================================================
+       Variante Summary (header negro, filas tintadas por condicion)
+       ======================================================================== */
+    .sl-table .rt-th,
+    .sl-table .rt-tr-groups .rt-th {
+      background: #1a1a1a !important;
+      color: #ffffff !important;
+      border-bottom: 1px solid #000 !important;
+      font-weight: 600;
+    }
+    .sl-table .rt-tr-striped .rt-td {
+      background-color: transparent !important;
+    }
+    .sl-table .rt-td.rt-td-sticky,
+    .sl-table .rt-th.rt-th-sticky {
+      background-clip: padding-box;
+    }
+    /* Chip de Condition / Coding (color fuerte sobre la fila tintada) */
+    .sl-table .sl-chip {
+      display: inline-block;
+      padding: 3px 12px;
+      border-radius: 12px;
+      font-weight: 600;
+      color: #ffffff !important;
+      font-size: 0.85rem;
+      letter-spacing: 0.3px;
+      min-width: 32px;
+      text-align: center;
+    }
+    /* Header FileName: forzar centrado horizontal venciendo a .rt-align-left
+       sobre las capas internas (.rt-th-inner / .rt-sort-header) */
+    .sl-table .rt-th.sl-filename-header .rt-th-inner,
+    .sl-table .rt-th.sl-filename-header .rt-sort-header {
+      justify-content: center !important;
+      width: 100%;
+    }
+    .sl-table .rt-th.sl-filename-header .rt-text-content {
+      text-align: center !important;
+      width: 100%;
+    }

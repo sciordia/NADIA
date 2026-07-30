@@ -394,7 +394,16 @@ standardize_eset <- function(eset) {
 # -----------------------------------------------------------------------------
 
 #' Índice Xie-Beni
-#' Mide compactness vs separación. Menor = mejor.
+#'
+#' Mide compacidad frente a separación entre clusters. Menor es mejor.
+#'
+#' @param X Matriz de datos (features x condiciones).
+#' @param U Matriz de pertenencias (features x clusters).
+#' @param centers Matriz de centroides (clusters x condiciones).
+#' @param m Exponente de difuminado (fuzzifier).
+#' @return Valor numérico del índice.
+#' @keywords internal
+#' @noRd
 .xie_beni_index <- function(X, U, centers, m = 2) {
 
   n <- nrow(X)
@@ -426,7 +435,13 @@ standardize_eset <- function(eset) {
 
 
 #' Fuzzy Partition Coefficient (FPC)
-#' Mide claridad del clustering. Mayor = mejor.
+#'
+#' Mide la nitidez de la partición difusa. Mayor es mejor.
+#'
+#' @param U Matriz de pertenencias (features x clusters).
+#' @return Valor numérico del coeficiente.
+#' @keywords internal
+#' @noRd
 .fpc_index <- function(U) {
   n <- nrow(U)
   sum(U^2) / n
@@ -434,7 +449,13 @@ standardize_eset <- function(eset) {
 
 
 #' Average Maximum Membership (AMM)
-#' Promedio de las memberships máximas. Mayor = mejor.
+#'
+#' Promedio de la pertenencia máxima de cada feature. Mayor es mejor.
+#'
+#' @param U Matriz de pertenencias (features x clusters).
+#' @return Valor numérico del promedio.
+#' @keywords internal
+#' @noRd
 .amm_index <- function(U) {
   mean(apply(U, 1, max))
 }
@@ -700,7 +721,7 @@ build_long_output <- function(cl, eset_std, conditions, min_membership) {
 #'   filter_mode = "any",
 #'   condition_order = c("A", "B", "C", "D"),
 #'   min_membership = 0.25,
-#'   output_file = "data/Pattern_Profiler_Input.parquet"
+#'   output_file = "data-raw/Pattern_Profiler_Input.parquet"
 #' )
 #' }
 #' @export
@@ -947,7 +968,7 @@ pattern_profiler_analysis <- function(se_proc,
 #   c_range = 2:8,
 #   selection_method = "xb",
 #   min_membership = 0.25,
-#   output_file = "data/Pattern_Profiler_Input.parquet"
+#   output_file = "data-raw/Pattern_Profiler_Input.parquet"
 # )
 #
 # # Ver resultados

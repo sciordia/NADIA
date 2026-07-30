@@ -24,7 +24,7 @@ Calls \code{nm_compute_metrics()} internally and produces a faceted bar chart
 }
 \examples{
 \dontrun{
-se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+se_nm <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
 nm_plot_metrics(se_nm)
 }
 }

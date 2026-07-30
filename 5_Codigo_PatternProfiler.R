@@ -7,11 +7,11 @@
 # -----------------------------------------------------------------------------
 
 # Cargar el script de análisis
-source("R/Pattern_Profiler_Analysis.R")
+library(NADIA)
 
 # Cargar datos (se asume que ya existen en el entorno)
-se_proc <- readRDS("data/se_proc.rds")           # SummarizedExperiment
-DEPs_results <- readr::read_tsv("data/DEPs_results.tsv") # Resultados DEPs
+se_proc <- readRDS("data-raw/se_proc.rds")           # SummarizedExperiment
+DEPs_results <- readr::read_tsv("data-raw/DEPs_results.tsv") # Resultados DEPs
 
 # Definir el orden de condiciones (debe coincidir con tu diseño experimental)
 condition_order <- c("A", "B", "C", "D")
@@ -30,7 +30,7 @@ result <- pattern_profiler_analysis(
   auto_select_c = TRUE,
   selection_method = "xb",
   min_membership = 0.7,
-  output_file = "data/Pattern_Profiler_Input.parquet",
+  output_file = "data-raw/Pattern_Profiler_Input.parquet",
   verbose = TRUE
 )
 
@@ -42,10 +42,9 @@ print(result$selection_metrics)
 # -----------------------------------------------------------------------------
 
 # Cargar el script de visualización
-source("R/Pattern_Profiler_Highcharts.R")
 
 # Leer los datos del parquet generado
-data <- read_pattern_profiler_data("data/Pattern_Profiler_Input.parquet")
+data <- read_pattern_profiler_data("data-raw/Pattern_Profiler_Input.parquet")
 
 # Ver resumen de los datos
 summary <- summarize_pattern_profiler(data)

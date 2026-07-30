@@ -4,11 +4,11 @@
 # =========================================================
 
 # Cargar las funciones para el Heatmap-Plot
-source("./R/Preprocessing.R")
+library(NADIA)
 
 # Ejemplo 1: Uso básico
 result <- preprocess_spectronaut(
-  file_path = "data/Curso_Q24_DIA_Spectronaut_v20_Report.tsv",
+  file_path = "data-raw/Curso_Q24_DIA_Spectronaut_v20_Report.tsv",
   condition_order = c("A", "B", "C", "D")
 )
 
@@ -21,7 +21,7 @@ head(result$protein_quant)
 
 # Ejemplo 2: Con exportación y agregadores personalizados
 result <- preprocess_spectronaut(
-  file_path = "data/Curso_Q24_DIA_Spectronaut_v20_Report.tsv",
+  file_path = "data-raw/Curso_Q24_DIA_Spectronaut_v20_Report.tsv",
   condition_order = c("A", "B", "C", "D"),
   export_dir = "./results",
   timestamp_suffix = TRUE,
@@ -30,7 +30,7 @@ result <- preprocess_spectronaut(
 
 # Ejemplo 3: Sin timestamp en nombres de archivo
 result <- preprocess_spectronaut(
-  file_path = "data/Spectronaut_Report.tsv",
+  file_path = "data-raw/Spectronaut_Report.tsv",
   condition_order = c("Control", "Treatment"),
   export_dir = "./output",
   timestamp_suffix = FALSE

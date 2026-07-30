@@ -19,8 +19,8 @@ Leer datos de Pattern Profiler desde parquet
 }
 \examples{
 \dontrun{
-data <- read_pattern_profiler_data("data/Pattern_Profiler_Input.parquet")
-data <- read_pattern_profiler_data("data/Pattern_Profiler_Input.parquet",
+data <- read_pattern_profiler_data("data-raw/Pattern_Profiler_Input.parquet")
+data <- read_pattern_profiler_data("data-raw/Pattern_Profiler_Input.parquet",
                                     min_membership = 0.5)
 }
 }

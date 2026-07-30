@@ -869,10 +869,10 @@
 #'
 #' @param se SummarizedExperiment with normalized assay
 #' @param normalized_assay_name Name of the normalized assay to use (default: "cycloess")
-#' @param imputed_assay_name Name for the imputed assay. If NULL, auto-generated:
-#'   combo -> "{mar_method}_{mnar_method}",
-#'   softHybrid -> "softHybrid_{mar_method}_{mnar_method}",
-#'   single -> "{imp_method}"
+#' @param imputed_assay_name Name for the imputed assay. If NULL, it is built
+#'   from the method: `combo` gives `<mar_method>_<mnar_method>`, `softHybrid`
+#'   gives `softHybrid_<mar_method>_<mnar_method>`, and any single method gives
+#'   its own name.
 #' @param imp_method Imputation method (default: "combo"). One of:
 #'   "combo", "softHybrid", "bpca", "knn", "mice", "missForest", "Impseq",
 #'   "Impseqrob", "QRILC", "MLE", "MinDet", "MinProb", "min", "zero",

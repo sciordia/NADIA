@@ -12,10 +12,10 @@
 # ===== 1. PREPROCESSING =====
 # Parse and structure raw Spectronaut report data
 
-source("R/Preprocessing.R")
+library(NADIA)
 
 preprocessing <- preprocess_spectronaut(
-  file_path = "data/Curso_Q24_DIA_Spectronaut_v20_Report.tsv",
+  file_path = "data-raw/Curso_Q24_DIA_Spectronaut_v20_Report.tsv",
   condition_order = c("A", "B", "C", "D"),
   export_dir = "./results"
 )
@@ -27,7 +27,7 @@ preprocessing <- preprocess_spectronaut(
 # source("R/Preprocessing_TMT.R")
 #
 # preprocessing <- preprocess_tmt(
-#   file_path = "data/20260527_Q25_TMTpro_TMT1y2_10Fr_Static_3engines_onlyRAW.tsv",
+#   file_path = "data-raw/20260527_Q25_TMTpro_TMT1y2_10Fr_Static_3engines_onlyRAW.tsv",
 #   condition_order = c("A", "B", "C", "D", "IS"),  # omite "IS" para descartar Internal Standards
 #   export_dir = "./results"
 # )
@@ -40,8 +40,8 @@ preprocessing <- preprocess_spectronaut(
 # source("R/Preprocessing_LFQ.R")
 #
 # preprocessing <- preprocess_lfq(
-#   file_path  = "data/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW.tsv",
-#   annot_path = "data/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW_Annot.tsv",
+#   file_path  = "data-raw/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW.tsv",
+#   annot_path = "data-raw/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW_Annot.tsv",
 #   condition_order = c("WT", "MUT"),  # opcional; si NULL se deriva del _Annot
 #   export_dir = "./results"
 # )
@@ -49,7 +49,6 @@ preprocessing <- preprocess_spectronaut(
 # ===== 2. PROCESSING (coordinator) =====
 # Loads Normalization.R, Imputation.R, DEAnalysis.R automatically
 
-source("R/Processing.R")
 
 result <- process_proteomics(
   preprocessing = preprocessing,
@@ -104,7 +103,6 @@ result$DEPs_results   # Differential expression results
 # ===== 3. BOXPLOT =====
 # Interactive boxplots of intensity distributions
 
-source("R/Boxplot_Highcharts_Final.R")
 
 boxplot_data <- arrow::read_parquet("./results/BoxPlot_Input.parquet")
 
@@ -126,7 +124,6 @@ hc_boxplots[["ImpSeqRob_Min"]]
 # ===== 4. VOLCANO PLOT =====
 # Interactive volcano plots for differential expression
 
-source("R/Volcano_Plot_Highcharts_Final.R")
 
 # --- 4.1 Volcano Plots ---                                                                                          
 volcano_plots <- volcano_highchart_list(                                                                             
@@ -146,7 +143,6 @@ volcano_plots[["B-A"]]
 # ===== 5. PCA =====
 # Interactive PCA plots
 
-source("R/PCA_Highcharts_Final.R")
 
 pca_input <- arrow::read_parquet("./results/PCA_Input.parquet")
 
@@ -176,7 +172,6 @@ hc_pcas[["D-C"]]
 # ===== 6. HEATMAP =====
 # Static heatmaps with clustering
 
-source("R/Heatmap_tidyHeatmap.R")
 
 hm <- proteomics_heatmap(
   data = pca_input,
@@ -190,7 +185,6 @@ hm <- proteomics_heatmap(
 # PASO 1: ANÁLISIS DE CLUSTERING (Mfuzz soft-clustering)
 # =============================================================================
 
-source("R/Pattern_Profiler_Analysis.R")
 
 conditions = c("A", "B", "C", "D")
 
@@ -207,7 +201,7 @@ pp_result <- pattern_profiler_analysis(
   auto_select_c   = TRUE,                  # selección automática de c
   selection_method = "xb",                 # "xb", "consensus", o "elbow"
   min_membership  = 0.25,                  # umbral de membresía
-  output_file     = "data/Pattern_Profiler_Input.parquet"
+  output_file     = "data-raw/Pattern_Profiler_Input.parquet"
 )
 
 # Inspeccionar resultados
@@ -220,10 +214,9 @@ pp_result$cluster_counts     # proteínas por cluster
 # PASO 2: VISUALIZACIÓN INTERACTIVA (Highcharts)
 # =============================================================================
 
-source("R/Pattern_Profiler_Highcharts.R")
 
 # Leer datos desde el parquet generado
-data <- read_pattern_profiler_data("data/Pattern_Profiler_Input.parquet")
+data <- read_pattern_profiler_data("data-raw/Pattern_Profiler_Input.parquet")
 
 # Ver resumen estadístico
 summary <- summarize_pattern_profiler(data)

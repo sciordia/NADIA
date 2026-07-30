@@ -130,8 +130,8 @@
 #' @examples
 #' \dontrun{
 #' result <- preprocess_lfq(
-#'   file_path  = "data/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW.tsv",
-#'   annot_path = "data/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW_Annot.tsv",
+#'   file_path  = "data-raw/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW.tsv",
+#'   annot_path = "data-raw/20260710_AIturrate_2659_LFQ_QUANT_onlyRAW_Annot.tsv",
 #'   export_dir = "./results"
 #' )
 #' print(result)

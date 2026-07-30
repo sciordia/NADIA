@@ -174,7 +174,7 @@
 #' \dontrun{
 #' # Uso básico
 #' result <- preprocess_spectronaut(
-#'   file_path = "data/Spectronaut_Report.tsv",
+#'   file_path = "data-raw/Spectronaut_Report.tsv",
 #'   condition_order = c("Control", "Treatment")
 #' )
 #'
@@ -184,7 +184,7 @@
 #'
 #' # Con exportación
 #' result <- preprocess_spectronaut(
-#'   file_path = "data/Spectronaut_Report.tsv",
+#'   file_path = "data-raw/Spectronaut_Report.tsv",
 #'   condition_order = c("A", "B", "C", "D"),
 #'   export_dir = "./results",
 #'   agg_coverage_run = "mean",

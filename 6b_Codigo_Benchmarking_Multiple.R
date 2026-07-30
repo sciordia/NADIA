@@ -2,12 +2,12 @@
 # Ejemplo: Benchmarking con datos spike-in 3 especies
 # =============================================================================                                      
 
-source("R/Benchmarking_Single.R")
+library(NADIA)
 
 library(dplyr)
 
 # --- 1. Cargar el df con el listado de DEPs ---
-de_res <- read.delim("data/VolcanoPlot_Input_cycloess_Impseqrob_min.tsv",
+de_res <- read.delim("data-raw/VolcanoPlot_Input_cycloess_Impseqrob_min.tsv",
                      stringsAsFactors = FALSE)
 
 # --- 2. Cargar el df con la columna Species
@@ -139,5 +139,5 @@ benchmark_roc_gg(benchmarking$classified_df, p_col = "adj.P.Val", zoom = TRUE)
 #                                                                                                       expected_values, así que su truth = 0).
 # 3. comparisons: Solo incluí las vs control (A). Si quieres benchmarkear C / B o D / C, necesitas añadir sus
 # expected_logFC correspondientes a la tabla expected.
-# 4. Exportaciones: Con output_dir = "data/benchmark" se generan 4 TSV + 5 PNG automáticamente.
+# 4. Exportaciones: Con output_dir = "data-raw/benchmark" se generan 4 TSV + 5 PNG automáticamente.
 # 5. AUC: Requiere install.packages("pROC"). Si no está instalado, AUC será NA pero el resto funciona.

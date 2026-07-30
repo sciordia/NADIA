@@ -75,7 +75,7 @@ result <- pattern_profiler_analysis(
   filter_mode = "any",
   condition_order = c("A", "B", "C", "D"),
   min_membership = 0.25,
-  output_file = "data/Pattern_Profiler_Input.parquet"
+  output_file = "data-raw/Pattern_Profiler_Input.parquet"
 )
 }
 }

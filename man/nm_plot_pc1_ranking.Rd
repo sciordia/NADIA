@@ -25,7 +25,7 @@ as other \verb{nm_plot_*()} functions.
 }
 \examples{
 \dontrun{
-se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+se_nm <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
 nm_plot_pc1_ranking(se_nm)
 }
 }

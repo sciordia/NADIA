@@ -46,6 +46,6 @@ y tinte por condicion, reproduciendo el formato manual.
 }
 \examples{
 \dontrun{
-protein_list_widget("data/Protein_ID_20260423_142504.tsv")
+protein_list_widget("data-raw/Protein_ID_20260423_142504.tsv")
 }
 }

@@ -4,7 +4,7 @@
 # =========================================================
 
 # Cargar las funciones para las métricas de normalización
-source("./R/Normalization_Metrics.R")
+library(NADIA)
 
 # =============================================================================                                      
 # PASO 1: PREPROCESAMIENTO DE DATOS DE SPECTRONAUT                                                                   

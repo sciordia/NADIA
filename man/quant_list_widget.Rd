@@ -5,8 +5,8 @@
 \title{Widget Completo para tabla Protein_QUANT con matriz log2 anexada}
 \usage{
 quant_list_widget(
-  data = "data/Protein_QUANT_20260423_142504.tsv",
-  matrix_data = "data/matrix_log2_cycloess_Impseq_min.tsv",
+  data = "data-raw/Protein_QUANT_20260423_142504.tsv",
+  matrix_data = "data-raw/matrix_log2_cycloess_Impseq_min.tsv",
   metadata = NULL,
   page_size = 15,
   height = 720,
@@ -46,8 +46,8 @@ log2, cruzando por Protein Groups.
 \examples{
 \dontrun{
 quant_list_widget(
-  data        = "data/Protein_QUANT_20260423_142504.tsv",
-  matrix_data = "data/matrix_log2_cycloess_Impseq_min.tsv"
+  data        = "data-raw/Protein_QUANT_20260423_142504.tsv",
+  matrix_data = "data-raw/matrix_log2_cycloess_Impseq_min.tsv"
 )
 }
 }

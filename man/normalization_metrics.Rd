@@ -101,7 +101,7 @@ the resulting multi-assay SE.
 \examples{
 \dontrun{
 # --- Classic workflow (from pre-computed TSVs) ---
-se_nm  <- import_norm_matrices("./results", "./data/metadata.tsv")
+se_nm  <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
 plots  <- normalization_metrics(se_nm)
 plots$scatter
 plots$pca

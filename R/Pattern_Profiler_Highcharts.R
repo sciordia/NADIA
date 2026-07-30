@@ -112,8 +112,8 @@ configure_cluster_palette <- function(n_clusters, palette = NULL) {
 #'
 #' @examples
 #' \dontrun{
-#' data <- read_pattern_profiler_data("data/Pattern_Profiler_Input.parquet")
-#' data <- read_pattern_profiler_data("data/Pattern_Profiler_Input.parquet",
+#' data <- read_pattern_profiler_data("data-raw/Pattern_Profiler_Input.parquet")
+#' data <- read_pattern_profiler_data("data-raw/Pattern_Profiler_Input.parquet",
 #'                                     min_membership = 0.5)
 #' }
 #' @export
@@ -827,7 +827,7 @@ summarize_pattern_profiler <- function(data) {
 # source("R/Pattern_Profiler_Highcharts.R")
 #
 # # Leer datos
-# data <- read_pattern_profiler_data("data/Pattern_Profiler_Input.parquet")
+# data <- read_pattern_profiler_data("data-raw/Pattern_Profiler_Input.parquet")
 #
 # # Ver resumen
 # summary <- summarize_pattern_profiler(data)

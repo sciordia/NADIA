@@ -21,6 +21,8 @@ nm_rank_cor(
 \item{condition_col}{Column in colData with condition labels.}
 
 \item{cor_method}{Correlation method: "pearson", "spearman", or "kendall".}
+
+\item{verbose}{Logical. Print progress messages. Default \code{TRUE}.}
 }
 \value{
 A \code{data.frame} with columns \code{Method}, \code{Median_Cor}, \code{Rank}.

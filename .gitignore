@@ -51,3 +51,11 @@ rsconnect/
 
 # Claude files (CLAUDE.md sí se versiona: documenta la arquitectura del proyecto)
 .claude/
+
+# Copias de conflicto de iCloud Drive
+*[ ][0-9].R
+*[ ][0-9].md
+
+# Salidas de BiocCheck y R CMD check
+NADIA.BiocCheck/
+*.Rcheck/

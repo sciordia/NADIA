@@ -650,7 +650,7 @@ nm_run_normalizations <- function(se,
 #' \dontrun{
 #' se_nm <- import_norm_matrices(
 #'   tsv_dir       = "./results",
-#'   metadata_path = "./data/metadata.tsv"
+#'   metadata_path = "./data-raw/metadata.tsv"
 #' )
 #' SummarizedExperiment::assayNames(se_nm)
 #' }
@@ -1429,7 +1429,7 @@ nm_plot_qq <- function(se, assay_names = NULL,
 #'
 #' @examples
 #' \dontrun{
-#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' se_nm <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
 #' metrics_df <- nm_compute_metrics(se_nm)
 #' print(metrics_df)
 #' }
@@ -1482,7 +1482,7 @@ nm_compute_metrics <- function(se, assay_names = NULL,
 #'
 #' @examples
 #' \dontrun{
-#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' se_nm <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
 #' nm_plot_metrics(se_nm)
 #' }
 #' @export
@@ -1537,12 +1537,13 @@ nm_plot_metrics <- function(se, assay_names = NULL,
 #' order. Higher PC1 variance generally indicates stronger group separation.
 #'
 #' @inheritParams nm_plot_boxplot
+#' @param verbose Logical. Print progress messages. Default `TRUE`.
 #' @return A `data.frame` with columns `Method`, `PC1_VarPct`, `Rank`,
 #'   ordered by `PC1_VarPct` descending.
 #'
 #' @examples
 #' \dontrun{
-#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' se_nm <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
 #' nm_rank_pc1(se_nm)
 #' }
 #' @export
@@ -1579,7 +1580,7 @@ nm_rank_pc1 <- function(se, assay_names = NULL, condition_col = "Condition",
 #'
 #' @examples
 #' \dontrun{
-#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' se_nm <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
 #' nm_plot_pc1_ranking(se_nm)
 #' }
 #' @export
@@ -1616,12 +1617,13 @@ nm_plot_pc1_ranking <- function(se, assay_names = NULL,
 #' returns a ranking ordered by ascending MDS1 variance (lower = better).
 #'
 #' @inheritParams nm_plot_boxplot
+#' @param verbose Logical. Print progress messages. Default `TRUE`.
 #' @return A `data.frame` with columns `Method`, `MDS1_VarPct`, `Rank`,
 #'   ordered by `MDS1_VarPct` ascending (lower = better; rank 1 = best).
 #'
 #' @examples
 #' \dontrun{
-#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' se_nm <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
 #' nm_rank_mds1(se_nm)
 #' }
 #' @export
@@ -1658,7 +1660,7 @@ nm_rank_mds1 <- function(se, assay_names = NULL, condition_col = "Condition",
 #'
 #' @examples
 #' \dontrun{
-#' se_nm <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' se_nm <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
 #' nm_plot_mds1_ranking(se_nm)
 #' }
 #' @export
@@ -1695,6 +1697,7 @@ nm_plot_mds1_ranking <- function(se, assay_names = NULL,
 #' Rank normalization methods by median PCV (ascending — lower is better)
 #'
 #' @inheritParams nm_plot_boxplot
+#' @param verbose Logical. Print progress messages. Default `TRUE`.
 #' @return A `data.frame` with columns `Method`, `Median_PCV`, `Rank`.
 #' @export
 nm_rank_pcv <- function(se, assay_names = NULL, condition_col = "Condition",
@@ -1718,6 +1721,7 @@ nm_rank_pcv <- function(se, assay_names = NULL, condition_col = "Condition",
 #' Rank normalization methods by median PMAD (ascending — lower is better)
 #'
 #' @inheritParams nm_plot_boxplot
+#' @param verbose Logical. Print progress messages. Default `TRUE`.
 #' @return A `data.frame` with columns `Method`, `Median_PMAD`, `Rank`.
 #' @export
 nm_rank_pmad <- function(se, assay_names = NULL, condition_col = "Condition",
@@ -1741,6 +1745,7 @@ nm_rank_pmad <- function(se, assay_names = NULL, condition_col = "Condition",
 #' Rank normalization methods by median PEV (ascending — lower is better)
 #'
 #' @inheritParams nm_plot_boxplot
+#' @param verbose Logical. Print progress messages. Default `TRUE`.
 #' @return A `data.frame` with columns `Method`, `Median_PEV`, `Rank`.
 #' @export
 nm_rank_pev <- function(se, assay_names = NULL, condition_col = "Condition",
@@ -1766,6 +1771,7 @@ nm_rank_pev <- function(se, assay_names = NULL, condition_col = "Condition",
 #'
 #' @inheritParams nm_plot_boxplot
 #' @param cor_method Correlation method: "pearson", "spearman", or "kendall".
+#' @param verbose Logical. Print progress messages. Default `TRUE`.
 #' @return A `data.frame` with columns `Method`, `Median_Cor`, `Rank`.
 #' @export
 nm_rank_cor <- function(se, assay_names = NULL, condition_col = "Condition",
@@ -1811,6 +1817,7 @@ nm_rank_cor <- function(se, assay_names = NULL, condition_col = "Condition",
 #'
 #' @inheritParams nm_plot_boxplot
 #' @param cor_method Correlation method forwarded to `nm_rank_cor()`.
+#' @param verbose Logical. Print progress messages. Default `TRUE`.
 #' @return A `data.frame` with columns: `Method`, `Rank_PCV`, `Rank_PMAD`,
 #'   `Rank_PEV`, `Rank_Cor`, `Rank_Sep`, `Rank_Final`, ordered by `Rank_Final`
 #'   ascending (best first).
@@ -2012,7 +2019,7 @@ nm_plot_final_ranking <- function(se, assay_names = NULL,
 #' @examples
 #' \dontrun{
 #' # --- Classic workflow (from pre-computed TSVs) ---
-#' se_nm  <- import_norm_matrices("./results", "./data/metadata.tsv")
+#' se_nm  <- import_norm_matrices("./results", "./data-raw/metadata.tsv")
 #' plots  <- normalization_metrics(se_nm)
 #' plots$scatter
 #' plots$pca

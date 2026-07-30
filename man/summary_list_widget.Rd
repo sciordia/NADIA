@@ -5,7 +5,7 @@
 \title{Tabla Reactable Interactiva para Metadata de muestras}
 \usage{
 summary_list_widget(
-  data = "data/Metadata_20260423_142504.tsv",
+  data = "data-raw/Metadata_20260423_142504.tsv",
   page_size = 16,
   height = 540,
   element_id = "summary_table",
@@ -42,6 +42,6 @@ usado por protein_list_widget() / quant_list_widget()).
 
 \examples{
 \dontrun{
-summary_list_widget("data/Metadata_20260423_142504.tsv")
+summary_list_widget("data-raw/Metadata_20260423_142504.tsv")
 }
 }

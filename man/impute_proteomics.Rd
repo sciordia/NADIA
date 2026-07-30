@@ -26,10 +26,10 @@ impute_proteomics(
 
 \item{normalized_assay_name}{Name of the normalized assay to use (default: "cycloess")}
 
-\item{imputed_assay_name}{Name for the imputed assay. If NULL, auto-generated:
-combo -> "{mar_method}\emph{{mnar_method}",
-softHybrid -> "softHybrid}{mar_method}_{mnar_method}",
-single -> "{imp_method}"}
+\item{imputed_assay_name}{Name for the imputed assay. If NULL, it is built
+from the method: \code{combo} gives \verb{<mar_method>_<mnar_method>}, \code{softHybrid}
+gives \verb{softHybrid_<mar_method>_<mnar_method>}, and any single method gives
+its own name.}
 
 \item{imp_method}{Imputation method (default: "combo"). One of:
 "combo", "softHybrid", "bpca", "knn", "mice", "missForest", "Impseq",

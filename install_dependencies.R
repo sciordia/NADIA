@@ -18,20 +18,23 @@
 
 # --- Dependencias imprescindibles --------------------------------------------
 
+# Se corresponden con el campo Imports: de DESCRIPTION. `grid`, `methods`,
+# `stats`, `tools` y `utils` no aparecen porque vienen con R.
 .nadia_cran_hard <- c(
-  "dplyr", "tidyr", "tibble", "stringr", "readr", "rlang",
-  "ggplot2", "ggrepel", "highcharter", "paletteer", "RColorBrewer",
-  "arrow", "reactable", "htmltools", "tidyHeatmap"
+  "dplyr", "tidyr", "tidyselect", "tibble", "stringr", "readr", "rlang",
+  "magrittr", "ggplot2", "highcharter", "htmlwidgets", "paletteer",
+  "RColorBrewer", "reactable", "htmltools", "jsonlite"
 )
 
 .nadia_bioc_hard <- c(
-  "SummarizedExperiment", "S4Vectors", "Biobase", "ComplexHeatmap", "Mfuzz"
+  "SummarizedExperiment", "S4Vectors"
 )
 
 # --- Dependencias opcionales (guardadas con requireNamespace) -----------------
 
+# Se corresponden con el campo Suggests: de DESCRIPTION.
 .nadia_cran_soft <- c(
-  "jsonlite",    # exportación a Excel en Results_List_reactable
+  "arrow",       # lectura y escritura de Parquet
   "scales",      # escalas de color en las tablas reactable
   "crosstalk",   # enlazado entre widgets
   "pROC",        # AUC y pAUC en benchmarking
@@ -44,7 +47,14 @@
   "rrcovNA",     # imputación Impseq / Impseqrob
   "imputeLCMD",  # imputación QRILC / MinProb
   "lme4",        # descomposición de varianza PVCA
-  "circlize"     # paletas continuas en heatmaps
+  "circlize",    # paletas continuas en heatmaps
+  "tidyHeatmap", # heatmaps estáticos
+  "e1071",       # c-means; Mfuzz lo necesita adjuntado
+  "ggsci",       # paletas que sirve paletteer
+  "viridis",     # paletas que sirve paletteer
+  "testthat",    # tests
+  "knitr",       # viñeta
+  "rmarkdown"    # viñeta
 )
 
 .nadia_bioc_soft <- c(
@@ -54,6 +64,10 @@
   "pcaMethods",  # imputación bpca
   "vsn",         # normalización vsn
   "BERT",        # corrección de lote (HarmonizR)
+  "Biobase",     # ExpressionSet; Mfuzz lo necesita adjuntado
+  "Mfuzz",       # soft-clustering del Pattern Profiler
+  "ComplexHeatmap", # motor de los heatmaps
+  "BiocStyle",   # estilo de la viñeta
   "MSstats"      # solo para los scripts 7_MSstats_Workflow*.R
 )
 

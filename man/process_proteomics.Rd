@@ -161,7 +161,7 @@ Normalization.R, Imputation.R, and DEAnalysis.R.
 \dontrun{
 # 1. Preprocess Spectronaut data
 preprocessing <- preprocess_spectronaut(
-  file_path = "data/Spectronaut_Report.tsv",
+  file_path = "data-raw/Spectronaut_Report.tsv",
   condition_order = c("A", "B", "C", "D")
 )
 

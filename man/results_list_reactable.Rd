@@ -56,6 +56,7 @@ resultados de expresion diferencial de proteinas. Compatible con Shiny
 (devuelve objeto reactable) y con uso standalone via \code{results_list_widget()}.
 }
 \examples{
+\dontrun{
 # Desde archivo
 tbl <- results_list_reactable("results/VolcanoPlot_Input_cycloess_Impseq_min.tsv")
 
@@ -66,4 +67,5 @@ tbl <- results_list_reactable(de_res, protein_quant = preprocessing$protein_quan
 # output$tabla <- renderReactable({
 #   results_list_reactable(data(), protein_quant = pq, element_id = "tabla")
 # })
+}
 }

@@ -1,7 +1,7 @@
 
 # MSstats Pipeline ("noBIG")
-raw <- read.csv("./data/20260306_CursoProtQ_2024_DIA_Exploris_v20p5_sinImp_sinNorm_sinD_Report.tsv", sep = "\t")
-annotation <-  read.csv("./data/MSstats_Annotation_sinD.csv")
+raw <- read.csv("./data-raw/20260306_CursoProtQ_2024_DIA_Exploris_v20p5_sinImp_sinNorm_sinD_Report.tsv", sep = "\t")
+annotation <-  read.csv("./data-raw/MSstats_Annotation_sinD.csv")
 
 quant <-SpectronauttoMSstatsFormat(raw,
                                    annotation = annotation,

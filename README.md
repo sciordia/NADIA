@@ -23,51 +23,68 @@ Del report crudo a la figura interactiva:
    perfiles de clúster) y estática con ggplot2/ComplexHeatmap, además de tablas
    interactivas con reactable.
 
-## Estructura
-
-- `R/` — módulos independientes: cada uno puede usarse por separado con
-  `source()`; las dependencias pesadas están protegidas con `requireNamespace()`.
-- `example_workflow.R` — ejemplo completo de principio a fin.
-- `install_dependencies.R` — instalación de dependencias.
-- `data/`, `results/` — datos de entrada y salidas generadas.
-- `CLAUDE.md` — descripción detallada de la arquitectura y de cada módulo.
-- `CODE_REVIEW_*.md` — revisiones de código y análisis de impacto de sus
-  correcciones.
-
 ## Instalación
 
-Requiere R ≥ 4.4. Las dependencias se instalan desde CRAN y Bioconductor:
+NADIA es un paquete de R y requiere R ≥ 4.4. Todavía no está en Bioconductor, así
+que se instala desde el repositorio:
 
 ```r
-source("install_dependencies.R")
+# install.packages("remotes")
+remotes::install_github("sciordia/NADIA")
+library(NADIA)
 ```
 
-El script salta lo que ya esté presente. Variantes:
+Las dependencias imprescindibles (campo `Imports:`) se instalan solas. Las
+**opcionales** (`Suggests:`) solo hacen falta si se usa el método que las
+invoca — `mice` únicamente con `imp_method = "mice"`, `pROC` para las métricas
+AUC/pAUC del benchmarking, `Mfuzz` para el Pattern Profiler. Cuando falta alguna,
+la función lo indica con un mensaje explícito. Para instalarlas todas de golpe:
 
 ```r
-install_nadia_deps(dry_run = TRUE)     # solo informa de lo que falta
-install_nadia_deps(optional = FALSE)   # solo lo imprescindible
-```
-
-Se distinguen dos niveles. Las **imprescindibles** las cargan los módulos al
-hacer `source()`: `dplyr`, `tidyr`, `tibble`, `stringr`, `readr`, `rlang`,
-`ggplot2`, `ggrepel`, `highcharter`, `paletteer`, `RColorBrewer`, `arrow`,
-`reactable`, `htmltools` y `tidyHeatmap` (CRAN), más `SummarizedExperiment`,
-`S4Vectors`, `Biobase`, `ComplexHeatmap` y `Mfuzz` (Bioconductor).
-
-Las **opcionales** están protegidas con `requireNamespace()` y solo hacen falta
-si se usa el método que las invoca — por ejemplo `mice` únicamente con
-`imp_method = "mice"`, o `pROC` para las métricas AUC/pAUC del benchmarking.
-Si falta alguna, el módulo indica cuál con un mensaje de error explícito.
-
-Para instalar un paquete suelto:
-
-```r
-install.packages("mice")                 # CRAN
-BiocManager::install("limpa")            # Bioconductor
+source("install_dependencies.R")         # desde un clon del repositorio
+install_nadia_deps(dry_run = TRUE)       # solo informa de lo que falta
+install_nadia_deps(optional = FALSE)     # solo lo imprescindible
 ```
 
 No se usa `renv`.
+
+## Un primer ejemplo
+
+```r
+library(NADIA)
+
+# Dataset de ejemplo ya preprocesado: 3 condiciones x 4 réplicas, 2.000 proteínas
+data(nadia_dia)
+
+res <- process_proteomics(nadia_dia,
+                          norm_method = "cycloess",
+                          imp_method  = "combo",
+                          de_method   = "limma")
+head(res$DEPs_results)
+
+# O partiendo del report crudo
+prep <- preprocess_spectronaut(
+  system.file("extdata", "nadia_dia_report.tsv.gz", package = "NADIA"),
+  condition_order = c("A", "B", "D"))
+```
+
+`process_proteomics()` no escribe nada en disco a menos que se le pase
+`export_dir`.
+
+## Estructura del repositorio
+
+- `R/` — código del paquete: 21 archivos, 102 funciones exportadas.
+- `man/`, `NAMESPACE` — generados con roxygen2; no editar a mano.
+- `inst/extdata/` — reports recortados de Spectronaut, TMT y LFQ para los
+  ejemplos; `inst/scripts/make_extdata.R` documenta cómo se obtuvieron.
+- `data/` — el dataset de ejemplo `nadia_dia`.
+- `data-raw/`, `results/` — datos completos y salidas de análisis reales. No
+  forman parte del paquete (`.Rbuildignore`).
+- `example_workflow.R` y los scripts numerados — recorridos de principio a fin
+  sobre los datos completos.
+- `CLAUDE.md` — descripción detallada de la arquitectura y de cada módulo.
+- `CODE_REVIEW_*.md` — revisiones de código y análisis de impacto de sus
+  correcciones.
 
 ## Licencia
 
