@@ -1,32 +1,31 @@
 # NADIA
 
-**Missing Value-Aware DIA Proteomics Analysis** — pipeline en R para el análisis
-de expresión diferencial de proteínas, con especial atención al tratamiento de
-los valores ausentes (**NA**) característicos de la adquisición independiente de
-datos (**DIA**).
+**Missing Value-Aware DIA Proteomics Analysis** — an R package for differential
+protein expression analysis, with particular attention to the missing values
+(**NA**) that characterise data-independent acquisition (**DIA**).
 
-## Qué cubre
+## What it covers
 
-Del report crudo a la figura interactiva:
+From the raw report to the interactive figure:
 
-1. **Preprocesado** — Spectronaut/DIA-NN, TMT (Proteome Discoverer) y LFQ
-   (Proteome Discoverer); todos producen el mismo objeto S3 `proteomics_data`.
-2. **Procesado** — normalización (13 métodos), corrección de lote opcional
-   (HarmonizR/BERT/ComBat + diagnóstico PVCA), imputación (19 métodos, incluidos
-   los híbridos MAR/MNAR `combo` y `softHybrid`, y el modelo probabilístico
-   `limpa`) y expresión diferencial (`limma` o `limpa`).
-3. **Métricas y benchmarking** — evaluación de normalización (PCV/PMAD/PEV,
-   correlación intragrupo, separación de grupos) e imputación (marco NAguideR:
-   NRMSE, SOR, PSS, ACC_OI), más benchmarking con datasets *spike-in* y ranking
-   OpDEA de combinaciones normalización × imputación.
-4. **Visualización** — interactiva con Highcharts (boxplots, volcano, PCA,
-   perfiles de clúster) y estática con ggplot2/ComplexHeatmap, además de tablas
-   interactivas con reactable.
+1. **Preprocessing** — Spectronaut/DIA-NN, TMT (Proteome Discoverer) and LFQ
+   (Proteome Discoverer); all three produce the same `proteomics_data` S3 object.
+2. **Processing** — normalization (13 methods), optional batch correction (BERT,
+   applying ComBat, limma or a reference batch, plus PVCA diagnostics), imputation
+   (19 methods, including the MAR/MNAR hybrids `combo` and `softHybrid` and the
+   probabilistic model `limpa`) and differential expression (`limma` or `limpa`).
+3. **Metrics and benchmarking** — normalization assessment (PCV/PMAD/PEV,
+   intragroup correlation, group separation) and imputation assessment (NAguideR
+   framework: NRMSE, SOR, PSS, ACC_OI), plus benchmarking on *spike-in* datasets
+   and OpDEA ranking of normalization x imputation combinations.
+4. **Visualization** — interactive with Highcharts (boxplots, volcano, PCA,
+   cluster profiles) and static with ggplot2/ComplexHeatmap, along with
+   interactive tables built on reactable.
 
-## Instalación
+## Installation
 
-NADIA es un paquete de R y requiere R ≥ 4.4. Todavía no está en Bioconductor, así
-que se instala desde el repositorio:
+NADIA is an R package and requires R >= 4.4. It is not on Bioconductor yet, so
+install it from this repository:
 
 ```r
 # install.packages("remotes")
@@ -34,26 +33,26 @@ remotes::install_github("sciordia/NADIA")
 library(NADIA)
 ```
 
-Las dependencias imprescindibles (campo `Imports:`) se instalan solas. Las
-**opcionales** (`Suggests:`) solo hacen falta si se usa el método que las
-invoca — `mice` únicamente con `imp_method = "mice"`, `pROC` para las métricas
-AUC/pAUC del benchmarking, `Mfuzz` para el Pattern Profiler. Cuando falta alguna,
-la función lo indica con un mensaje explícito. Para instalarlas todas de golpe:
+The required dependencies (the `Imports:` field) are installed automatically. The
+**optional** ones (`Suggests:`) are only needed if you use the method that calls
+them — `mice` only with `imp_method = "mice"`, `pROC` for the AUC/pAUC
+benchmarking metrics, `Mfuzz` for the Pattern Profiler. When one is missing, the
+function says which one. To install them all at once:
 
 ```r
-source("install_dependencies.R")         # desde un clon del repositorio
-install_nadia_deps(dry_run = TRUE)       # solo informa de lo que falta
-install_nadia_deps(optional = FALSE)     # solo lo imprescindible
+source("install_dependencies.R")         # from a clone of the repository
+install_nadia_deps(dry_run = TRUE)       # only report what is missing
+install_nadia_deps(optional = FALSE)     # only the essentials
 ```
 
-No se usa `renv`.
+`renv` is not used.
 
-## Un primer ejemplo
+## A first example
 
 ```r
 library(NADIA)
 
-# Dataset de ejemplo ya preprocesado: 3 condiciones x 4 réplicas, 2.000 proteínas
+# Preprocessed example dataset: 3 conditions x 4 replicates, 2,000 proteins
 data(nadia_dia)
 
 res <- process_proteomics(nadia_dia,
@@ -62,30 +61,33 @@ res <- process_proteomics(nadia_dia,
                           de_method   = "limma")
 head(res$DEPs_results)
 
-# O partiendo del report crudo
+# Or starting from the raw report
 prep <- preprocess_spectronaut(
   system.file("extdata", "nadia_dia_report.tsv.gz", package = "NADIA"),
   condition_order = c("A", "B", "D"))
 ```
 
-`process_proteomics()` no escribe nada en disco a menos que se le pase
-`export_dir`.
+`process_proteomics()` writes nothing to disk unless it is given an `export_dir`.
 
-## Estructura del repositorio
+## Repository layout
 
-- `R/` — código del paquete: 21 archivos, 102 funciones exportadas.
-- `man/`, `NAMESPACE` — generados con roxygen2; no editar a mano.
-- `inst/extdata/` — reports recortados de Spectronaut, TMT y LFQ para los
-  ejemplos; `inst/scripts/make_extdata.R` documenta cómo se obtuvieron.
-- `data/` — el dataset de ejemplo `nadia_dia`.
-- `data-raw/`, `results/` — datos completos y salidas de análisis reales. No
-  forman parte del paquete (`.Rbuildignore`).
-- `example_workflow.R` y los scripts numerados — recorridos de principio a fin
-  sobre los datos completos.
-- `CLAUDE.md` — descripción detallada de la arquitectura y de cada módulo.
-- `CODE_REVIEW_*.md` — revisiones de código y análisis de impacto de sus
-  correcciones.
+- `R/` — package code: 22 files, 102 exported functions.
+- `man/`, `NAMESPACE` — generated with roxygen2; do not edit by hand.
+- `inst/extdata/` — trimmed Spectronaut, TMT and LFQ reports for the examples;
+  `inst/scripts/make_extdata.R` documents how they were obtained.
+- `data/` — the example dataset `nadia_dia`.
+- `data-raw/`, `results/` — full datasets and real analysis outputs. Not part of
+  the package (`.Rbuildignore`).
+- `example_workflow.R` and the numbered scripts — end-to-end walkthroughs over the
+  full datasets.
+- `CLAUDE.md` — detailed description of the architecture and of every module.
+- `CODE_REVIEW_*.md` — code reviews and impact analyses of their fixes.
 
-## Licencia
+## Data
 
-MIT © 2025 Sergio Ciordia
+The example data come from quantitative proteomics experiments acquired at the
+Proteomics Facility of the Centro Nacional de Biotecnologia (CNB-CSIC).
+
+## License
+
+MIT (c) 2025 Sergio Ciordia
