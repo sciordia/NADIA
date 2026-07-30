@@ -13,7 +13,7 @@
 #   - Interactive Highcharts plots (profiles, centroids)
 #
 # Author: Sergio Ciordia
-# License: MIT
+# License: GPL-3
 # =============================================================================
 
 # -----------------------------------------------------------------------------

@@ -19,7 +19,7 @@
 # `Abundance:` columns may differ from that of the metric columns.
 #
 # Copyright 2025 Sergio Ciordia
-# Licensed under MIT
+# License: GPL-3
 # =============================================================================
 
 # --- Dependencies ---

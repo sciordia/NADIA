@@ -18,7 +18,7 @@
 # Optional: pROC (for AUC), arrow (parquet), readr (TSV)
 #
 # Author: Sergio Ciordia
-# License: MIT
+# License: GPL-3
 # =============================================================================
 
 

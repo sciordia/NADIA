@@ -40,7 +40,7 @@
 #   Batch Correction: SummarizedExperiment, BERT (Bioconductor)
 #
 # Author: Sergio Ciordia
-# License: MIT
+# License: GPL-3
 # =============================================================================
 
 # =============================================================================

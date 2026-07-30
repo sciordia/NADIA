@@ -6,7 +6,7 @@
 # to final visualizations, integrating all modules in this project.
 #
 # Author: Sergio Ciordia
-# License: MIT
+# License: GPL-3
 # =============================================================================
 
 # ===== 1. PREPROCESSING =====

@@ -13,7 +13,7 @@
 # share one and the same namespace.
 #
 # Author: Sergio Ciordia
-# License: MIT
+# License: GPL-3
 # =============================================================================
 
 

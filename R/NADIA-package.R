@@ -13,7 +13,7 @@
 # qualified with `pkg::`, never imported here.
 #
 # Author: Sergio Ciordia
-# License: MIT
+# License: GPL-3
 # =============================================================================
 
 #' NADIA: Missing Value-Aware DIA Proteomics Analysis

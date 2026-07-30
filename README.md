@@ -90,4 +90,4 @@ Proteomics Facility of the Centro Nacional de Biotecnologia (CNB-CSIC).
 
 ## License
 
-MIT (c) 2025 Sergio Ciordia
+GPL-3 (or any later version) (c) 2025 Sergio Ciordia

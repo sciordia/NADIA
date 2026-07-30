@@ -27,7 +27,7 @@
 #   - cluster  : silhouette width (fallback: NA)
 #
 # Author: Sergio Ciordia
-# License: MIT
+# License: GPL-3
 # =============================================================================
 
 

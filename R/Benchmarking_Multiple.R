@@ -6,7 +6,7 @@
 # Ranking follows OpDEA methodology (Peng et al., Nature Comms 2024):
 #   rank_final = mean(rank_nMCC, rank_G_mean, rank_pAUC_001, rank_pAUC_005, rank_pAUC_010)
 #
-# MIT License | Copyright (c) 2025 Sergio Ciordia
+# License: GPL-3 | Copyright (c) 2025 Sergio Ciordia
 # =============================================================================
 
 # =============================================================================

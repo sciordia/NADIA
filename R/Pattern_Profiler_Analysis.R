@@ -13,7 +13,7 @@
 #   - Pattern_Profiler_Input.parquet: table in LONG format
 #
 # Author: Sergio Ciordia
-# License: MIT
+# License: GPL-3
 # =============================================================================
 
 # -----------------------------------------------------------------------------

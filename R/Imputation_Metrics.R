@@ -25,7 +25,7 @@
 #   - Imputation.R deps: per-method optional packages
 #
 # Author: Sergio Ciordia
-# License: MIT
+# License: GPL-3
 # =============================================================================
 
 

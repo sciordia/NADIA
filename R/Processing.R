@@ -10,7 +10,7 @@
 # Dependencies: see the individual modules
 #
 # Author: Sergio Ciordia
-# License: MIT
+# License: GPL-3
 # =============================================================================
 
 # Normalization.R, Imputation.R, DEAnalysis.R and Batch_Correction.R share a
