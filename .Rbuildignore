@@ -6,6 +6,7 @@
 ^\.Rhistory$
 ^CLAUDE\.md$
 ^CODE_REVIEW_.*\.md$
+^SUBMISSION\.md$
 ^install_dependencies\.R$
 ^[0-9].*\.R$
 ^\.github$

@@ -26,6 +26,26 @@ without any change to the results the pipeline produces.
 
 ## Changes
 
+* Progress output goes through `message()` instead of `cat()`, so it can be
+  silenced with `suppressMessages()` and redirected like any other condition.
+  The four `print()` methods still use `cat()`, which is where it belongs. The
+  text is unchanged except for thirteen strings that were still in Spanish.
+* **Every random source is now under the caller's control.** `seed` arguments
+  were added to `nm_compute_metrics()`, `normalization_metrics()` and
+  `pattern_profiler_analysis()`. All three already had a seed internally, but no
+  caller ever passed one, so the Hopkins statistic and — more importantly — the
+  Mfuzz clustering could not be made reproducible on demand.
+* **The PERMANOVA p-value is reproducible.** `vegan::adonis2()` derives it by
+  permuting the group labels, so `PERMANOVA_pval`, a column that
+  `normalization_metrics()` exports, changed between runs on the same data. It is
+  now seeded from the same `seed` argument. `PERMANOVA_R2` was never affected.
+* `quant_list_widget()` and `summary_list_widget()` no longer default `data` and
+  `matrix_data` to files under `data-raw/`, which no user has. Both arguments are
+  now required and the functions say so.
+* `Depends: R (>= 4.6.0)`, and `biocViews` gains `BatchEffect`.
+* Documentation notes that `missForest` takes no seed, and that the seed of `MLE`
+  goes to the internal RNG of the `norm` package, which cannot be restored.
+
 * **`max_na_prop` now defaults to `NULL`, which disables the pre-filter.** It
   used to default to 0.8, but the filter was only applied by `softHybrid` and by
   the single imputation methods; `combo`, the default, never applied it. The same
