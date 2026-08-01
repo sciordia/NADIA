@@ -4,7 +4,13 @@
 \alias{nm_compute_metrics}
 \title{Compute quantitative group-separation metrics per normalization method}
 \usage{
-nm_compute_metrics(se, assay_names = NULL, condition_col = "Condition", ...)
+nm_compute_metrics(
+  se,
+  assay_names = NULL,
+  condition_col = "Condition",
+  seed = 42L,
+  ...
+)
 }
 \arguments{
 \item{se}{SummarizedExperiment from \code{import_norm_matrices()}.}
@@ -12,6 +18,12 @@ nm_compute_metrics(se, assay_names = NULL, condition_col = "Condition", ...)
 \item{assay_names}{Character vector of assay names to include. NULL = all.}
 
 \item{condition_col}{Column in colData with condition labels.}
+
+\item{seed}{Integer. Seed for the two metrics that use randomness: the
+Hopkins statistic, which samples random reference points, and the PERMANOVA
+p-value, which permutes the group labels. Without it neither column is
+reproducible between runs. The caller's RNG state is restored on exit.
+Default 42.}
 
 \item{...}{Additional arguments (unused).}
 }

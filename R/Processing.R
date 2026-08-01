@@ -510,14 +510,14 @@ process_proteomics <- function(
   # 1. PREPARE DATA FROM PREPROCESSING
   # =========================================================================
 
-  if (verbose) cat("=== PREPARING DATA ===\n")
+  if (verbose) message("=== PREPARING DATA ===")
 
   metadata <- .prepare_metadata(preprocessing, covariate_df = covariate_df)
   protein_data <- .prepare_protein_data(preprocessing)
 
   if (verbose) {
-    cat("- Metadata:", nrow(metadata), "samples\n")
-    cat("- Proteins:", nrow(protein_data), "initial proteins\n")
+    message("- Metadata: ", nrow(metadata), " samples")
+    message("- Proteins: ", nrow(protein_data), " initial proteins")
   }
 
   # =========================================================================
@@ -553,7 +553,7 @@ process_proteomics <- function(
         norm_file, sep = "\t", quote = FALSE, row.names = FALSE
       )
     }
-    if (verbose) cat("- Exported:", basename(norm_file), "\n")
+    if (verbose) message("- Exported: ", basename(norm_file))
   }
 
   # =========================================================================
@@ -599,7 +599,7 @@ process_proteomics <- function(
           bc_file, sep = "\t", quote = FALSE, row.names = FALSE
         )
       }
-      if (verbose) cat("- Exported:", basename(bc_file), "\n")
+      if (verbose) message("- Exported: ", basename(bc_file))
     }
   }
 
@@ -655,7 +655,7 @@ process_proteomics <- function(
         imp_file, sep = "\t", quote = FALSE, row.names = FALSE
       )
     }
-    if (verbose) cat("- Exported:", basename(imp_file), "\n")
+    if (verbose) message("- Exported: ", basename(imp_file))
   }
 
   # =========================================================================
@@ -702,7 +702,7 @@ process_proteomics <- function(
   pca_data     <- .prepare_pca_input(se_proc, DEPs_results, assay_label, alpha)
 
   if (export_volcano || export_boxplot || export_pca) {
-    if (verbose) cat("\n=== EXPORTING FILES FOR VISUALIZATION ===\n")
+    if (verbose) message("\n=== EXPORTING FILES FOR VISUALIZATION ===")
 
     # Suffix with norm_method and assay_label (avoid redundancy if they are equal)
     viz_suffix <- if (identical(assay_label, norm_method)) {
@@ -715,21 +715,21 @@ process_proteomics <- function(
     if (export_volcano) {
       volcano_file <- file.path(export_dir, paste0("VolcanoPlot_Input", viz_suffix))
       .export_data(DEPs_results, volcano_file, export_format)
-      if (verbose) cat("- VolcanoPlot_Input exported\n")
+      if (verbose) message("- VolcanoPlot_Input exported")
     }
 
     # 5.2 BoxPlot_Input (SE -> long format)
     if (export_boxplot) {
       boxplot_file <- file.path(export_dir, paste0("BoxPlot_Input", viz_suffix))
       .export_data(boxplot_data, boxplot_file, export_format)
-      if (verbose) cat("- BoxPlot_Input exported\n")
+      if (verbose) message("- BoxPlot_Input exported")
     }
 
     # 5.3 PCA_Input (SE + DE in long format)
     if (export_pca) {
       pca_file <- file.path(export_dir, paste0("PCA_Input", viz_suffix))
       .export_data(pca_data, pca_file, export_format)
-      if (verbose) cat("- PCA_Input exported\n")
+      if (verbose) message("- PCA_Input exported")
     }
   }
 
@@ -779,7 +779,7 @@ process_proteomics <- function(
 
   class(result) <- c("proteomics_result", "list")
 
-  if (verbose) cat("\n=== PROCESSING COMPLETED ===\n")
+  if (verbose) message("\n=== PROCESSING COMPLETED ===")
 
   result
 }

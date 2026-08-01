@@ -13,4 +13,10 @@
 \description{
 missForest: Random Forest imputation
 }
+\details{
+This method is stochastic and takes no seed of its own, because
+\code{missForest::missForest()} does not accept one. To reproduce a run, call
+\code{set.seed()} before \code{impute_proteomics()}; unlike the seeded methods, this
+one draws from -- and therefore advances -- the caller's RNG.
+}
 \keyword{internal}

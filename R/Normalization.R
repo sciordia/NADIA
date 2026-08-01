@@ -515,7 +515,7 @@ normalize_proteomics <- function(
   # 1. ZERO TO NA CONVERSION
   # =========================================================================
 
-  if (verbose) cat("\n=== CONVERTING ZEROS TO NA ===\n")
+  if (verbose) message("\n=== CONVERTING ZEROS TO NA ===")
 
   annotation_cols <- c("ProteinGroups", "GeneNames", "UniqPepts")
   intensity_cols <- setdiff(names(data), annotation_cols)
@@ -525,13 +525,13 @@ normalize_proteomics <- function(
   intensity_mat <- .zero_to_missing(intensity_mat)
   rownames(intensity_mat) <- data$ProteinGroups
 
-  if (verbose) cat("- Zeros converted to NA:", n_zeros, "\n")
+  if (verbose) message("- Zeros converted to NA: ", n_zeros)
 
   # =========================================================================
   # 2. FILTER PROTEINS BY GROUP PRESENCE
   # =========================================================================
 
-  if (verbose) cat("\n=== FILTERING PROTEINS BY PRESENCE ===\n")
+  if (verbose) message("\n=== FILTERING PROTEINS BY PRESENCE ===")
 
   filtered <- .filter_proteins_by_group(
     data = intensity_mat,
@@ -542,11 +542,11 @@ normalize_proteomics <- function(
   )
 
   if (verbose) {
-    cat("- Proteins before:", filtered$summary$n_total, "\n")
-    cat("- Proteins after:", filtered$summary$n_keep, "\n")
-    cat("- Proteins removed:", filtered$summary$n_drop, "\n")
-    cat("- Min replicates:", filtered$summary$min_reps, "\n")
-    cat("- Min groups:", filtered$summary$min_groups, "\n")
+    message("- Proteins before: ", filtered$summary$n_total)
+    message("- Proteins after: ", filtered$summary$n_keep)
+    message("- Proteins removed: ", filtered$summary$n_drop)
+    message("- Min replicates: ", filtered$summary$min_reps)
+    message("- Min groups: ", filtered$summary$min_groups)
   }
 
   # Filter protein_data
@@ -559,7 +559,7 @@ normalize_proteomics <- function(
   # 3. CREATE SUMMARIZEDEXPERIMENT
   # =========================================================================
 
-  if (verbose) cat("\n=== CREATING SUMMARIZEDEXPERIMENT ===\n")
+  if (verbose) message("\n=== CREATING SUMMARIZEDEXPERIMENT ===")
 
   se <- .load_proteomics_data(
     data = protein_data_filtered,
@@ -574,7 +574,7 @@ normalize_proteomics <- function(
   if (verbose) {
     na_overview <- .get_NA_overview(se, "log2")
     global_na <- attr(na_overview, "global")
-    cat("- Global NA:", global_na$NA.Percentage, "%\n")
+    message("- Global NA: ", global_na$NA.Percentage, " %")
   }
 
   # =========================================================================
@@ -601,10 +601,10 @@ normalize_proteomics <- function(
   x_raw  <- SummarizedExperiment::assay(se, "raw")
   x_log2 <- SummarizedExperiment::assay(se, "log2")
 
-  if (verbose) cat("\n=== NORMALIZING (method:", norm_method, ") ===\n")
+  if (verbose) message("\n=== NORMALIZING (method: ", norm_method, " ) ===")
 
   if (norm_method == "log2") {
-    if (verbose) cat("- Method 'log2': no additional normalization\n")
+    if (verbose) message("- Method 'log2': no additional normalization")
   } else {
     x_input <- if (norm_method %in% .raw_methods) x_raw else x_log2
 
@@ -637,8 +637,8 @@ normalize_proteomics <- function(
     SummarizedExperiment::assay(se, norm_method) <- x_norm
   }
 
-  if (verbose) cat("- Available assays:",
-                   paste(SummarizedExperiment::assayNames(se), collapse = ", "), "\n")
+  if (verbose) message("- Available assays: ",
+                       paste(SummarizedExperiment::assayNames(se), collapse = ", "))
 
   # Compute NA overview if not done yet
   if (is.null(na_overview)) {

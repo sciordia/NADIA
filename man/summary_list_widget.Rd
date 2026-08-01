@@ -5,7 +5,7 @@
 \title{Interactive Reactable Table for the Sample Metadata}
 \usage{
 summary_list_widget(
-  data = "data-raw/Metadata_20260423_142504.tsv",
+  data = NULL,
   page_size = 16,
   height = 540,
   element_id = "summary_table",
@@ -14,7 +14,8 @@ summary_list_widget(
 )
 }
 \arguments{
-\item{data}{Data frame or path to a metadata TSV/CSV file. It must have the
+\item{data}{Data frame or path to a metadata TSV/CSV file. Required; there
+is no default. It must have the
 columns R.FileName, R.Condition, R.Replicate, Coding, R.PrecursorsIdentified,
 R.StrippedSequencesIdentified, R.ProteinGroupsIdentified.}
 

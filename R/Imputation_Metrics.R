@@ -1380,8 +1380,10 @@ imputation_metrics <- function(se,
                         is.null, logical(1)))
   n_fail <- length(selected) - n_ok
   if (verbose) {
-    message("imputation_metrics: ", n_ok, " plot(s) generated",
-            if (n_fail > 0) paste0(", ", n_fail, " failed") else ".")
+    if (n_fail > 0)
+      message("imputation_metrics: ", n_ok, " plot(s) generated, ", n_fail, " failed")
+    else
+      message("imputation_metrics: ", n_ok, " plot(s) generated.")
   }
 
   # --- Export results if output_dir is set ---

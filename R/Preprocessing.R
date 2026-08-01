@@ -352,7 +352,7 @@ preprocess_spectronaut <- function(
   # Check uniqueness
   if (n_distinct(protein_ID$PG.ProteinGroups) != nrow(protein_ID)) {
     stop(
-      "Integrity error: protein_ID contains duplicated rows per PG.ProteinGroups. ",
+      "Integrity check failed: protein_ID contains duplicated rows per PG.ProteinGroups. ",
       "Check the input data."
     )
   }
@@ -443,7 +443,7 @@ preprocess_spectronaut <- function(
   # Check uniqueness
   if (n_distinct(protein_QUANT$PG.ProteinGroups) != nrow(protein_QUANT)) {
     stop(
-      "Integrity error: protein_QUANT contains duplicated rows per PG.ProteinGroups. ",
+      "Integrity check failed: protein_QUANT contains duplicated rows per PG.ProteinGroups. ",
       "Check the input data."
     )
   }

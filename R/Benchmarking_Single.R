@@ -50,7 +50,7 @@
   required <- c("Comparison", "Species", "expected_logFC")
   missing <- setdiff(required, names(ev))
   if (length(missing) > 0) {
-    stop("Columnas requeridas faltantes en expected_values: ",
+    stop("Required columns missing from expected_values: ",
          paste(missing, collapse = ", "))
   }
   invisible(TRUE)
@@ -65,7 +65,7 @@
   required <- c("Protein.IDs", "Species")
   missing <- setdiff(required, names(species_df))
   if (length(missing) > 0)
-    stop("Columnas requeridas faltantes en species_df: ",
+    stop("Required columns missing from species_df: ",
          paste(missing, collapse = ", "))
   invisible(TRUE)
 }
@@ -2036,7 +2036,7 @@ benchmark_volcano_hc_list <- function(
         height = height
       )
     }, error = function(e) {
-      warning(sprintf("Error generating the volcano plot for %s: %s", comp, e$message))
+      warning(sprintf("Could not generate the volcano plot for %s: %s", comp, e$message))
       NULL
     })
   })
@@ -2154,7 +2154,7 @@ benchmark_volcano_hc_list <- function(
     ggplot2::ggsave(filepath, plot = gg, width = width, height = height,
                     dpi = dpi, bg = "white")
   }, error = function(e) {
-    warning("Error exporting the plot to ", filepath, ": ", e$message)
+    warning("Could not export the plot to ", filepath, ": ", e$message)
   })
 
   invisible(filepath)
@@ -2234,7 +2234,7 @@ benchmarking_proteomics <- function(
     species_df = NULL
 ) {
   # === STEP 1: Prepare data ===
-  if (verbose) cat("\n=== BENCHMARKING PROTEOMICS ===\n")
+  if (verbose) message("\n=== BENCHMARKING PROTEOMICS ===")
 
   prep <- .prepare_benchmark_data(de_res, expected_values, alpha, lfc_thr,
                                   p_col, comparisons, assay, species_df)
@@ -2244,10 +2244,10 @@ benchmarking_proteomics <- function(
   comps <- prep$comparisons
 
   if (verbose) {
-    cat("- Comparisons:", paste(comps, collapse = ", "), "\n")
-    cat("- Species in the data:", paste(unique(de_res$Species), collapse = ", "), "\n")
-    cat("- Alpha:", alpha, "| LFC threshold:", lfc_thr, "\n")
-    cat("- P-value column:", p_col, "\n")
+    message("- Comparisons: ", paste(comps, collapse = ", "))
+    message("- Species in the data: ", paste(unique(de_res$Species), collapse = ", "))
+    message("- Alpha: ", alpha, " | LFC threshold: ", lfc_thr)
+    message("- P-value column: ", p_col)
   }
 
   # Configure species colors
@@ -2255,7 +2255,7 @@ benchmarking_proteomics <- function(
   sp_colors <- .configure_species_colors(all_species, species_colors)
 
   # === STEP 2: Classification ===
-  if (verbose) cat("\n--- Clasificacion ground truth ---\n")
+  if (verbose) message("\n--- Ground truth classification ---")
   classified_df <- .classify_all_comparisons(de_res, ev, alpha, lfc_thr, p_col)
 
   if (verbose) {
@@ -2265,23 +2265,23 @@ benchmarking_proteomics <- function(
       fp <- sum(df_comp$classification == "FP")
       tn <- sum(df_comp$classification == "TN")
       fn <- sum(df_comp$classification == "FN")
-      cat(sprintf("  %s: TP=%d FP=%d TN=%d FN=%d\n", comp, tp, fp, tn, fn))
+      message(sprintf("  %s: TP=%d FP=%d TN=%d FN=%d", comp, tp, fp, tn, fn))
     }
   }
 
   # === STEP 3: Metrics ===
-  if (verbose) cat("\n--- Classification metrics ---\n")
+  if (verbose) message("\n--- Classification metrics ---")
   metrics_table <- compute_benchmark_metrics(de_res, ev, alpha, lfc_thr, p_col,
                                              comparisons = comps, assay = assay)
 
   if (!requireNamespace("pROC", quietly = TRUE) && verbose) {
-    cat("  [NOTE] Package 'pROC' is not installed. AUC = NA.\n")
-    cat("  Instalar con: install.packages('pROC')\n")
+    message("  [NOTE] Package 'pROC' is not installed. AUC = NA.")
+    message("  Install it with: install.packages('pROC')")
   }
 
   if (verbose) {
     for (i in seq_len(nrow(metrics_table))) {
-      cat(sprintf("  %s: Sens=%.3f Spec=%.3f Prec=%.3f F1=%.3f AUC=%s\n",
+      message(sprintf("  %s: Sens=%.3f Spec=%.3f Prec=%.3f F1=%.3f AUC=%s",
                   metrics_table$Comparison[i],
                   metrics_table$Sensitivity[i],
                   metrics_table$Specificity[i],
@@ -2293,17 +2293,17 @@ benchmarking_proteomics <- function(
   }
 
   # === STEP 3b: OpDEA metrics (pAUC, nMCC, G-mean) ===
-  if (verbose) cat("\n--- Metricas OpDEA (pAUC, nMCC, G-mean) ---\n")
+  if (verbose) message("\n--- OpDEA metrics (pAUC, nMCC, G-mean) ---")
   opdea_metrics <- compute_opdea_metrics(de_res, ev, alpha, lfc_thr, p_col,
                                          comparisons = comps, assay = assay)
 
   if (!requireNamespace("pROC", quietly = TRUE) && verbose) {
-    cat("  [NOTE] Package 'pROC' is not installed. pAUC = NA.\n")
+    message("  [NOTE] Package 'pROC' is not installed. pAUC = NA.")
   }
 
   if (verbose) {
     for (i in seq_len(nrow(opdea_metrics))) {
-      cat(sprintf("  %s: nMCC=%.3f G_mean=%.3f pAUC(0.01)=%s pAUC(0.05)=%s pAUC(0.1)=%s\n",
+      message(sprintf("  %s: nMCC=%.3f G_mean=%.3f pAUC(0.01)=%s pAUC(0.05)=%s pAUC(0.1)=%s",
                   opdea_metrics$Comparison[i],
                   opdea_metrics$nMCC[i],
                   opdea_metrics$G_mean[i],
@@ -2323,9 +2323,9 @@ benchmarking_proteomics <- function(
   # === STEP 4b: Significant proteins summary ===
   signif_summary_df <- .summarize_significant_proteins(classified_df, alpha, p_col)
   if (verbose) {
-    cat("\n--- Summary of significant proteins ---\n")
+    message("\n--- Summary of significant proteins ---")
     for (i in seq_len(nrow(signif_summary_df))) {
-      cat(sprintf("  %s: %d/%d significativas (%.1f%%)\n",
+      message(sprintf("  %s: %d/%d significant (%.1f%%)",
                   signif_summary_df$Comparison[i],
                   signif_summary_df$n_signif_total[i],
                   signif_summary_df$total_proteins[i],
@@ -2334,14 +2334,14 @@ benchmarking_proteomics <- function(
   }
 
   # === STEP 5: Dispersion ===
-  if (verbose) cat("\n--- Dispersion metrics ---\n")
+  if (verbose) message("\n--- Dispersion metrics ---")
   dispersion_df <- compute_dispersion_metrics(de_res, ev, alpha, lfc_thr, p_col,
                                               comparisons = comps, assay = assay)
 
   if (verbose) {
     pos_disp <- dispersion_df[!is.na(dispersion_df$expected_logFC), , drop = FALSE]
     for (i in seq_len(nrow(pos_disp))) {
-      cat(sprintf("  %s | %s: MED=%.3f MAD=%.4f RCV=%.2f%% (n=%d)\n",
+      message(sprintf("  %s | %s: MED=%.3f MAD=%.4f RCV=%.2f%% (n=%d)",
                   pos_disp$Comparison[i],
                   pos_disp$Species[i],
                   pos_disp$MED[i],
@@ -2352,60 +2352,60 @@ benchmarking_proteomics <- function(
   }
 
   # === STEP 6: Visualizations ===
-  if (verbose) cat("\n--- Generating visualizations ---\n")
+  if (verbose) message("\n--- Generating visualizations ---")
 
   # ggplot2 charts
   gg_heatmap <- tryCatch({
-    if (verbose) cat("  - Metrics heatmap (ggplot2)\n")
+    if (verbose) message("  - Metrics heatmap (ggplot2)")
     benchmark_heatmap_gg(metrics_table)
   }, error = function(e) {
-    warning("Error generating the heatmap: ", e$message)
+    warning("Could not generate the heatmap: ", e$message)
     NULL
   })
 
   gg_confusion_by_species <- tryCatch({
-    if (verbose) cat("  - Confusion heatmap by species (ggplot2)\n")
+    if (verbose) message("  - Confusion heatmap by species (ggplot2)")
     benchmark_confusion_gg(confusion_by_species_df)
   }, error = function(e) {
-    warning("Error generating the confusion heatmap: ", e$message)
+    warning("Could not generate the confusion heatmap: ", e$message)
     NULL
   })
 
   gg_confusion_overall <- tryCatch({
-    if (verbose) cat("  - Overall confusion heatmap (ggplot2)\n")
+    if (verbose) message("  - Overall confusion heatmap (ggplot2)")
     benchmark_confusion_overall_gg(confusion_overall_df)
   }, error = function(e) {
-    warning("Error generating the overall confusion heatmap: ", e$message)
+    warning("Could not generate the overall confusion heatmap: ", e$message)
     NULL
   })
 
   gg_auc_bars <- tryCatch({
-    if (verbose) cat("  - Barras AUC (ggplot2)\n")
+    if (verbose) message("  - AUC bars (ggplot2)")
     benchmark_auc_bars_gg(metrics_table)
   }, error = function(e) {
-    warning("Error generating the AUC bars: ", e$message)
+    warning("Could not generate the AUC bars: ", e$message)
     NULL
   })
 
   gg_metrics_bars <- tryCatch({
-    if (verbose) cat("  - Grouped metrics bars (ggplot2)\n")
+    if (verbose) message("  - Grouped metrics bars (ggplot2)")
     benchmark_metrics_bars_gg(metrics_table)
   }, error = function(e) {
-    warning("Error generating the metrics bars: ", e$message)
+    warning("Could not generate the metrics bars: ", e$message)
     NULL
   })
 
   gg_signif_bars <- tryCatch({
-    if (verbose) cat("  - Significant-protein bars by species (ggplot2)\n")
+    if (verbose) message("  - Significant-protein bars by species (ggplot2)")
     benchmark_signif_bars_gg(classified_df, ev, species_colors = sp_colors)
   }, error = function(e) {
-    warning("Error generating the significance bars: ", e$message)
+    warning("Could not generate the significance bars: ", e$message)
     NULL
   })
 
   # Highcharter volcano
   hc_volcano_list <- tryCatch({
-    if (verbose) cat("  - Volcano plots benchmark (Highcharter)\n")
+    if (verbose) message("  - Benchmark volcano plots (Highcharter)")
     benchmark_volcano_hc_list(
       de_res, ev, disp = dispersion_df,
       alpha = alpha, lfc_thr = lfc_thr, p_col = p_col,
@@ -2413,28 +2413,28 @@ benchmarking_proteomics <- function(
       species_colors = sp_colors, point_size = 3
     )
   }, error = function(e) {
-    warning("Error generating the volcano plots: ", e$message)
+    warning("Could not generate the volcano plots: ", e$message)
     list()
   })
 
-  if (verbose) cat("  - Total volcanos generados:", length(hc_volcano_list), "\n")
+  if (verbose) message("  - Total volcano plots generated: ", length(hc_volcano_list))
 
   # ROC curves (require pROC)
   gg_roc <- tryCatch({
-    if (verbose) cat("  - Curvas ROC (ggplot2 + pROC)\n")
+    if (verbose) message("  - ROC curves (ggplot2 + pROC)")
     benchmark_roc_gg(classified_df, p_col = p_col, comparisons = comps)
   }, error = function(e) {
-    warning("Error generating the ROC curves: ", e$message)
+    warning("Could not generate the ROC curves: ", e$message)
     NULL
   })
 
   gg_roc_zoom <- tryCatch({
-    if (verbose) cat("  - Curvas ROC zoom (ggplot2 + pROC)\n")
+    if (verbose) message("  - ROC curves, zoomed (ggplot2 + pROC)")
     benchmark_roc_gg(classified_df, p_col = p_col, comparisons = comps,
                      title = "ROC Curves by Comparison (Zoom)",
                      zoom = TRUE)
   }, error = function(e) {
-    warning("Error generating the zoomed ROC curves: ", e$message)
+    warning("Could not generate the zoomed ROC curves: ", e$message)
     NULL
   })
 
@@ -2449,11 +2449,11 @@ benchmarking_proteomics <- function(
 
   # === STEP 8: Export ===
   if (!is.null(output_dir)) {
-    if (verbose) cat("\n--- Exporting results ---\n")
+    if (verbose) message("\n--- Exporting results ---")
 
     if (!dir.exists(output_dir)) {
       dir.create(output_dir, recursive = TRUE)
-      if (verbose) cat("  - Directorio creado:", output_dir, "\n")
+      if (verbose) message("  - Directory created: ", output_dir)
     }
 
     # TSV exports
@@ -2461,43 +2461,43 @@ benchmarking_proteomics <- function(
       metrics_table,
       file.path(output_dir, "benchmark_metrics.tsv"), "tsv"
     )
-    if (verbose) cat("  - benchmark_metrics.tsv\n")
+    if (verbose) message("  - benchmark_metrics.tsv")
 
     .export_benchmark_data(
       confusion_by_species_df,
       file.path(output_dir, "benchmark_confusion_by_species.tsv"), "tsv"
     )
-    if (verbose) cat("  - benchmark_confusion_by_species.tsv\n")
+    if (verbose) message("  - benchmark_confusion_by_species.tsv")
 
     .export_benchmark_data(
       confusion_overall_df,
       file.path(output_dir, "benchmark_confusion_overall.tsv"), "tsv"
     )
-    if (verbose) cat("  - benchmark_confusion_overall.tsv\n")
+    if (verbose) message("  - benchmark_confusion_overall.tsv")
 
     .export_benchmark_data(
       dispersion_df,
       file.path(output_dir, "benchmark_dispersion.tsv"), "tsv"
     )
-    if (verbose) cat("  - benchmark_dispersion.tsv\n")
+    if (verbose) message("  - benchmark_dispersion.tsv")
 
     .export_benchmark_data(
       signif_summary_df,
       file.path(output_dir, "benchmark_significant_summary.tsv"), "tsv"
     )
-    if (verbose) cat("  - benchmark_significant_summary.tsv\n")
+    if (verbose) message("  - benchmark_significant_summary.tsv")
 
     .export_benchmark_data(
       opdea_metrics,
       file.path(output_dir, "benchmark_opdea_metrics.tsv"), "tsv"
     )
-    if (verbose) cat("  - benchmark_opdea_metrics.tsv\n")
+    if (verbose) message("  - benchmark_opdea_metrics.tsv")
 
     .export_benchmark_data(
       classified_df,
       file.path(output_dir, "benchmark_classified.tsv"), "tsv"
     )
-    if (verbose) cat("  - benchmark_classified.tsv\n")
+    if (verbose) message("  - benchmark_classified.tsv")
 
     # Summary with Performance column + OpDEA metrics
     summary_df <- merge(
@@ -2511,51 +2511,51 @@ benchmarking_proteomics <- function(
       summary_df,
       file.path(output_dir, "benchmark_summary.tsv"), "tsv"
     )
-    if (verbose) cat("  - benchmark_summary.tsv\n")
+    if (verbose) message("  - benchmark_summary.tsv")
 
     # PNG exports
     .export_gg_plot(gg_heatmap,
                     file.path(output_dir, "benchmark_heatmap.png"),
                     width = 10, height = 6)
-    if (verbose) cat("  - benchmark_heatmap.png\n")
+    if (verbose) message("  - benchmark_heatmap.png")
 
     .export_gg_plot(gg_confusion_by_species,
                     file.path(output_dir, "benchmark_confusion_by_species.png"),
                     width = 10, height = 7)
-    if (verbose) cat("  - benchmark_confusion_by_species.png\n")
+    if (verbose) message("  - benchmark_confusion_by_species.png")
 
     .export_gg_plot(gg_confusion_overall,
                     file.path(output_dir, "benchmark_confusion_overall.png"),
                     width = 10, height = 6)
-    if (verbose) cat("  - benchmark_confusion_overall.png\n")
+    if (verbose) message("  - benchmark_confusion_overall.png")
 
     .export_gg_plot(gg_auc_bars,
                     file.path(output_dir, "benchmark_auc_bars.png"),
                     width = 8, height = 5)
-    if (verbose) cat("  - benchmark_auc_bars.png\n")
+    if (verbose) message("  - benchmark_auc_bars.png")
 
     .export_gg_plot(gg_metrics_bars,
                     file.path(output_dir, "benchmark_metrics_bars.png"),
                     width = 11, height = 6)
-    if (verbose) cat("  - benchmark_metrics_bars.png\n")
+    if (verbose) message("  - benchmark_metrics_bars.png")
 
     .export_gg_plot(gg_signif_bars,
                     file.path(output_dir, "benchmark_signif_bars.png"),
                     width = 10, height = 6)
-    if (verbose) cat("  - benchmark_signif_bars.png\n")
+    if (verbose) message("  - benchmark_signif_bars.png")
 
     .export_gg_plot(gg_roc,
                     file.path(output_dir, "benchmark_roc.png"),
                     width = 10, height = 7)
-    if (verbose) cat("  - benchmark_roc.png\n")
+    if (verbose) message("  - benchmark_roc.png")
 
     .export_gg_plot(gg_roc_zoom,
                     file.path(output_dir, "benchmark_roc_zoom.png"),
                     width = 10, height = 7)
-    if (verbose) cat("  - benchmark_roc_zoom.png\n")
+    if (verbose) message("  - benchmark_roc_zoom.png")
   }
 
-  if (verbose) cat("\n=== BENCHMARKING COMPLETADO ===\n\n")
+  if (verbose) message("\n=== BENCHMARKING COMPLETE ===\n")
 
   # === RETURN ===
   list(
@@ -2626,7 +2626,7 @@ benchmarking_proteomics <- function(
 # result$gg_roc
 # result$gg_roc_zoom
 #
-# # --- View Highcharter volcanos ---
+# # --- View the Highcharter volcano plots ---
 # result$hc_volcano_list[["B/A"]]
 # result$hc_volcano_list[["C/A"]]
 #

@@ -542,6 +542,7 @@ evaluate_cluster_range <- function(eset_std,
 #' @param c_range Range of cluster numbers to evaluate
 #' @param m Fuzziness parameter
 #' @param method Method: "xb", "consensus", "elbow"
+#' @param seeds Seeds passed on to `evaluate_cluster_range()`
 #' @param verbose Show progress
 #'
 #' @return List with optimal_c, metrics, m
@@ -549,6 +550,7 @@ select_optimal_clusters <- function(eset_std,
                                      c_range = 2:10,
                                      m = NULL,
                                      method = c("xb", "consensus", "elbow"),
+                                     seeds = c(42, 123, 456),
                                      verbose = TRUE) {
 
   method <- match.arg(method)
@@ -557,7 +559,8 @@ select_optimal_clusters <- function(eset_std,
     m <- Mfuzz::mestimate(eset_std)
   }
 
-  metrics <- evaluate_cluster_range(eset_std, c_range, m, verbose = verbose)
+  metrics <- evaluate_cluster_range(eset_std, c_range, m, seeds = seeds,
+                                    verbose = verbose)
 
   if (method == "xb") {
     # Minimum Xie-Beni
@@ -703,6 +706,14 @@ build_long_output <- function(cl, eset_std, conditions, min_membership) {
 #' @param c Fixed number of clusters (if auto_select_c=FALSE)
 #' @param selection_method Selection method: "xb", "consensus", "elbow"
 #' @param min_membership Minimum membership threshold for inclusion in the output
+#' @param seed Integer. Seed for the Mfuzz clustering itself. Fuzzy c-means
+#'   starts from a random partition, so the cluster labels and the memberships
+#'   depend on it; fix it to make a run reproducible. The caller's RNG state is
+#'   restored on exit. Default 42.
+#' @param seeds Numeric vector of seeds used when `auto_select_c = TRUE`: each
+#'   candidate number of clusters is fitted once per seed and the metrics are
+#'   averaged, so that the choice of `c` does not hang on a single partition.
+#'   Default `c(42, 123, 456)`.
 #' @param output_file Path of the output parquet file. `NULL` by default, which
 #'   writes nothing to disk; the long-format data is returned regardless in the
 #'   `long_output` element of the result.
@@ -748,6 +759,8 @@ pattern_profiler_analysis <- function(se_proc,
                                        c = NULL,
                                        selection_method = c("xb", "consensus", "elbow"),
                                        min_membership = 0.25,
+                                       seed = 42,
+                                       seeds = c(42, 123, 456),
                                        output_file = NULL,
                                        verbose = TRUE) {
 
@@ -854,6 +867,7 @@ pattern_profiler_analysis <- function(se_proc,
       eset_std,
       c_range = c_range,
       method = selection_method,
+      seeds = seeds,
       verbose = verbose
     )
 
@@ -879,7 +893,7 @@ pattern_profiler_analysis <- function(se_proc,
   # -------------------------------------------------------------------------
   if (verbose) message(sprintf("\n7. Running Mfuzz clustering (c=%d)...", optimal_c))
 
-  cl <- run_mfuzz_clustering(eset_std, c = optimal_c, m = m)
+  cl <- run_mfuzz_clustering(eset_std, c = optimal_c, m = m, seed = seed)
 
   # Count the proteins per cluster (hard assignment)
   hard_assignment <- apply(cl$membership, 1, which.max)

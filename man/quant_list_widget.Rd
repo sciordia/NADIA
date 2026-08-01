@@ -5,8 +5,8 @@
 \title{Full Widget for the Protein_QUANT Table with the log2 Matrix Appended}
 \usage{
 quant_list_widget(
-  data = "data-raw/Protein_QUANT_20260423_142504.tsv",
-  matrix_data = "data-raw/matrix_log2_cycloess_Impseq_min.tsv",
+  data = NULL,
+  matrix_data = NULL,
   metadata = NULL,
   page_size = 15,
   height = 720,
@@ -16,7 +16,8 @@ quant_list_widget(
 )
 }
 \arguments{
-\item{data}{Data frame or path to a Protein_QUANT TSV/CSV/Parquet file.}
+\item{data}{Data frame or path to a Protein_QUANT TSV/CSV/Parquet file.
+Required; there is no default.}
 
 \item{matrix_data}{Data frame or path to a TSV/CSV/Parquet file with the
 normalized/imputed log2 matrix (a ProteinGroups column + \if{html}{\out{<cond>}}_\if{html}{\out{<rep>}} samples).}

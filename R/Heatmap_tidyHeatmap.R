@@ -134,7 +134,7 @@ get_heatmap_palette <- function(palette = NULL,
         raw_pal <- as.character(paletteer::paletteer_c(palette, n = n))
         vapply(raw_pal, .normalize_hex, character(1), USE.NAMES = FALSE)
       }, error = function(e2) {
-        stop("Error loading palette '", palette, "': ", e2$message)
+        stop("Could not load palette '", palette, "': ", e2$message)
       })
     })
 
@@ -153,7 +153,7 @@ get_heatmap_palette <- function(palette = NULL,
       maxc <- RColorBrewer::brewer.pal.info[nm, "maxcolors"]
       RColorBrewer::brewer.pal(min(n, maxc), nm)
     }, error = function(e) {
-      stop("Error loading brewer palette '", nm, "': ", e$message)
+      stop("Could not load brewer palette '", nm, "': ", e$message)
     })
 
     if (reverse) colors <- rev(colors)
@@ -216,7 +216,7 @@ get_annotation_palette <- function(levels, palette = NULL) {
       raw_pal <- as.character(paletteer::paletteer_d(palette))
       vapply(raw_pal, .normalize_hex, character(1), USE.NAMES = FALSE)
     }, error = function(e) {
-      stop("Error loading palette '", palette, "': ", e$message)
+      stop("Could not load palette '", palette, "': ", e$message)
     })
     if (length(colors) < n) {
       colors <- rep(colors, length.out = n)
@@ -234,7 +234,7 @@ get_annotation_palette <- function(levels, palette = NULL) {
       maxc <- RColorBrewer::brewer.pal.info[nm, "maxcolors"]
       RColorBrewer::brewer.pal(max(3, min(n, maxc)), nm)
     }, error = function(e) {
-      stop("Error loading brewer palette '", nm, "': ", e$message)
+      stop("Could not load brewer palette '", nm, "': ", e$message)
     })
     if (length(colors) < n) {
       colors <- rep(colors, length.out = n)
@@ -1110,7 +1110,7 @@ proteomics_heatmap <- function(data,
     if (!is.null(palette_adjp)) {
       if (is.character(palette_adjp) && length(palette_adjp) >= 3) {
         # Custom vector of colours
-        adjp_colors <- palette_adjp[1:3]
+        adjp_colors <- palette_adjp[seq_len(3)]
       } else if (is.character(palette_adjp) && length(palette_adjp) == 1) {
         # paletteer or RColorBrewer palette
         if (grepl("::", palette_adjp)) {
@@ -1247,7 +1247,7 @@ proteomics_heatmap <- function(data,
     }, error = function(e) {
       # Make sure the graphics device is closed even if something fails
       try(grDevices::dev.off(), silent = TRUE)
-      warning("Error exporting the heatmap: ", e$message)
+      warning("Could not export the heatmap: ", e$message)
     })
   }
 
@@ -1518,7 +1518,7 @@ proteomics_heatmap_list <- function(data,
         export_dpi = export_dpi
       )
     }, error = function(e) {
-      warning("Error building the heatmap for '", m, "': ", e$message)
+      warning("Could not build the heatmap for '", m, "': ", e$message)
       return(NULL)
     })
 

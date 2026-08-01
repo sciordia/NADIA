@@ -13,4 +13,11 @@ NAguideR strategy: no transpose (features x samples).}
 \description{
 MLE: Maximum Likelihood Estimation (norm)
 }
+\details{
+The seed is handed to \code{norm::rngseed()}, which seeds the internal
+RNG of the \code{norm} package rather than R's \code{.Random.seed}. That state cannot
+be read or restored, so -- unlike every other seeded method here -- this one
+is not wrapped in \code{.rng_state()}/\code{.rng_restore()}. It leaves R's own RNG
+untouched, but successive calls within a session are not independent.
+}
 \keyword{internal}

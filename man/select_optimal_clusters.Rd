@@ -9,6 +9,7 @@ select_optimal_clusters(
   c_range = 2:10,
   m = NULL,
   method = c("xb", "consensus", "elbow"),
+  seeds = c(42, 123, 456),
   verbose = TRUE
 )
 }
@@ -20,6 +21,8 @@ select_optimal_clusters(
 \item{m}{Fuzziness parameter}
 
 \item{method}{Method: "xb", "consensus", "elbow"}
+
+\item{seeds}{Seeds passed on to \code{evaluate_cluster_range()}}
 
 \item{verbose}{Show progress}
 }

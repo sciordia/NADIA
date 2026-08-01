@@ -2511,6 +2511,7 @@ protein_list_widget <- function(
 #' normalized/imputed log2 matrix, matching by Protein Groups.
 #'
 #' @param data Data frame or path to a Protein_QUANT TSV/CSV/Parquet file.
+#'   Required; there is no default.
 #' @param matrix_data Data frame or path to a TSV/CSV/Parquet file with the
 #'   normalized/imputed log2 matrix (a ProteinGroups column + <cond>_<rep> samples).
 #' @param metadata Optional: metadata data frame with a Coding column that fixes
@@ -2540,8 +2541,8 @@ protein_list_widget <- function(
 #'
 #' @export
 quant_list_widget <- function(
-    data        = "data-raw/Protein_QUANT_20260423_142504.tsv",
-    matrix_data = "data-raw/matrix_log2_cycloess_Impseq_min.tsv",
+    data        = NULL,
+    matrix_data = NULL,
     metadata    = NULL,
     page_size   = 15,
     height      = 720,
@@ -2549,6 +2550,10 @@ quant_list_widget <- function(
     selection   = NULL,
     searchable  = TRUE
 ) {
+
+  if (is.null(data) || is.null(matrix_data))
+    stop("'data' and 'matrix_data' are required: supply a data frame, or the ",
+         "path to a Protein_QUANT table and to a quantification matrix.")
 
   df_quant  <- .ql_load_quant(data)
   df_matrix <- .ql_load_matrix(matrix_data)
@@ -2967,7 +2972,8 @@ quant_list_widget <- function(
 #' shades and Condition/Coding cells with a strong colour chip (the same scheme
 #' used by protein_list_widget() / quant_list_widget()).
 #'
-#' @param data Data frame or path to a metadata TSV/CSV file. It must have the
+#' @param data Data frame or path to a metadata TSV/CSV file. Required; there
+#'   is no default. It must have the
 #'   columns R.FileName, R.Condition, R.Replicate, Coding, R.PrecursorsIdentified,
 #'   R.StrippedSequencesIdentified, R.ProteinGroupsIdentified.
 #' @param page_size Page size (default 16, i.e. all the rows).
@@ -2990,13 +2996,17 @@ quant_list_widget <- function(
 #'
 #' @export
 summary_list_widget <- function(
-    data       = "data-raw/Metadata_20260423_142504.tsv",
+    data       = NULL,
     page_size  = 16,
     height     = 540,
     element_id = "summary_table",
     selection  = NULL,
     searchable = FALSE
 ) {
+
+  if (is.null(data))
+    stop("'data' is required: supply the sample metadata as a data frame, or ",
+         "the path to a metadata table.")
 
   df <- .sl_load_metadata(data)
   conditions   <- sort(unique(df$Condition))

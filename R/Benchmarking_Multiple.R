@@ -247,7 +247,7 @@
     ggplot2::ggsave(filepath, plot = gg, width = width, height = height,
                     dpi = dpi, bg = "white")
   }, error = function(e) {
-    warning("Error exporting plot to ", filepath, ": ", e$message)
+    warning("Could not export the plot to ", filepath, ": ", e$message)
   })
 
   invisible(filepath)
@@ -2123,8 +2123,10 @@ benchmarking_multiple <- function(opdea_combined            = NULL,
   n_ok   <- sum(!vapply(plot_result, is.null, logical(1)))
   n_fail <- length(selected) - n_ok
   if (verbose) {
-    message("  ", n_ok, " global plot(s) generated",
-            if (n_fail > 0) paste0(", ", n_fail, " failed") else ".")
+    if (n_fail > 0)
+      message("  ", n_ok, " global plot(s) generated, ", n_fail, " failed")
+    else
+      message("  ", n_ok, " global plot(s) generated.")
   }
 
   # --- Per-comparison plots ---

@@ -329,7 +329,7 @@ preprocess_lfq <- function(
   protein_ID <- protein_ID[order(protein_ID$PG.ProteinGroups), , drop = FALSE]
   rownames(protein_ID) <- NULL
   if (anyDuplicated(protein_ID$PG.ProteinGroups) > 0) {
-    stop("Integrity error: protein_ID contains duplicated Accession values.")
+    stop("Integrity check failed: protein_ID contains duplicated Accession values.")
   }
 
   # ==========================================================================
@@ -360,7 +360,7 @@ preprocess_lfq <- function(
   protein_QUANT <- protein_QUANT[order(protein_QUANT$PG.ProteinGroups), , drop = FALSE]
   rownames(protein_QUANT) <- NULL
   if (anyDuplicated(protein_QUANT$PG.ProteinGroups) > 0) {
-    stop("Integrity error: protein_QUANT contains duplicated Accession values.")
+    stop("Integrity check failed: protein_QUANT contains duplicated Accession values.")
   }
 
   # ==========================================================================

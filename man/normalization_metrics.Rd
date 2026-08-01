@@ -15,6 +15,7 @@ normalization_metrics(
   methods = NULL,
   method_args = list(),
   base_assay = "log2",
+  seed = 42L,
   verbose = TRUE,
   output_dir = NULL,
   export_plots = TRUE,
@@ -61,6 +62,10 @@ auto-normalization and use existing assays.}
 
 \item{base_assay}{Name of the baseline assay to normalize from when using
 auto-normalization. Default \code{"log2"}.}
+
+\item{seed}{Integer. Seed passed to \code{nm_compute_metrics()} for the two
+metrics that use randomness, the Hopkins statistic and the PERMANOVA
+p-value. Default 42.}
 
 \item{verbose}{Logical. Print progress messages. Default \code{TRUE}.}
 

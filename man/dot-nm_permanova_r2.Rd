@@ -4,12 +4,18 @@
 \alias{.nm_permanova_r2}
 \title{PERMANOVA R^2 via vegan::adonis2}
 \usage{
-.nm_permanova_r2(mat, groups)
+.nm_permanova_r2(mat, groups, seed = 42L)
 }
 \arguments{
 \item{mat}{Numeric matrix (proteins x samples), no NAs.}
 
 \item{groups}{Factor or character vector of group labels.}
+
+\item{seed}{Integer. Seed for the permutations. \code{adonis2()} obtains its
+p-value by permuting the group labels, so without a seed the same data give
+a different p-value on every call -- and this one is exported as a column of
+\code{nm_compute_metrics()}. \code{R2} is deterministic and unaffected. The caller's
+RNG state is restored on exit.}
 }
 \value{
 Named list with \code{R2} and \code{p_value}, or NA if vegan unavailable.

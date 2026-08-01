@@ -18,6 +18,8 @@ pattern_profiler_analysis(
   c = NULL,
   selection_method = c("xb", "consensus", "elbow"),
   min_membership = 0.25,
+  seed = 42,
+  seeds = c(42, 123, 456),
   output_file = NULL,
   verbose = TRUE
 )
@@ -50,6 +52,16 @@ comparison), "all" (ALL features, with no significance filtering),
 \item{selection_method}{Selection method: "xb", "consensus", "elbow"}
 
 \item{min_membership}{Minimum membership threshold for inclusion in the output}
+
+\item{seed}{Integer. Seed for the Mfuzz clustering itself. Fuzzy c-means
+starts from a random partition, so the cluster labels and the memberships
+depend on it; fix it to make a run reproducible. The caller's RNG state is
+restored on exit. Default 42.}
+
+\item{seeds}{Numeric vector of seeds used when \code{auto_select_c = TRUE}: each
+candidate number of clusters is fitted once per seed and the metrics are
+averaged, so that the choice of \code{c} does not hang on a single partition.
+Default \code{c(42, 123, 456)}.}
 
 \item{output_file}{Path of the output parquet file. \code{NULL} by default, which
 writes nothing to disk; the long-format data is returned regardless in the

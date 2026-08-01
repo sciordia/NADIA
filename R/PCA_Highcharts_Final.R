@@ -108,7 +108,7 @@ build_pca_scores <- function(pca_input,
   # Run the PCA
   pc <- stats::prcomp(Xt, center = center, scale. = scale.)
   var_exp <- (pc$sdev^2) / sum(pc$sdev^2)
-  scores <- pc$x[, 1:2, drop = FALSE]
+  scores <- pc$x[, seq_len(2), drop = FALSE]
 
   # Build the output data frame
   out <- data.frame(
@@ -391,7 +391,7 @@ pca_highchart <- function(scores_df,
       # Normalize the colours (drop the alpha channel if present)
       vapply(raw_pal, .normalize_hex, character(1), USE.NAMES = FALSE)
     }, error = function(e) {
-      stop("Error loading palette '", palette, "': ", e$message)
+      stop("Could not load palette '", palette, "': ", e$message)
     })
     if (length(pal) < length(lvls)) {
       pal <- rep(pal, length.out = length(lvls))
@@ -409,7 +409,7 @@ pca_highchart <- function(scores_df,
       # Normalize the colours for consistency
       vapply(raw_pal, .normalize_hex, character(1), USE.NAMES = FALSE)
     }, error = function(e) {
-      stop("Error loading brewer palette '", nm, "': ", e$message)
+      stop("Could not load brewer palette '", nm, "': ", e$message)
     })
     if (length(pal) < length(lvls)) {
       pal <- rep(pal, length.out = length(lvls))
@@ -792,7 +792,7 @@ pca_highchart_list <- function(pca_input,
         filter_samples_to_comparison = filter_samples_to_comparison
       )
     }, error = function(e) {
-      warning("Error building the PCA for '", m, "': ", e$message)
+      warning("Could not build the PCA for '", m, "': ", e$message)
       return(NULL)
     })
 

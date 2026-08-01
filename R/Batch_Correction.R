@@ -968,15 +968,16 @@ batch_correct_proteomics <- function(
   batch_vals <- SummarizedExperiment::colData(se)[[batch_column]]
   n_batches <- length(unique(batch_vals[!is.na(batch_vals)]))
   if (verbose) {
-    cat("\n=== BATCH CORRECTION (BERT) ===\n")
-    cat("- Input assay:", assay_name, "\n")
-    cat("- Batch column:", batch_column,
-        "(", n_batches, "batches )\n")
-    cat("- Algorithm:", algorithm)
-    if (algorithm == "ComBat") cat(" (mode", ComBat_mode, ")")
-    cat("\n")
+    message("\n=== BATCH CORRECTION (BERT) ===")
+    message("- Input assay: ", assay_name)
+    message("- Batch column: ", batch_column,
+            " ( ", n_batches, " batches )")
+    algo_msg <- paste0("- Algorithm: ", algorithm)
+    if (algorithm == "ComBat")
+      algo_msg <- paste0(algo_msg, " (mode ", ComBat_mode, " )")
+    message(algo_msg)
     if (!is.null(covariates))
-      cat("- Covariates:", paste(covariates, collapse = ", "), "\n")
+      message("- Covariates: ", paste(covariates, collapse = ", "))
   }
 
   # --- Extract matrix ---
@@ -986,10 +987,10 @@ batch_correct_proteomics <- function(
   na_total_in  <- length(mat)
   na_pct_in    <- round(100 * na_count_in / na_total_in, 2)
   if (verbose) {
-    cat("- Input features:", n_features_in,
-        "| Samples:", ncol(mat), "\n")
-    cat("- Input NAs:", na_count_in, "/", na_total_in,
-        "(", na_pct_in, "% )\n")
+    message("- Input features: ", n_features_in,
+            " | Samples: ", ncol(mat))
+    message("- Input NAs: ", na_count_in, " / ", na_total_in,
+            " ( ", na_pct_in, " % )")
   }
 
   # --- Build covariates data.frame in BERT format (Cov_1, Cov_2, ...) ---
@@ -1020,11 +1021,11 @@ batch_correct_proteomics <- function(
   combat_bad <- logical(nrow(mat))
   if (algorithm == "ComBat") combat_bad <- .bc_combat_unfittable(mat, batch_vals)
   if (any(combat_bad) && verbose)
-    cat("- Uncorrectable features (zero within-batch variance):", sum(combat_bad),
-        "-> kept unadjusted\n")
+    message("- Uncorrectable features (zero within-batch variance): ",
+            sum(combat_bad), " -> kept unadjusted")
 
   # --- Run BERT ---
-  if (verbose) cat("- Running BERT ...\n")
+  if (verbose) message("- Running BERT ...")
   corrected_fit <- .bc_run_bert(
     mat            = mat[!combat_bad, , drop = FALSE],
     batch_vec      = batch_vals,
@@ -1056,19 +1057,19 @@ batch_correct_proteomics <- function(
     # Subset SE to keep only features returned by BERT
     keep_features <- rownames(corrected_mat)
     se <- se[keep_features, ]
-    if (verbose) cat("- Features after correction:", n_features_out,
-                     " (", n_dropped, " dropped)\n")
+    if (verbose) message("- Features after correction: ", n_features_out,
+                         "  ( ", n_dropped, "  dropped)")
   } else {
-    if (verbose) cat("- Features after correction:", n_features_out,
-                     " (none dropped)\n")
+    if (verbose) message("- Features after correction: ", n_features_out,
+                         "  (none dropped)")
   }
 
   # --- Verify NA pattern ---
   na_count_out <- sum(is.na(corrected_mat))
   na_total_out <- length(corrected_mat)
   na_pct_out   <- round(100 * na_count_out / na_total_out, 2)
-  if (verbose) cat("- Output NAs:", na_count_out, "/", na_total_out,
-                   "(", na_pct_out, "% )\n")
+  if (verbose) message("- Output NAs: ", na_count_out, " / ", na_total_out,
+                       " ( ", na_pct_out, " % )")
 
   if (na_count_out != na_count_in && n_features_out == n_features_in) {
     warning("NA count changed after BERT: ", na_count_in, " -> ", na_count_out,
@@ -1081,10 +1082,10 @@ batch_correct_proteomics <- function(
   SummarizedExperiment::assay(se, corrected_assay_name) <- corrected_mat
 
   if (verbose) {
-    cat("- New assay added: '", corrected_assay_name, "'\n", sep = "")
-    cat("- Assays in SE:", paste(SummarizedExperiment::assayNames(se),
-                                 collapse = ", "), "\n")
-    cat("=== BATCH CORRECTION COMPLETE ===\n")
+    message("- New assay added: '", corrected_assay_name, "'")
+    message("- Assays in SE: ", paste(SummarizedExperiment::assayNames(se),
+                                      collapse = ", "))
+    message("=== BATCH CORRECTION COMPLETE ===")
   }
 
   se

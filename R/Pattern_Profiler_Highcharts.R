@@ -568,7 +568,7 @@ cluster_profile_highchart_list <- function(data,
         height = height
       )
     }, error = function(e) {
-      warning(sprintf("Error building the plot for Cluster %d: %s", k, e$message))
+      warning(sprintf("Could not build the plot for Cluster %d: %s", k, e$message))
       return(NULL)
     })
 

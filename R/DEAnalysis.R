@@ -525,7 +525,7 @@ de_analysis_proteomics <- function(
     assay_name <- available_assays[length(available_assays)]
   }
 
-  if (verbose) cat("\n=== DIFFERENTIAL ANALYSIS (", de_method, ") ===\n")
+  if (verbose) message("\n=== DIFFERENTIAL ANALYSIS ( ", de_method, " ) ===")
 
   # Generate comparisons if not specified
   if (is.null(comparisons)) {
@@ -533,7 +533,7 @@ de_analysis_proteomics <- function(
                                         control = control)
   }
 
-  if (verbose) cat("- Comparisons:", paste(comparisons, collapse = ", "), "\n")
+  if (verbose) message("- Comparisons: ", paste(comparisons, collapse = ", "))
 
   # Run DE analysis
   DEPs_results <- .run_DE(
@@ -555,13 +555,13 @@ de_analysis_proteomics <- function(
 
   if (verbose) {
     n_sig <- sum(DEPs_results$Change != "No Change")
-    cat("- Differential proteins (total):", n_sig, "\n")
+    message("- Differential proteins (total): ", n_sig)
 
     for (comp in unique(DEPs_results$Comparison)) {
       subset <- DEPs_results[DEPs_results$Comparison == comp, ]
       n_up <- sum(subset$Change == "Up")
       n_down <- sum(subset$Change == "Down")
-      cat("  ", comp, ": Up=", n_up, ", Down=", n_down, "\n", sep = "")
+      message("  ", comp, ": Up=", n_up, ", Down=", n_down)
     }
   }
 

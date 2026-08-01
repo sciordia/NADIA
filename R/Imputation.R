@@ -98,7 +98,7 @@
     if (length(non_na) == 0) next
     for (k in na_idx) {
       dists <- abs(non_na - k)
-      nearest <- non_na[order(dists)][1:min(2, length(non_na))]
+      nearest <- non_na[order(dists)][seq_len(min(2, length(non_na)))]
       x[i, k] <- mean(x[i, nearest])
     }
   }
@@ -261,6 +261,10 @@
 #' missForest: Random Forest imputation
 #' @param args list with optional `maxiter` (default 10), `ntree` (default 100),
 #'   `mtry` (default floor(nrow(x)^(1/3)), NAguideR cube root strategy)
+#' @details This method is stochastic and takes no seed of its own, because
+#'   `missForest::missForest()` does not accept one. To reproduce a run, call
+#'   `set.seed()` before `impute_proteomics()`; unlike the seeded methods, this
+#'   one draws from -- and therefore advances -- the caller's RNG.
 #' @keywords internal
 .imp_missForest <- function(x, args = list()) {
   if (!requireNamespace("missForest", quietly = TRUE)) {
@@ -319,6 +323,11 @@
 #' MLE: Maximum Likelihood Estimation (norm)
 #' @param args list with optional `seed` (default 123).
 #'   NAguideR strategy: no transpose (features x samples).
+#' @details The seed is handed to `norm::rngseed()`, which seeds the internal
+#'   RNG of the `norm` package rather than R's `.Random.seed`. That state cannot
+#'   be read or restored, so -- unlike every other seeded method here -- this one
+#'   is not wrapped in `.rng_state()`/`.rng_restore()`. It leaves R's own RNG
+#'   untouched, but successive calls within a session are not independent.
 #' @keywords internal
 .imp_MLE <- function(x, args = list()) {
   if (!requireNamespace("norm", quietly = TRUE)) {
@@ -980,7 +989,7 @@ impute_proteomics <- function(
   # =========================================================================
 
   if (imp_method == "none") {
-    if (verbose) cat("\n=== IMPUTATION: none (no imputation) ===\n")
+    if (verbose) message("\n=== IMPUTATION: none (no imputation) ===")
 
     x_imputed <- x_norm
     pf_summary <- list(n_total = nrow(x_norm), n_keep = nrow(x_norm), n_drop = 0)
@@ -996,7 +1005,7 @@ impute_proteomics <- function(
   # =========================================================================
 
   } else if (imp_method == "combo") {
-    if (verbose) cat("\n=== PRE-FILTERING BY MNAR RULES ===\n")
+    if (verbose) message("\n=== PRE-FILTERING BY MNAR RULES ===")
 
     pf <- .prefilter_by_rules(
       x = x_norm,
@@ -1008,13 +1017,13 @@ impute_proteomics <- function(
     )
 
     if (verbose) {
-      cat("- Proteins kept:", pf$summary$n_keep, "\n")
-      cat("- Proteins removed:", pf$summary$n_drop, "\n")
+      message("- Proteins kept: ", pf$summary$n_keep)
+      message("- Proteins removed: ", pf$summary$n_drop)
     }
 
     x_norm_prefilt <- x_norm[pf$keep, , drop = FALSE]
 
-    if (verbose) cat("\n=== COMBO IMPUTATION (MAR:", mar_method, "+ MNAR:", mnar_method, ") ===\n")
+    if (verbose) message("\n=== COMBO IMPUTATION (MAR: ", mar_method, " + MNAR: ", mnar_method, " ) ===")
 
     res_impute <- .impute_combo(
       x = x_norm_prefilt,
@@ -1036,9 +1045,9 @@ impute_proteomics <- function(
     mar_mask    <- res_impute$mar_mask
 
     if (verbose) {
-      cat("- Initial NA:", round(imp_summary$na_rate_initial * 100, 2), "%\n")
-      cat("- NA after MAR:", round(imp_summary$na_rate_after_mar * 100, 2), "%\n")
-      cat("- Final NA:", round(imp_summary$na_rate_final * 100, 2), "%\n")
+      message("- Initial NA: ", round(imp_summary$na_rate_initial * 100, 2), " %")
+      message("- NA after MAR: ", round(imp_summary$na_rate_after_mar * 100, 2), " %")
+      message("- Final NA: ", round(imp_summary$na_rate_final * 100, 2), " %")
     }
 
   # =========================================================================
@@ -1046,19 +1055,19 @@ impute_proteomics <- function(
   # =========================================================================
 
   } else if (imp_method == "softHybrid") {
-    if (verbose) cat("\n=== PRE-FILTERING BY NA PROPORTION (max:",
-                     max_na_prop %||% "disabled", ") ===\n")
+    if (verbose) message("\n=== PRE-FILTERING BY NA PROPORTION (max: ",
+                         max_na_prop %||% "disabled", " ) ===")
 
     pf <- .prefilter_by_na_prop(x_norm, max_na_prop = max_na_prop)
 
     if (verbose) {
-      cat("- Proteins kept:", pf$summary$n_keep, "\n")
-      cat("- Proteins removed:", pf$summary$n_drop, "\n")
+      message("- Proteins kept: ", pf$summary$n_keep)
+      message("- Proteins removed: ", pf$summary$n_drop)
     }
 
     x_norm_prefilt <- x_norm[pf$keep, , drop = FALSE]
 
-    if (verbose) cat("\n=== softHybrid IMPUTATION (MAR:", mar_method, "+ MNAR:", mnar_method, ") ===\n")
+    if (verbose) message("\n=== softHybrid IMPUTATION (MAR: ", mar_method, " + MNAR: ", mnar_method, " ) ===")
 
     sh_args <- method_args$softHybrid %||% list()
     res <- .impute_softHybrid(
@@ -1081,12 +1090,12 @@ impute_proteomics <- function(
     mar_mask    <- NULL
 
     if (verbose) {
-      cat("- Initial NA:", round(imp_summary$na_rate_initial * 100, 2), "%\n")
-      cat("- Final NA:", round(imp_summary$na_rate_final * 100, 2), "%\n")
-      cat("- Elbow r0:", round(res$elbow$r0, 4),
-          " x0:", round(res$elbow$x0, 4), "\n")
-      cat("- mean w_mar:", round(imp_summary$mean_w_mar, 4),
-          " (SD:", round(imp_summary$sd_w_mar, 4), ")\n")
+      message("- Initial NA: ", round(imp_summary$na_rate_initial * 100, 2), " %")
+      message("- Final NA: ", round(imp_summary$na_rate_final * 100, 2), " %")
+      message("- Elbow r0: ", round(res$elbow$r0, 4),
+              "  x0: ", round(res$elbow$x0, 4))
+      message("- mean w_mar: ", round(imp_summary$mean_w_mar, 4),
+              "  (SD: ", round(imp_summary$sd_w_mar, 4), " )")
     }
 
   # =========================================================================
@@ -1094,19 +1103,19 @@ impute_proteomics <- function(
   # =========================================================================
 
   } else {
-    if (verbose) cat("\n=== PRE-FILTERING BY NA PROPORTION (max:",
-                     max_na_prop %||% "disabled", ") ===\n")
+    if (verbose) message("\n=== PRE-FILTERING BY NA PROPORTION (max: ",
+                         max_na_prop %||% "disabled", " ) ===")
 
     pf <- .prefilter_by_na_prop(x_norm, max_na_prop = max_na_prop)
 
     if (verbose) {
-      cat("- Proteins kept:", pf$summary$n_keep, "\n")
-      cat("- Proteins removed:", pf$summary$n_drop, "\n")
+      message("- Proteins kept: ", pf$summary$n_keep)
+      message("- Proteins removed: ", pf$summary$n_drop)
     }
 
     x_norm_prefilt <- x_norm[pf$keep, , drop = FALSE]
 
-    if (verbose) cat("\n=== IMPUTATION:", imp_method, "===\n")
+    if (verbose) message("\n=== IMPUTATION: ", imp_method, " ===")
 
     na_before <- mean(is.na(x_norm_prefilt))
     x_imputed <- .dispatch_imputation(x_norm_prefilt, imp_method, method_args, with_value)
@@ -1118,8 +1127,8 @@ impute_proteomics <- function(
     mar_mask    <- NULL
 
     if (verbose) {
-      cat("- Initial NA:", round(na_before * 100, 2), "%\n")
-      cat("- Final NA:", round(na_after * 100, 2), "%\n")
+      message("- Initial NA: ", round(na_before * 100, 2), " %")
+      message("- Final NA: ", round(na_after * 100, 2), " %")
     }
   }
 
@@ -1146,7 +1155,7 @@ impute_proteomics <- function(
   # RENAME ROWNAMES AND ALIGN SE
   # =========================================================================
 
-  if (verbose) cat("\n=== UPDATING SUMMARIZEDEXPERIMENT ===\n")
+  if (verbose) message("\n=== UPDATING SUMMARIZEDEXPERIMENT ===")
 
   rd <- as.data.frame(SummarizedExperiment::rowData(se))
 
@@ -1210,9 +1219,9 @@ impute_proteomics <- function(
   }
 
   if (verbose) {
-    cat("- Available assays:",
-        paste(SummarizedExperiment::assayNames(se_subset), collapse = ", "), "\n")
-    cat("- Final proteins:", nrow(se_subset), "\n")
+    message("- Available assays: ",
+            paste(SummarizedExperiment::assayNames(se_subset), collapse = ", "))
+    message("- Final proteins: ", nrow(se_subset))
   }
 
   # =========================================================================

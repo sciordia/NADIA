@@ -225,9 +225,14 @@
 #'
 #' @param mat Numeric matrix (proteins x samples), no NAs.
 #' @param groups Factor or character vector of group labels.
+#' @param seed Integer. Seed for the permutations. `adonis2()` obtains its
+#'   p-value by permuting the group labels, so without a seed the same data give
+#'   a different p-value on every call -- and this one is exported as a column of
+#'   `nm_compute_metrics()`. `R2` is deterministic and unaffected. The caller's
+#'   RNG state is restored on exit.
 #' @return Named list with `R2` and `p_value`, or NA if vegan unavailable.
 #' @keywords internal
-.nm_permanova_r2 <- function(mat, groups) {
+.nm_permanova_r2 <- function(mat, groups, seed = 42L) {
   na_result <- list(R2 = NA_real_, p_value = NA_real_)
   if (!requireNamespace("vegan", quietly = TRUE)) return(na_result)
   if (ncol(mat) < 2 || nrow(mat) < 2) return(na_result)
@@ -235,6 +240,11 @@
   if (nlevels(groups) < 2) return(na_result)
   d  <- dist(t(mat))
   df <- data.frame(Condition = groups)
+
+  old_rng <- .rng_state()
+  on.exit(.rng_restore(old_rng), add = TRUE)
+  set.seed(seed)
+
   res <- vegan::adonis2(d ~ Condition, data = df, permutations = 999)
   list(R2 = res[["R2"]][1], p_value = res[["Pr(>F)"]][1])
 }
@@ -613,8 +623,10 @@ nm_run_normalizations <- function(se,
   }
 
   if (verbose)
-    message("nm_run_normalizations: ", n_ok, " method(s) OK",
-            if (n_fail > 0) paste0(", ", n_fail, " failed") else ".")
+    if (n_fail > 0)
+      message("nm_run_normalizations: ", n_ok, " method(s) OK, ", n_fail, " failed")
+    else
+      message("nm_run_normalizations: ", n_ok, " method(s) OK.")
 
   # Build new SE
   se_out <- SummarizedExperiment::SummarizedExperiment(
@@ -1535,9 +1547,14 @@ nm_plot_qq <- function(se, assay_names = NULL,
 #' metrics_df <- nm_compute_metrics(se)
 #' metrics_df[, c("Method", "PC1_VarPct", "PC1_F_ratio", "Silhouette_mean")]
 #'
+#' @param seed Integer. Seed for the two metrics that use randomness: the
+#'   Hopkins statistic, which samples random reference points, and the PERMANOVA
+#'   p-value, which permutes the group labels. Without it neither column is
+#'   reproducible between runs. The caller's RNG state is restored on exit.
+#'   Default 42.
 #' @export
 nm_compute_metrics <- function(se, assay_names = NULL,
-                               condition_col = "Condition", ...) {
+                               condition_col = "Condition", seed = 42L, ...) {
   assay_names <- .nm_assay_names(se, assay_names)
   condition   <- .nm_condition(se, condition_col)
 
@@ -1553,7 +1570,7 @@ nm_compute_metrics <- function(se, assay_names = NULL,
     mat_ok <- mat[complete.cases(mat), ]
     groups <- condition
 
-    perm <- .nm_permanova_r2(mat_ok, groups)
+    perm <- .nm_permanova_r2(mat_ok, groups, seed = seed)
 
     rows[[i]] <- data.frame(
       Method          = assay_names[i],
@@ -1566,7 +1583,7 @@ nm_compute_metrics <- function(se, assay_names = NULL,
       MDS_CophCor        = .nm_cophenetic_cor(mat_ok),
       Spectral_Entropy   = .nm_spectral_entropy(mat_ok),
       CumVar_PC2         = .nm_cumvar_pc2(mat_ok),
-      Hopkins            = .nm_hopkins(mat_ok),
+      Hopkins            = .nm_hopkins(mat_ok, seed = seed),
       Condition_Number   = .nm_condition_number(mat_ok),
       stringsAsFactors = FALSE
     )
@@ -1580,6 +1597,7 @@ nm_compute_metrics <- function(se, assay_names = NULL,
 #' (one facet per metric, free y-scales) with labeled values.
 #'
 #' @inheritParams nm_plot_boxplot
+#' @inheritParams nm_compute_metrics
 #' @return ggplot object.
 #'
 #' @examples
@@ -1592,9 +1610,9 @@ nm_compute_metrics <- function(se, assay_names = NULL,
 #'
 #' @export
 nm_plot_metrics <- function(se, assay_names = NULL,
-                            condition_col = "Condition", ...) {
+                            condition_col = "Condition", seed = 42L, ...) {
   assay_names <- .nm_assay_names(se, assay_names)
-  metrics_df  <- nm_compute_metrics(se, assay_names, condition_col)
+  metrics_df  <- nm_compute_metrics(se, assay_names, condition_col, seed = seed)
   col_vector  <- .nm_prone_colors(length(assay_names))
 
   # Pivot to long format (exclude PERMANOVA_pval from plot)
@@ -2164,6 +2182,9 @@ nm_plot_final_ranking <- function(se, assay_names = NULL,
 #'   `list(cycloess = list(method = "fast", span = 0.8))`.
 #' @param base_assay Name of the baseline assay to normalize from when using
 #'   auto-normalization. Default `"log2"`.
+#' @param seed Integer. Seed passed to `nm_compute_metrics()` for the two
+#'   metrics that use randomness, the Hopkins statistic and the PERMANOVA
+#'   p-value. Default 42.
 #' @param verbose Logical. Print progress messages. Default `TRUE`.
 #' @param output_dir Character. Path to export directory. If `NULL` (default),
 #'   no files are exported. When set, tables (TSV) and/or plots (PNG) are
@@ -2202,6 +2223,7 @@ normalization_metrics <- function(se,
                                   methods       = NULL,
                                   method_args   = list(),
                                   base_assay    = "log2",
+                                  seed          = 42L,
                                   verbose       = TRUE,
                                   output_dir    = NULL,
                                   export_plots  = TRUE,
@@ -2321,7 +2343,7 @@ normalization_metrics <- function(se,
 
   # --- Always compute metrics_table ---
   result[["metrics_table"]] <- tryCatch(
-    nm_compute_metrics(se, assay_names, condition_col),
+    nm_compute_metrics(se, assay_names, condition_col, seed = seed),
     error = function(e) {
       warning("nm_compute_metrics() failed: ", conditionMessage(e))
       NULL
@@ -2393,8 +2415,10 @@ normalization_metrics <- function(se,
                         is.null, logical(1)))
   n_fail <- length(selected) - n_ok
   if (verbose) {
-    message("normalization_metrics: ", n_ok, " plot(s) generated",
-            if (n_fail > 0) paste0(", ", n_fail, " failed") else ".")
+    if (n_fail > 0)
+      message("normalization_metrics: ", n_ok, " plot(s) generated, ", n_fail, " failed")
+    else
+      message("normalization_metrics: ", n_ok, " plot(s) generated.")
   }
 
   # --- Export results if output_dir is set ---
