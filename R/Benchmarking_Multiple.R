@@ -2428,9 +2428,6 @@ benchmarking_multiple <- function(opdea_combined            = NULL,
 
 # --- Option A: In-memory loop ---
 #
-# source("R/Processing.R")
-# source("R/Benchmarking_Single.R")
-# source("R/Benchmarking_Multiple.R")
 #
 # library(dplyr)
 #
@@ -2476,7 +2473,7 @@ benchmarking_multiple <- function(opdea_combined            = NULL,
 #     species_df      = species_df,
 #     expected_values = expected,
 #     alpha           = 0.05,
-#     output_dir      = paste0("results/benchmark_", assay_name)
+#     output_dir      = file.path(out_dir, paste0("benchmark_", assay_name))
 #   )
 #
 #   opdea <- bench$opdea_metrics
@@ -2506,7 +2503,7 @@ benchmarking_multiple <- function(opdea_combined            = NULL,
 #   confusion_combined     = confusion_all,
 #   classified_combined    = classified_all,
 #   bench_metrics_combined = bench_met_all,
-#   output_dir             = "results/bm_multiple",
+#   output_dir             = file.path(out_dir, "bm_multiple"),
 #   verbose                = TRUE
 # )
 #
@@ -2521,19 +2518,18 @@ benchmarking_multiple <- function(opdea_combined            = NULL,
 #
 # --- Option B: Import from files ---
 #
-# source("R/Benchmarking_Multiple.R")
 #
 # # Assumes folders like:
-# #   results/benchmark_cycloess_Impseqrob_min/benchmark_opdea_metrics.tsv
-# #   results/benchmark_cycloess_Impseqrob_min/benchmark_metrics.tsv        (for extended ranking)
-# #   results/benchmark_cycloess_Impseqrob_min/benchmark_confusion_overall.tsv
-# #   results/benchmark_cycloess_Impseqrob_min/benchmark_classified.tsv
-# #   results/benchmark_quantile_knn_min/...
-# #   results/benchmark_log2Norm_Impseqrob_MinDet/...
+# #   <out_dir>/benchmark_cycloess_Impseqrob_min/benchmark_opdea_metrics.tsv
+# #   <out_dir>/benchmark_cycloess_Impseqrob_min/benchmark_metrics.tsv        (for extended ranking)
+# #   <out_dir>/benchmark_cycloess_Impseqrob_min/benchmark_confusion_overall.tsv
+# #   <out_dir>/benchmark_cycloess_Impseqrob_min/benchmark_classified.tsv
+# #   <out_dir>/benchmark_quantile_knn_min/...
+# #   <out_dir>/benchmark_log2Norm_Impseqrob_MinDet/...
 #
 # bm_result <- benchmarking_multiple(
-#   results_dir = "results",
-#   output_dir  = "results/bm_multiple",
+#   results_dir = out_dir,
+#   output_dir  = file.path(out_dir, "bm_multiple"),
 #   verbose     = TRUE
 # )
 #

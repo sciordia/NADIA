@@ -5,10 +5,15 @@
 # Bioconductor requires documenting how the data shipped with a package were
 # obtained and prepared. This script is the complete, reproducible recipe.
 #
-# The source files are not distributed with the package: they are full reports of
-# between 0.6 and 29 MB that live in `data-raw/` of the development repository
-# (https://github.com/sciordia/NADIA) and are kept out of the tarball via
-# `.Rbuildignore`. Run this script from the root of the repository.
+# The source files are NOT distributed, and are not part of the repository
+# either: they are full reports of between 0.6 and 29 MB from experiments that
+# are still unpublished, held by the maintainer. This script documents exactly
+# how they were reduced to what the package does ship, so the provenance is on
+# record even though the inputs cannot be handed out.
+#
+# To re-run it, place those reports in a directory and point RAW at it (below);
+# the default assumes a `data-raw/` beside the package root. Anyone wanting the
+# originals should contact the maintainer.
 #
 # Origin of the data
 # ------------------
@@ -67,7 +72,7 @@ CONDITIONS <- c("A", "B", "D")
 N_PROTEINS <- 2000L
 SEED       <- 42L
 
-RAW      <- "data-raw"
+RAW      <- Sys.getenv("NADIA_RAW", "data-raw")   # see the note at the top
 EXTDATA  <- "inst/extdata"
 dir.create(EXTDATA, recursive = TRUE, showWarnings = FALSE)
 dir.create("data",  recursive = TRUE, showWarnings = FALSE)

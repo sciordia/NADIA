@@ -2591,7 +2591,6 @@ benchmarking_proteomics <- function(
 # EXAMPLES
 # =============================================================================
 
-# source("R/Benchmarking_Single.R")
 #
 # # --- Define expected values (spike-in design) ---
 # expected <- data.frame(
@@ -2606,7 +2605,7 @@ benchmarking_proteomics <- function(
 #   expected_values = expected,
 #   alpha           = 0.05,
 #   lfc_thr         = 0,
-#   output_dir      = "data-raw/benchmark",
+#   output_dir      = file.path(out_dir, "benchmark"),
 #   verbose         = TRUE
 # )
 #

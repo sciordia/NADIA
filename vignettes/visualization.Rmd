@@ -50,6 +50,24 @@ Interactive widgets are not rendered in this vignette — they would multiply it
 size — so the Highcharts chunks below are shown but not run. Each returns a
 `highchart` object that prints in RStudio, a browser, or an R Markdown document.
 
+## A note on Highcharts licensing
+
+NADIA uses **highcharter** (MIT) to build its interactive figures. highcharter is
+an R interface to the **Highcharts** JavaScript library, which is distributed
+under its own separate terms: free for personal and non-commercial use, but
+requiring a paid licence for commercial and governmental use.
+
+NADIA does not bundle Highcharts — it is shipped by highcharter — and NADIA's own
+GPL-3 licence neither grants nor implies a licence for it. Users are responsible
+for ensuring that their use of Highcharts complies with the applicable
+[Highcharts licence](https://www.highcharts.com/license). Highsoft offers a
+discount to highcharter users.
+
+This is worth reading before you build a figure for a grant report or a
+commercial deliverable. The static figures in the second half of this vignette —
+ggplot2 and ComplexHeatmap — carry no such restriction, and every analysis in
+NADIA can be completed without producing a single interactive figure.
+
 # The three inputs
 
 Each interactive module consumes one of the three tables the pipeline returns,

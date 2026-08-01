@@ -875,10 +875,9 @@ summarize_pattern_profiler <- function(data) {
 # =============================================================================
 
 # --- Typical usage ---
-# source("R/Pattern_Profiler_Highcharts.R")
 #
 # # Read the data
-# data <- read_pattern_profiler_data("data-raw/Pattern_Profiler_Input.parquet")
+# data <- read_pattern_profiler_data(file.path(out_dir, "Pattern_Profiler_Input.parquet"))
 #
 # # Inspect the summary
 # summary <- summarize_pattern_profiler(data)

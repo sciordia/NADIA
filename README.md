@@ -67,7 +67,7 @@ no ground truth; `vignette("benchmarking")` when a spike-in gives you one.
 
 ## Installation
 
-NADIA is an R package and requires R >= 4.4. It is not on Bioconductor yet, so
+NADIA is an R package and requires R >= 4.6. It is not on Bioconductor yet, so
 install it from this repository:
 
 ```r
@@ -87,6 +87,23 @@ source("install_dependencies.R")         # from a clone of the repository
 install_nadia_deps(dry_run = TRUE)       # only report what is missing
 install_nadia_deps(optional = FALSE)     # only the essentials
 ```
+
+### A note on Highcharts licensing
+
+NADIA uses **highcharter** (MIT) to build its interactive figures. highcharter is
+an R interface to the **Highcharts** JavaScript library, which is distributed
+under its own separate terms: free for personal and non-commercial use, but
+requiring a paid licence for commercial and governmental use.
+
+NADIA does not bundle Highcharts — it is shipped by highcharter — and NADIA's own
+GPL-3 licence neither grants nor implies a licence for it. Users are responsible
+for ensuring that their use of Highcharts complies with the applicable
+[Highcharts licence](https://www.highcharts.com/license). Highsoft offers a
+discount to highcharter users.
+
+The static figures — ggplot2 throughout the metrics and benchmarking modules,
+ComplexHeatmap in `proteomics_heatmap()` — carry no such restriction, and every
+analysis in NADIA can be completed without producing a single interactive figure.
 
 ## A first example
 
@@ -143,21 +160,24 @@ NADIA/
 ├── man/                generated with roxygen2 -- do not edit by hand
 ├── NAMESPACE           generated with roxygen2 -- do not edit by hand
 ├── vignettes/          the nine articles listed above
-├── tests/testthat/     453 assertions in 7 files
+├── tests/testthat/     465 assertions in 8 files
 ├── data/               nadia_dia, the preprocessed example dataset
 ├── inst/
 │   ├── extdata/        trimmed DIA, TMT and LFQ reports
 │   ├── scripts/        make_extdata.R -- how those reports were produced
 │   ├── js/             ExcelJS + PapaParse (MIT), for the offline Excel export
 │   └── css/            styles for the reactable tables
-├── data-raw/           full datasets .......... not in the package
-├── results/            real analysis outputs .. not in the package
 ├── CLAUDE.md           architecture, module by module
 └── CODE_REVIEW_*.md    code reviews and the measured impact of their fixes
 ```
 
-`data-raw/`, `results/`, the numbered scripts and the Markdown reports are
-excluded from the build via `.Rbuildignore`.
+The Markdown reports are excluded from the build via `.Rbuildignore`, so they do
+not reach the tarball.
+
+The full experiments the example data come from are unpublished and are not part
+of this repository. `inst/scripts/make_extdata.R` records exactly how the trimmed
+reports in `inst/extdata/` and the `nadia_dia` object were derived from them, so
+the provenance is documented even though the inputs are not distributed.
 
 ### The modules
 

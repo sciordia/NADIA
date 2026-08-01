@@ -980,7 +980,6 @@ pattern_profiler_analysis <- function(se_proc,
 # The objects 'se_proc' (SummarizedExperiment) and 'DEPs_results' (dataframe)
 # are already loaded in the environment from previous pipeline steps.
 #
-# source("R/Pattern_Profiler_Analysis.R")
 #
 # # Run the analysis (uses assay 'LoessCyc' by default)
 # result <- pattern_profiler_analysis(
@@ -992,7 +991,7 @@ pattern_profiler_analysis <- function(se_proc,
 #   c_range = 2:8,
 #   selection_method = "xb",
 #   min_membership = 0.25,
-#   output_file = "data-raw/Pattern_Profiler_Input.parquet"
+#   output_file = file.path(out_dir, "Pattern_Profiler_Input.parquet")
 # )
 #
 # # Inspect the results
