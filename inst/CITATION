@@ -1,0 +1,27 @@
+## Citation for NADIA.
+##
+## `meta` is supplied by utils::citation() when the package is installed; the
+## fallback keeps the file working when it is read outside that path, which is
+## what happens under devtools::load_all().
+if (!exists("meta") || is.null(meta)) meta <- packageDescription("NADIA")
+version <- meta$Version
+if (is.null(version)) version <- "0.99.0"
+
+citHeader("To cite NADIA in publications, please use:")
+
+bibentry(
+    bibtype  = "Manual",
+    title    = paste("{NADIA}: Missing Value-Aware Differential Expression",
+                     "Analysis of DIA Proteomics Data"),
+    author   = person(given = "Sergio", family = "Ciordia",
+                      comment = c(ORCID = "0000-0002-5726-853X")),
+    year     = "2026",
+    note     = paste("R package version", version),
+    url      = "https://github.com/sciordia/NADIA",
+    ## Add the Zenodo DOI here once the first release is archived, and mirror it
+    ## in the README. A dated DOI is what makes authorship demonstrable.
+    # doi    = "10.5281/zenodo.XXXXXXX",
+    textVersion = paste0(
+        "Ciordia S (2026). NADIA: Missing Value-Aware Differential Expression ",
+        "Analysis of DIA Proteomics Data. R package version ", version, ". ",
+        "https://github.com/sciordia/NADIA"))
