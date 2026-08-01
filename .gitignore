@@ -66,3 +66,8 @@ NADIA.BiocCheck/
 # it still has to, because they remain on disk.
 data-raw/
 results/
+
+# The numbered driver scripts. They read data-raw/ and results/, several point at
+# files that no longer exist, and Bioconductor asks that the default branch hold
+# only package code. They are preserved on the 'dev' branch.
+[0-9]*_*.R
