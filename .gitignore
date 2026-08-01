@@ -59,3 +59,10 @@ rsconnect/
 # Salidas de BiocCheck y R CMD check
 NADIA.BiocCheck/
 *.Rcheck/
+
+# The full experiments and their analysis outputs. Unpublished data, kept on the
+# maintainer's machine only: they were purged from the history in phase 6c and
+# must not come back. .Rbuildignore keeps them out of the tarball as well, and
+# it still has to, because they remain on disk.
+data-raw/
+results/
