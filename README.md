@@ -1,7 +1,7 @@
 # NADIA
 
-**Differential abundance analysis in quantitative proteomics, with explicit
-treatment of missing values**
+Differential abundance analysis in quantitative proteomics, with explicit
+treatment of missing values.
 
 NADIA is an R package that provides a complete workflow for the differential
 abundance analysis of proteins. It processes quantitative data from DIA, TMT and
@@ -47,26 +47,26 @@ rather than to remove it or impute it without assessing the consequences.
 From the quantification report to reproducible results, ready to explore or
 export:
 
-1. **Import and preprocessing** — Reads quantification reports from Spectronaut
+1. Import and preprocessing — Reads quantification reports from Spectronaut
    and DIA-NN, as well as TMT and label-free (DDA) experiments processed with
    Proteome Discoverer. Every format is converted into a common
    `proteomics_data` object, so that the rest of the workflow is independent of
    the source software.
-2. **Processing and differential abundance** — Normalises the data through 13
+2. Processing and differential abundance — Normalises the data through 13
    methods, allows batch effects to be diagnosed and corrected, and imputes
    missing values with 19 individual methods or with hybrid strategies that treat
    values assumed to be MAR and MNAR separately. Differential abundance is
    analysed with `limma` or `limpa`.
-3. **Method assessment and selection** — Compares normalisation and imputation
+3. Method assessment and selection — Compares normalisation and imputation
    methods using metrics computed on the data themselves. Where a known reference
    is available, such as a *spike-in* experiment, NADIA evaluates sensitivity,
    specificity and the recovery of the expected changes, and ranks normalisation
    and imputation combinations through the OpDEA approach.
-4. **Result analysis and visualisation** — Produces interactive figures with
+4. Result analysis and visualisation — Produces interactive figures with
    Highcharts, including *volcano plots*, boxplots, PCA and protein cluster
    profiles. It also produces static figures with ggplot2 and ComplexHeatmap, and
    identifies proteins with similar profiles through fuzzy clustering.
-5. **Tables and export** — Presents the results in interactive tables and exports
+5. Tables and export — Presents the results in interactive tables and exports
    the processed matrices, the differential abundance results and the data used
    by the visualisations in formats suited to archiving or further analysis.
 
@@ -143,9 +143,9 @@ BiocManager::install("NADIA")
 
 ### A note on Highcharts licensing
 
-NADIA uses the R package **highcharter**, distributed under the MIT licence, to
+NADIA uses the R package `highcharter`, distributed under the MIT licence, to
 generate some of its interactive visualisations. highcharter acts as an interface
-to the **Highcharts** JavaScript library, which is distributed under its own
+to the Highcharts JavaScript library, which is distributed under its own
 licensing terms.
 
 NADIA's licence neither grants nor implies a licence to use Highcharts. Depending
@@ -245,7 +245,7 @@ hand:
 
 | Vignette | Question it answers |
 |---|---|
-| **`NADIA`** | How do I run a complete analysis with NADIA? |
+| `NADIA` | How do I run a complete analysis with NADIA? |
 | `input-formats` | How do I import DIA, TMT or label-free (DDA) data? |
 | `missing-values` | What do the missing values mean and how should I impute them? |
 | `choosing-methods` | How do I compare normalisation and imputation methods when I do not know the true answer? |
@@ -268,7 +268,7 @@ stage has its own functions, which can be used independently in a custom
 workflow, while `process_proteomics()` coordinates them to run a complete
 analysis.
 
-**Import and preprocessing**
+### Import and preprocessing
 
 The preprocessing functions convert the different input formats into a common
 structure:
@@ -284,7 +284,7 @@ metadata, protein annotation and the quantification matrix. The later stages
 therefore apply in the same way regardless of the source software or
 quantification design.
 
-**Main processing**
+### Main processing
 
 `process_proteomics()` coordinates the central stages of the analysis:
 
@@ -301,7 +301,7 @@ The main stages can be run individually through `normalize_proteomics()`,
 `batch_correct_proteomics()`, `impute_proteomics()` and
 `de_analysis_proteomics()`.
 
-**Assessment and benchmarking**
+### Assessment and benchmarking
 
 The assessment modules are separate from the main processing:
 
@@ -314,7 +314,7 @@ The assessment modules are separate from the main processing:
 - `benchmarking_multiple()` ranks multiple normalisation and imputation
   combinations.
 
-**Visualisation and presentation of results**
+### Visualisation and presentation of results
 
 The visualisation functions mainly accept tables and data frames, so they can be
 used both with the results of `process_proteomics()` and with results produced
