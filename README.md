@@ -1,5 +1,7 @@
 # NADIA
 
+<div align="justify">
+
 Differential abundance analysis in quantitative proteomics, with explicit
 treatment of missing values.
 
@@ -363,3 +365,5 @@ modified and redistributed in accordance with the conditions of that licence. Se
 the `LICENSE` file and the `License:` field of `DESCRIPTION` for further details.
 
 Copyright © 2025–2026 Sergio Ciordia.
+
+</div>
