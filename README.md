@@ -1,74 +1,115 @@
 # NADIA
 
-**Missing Value-Aware DIA Proteomics Analysis** — an R package for differential
-protein expression analysis, with particular attention to the missing values
-(**NA**) that characterise data-independent acquisition (**DIA**).
+**Differential abundance analysis in quantitative proteomics, with explicit
+treatment of missing values**
 
-## Why the missing values
+NADIA is an R package that provides a complete workflow for the differential
+abundance analysis of proteins. It processes quantitative data from DIA, TMT and
+label-free (DDA) experiments, with particular attention to the assessment and
+treatment of the missing values that routinely appear in DIA proteomics data.
 
-A DIA experiment routinely leaves 5–20 % of its quantification matrix empty, and
-those blanks are not an accident of the instrument. A protein below the detection
-limit in one condition and above it in another produces exactly the pattern a
-differential expression test is supposed to find. Deleting those proteins throws
-away the signal; filling them in carelessly manufactures it.
+## Why missing values matter
 
-The structure is visible in the example dataset shipped with the package. Cross
-the percentage of missing values against the differential expression call:
+DIA proteomics datasets routinely contain an appreciable proportion of missing
+values. These values do not always represent random measurement failures. A
+protein may fall below the limit of detection in one condition and be
+quantifiable in another, producing precisely the pattern that a differential
+abundance analysis sets out to identify.
 
-| missing | Up | Down | No Change |
+For this reason, removing every protein that contains missing values may discard
+relevant biological signal. Equally, imputing them without considering the likely
+mechanism of missingness may attenuate real differences or introduce artificial
+ones.
+
+This relationship can be observed in the example dataset included with NADIA. The
+table below crosses the overall percentage of missing values of each protein with
+its call in the differential abundance analysis:
+
+| Missing values | Up | Down | No Change |
 |---|---|---|---|
 | 0 % | 795 | 209 | 3761 |
 | 1–25 % | 90 | 57 | 239 |
-| **26–50 %** | **70** | **619** | 54 |
+| 26–50 % | 70 | 619 | 54 |
 | > 50 % | 30 | 52 | 15 |
 
-Proteins with no gaps are mostly unchanged. Proteins missing between a quarter
-and a half of their values are called *down* nine times out of ten. That
-asymmetry is not a bug in the test — it is the signature of values **missing not
-at random**, and it is what the package is built to handle rather than ignore.
+Most proteins with no missing values show no significant change. Among proteins
+with 26–50 % missing values, by contrast, there is a marked asymmetry towards
+negative changes: 619 are called Down, against 70 called Up.
 
-## What it covers
+This pattern is consistent with a substantial abundance-dependent component of
+missingness: when a protein falls below the limit of detection in one condition,
+the missing values concentrate precisely in the group with the lower abundance.
+NADIA is designed to retain, examine and explicitly handle this information,
+rather than to remove it or impute it without assessing the consequences.
 
-From the raw report to the interactive figure:
+## What NADIA covers
 
-1. **Preprocessing** — Spectronaut/DIA-NN, TMT (Proteome Discoverer) and LFQ
-   (Proteome Discoverer); all three produce the same `proteomics_data` S3 object,
-   so the rest of the pipeline is indifferent to the source.
-2. **Processing** — normalisation (13 methods), optional batch correction (BERT,
-   applying ComBat, limma or a reference batch, plus PVCA diagnostics), imputation
-   (19 methods, including the MAR/MNAR hybrids `combo` and `softHybrid` and the
-   probabilistic model `limpa`) and differential expression (`limma` or `limpa`).
-3. **Metrics and benchmarking** — normalisation assessment (PCV/PMAD/PEV,
-   intragroup correlation, group separation) and imputation assessment (NAguideR
-   framework: NRMSE, SOR, PSS, ACC_OI), plus benchmarking on *spike-in* datasets
-   and OpDEA ranking of normalisation × imputation combinations.
-4. **Visualisation** — interactive with Highcharts (boxplots, volcano, PCA,
-   cluster profiles) and static with ggplot2/ComplexHeatmap, along with
-   interactive tables built on reactable.
+From the quantification report to reproducible results, ready to explore or
+export:
+
+1. **Import and preprocessing** — Reads quantification reports from Spectronaut
+   and DIA-NN, as well as TMT and label-free (DDA) experiments processed with
+   Proteome Discoverer. Every format is converted into a common
+   `proteomics_data` object, so that the rest of the workflow is independent of
+   the source software.
+2. **Processing and differential abundance** — Normalises the data through 13
+   methods, allows batch effects to be diagnosed and corrected, and imputes
+   missing values with 19 individual methods or with hybrid strategies that treat
+   values assumed to be MAR and MNAR separately. Differential abundance is
+   analysed with `limma` or `limpa`.
+3. **Method assessment and selection** — Compares normalisation and imputation
+   methods using metrics computed on the data themselves. Where a known reference
+   is available, such as a *spike-in* experiment, NADIA evaluates sensitivity,
+   specificity and the recovery of the expected changes, and ranks normalisation
+   and imputation combinations through the OpDEA approach.
+4. **Result analysis and visualisation** — Produces interactive figures with
+   Highcharts, including *volcano plots*, boxplots, PCA and protein cluster
+   profiles. It also produces static figures with ggplot2 and ComplexHeatmap, and
+   identifies proteins with similar profiles through fuzzy clustering.
+5. **Tables and export** — Presents the results in interactive tables and exports
+   the processed matrices, the differential abundance results and the data used
+   by the visualisations in formats suited to archiving or further analysis.
 
 ## Method choice is not cosmetic
 
-Four pipelines, same data, same test, same threshold:
+Normalisation and imputation are not merely technical steps. They can
+substantially change the outcome of a differential abundance analysis.
 
-| pipeline | Up | Down | No Change |
+The table below compares four normalisation and imputation combinations applied
+to the same dataset, using the same statistical model and the same significance
+and fold-change thresholds:
+
+| Pipeline | Up | Down | No Change |
 |---|---|---|---|
 | `cycloess` + `combo` | 985 | 937 | 4069 |
 | `cycloess` + `knn` | 872 | 179 | 4940 |
 | `quantile` + `combo` | 902 | 2825 | 2264 |
 | `log2` + `min` | 761 | 778 | 4452 |
 
-The count of down-regulated proteins spans a factor of sixteen. That is the
-argument for measuring the choice rather than inheriting it — and for stating in
-any publication which normalisation and imputation produced the table, since
-without that the numbers are not reproducible even from the same raw data.
+*Note*: the counts correspond to protein–comparison results; the same protein may
+appear in more than one comparison.
 
-`vignette("choosing-methods")` shows how to score the alternatives when you have
-no ground truth; `vignette("benchmarking")` when a spike-in gives you one.
+The number of results called Down ranges from 179 to 2,825, a difference of
+roughly sixteen-fold. The total number of results called differentially abundant
+also changes considerably: from around 1,050 with `cycloess` + `knn` to more than
+3,700 with `quantile` + `combo`.
+
+This variability does not by itself indicate which pipeline is correct. It shows
+that the choice of normalisation and imputation method should be assessed on the
+data, rather than adopted by convention alone. It also shows why a reproducible
+analysis must state which methods and parameters produced the final table:
+without that information, two analyses of the same quantification matrix can lead
+to very different conclusions.
+
+`vignette("choosing-methods")` shows how to compare the alternatives when no
+known reference is available. When the experiment contains a spike-in with
+expected changes, `vignette("benchmarking")` evaluates them against that
+reference.
 
 ## Installation
 
-NADIA is an R package and requires R >= 4.6. It is not on Bioconductor yet, so
-install it from this repository:
+NADIA requires R 4.6 or later. While the package is under development and not yet
+available on Bioconductor, it can be installed from its GitHub repository:
 
 ```r
 # install.packages("remotes")
@@ -76,11 +117,15 @@ remotes::install_github("sciordia/NADIA", build_vignettes = TRUE)
 library(NADIA)
 ```
 
-The required dependencies (the `Imports:` field) are installed automatically. The
-**optional** ones (`Suggests:`) are only needed if you use the method that calls
-them — `mice` only with `imp_method = "mice"`, `pROC` for the AUC/pAUC
-benchmarking metrics, `Mfuzz` for the Pattern Profiler. When one is missing, the
-function says which one. To install them all at once:
+The mandatory dependencies declared in the `Imports:` field of `DESCRIPTION` are
+installed automatically. The dependencies declared in `Suggests:` are only needed
+for particular optional functions or methods. `mice`, for instance, is required
+when that imputation method is selected, `pROC` computes the AUC and pAUC
+benchmarking metrics, and `Mfuzz` is used by the Pattern Profiler.
+
+When an optional dependency is missing, NADIA names the required package and
+explains how to install it. All the package dependencies can be checked or
+installed through the helper functions included in the repository:
 
 ```r
 source("install_dependencies.R")         # from a clone of the repository
@@ -88,165 +133,233 @@ install_nadia_deps(dry_run = TRUE)       # only report what is missing
 install_nadia_deps(optional = FALSE)     # only the essentials
 ```
 
+Once NADIA is available on Bioconductor, the recommended installation will be:
+
+```r
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("NADIA")
+```
+
 ### A note on Highcharts licensing
 
-NADIA uses **highcharter** (MIT) to build its interactive figures. highcharter is
-an R interface to the **Highcharts** JavaScript library, which is distributed
-under its own separate terms: free for personal and non-commercial use, but
-requiring a paid licence for commercial and governmental use.
+NADIA uses the R package **highcharter**, distributed under the MIT licence, to
+generate some of its interactive visualisations. highcharter acts as an interface
+to the **Highcharts** JavaScript library, which is distributed under its own
+licensing terms.
 
-NADIA does not bundle Highcharts — it is shipped by highcharter — and NADIA's own
-GPL-3 licence neither grants nor implies a licence for it. Users are responsible
-for ensuring that their use of Highcharts complies with the applicable
-[Highcharts licence](https://www.highcharts.com/license). Highsoft offers a
-discount to highcharter users.
+NADIA's licence neither grants nor implies a licence to use Highcharts. Depending
+on the context in which the visualisations are used — personal, educational,
+academic, institutional, governmental or commercial — a specific Highcharts
+licence may be required. Users should consult the current
+[Highsoft terms](https://www.highcharts.com/license) and ensure that their use
+complies with the applicable licence.
 
-The static figures — ggplot2 throughout the metrics and benchmarking modules,
-ComplexHeatmap in `proteomics_heatmap()` — carry no such restriction, and every
-analysis in NADIA can be completed without producing a single interactive figure.
+NADIA's statistical analysis does not depend on producing interactive figures.
+The static visualisations produced with ggplot2 and ComplexHeatmap can be used
+instead, and the complete workflow can be run without generating a single
+Highcharts figure.
 
-## A first example
+## A first analysis
+
+NADIA includes `nadia_dia`, a preprocessed DIA dataset of three conditions, four
+replicates per condition and 2,000 protein groups. Roughly 8 % of its intensities
+are missing values.
+
+The example below normalises the data with `cycloess`, applies the hybrid `combo`
+imputation strategy and runs the differential abundance analysis with `limma`:
 
 ```r
 library(NADIA)
 
-# Preprocessed example dataset: 3 conditions x 4 replicates, 2,000 proteins,
-# 8 % missing values (a random sample of the full experiment, so the missingness
-# and the differential-expression balance are representative)
+# Preprocessed example dataset
 data(nadia_dia)
 
-res <- process_proteomics(nadia_dia,
-                          norm_method = "cycloess",
-                          imp_method  = "combo",
-                          de_method   = "limma")
+res <- process_proteomics(
+    nadia_dia,
+    norm_method = "cycloess",
+    imp_method  = "combo",
+    mar_method  = "Impseqrob",   # default value in combo imp_method
+    mnar_method = "min",         # default value in combo imp_method
+    de_method   = "limma"
+)
+
 head(res$DEPs_results)
 
-# Or starting from the raw report
+# Or starting from an exported Spectronaut quantification report
 prep <- preprocess_spectronaut(
   system.file("extdata", "nadia_dia_report.tsv.gz", package = "NADIA"),
   condition_order = c("A", "B", "D"))
+
+res_from_report <- process_proteomics(
+    prep,
+    norm_method = "cycloess",
+    imp_method  = "combo",
+    de_method   = "limma"
+)
 ```
 
-`process_proteomics()` writes nothing to disk unless it is given an `export_dir`.
+In this call, `combo` activates a two-stage hybrid imputation strategy. If
+neither `mar_method` nor `mnar_method` is specified, `process_proteomics()` uses
+its defaults: `Impseqrob` for the values classified as MAR and `min` for those
+classified as MNAR. The resulting imputed matrix is stored in the assay
+`Impseqrob_min`. Both methods can be replaced through the `mar_method` and
+`mnar_method` arguments.
 
-Alongside `logFC` and `adj.P.Val`, the results carry `MissingGlobal`,
-`MissingPCT1` and `MissingPCT2` — the percentage of missing values in each group
-**before** imputation. They are what lets you tell a real on/off signal from a
-fold change built entirely on imputed values, which no p-value can do on its own.
+`process_proteomics()` coordinates the main stages of the analysis and returns a
+list containing the processed object, the differential abundance results and the
+tables used by the visualisation modules. `res$DEPs_results` holds one row per
+protein group and comparison analysed.
 
-## Documentation
+The function writes no files unless a directory is given through `export_dir`.
 
-Nine vignettes cover the pipeline end to end. Start with `vignette("NADIA")`.
+Alongside `logFC`, `P.Value`, `adj.P.Val` and the call recorded in `Change`, the
+results table retains information about the values that were missing before
+imputation:
+
+- `MissingGlobal` — the percentage of missing values of that protein group across
+  the samples of the two conditions being compared.
+- `MissingPCT1` and `MissingPCT2` — the percentage of missing values in each of
+  the two groups involved in the comparison.
+
+These columns do not on their own determine whether a change is biologically
+real, but they show how far its estimate rests on observed intensities and how
+far it depends on imputed values. A protein entirely absent in one condition and
+present in the other, for example, represents a presence–absence pattern or
+quantification below the limit of detection. In that case both the `logFC` and
+its significance must be interpreted in the light of the imputation method used.
+
+The second part of the example shows how to build the same kind of object from a
+quantification report exported by Spectronaut. The resulting `prep` object can be
+passed directly to `process_proteomics()` to continue with the same workflow.
+
+## Documentation and suggested route
+
+NADIA includes nine vignettes documenting the complete workflow and its main
+modules. As a first approach, start with `vignette("NADIA")`, which walks through
+an analysis from the quantification data to the differential abundance results
+and their visualisations.
+
+The remaining vignettes can be read independently, according to the question at
+hand:
 
 | Vignette | Question it answers |
 |---|---|
-| **`NADIA`** | How do I analyse my data? |
-| `input-formats` | My data are TMT or label-free, not DIA |
-| `missing-values` | Which imputation method, and why |
-| `choosing-methods` | How do I pick, with no ground truth |
-| `benchmarking` | I have a spike-in, so I *do* have ground truth |
-| `batch-correction` | My samples were run in batches |
-| `pattern-profiler` | Which proteins behave alike across conditions |
-| `visualization` | I want to adjust the figures |
-| `results-and-export` | How do I get results out of R |
+| **`NADIA`** | How do I run a complete analysis with NADIA? |
+| `input-formats` | How do I import DIA, TMT or label-free (DDA) data? |
+| `missing-values` | What do the missing values mean and how should I impute them? |
+| `choosing-methods` | How do I compare normalisation and imputation methods when I do not know the true answer? |
+| `benchmarking` | How do I evaluate pipelines when I have a *spike-in* experiment with expected changes? |
+| `batch-correction` | How do I diagnose, correct and verify a possible batch effect? |
+| `pattern-profiler` | How do I identify proteins with similar profiles across conditions? |
+| `visualization` | How do I customise the interactive and static figures? |
+| `results-and-export` | How do I export, archive and share the analysis results? |
 
-All of them execute real code on the shipped dataset; none is a static document.
+Every vignette contains executable code and generates its results from the
+datasets shipped with the package, so the examples can be reproduced and adapted
+to other experiments.
 
-## Package structure
+The installed vignettes can be browsed with `browseVignettes("NADIA")`.
 
-```
-NADIA/
-├── R/                  22 files, 102 exported functions
-├── man/                generated with roxygen2 -- do not edit by hand
-├── NAMESPACE           generated with roxygen2 -- do not edit by hand
-├── vignettes/          the nine articles listed above
-├── tests/testthat/     465 assertions in 8 files
-├── data/               nadia_dia, the preprocessed example dataset
-├── inst/
-│   ├── extdata/        trimmed DIA, TMT and LFQ reports
-│   ├── scripts/        make_extdata.R -- how those reports were produced
-│   ├── js/             ExcelJS + PapaParse (MIT), for the offline Excel export
-│   └── css/            styles for the reactable tables
-├── CLAUDE.md           architecture, module by module
-└── CODE_REVIEW_*.md    code reviews and the measured impact of their fixes
-```
+## Package architecture
 
-The Markdown reports are excluded from the build via `.Rbuildignore`, so they do
-not reach the tarball.
+NADIA is organised modularly, following the main stages of the workflow. Each
+stage has its own functions, which can be used independently in a custom
+workflow, while `process_proteomics()` coordinates them to run a complete
+analysis.
 
-The full experiments the example data come from are unpublished and are not part
-of this repository. `inst/scripts/make_extdata.R` records exactly how the trimmed
-reports in `inst/extdata/` and the `nadia_dia` object were derived from them, so
-the provenance is documented even though the inputs are not distributed.
+**Import and preprocessing**
 
-### The modules
+The preprocessing functions convert the different input formats into a common
+structure:
 
-The code follows the shape of the pipeline. Each stage is one file with one main
-exported function, so a stage can be run on its own or swapped out.
+- `preprocess_spectronaut()` handles Spectronaut and DIA-NN quantification
+  reports in long format.
+- `preprocess_tmt()` handles TMT reports exported by Proteome Discoverer.
+- `preprocess_lfq()` handles label-free reports exported by Proteome Discoverer,
+  together with their experimental annotation.
 
-**Preprocessing** — raw report to a common S3 object
+All three return a `proteomics_data` object with the same basic structure: sample
+metadata, protein annotation and the quantification matrix. The later stages
+therefore apply in the same way regardless of the source software or
+quantification design.
 
-| File | Entry point |
-|---|---|
-| `Preprocessing.R` | `preprocess_spectronaut()` — Spectronaut/DIA-NN, long format |
-| `Preprocessing_TMT.R` | `preprocess_tmt()` — design read from the `Abundance:` column suffixes |
-| `Preprocessing_LFQ.R` | `preprocess_lfq()` — design read from a separate annotation file |
+**Main processing**
 
-All three return `c("<type>_data", "proteomics_data", "list")` with the same three
-elements (`metadata`, `protein_id`, `protein_quant`).
+`process_proteomics()` coordinates the central stages of the analysis:
 
-**Processing** — the core
+1. normalisation
+2. optional batch-effect correction
+3. imputation of missing values
+4. differential abundance analysis
 
-| File | Entry point |
-|---|---|
-| `Processing.R` | `process_proteomics()` — the coordinator |
-| `Normalization.R` | `normalize_proteomics()` — 13 methods |
-| `Batch_Correction.R` | `batch_correct_proteomics()`, `pvca_analysis()` |
-| `Imputation.R` | `impute_proteomics()` — 19 methods |
-| `DEAnalysis.R` | `de_analysis_proteomics()` — limma or limpa |
+The result includes a `SummarizedExperiment` that keeps the matrices produced at
+each stage as separate assays. It also returns the differential abundance table
+and the inputs used by the visualisation modules.
 
-`process_proteomics()` runs them in order — normalisation → optional batch
-correction → imputation → differential expression — and returns the
-`SummarizedExperiment` with one assay per stage, plus the results table and the
-inputs the plotting modules expect.
+The main stages can be run individually through `normalize_proteomics()`,
+`batch_correct_proteomics()`, `impute_proteomics()` and
+`de_analysis_proteomics()`.
 
-**Metrics and benchmarking** — scoring the choices
+**Assessment and benchmarking**
 
-| File | Entry point |
-|---|---|
-| `Normalization_Metrics.R` | `normalization_metrics()` — no ground truth needed |
-| `Imputation_Metrics.R` | `imputation_metrics()` — ground truth by simulation |
-| `Benchmarking_Single.R` | `benchmarking_proteomics()` — one pipeline against a spike-in |
-| `Benchmarking_Multiple.R` | `benchmarking_multiple()` — OpDEA ranking across pipelines |
+The assessment modules are separate from the main processing:
 
-**Visualisation** — independent of the pipeline, they take data frames
+- `normalization_metrics()` compares normalisation methods using observable
+  properties of the data.
+- `imputation_metrics()` evaluates imputation methods by simulating missing
+  values.
+- `benchmarking_proteomics()` compares one pipeline against the expected changes
+  of a *spike-in* experiment.
+- `benchmarking_multiple()` ranks multiple normalisation and imputation
+  combinations.
 
-| File | Entry point |
-|---|---|
-| `Volcano_Plot_Highcharts_Final.R` | `volcano_highchart_list()` |
-| `Boxplot_Highcharts_Final.R` | `boxplot_highchart_list()` |
-| `PCA_Highcharts_Final.R` | `pca_highchart_list()` |
-| `Heatmap_tidyHeatmap.R` | `proteomics_heatmap()` — static, ComplexHeatmap |
-| `Pattern_Profiler_Analysis.R` | `pattern_profiler_analysis()` — Mfuzz soft clustering |
-| `Pattern_Profiler_Highcharts.R` | `cluster_profile_highchart_list()` |
-| `Results_List_reactable.R` | `results_list_widget()` and the other three tables |
+**Visualisation and presentation of results**
 
-**Infrastructure**
+The visualisation functions mainly accept tables and data frames, so they can be
+used both with the results of `process_proteomics()` and with results produced
+elsewhere.
 
-| File | Contents |
-|---|---|
-| `NADIA-package.R` | every `@importFrom`, and the NSE column names |
-| `utils.R` | shared internals: `%||%`, RNG, colour and filtering helpers |
-| `data.R` | documentation for `nadia_dia` |
+NADIA provides interactive volcano, boxplot, PCA and cluster-profile figures,
+static figures through ggplot2 and ComplexHeatmap, and interactive tables built
+on reactable.
 
-## Data
+## Example data and provenance
 
-The example data come from quantitative proteomics experiments acquired at the
-Proteomics Facility of the Centro Nacional de Biotecnologia (CNB-CSIC). The
-reports in `inst/extdata/` are trimmed to a random sample of 2,000 protein groups
-— random rather than best-covered on purpose, so that the missingness the package
-exists to handle survives into the examples.
+The example data shipped with NADIA come from quantitative proteomics experiments
+acquired at the Proteomics Facility of the Centro Nacional de Biotecnología
+(CNB-CSIC).
+
+The package includes:
+
+- `nadia_dia`, a preprocessed `proteomics_data` object that allows the main
+  workflow to be run directly;
+- trimmed DIA, TMT and label-free (DDA) quantification reports, stored in
+  `inst/extdata/`, which demonstrate the import and preprocessing functions from
+  their respective input formats;
+- the additional information needed for the *spike-in* benchmarking examples.
+
+The distributed reports contain a random subset of 2,000 protein groups drawn
+from the full experiments. The selection was made at random, rather than keeping
+only the best-covered proteins, so that the examples retain a realistic structure
+of missing values. Selecting only the best-quantified proteins would have removed
+much of the missingness NADIA exists to examine and handle.
+
+The full experiments are unpublished and are part of neither the package nor the
+repository. The script `inst/scripts/make_extdata.R` documents how the trimmed
+reports and the `nadia_dia` object were derived from the original data, so the
+operations used to prepare the example sets are on record even though the full
+experiments are not distributed.
+
+These data are provided solely to demonstrate, test and reproduce the behaviour
+of the package. They should not be treated as reference datasets from which to
+draw biological conclusions about the original experiments.
 
 ## License
 
-GPL-3 (or any later version) (c) 2025 Sergio Ciordia
+NADIA is free and open-source software distributed under the terms of the GNU
+General Public License, version 3 or any later version. The code may be used,
+modified and redistributed in accordance with the conditions of that licence. See
+the `LICENSE` file and the `License:` field of `DESCRIPTION` for further details.
+
+Copyright © 2025–2026 Sergio Ciordia.

@@ -8,19 +8,20 @@ Authors@R: person(
     email = "sciordia@gmail.com",
     role = c("aut", "cre"),
     comment = c(ORCID = "0000-0002-5726-853X"))
-Description: Provides a complete workflow for the differential expression
-    analysis of protein quantification data, with particular attention to the
-    missing values that dominate data-independent acquisition (DIA) experiments.
-    Raw reports from Spectronaut, DIA-NN and Proteome Discoverer (both TMT and
-    label-free) are parsed into a common structure and then normalised,
-    optionally batch-corrected, imputed and tested for differential abundance
-    with limma or limpa. Thirteen normalisation methods and nineteen imputation
-    methods are available, including two-stage hybrids that treat values missing
-    at random and missing not at random separately. Benchmarking functions score
-    and rank method combinations using ground-truth simulation and spike-in
-    datasets, so that a choice of pipeline can be justified on the data at hand
-    rather than by convention. Results are summarised as interactive Highcharts
-    figures, static ggplot2 and ComplexHeatmap graphics, and sortable tables.
+Description: Provides an end-to-end workflow for differential abundance
+    analysis of protein quantification data, with particular attention to
+    missing values in data-independent acquisition (DIA) proteomics.
+    Quantification reports exported from Spectronaut, DIA-NN and Proteome
+    Discoverer for TMT and label-free experiments (DDA/DIA) are converted into
+    a common data structure, normalised, optionally batch-corrected, imputed and
+    analysed using limma or limpa. The package includes individual and two-stage
+    imputation strategies that treat values assumed to be missing at random and
+    missing not at random separately. Data-driven functions evaluate and rank
+    normalisation and imputation workflows using simulated missingness or
+    spike-in datasets with known ground truth, allowing method selection to be
+    justified for each dataset. Results can be explored through interactive
+    Highcharts visualisations, static ggplot2 and ComplexHeatmap figures, and
+    sortable tables.
 License: GPL (>= 3)
 Encoding: UTF-8
 URL: https://github.com/sciordia/NADIA
