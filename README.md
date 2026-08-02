@@ -2,8 +2,8 @@
 
 <div align="justify">
 
-Differential abundance analysis in quantitative proteomics, with explicit
-treatment of missing values.
+*Differential abundance analysis in quantitative proteomics, with explicit
+treatment of missing values.*
 
 NADIA is an R package that provides a complete workflow for the differential
 abundance analysis of proteins. It processes quantitative data from DIA, TMT and
@@ -49,26 +49,26 @@ rather than to remove it or impute it without assessing the consequences.
 From the quantification report to reproducible results, ready to explore or
 export:
 
-1. Import and preprocessing — Reads quantification reports from Spectronaut
+1. *Import and preprocessing* — Reads quantification reports from Spectronaut
    and DIA-NN, as well as TMT and label-free (DDA) experiments processed with
    Proteome Discoverer. Every format is converted into a common
    `proteomics_data` object, so that the rest of the workflow is independent of
    the source software.
-2. Processing and differential abundance — Normalises the data through 13
+2. *Processing and differential abundance* — Normalises the data through 13
    methods, allows batch effects to be diagnosed and corrected, and imputes
    missing values with 19 individual methods or with hybrid strategies that treat
    values assumed to be MAR and MNAR separately. Differential abundance is
    analysed with `limma` or `limpa`.
-3. Method assessment and selection — Compares normalisation and imputation
+3. *Method assessment and selection* — Compares normalisation and imputation
    methods using metrics computed on the data themselves. Where a known reference
    is available, such as a *spike-in* experiment, NADIA evaluates sensitivity,
    specificity and the recovery of the expected changes, and ranks normalisation
    and imputation combinations through the OpDEA approach.
-4. Result analysis and visualisation — Produces interactive figures with
+4. *Result analysis and visualisation* — Produces interactive figures with
    Highcharts, including *volcano plots*, boxplots, PCA and protein cluster
    profiles. It also produces static figures with ggplot2 and ComplexHeatmap, and
    identifies proteins with similar profiles through fuzzy clustering.
-5. Tables and export — Presents the results in interactive tables and exports
+5. *Tables and export* — Presents the results in interactive tables and exports
    the processed matrices, the differential abundance results and the data used
    by the visualisations in formats suited to archiving or further analysis.
 
