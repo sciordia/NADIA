@@ -1,6 +1,6 @@
 Package: NADIA
 Type: Package
-Title: Missing Value-Aware Differential Expression Analysis of DIA Proteomics Data
+Title: Missing Value-Aware Differential Abundance Analysis of Proteomics Data
 Version: 0.99.0
 Authors@R: person(
     given = "Sergio",
