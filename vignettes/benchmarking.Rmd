@@ -316,6 +316,9 @@ why the zoom is worth reading before the full curve.
 
 # The volcanoes
 
+Shown but not run, to keep this vignette light; `vignette("visualization")`
+renders the interactive figures live.
+
 ```{r bench-volcano, eval = FALSE}
 # One interactive volcano per comparison, points coloured by species
 bench$hc_volcano_list[["B-A"]]

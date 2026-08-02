@@ -198,8 +198,9 @@ c(before = pp$n_features_input, after = pp$n_features_final)
 
 # The profiles
 
-Two interactive views. The first draws every protein in a cluster, with the
-centroid on top:
+Two interactive views, shown but not run — `vignette("visualization")` is the
+one that renders Highcharts live. The first draws every protein in a cluster,
+with the centroid on top:
 
 ```{r profiles, eval = FALSE}
 plots <- cluster_profile_highchart_list(pp$long_output, min_membership = 0.5)

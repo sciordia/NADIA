@@ -46,9 +46,17 @@ data(nadia_dia)
 res <- process_proteomics(nadia_dia, verbose = FALSE)
 ```
 
-Interactive widgets are not rendered in this vignette — they would multiply its
-size — so the Highcharts chunks below are shown but not run. Each returns a
-`highchart` object that prints in RStudio, a browser, or an R Markdown document.
+**One figure per module is rendered live** below — a volcano, a boxplot and a
+PCA. Hover a point to read its identity, drag to zoom, click a legend entry to
+hide a series. The variations on each are shown as code without being run: the
+Highcharts library costs about 2 MB once, and each rendered figure carries its
+own data, which for 2,000 proteins is another 500 KB or so. Three is what fits
+comfortably; the rest would take this document past the size a package should
+ship.
+
+The `*_highchart_list()` functions return a **named list**, one element per
+comparison or assay, so the examples subset it — `[["B-A"]]`, `[["any"]]` — to
+render a single figure. Printing the list itself renders nothing useful.
 
 ## A note on Highcharts licensing
 
@@ -81,11 +89,11 @@ str(res$PCA_Input,     max.level = 1, give.attr = FALSE, list.len = 4)
 
 # Volcano plots
 
-```{r volcano, eval = FALSE}
+```{r volcano}
 v <- volcano_highchart_list(res$DEPs_results,
                             alpha   = 0.05,
                             lfc_thr = 1,
-                            palette = "Set1")
+                            palette = "RColorBrewer::Set1")
 v[["B-A"]]
 ```
 
@@ -98,7 +106,7 @@ thereby significant.
 Two arguments label points. `show_top_genes` takes the *n* most significant:
 
 ```{r volcano-top, eval = FALSE}
-volcano_highchart_list(res$DEPs_results, show_top_genes = 10)
+volcano_highchart_list(res$DEPs_results, show_top_genes = 10)[["B-A"]]
 ```
 
 `highlight_genes` takes a list you choose, which is usually what a figure for a
@@ -106,7 +114,7 @@ paper needs — the proteins the paper is about, whether or not they top the tab
 
 ```{r volcano-highlight, eval = FALSE}
 volcano_highchart_list(res$DEPs_results,
-                       highlight_genes = c("ALB", "NUDT4B", "EPPK1"))
+                       highlight_genes = c("ALB", "NUDT4B", "EPPK1"))[["B-A"]]
 ```
 
 `p_col` switches the y axis between `adj.P.Val` (the default, and the honest
@@ -121,11 +129,11 @@ the effect of a processing step:
 unique(res$BoxPlot_Input$Assay)
 ```
 
-```{r boxplot, eval = FALSE}
+```{r boxplot}
 boxplot_highchart_list(res$BoxPlot_Input,
                        assays     = c("log2", "Impseqrob_min"),
                        color_by   = "Condition",
-                       horizontal = TRUE)
+                       horizontal = TRUE)[["Impseqrob_min"]]
 ```
 
 Comparing `log2` against the processed assay is the standard check that
@@ -138,21 +146,26 @@ when there are thousands of them and the browser starts to labour.
 
 # PCA
 
-```{r pca, eval = FALSE}
+```{r pca}
 pca_highchart_list(res$PCA_Input,
                    modes        = c("all", "any"),
                    ellipse_type = "confidence",
-                   addEllipses  = TRUE)
+                   addEllipses  = TRUE)[["any"]]
 ```
 
 Three arguments deserve attention.
 
 **`modes`** — note the plural — selects which proteins enter the projection.
 `"all"` uses every protein; `"any"` restricts to those significant in at least
-one comparison; `"specific"` restricts to one named comparison. The two answer
-different questions: `"all"` asks whether the samples separate at all, `"any"`
-asks how well they separate *given* the proteins the analysis already selected.
-The second will always look better, and that is not evidence of anything.
+one comparison; and **the name of a comparison**, such as `"B-A"`, restricts to
+the proteins significant in that one. Note that the third form is a comparison
+name, not a keyword: there is no `"specific"` mode here, unlike the heatmap and
+the Pattern Profiler, where `filter_mode = "specific"` is spelled that way.
+
+The first two answer different questions: `"all"` asks whether the samples
+separate at all, `"any"` asks how well they separate *given* the proteins the
+analysis already selected. The second will always look better, and that is not
+evidence of anything.
 
 **`ellipse_type`** is the one to think about:
 
@@ -170,8 +183,8 @@ with four replicates per group it is a claim resting on three degrees of freedom
 experiment has more than two groups.
 
 ```{r pca-filtered, eval = FALSE}
-pca_highchart_list(res$PCA_Input, modes = "specific",
-                   filter_samples_to_comparison = TRUE)
+pca_highchart_list(res$PCA_Input, modes = "B-A",
+                   filter_samples_to_comparison = TRUE)[["B-A"]]
 ```
 
 `scale. = TRUE` (the default) gives every protein equal weight. Turn it off and
@@ -213,16 +226,18 @@ proteomics_heatmap_list(res$PCA_Input, modes = c("all", "any"),
 
 # Palettes
 
-Every module accepts `palette`, resolved in the same order everywhere: a built-in
-name, then an RColorBrewer name, then a `paletteer` specification, then a plain
-vector of colours you supply.
+Every module accepts `palette`, and it is resolved by `paletteer`, so it takes
+the `package::palette` form — a bare `"Set1"` is not enough, because paletteer
+needs to know which package that name belongs to. The alternative is `colors`,
+which takes the hex values directly.
 
 ```{r palettes, eval = FALSE}
-volcano_highchart_list(res$DEPs_results, palette = "Set1")          # Brewer
-volcano_highchart_list(res$DEPs_results, palette = "ggsci::nrc_npg") # paletteer
 volcano_highchart_list(res$DEPs_results,
-                       colors = c(Up = "#D55E00", Down = "#0072B2",
-                                  `No Change` = "#BBBBBB"))          # explicit
+                       palette = "ggsci::nrc_npg")[["B-A"]]
+
+volcano_highchart_list(res$DEPs_results,
+                       colors = list(Up = "#D55E00", Down = "#0072B2",
+                                     `No Change` = "#BBBBBB"))[["B-A"]]
 ```
 
 The explicit form is worth using for anything that will be published: it is the

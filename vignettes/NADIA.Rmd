@@ -205,7 +205,9 @@ can do on its own — and they are the reason
 ## Interactive
 
 Three of the visualisation modules produce Highcharts objects, one per
-comparison:
+comparison. They are not rendered here — the Highcharts library costs about 2 MB
+per document and `vignette("visualization")` is where that is paid, with the
+figures live:
 
 ```{r hc, eval = FALSE}
 volcano <- volcano_highchart_list(res$DEPs_results)
