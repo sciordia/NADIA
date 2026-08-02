@@ -67,11 +67,12 @@ table(nadia_dia$metadata$R.Condition)
 dim(nadia_dia$protein_quant)
 grep("^PG.Quantity_", colnames(nadia_dia$protein_quant), value = TRUE)
 
-# Missing values, which is what the package is about. Spectronaut writes
-# zeros where a protein was not quantified.
+# Missing values, which is what the package is about. A Spectronaut report is
+# long, one row per run and protein group, and where a protein was not
+# quantified the row is simply absent; the pivot to wide format is what turns
+# those absences into NA.
 quant <- as.matrix(nadia_dia$protein_quant[
   grep("^PG.Quantity_", colnames(nadia_dia$protein_quant))])
-quant[quant == 0] <- NA
 round(100 * mean(is.na(quant)), 1)
 }
 \keyword{datasets}

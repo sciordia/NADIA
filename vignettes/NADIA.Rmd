@@ -85,13 +85,19 @@ identical(dim(nadia_dia$protein_quant), dim(dia$protein_quant))
 ```
 
 The missing values are the reason the package exists, so it is worth looking at
-them before anything else. Spectronaut writes a zero where a protein was not
-quantified:
+them before anything else — and it is worth being precise about where they come
+from, because each tool encodes them differently.
+
+A Spectronaut report is **long**: one row per run and protein group. Where a
+protein was not quantified in a run, there is no value to write — **the row is
+simply absent**. In the full experiment behind this example, 11,679 of the
+16 × 10,437 possible combinations have no row, which is 7 % of the grid.
+`preprocess_spectronaut()` pivots that long table into the wide `protein_quant`
+matrix, and it is the pivot that turns those absences into `NA`:
 
 ```{r missing}
 quant <- as.matrix(nadia_dia$protein_quant[
     grep("^PG.Quantity_", colnames(nadia_dia$protein_quant))])
-quant[quant == 0] <- NA
 
 round(100 * mean(is.na(quant)), 1)          # percentage of missing intensities
 round(100 * mean(rowSums(is.na(quant)) == 0), 1)  # complete proteins
@@ -100,6 +106,17 @@ round(100 * mean(rowSums(is.na(quant)) == 0), 1)  # complete proteins
 Roughly 8 % of the intensities are absent, and about a quarter of the proteins
 have at least one gap. Those are the proteins the rest of this vignette has to
 decide what to do with.
+
+Other tools encode the same thing differently, which is why the pipeline does not
+rely on any single convention. DIA-NN and Proteome Discoverer leave the cell
+**empty**, which `readr` parses as `NA` on the way in. Some exports — including
+Spectronaut's *pivot* report, which is a different format from the long one read
+here — write `NaN`, and R treats that as missing too. A few write a literal
+**zero**, which is the dangerous one: a zero is a number, it survives into `log2`
+as `-Inf`, and it would be silently treated as a real measurement. That is why
+`normalize_proteomics()` converts zeros to `NA` before doing anything else, and
+reports how many it converted when `verbose = TRUE`. On this dataset it converts
+none, because there are none to convert.
 
 # The pipeline in one call
 
