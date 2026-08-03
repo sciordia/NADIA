@@ -19,38 +19,48 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
 
 # Introduction
 
-NADIA analyses protein quantification data from bottom-up proteomics, from the
-raw search-engine report to the differentially abundant proteins and the figures
-that describe them.
+NADIA provides a complete workflow for the analysis of protein quantification
+data from bottom-up proteomics. It starts from quantification reports exported by
+Spectronaut, DIA-NN or Proteome Discoverer and produces processed matrices,
+differential abundance results, tables and visualisations.
 
-The name says what the package is about. **DIA** is data-independent
-acquisition, and **NA** is the missing values that dominate it. A DIA experiment
-routinely leaves 5-20 % of its quantification matrix empty, and those blanks are
-not an accident of the instrument: a protein below the detection limit in one
-condition and above it in another produces exactly the pattern that a
-differential expression test is supposed to find. Deleting those proteins throws
-away the signal; filling them in carelessly manufactures it.
+The name NADIA combines NA, the way R represents missing values, with DIA,
+data-independent acquisition, the proteomics context in which the package was
+first developed. Although NADIA also processes TMT and label-free (DDA) data, it
+pays particular attention to the missing values that routinely appear in DIA
+experiments.
 
-That is why the package treats normalisation and imputation as decisions to be
-measured rather than defaults to be accepted. It offers 13 normalisation methods
-and 19 imputation methods, and — more to the point — functions that score them
-against each other on your own data.
+These values do not always represent random measurement failures. Some may relate
+to abundances close to or below the limit of detection, and therefore carry
+information relevant to the differential abundance analysis. Removing every
+affected protein may discard biological signal, while unsuitable imputation may
+attenuate real differences or introduce artificial ones.
 
-This vignette walks the whole pipeline once, on a DIA experiment. The other eight
-vignettes each take one part of it further:
+For this reason, NADIA treats normalisation and imputation as decisions to be
+assessed, rather than as default processing steps. The package includes 13
+normalisation methods and 19 imputation strategies, together with functions to
+compare them and evaluate their behaviour on the data themselves or against a
+known reference.
+
+This vignette walks once through the complete workflow using a DIA experiment:
+import, inspection of the missing values, normalisation, imputation, differential
+abundance analysis and preparation of the results for visualisation. The
+remaining vignettes go further into each module and can be read independently.
 
 | Vignette | Question it answers |
 |---|---|
-| `vignette("input-formats")` | My data are TMT or label-free, not DIA |
-| `vignette("missing-values")` | Which imputation method, and why |
-| `vignette("choosing-methods")` | How do I pick, with no ground truth |
-| `vignette("benchmarking")` | I have a spike-in, so I *do* have ground truth |
-| `vignette("batch-correction")` | My samples were run in batches |
-| `vignette("pattern-profiler")` | Which proteins behave alike across conditions |
-| `vignette("visualization")` | I want to adjust the figures |
-| `vignette("results-and-export")` | How do I get results out of R |
+| `vignette("input-formats")` | How do I import DIA, TMT or label-free data? |
+| `vignette("missing-values")` | What do the missing values mean and how should I impute them? |
+| `vignette("choosing-methods")` | How do I compare the methods when I have no known reference? |
+| `vignette("benchmarking")` | How do I evaluate the pipelines with a *spike-in* experiment? |
+| `vignette("batch-correction")` | How do I diagnose, correct and verify a batch effect? |
+| `vignette("pattern-profiler")` | How do I identify proteins with similar profiles across conditions? |
+| `vignette("visualization")` | How do I customise the interactive and static figures? |
+| `vignette("results-and-export")` | How do I export, archive and share the results? |
 
 # Installation
+
+Once NADIA is available on Bioconductor, it can be installed with BiocManager:
 
 ```{r install, eval = FALSE}
 if (!requireNamespace("BiocManager", quietly = TRUE))
@@ -58,15 +68,20 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 BiocManager::install("NADIA")
 ```
 
+After installation, the package is loaded into the R session:
+
 ```{r library, message = FALSE}
 library(NADIA)
 ```
 
-# The data
+# Example data
 
-The package ships a trimmed Spectronaut experiment: three conditions of four
-replicates, 2,000 protein groups. It is available both as a report file, so that
-parsing can be shown end to end, and as an already-parsed object.
+NADIA ships a trimmed DIA dataset derived from a Spectronaut quantification
+report. The experiment used in this vignette contains three conditions — A, B and
+D — four replicates per condition and 2,000 protein groups.
+
+The dataset is available in two forms. The first is a compressed quantification
+report, which allows import and preprocessing to be shown from the start:
 
 ```{r data}
 report <- system.file("extdata", "nadia_dia_report.tsv.gz", package = "NADIA")
@@ -75,25 +90,38 @@ dia <- preprocess_spectronaut(report, condition_order = c("A", "B", "D"),
 dia
 ```
 
-`preprocess_spectronaut()` turns the long, run-level report into three tables:
-the sample `metadata`, the protein `protein_id` annotation, and the
-`protein_quant` matrix. The same object is available without re-reading the file:
+`preprocess_spectronaut()` turns the long-format report — one row per reported
+combination of run and protein group — into a `proteomics_data` object. That
+object holds three main elements:
+
+- `metadata`, the sample information
+- `protein_id`, the protein group annotation
+- `protein_quant`, the quantification matrix
+
+In this example, `condition_order = c("A", "B", "D")` selects the conditions to
+keep and sets the order used in the later steps.
+
+The same dataset is also distributed as an already preprocessed object, which
+allows the rest of the workflow to be run without reading the report again:
 
 ```{r data-obj}
 data(nadia_dia)
 identical(dim(nadia_dia$protein_quant), dim(dia$protein_quant))
 ```
 
-The missing values are the reason the package exists, so it is worth looking at
-them before anything else — and it is worth being precise about where they come
-from, because each tool encodes them differently.
+`nadia_dia` is the object used throughout the rest of this vignette.
 
-A Spectronaut report is **long**: one row per run and protein group. Where a
-protein was not quantified in a run, there is no value to write — **the row is
-simply absent**. In the full experiment behind this example, 11,679 of the
-16 × 10,437 possible combinations have no row, which is 7 % of the grid.
-`preprocess_spectronaut()` pivots that long table into the wide `protein_quant`
-matrix, and it is the pivot that turns those absences into `NA`:
+## How missing values are represented
+
+Before processing the data it is worth checking how the missing values are
+represented, because that encoding depends on the export format used.
+
+The Spectronaut report used here is in long format: each row corresponds to a
+reported combination of run and protein group. Where no quantification exists for
+a given combination, that combination has no row at all. When the report is
+turned into the wide `protein_quant` matrix, `preprocess_spectronaut()` completes
+the grid of protein groups and samples, and represents as `NA` the combinations
+that were not present in the report:
 
 ```{r missing}
 quant <- as.matrix(nadia_dia$protein_quant[
@@ -103,70 +131,135 @@ round(100 * mean(is.na(quant)), 1)          # percentage of missing intensities
 round(100 * mean(rowSums(is.na(quant)) == 0), 1)  # complete proteins
 ```
 
-Roughly 8 % of the intensities are absent, and about a quarter of the proteins
-have at least one gap. Those are the proteins the rest of this vignette has to
-decide what to do with.
+In the full experiment from which this trimmed set was taken, 11,679 of the
+16 × 10,437 possible sample and protein group combinations were absent, roughly
+7 % of the matrix. In the `nadia_dia` object, around 8 % of the intensities are
+missing and about a quarter of the protein groups contain at least one.
 
-Other tools encode the same thing differently, which is why the pipeline does not
-rely on any single convention. DIA-NN and Proteome Discoverer leave the cell
-**empty**, which `readr` parses as `NA` on the way in. Some exports — including
-Spectronaut's *pivot* report, which is a different format from the long one read
-here — write `NaN`, and R treats that as missing too. A few write a literal
-**zero**, which is the dangerous one: a zero is a number, it survives into `log2`
-as `-Inf`, and it would be silently treated as a real measurement. That is why
-`normalize_proteomics()` converts zeros to `NA` before doing anything else, and
-reports how many it converted when `verbose = TRUE`. On this dataset it converts
-none, because there are none to convert.
+These are the observations for which the later stages must decide whether to keep
+the missing value, impute it, or exclude the protein group.
 
-# The pipeline in one call
+Other export formats may encode absence in different ways. An empty cell is
+converted directly to `NA` on import, while `NaN` is also recognised as missing
+by functions such as `is.na()`. Some reports use a zero as the marker of absence.
+In an intensity matrix that zero requires explicit handling, because `log2(0)`
+yields `-Inf` rather than a missing value.
 
-`process_proteomics()` runs the four steps in order — normalisation, optional
-batch correction, imputation, differential expression — and returns everything
-downstream needs.
+For this reason, `normalize_proteomics()` converts zeros to `NA` before applying
+the logarithmic transformation, and reports how many it converted when
+`verbose = TRUE`. On `nadia_dia` no conversion takes place, because the example
+matrix contains no zeros.
+
+At this stage no assumption is yet made about whether each missing value is MAR
+or MNAR. `vignette("missing-values")` explains the assumptions used to
+distinguish the two and how they are mapped onto the imputation methods.
+
+# The workflow in a single call
+
+`process_proteomics()` coordinates the main stages of the analysis:
+normalisation, optional batch-effect correction, imputation of the missing values
+and differential abundance analysis. The function returns in memory the objects
+and tables needed to inspect, visualise and export the results.
 
 ```{r process}
 res <- process_proteomics(nadia_dia, verbose = FALSE)
 res
 ```
 
-With no arguments beyond the data it uses cyclic loess normalisation, the
-two-stage `combo` imputation and limma. Those defaults are defensible, not
-optimal; `vignette("choosing-methods")` shows how to check them against your own
-data.
+In this call only the dataset is supplied, so NADIA uses its default
+configuration:
 
-The result carries the `SummarizedExperiment` with one assay per stage:
+- normalisation with `cycloess`;
+- the hybrid `combo` imputation strategy;
+- differential abundance analysis with `limma`.
+
+No batch correction is applied, because no information on technical factors was
+supplied and that stage was not explicitly requested.
+
+With `imp_method = "combo"`, the missing values are assigned to two imputation
+branches according to the rules of the hybrid strategy. Since neither
+`mar_method` nor `mnar_method` is specified, their defaults are used:
+`Impseqrob` for the values classified as MAR and `min` for those classified as
+MNAR.
+
+These defaults provide a reasonable starting point, but they are not a
+universally optimal choice. `vignette("choosing-methods")` shows how to compare
+the alternatives on the data themselves, while `vignette("missing-values")`
+explains the assumptions behind the different imputation strategies.
+
+The processed object is stored in `res$se_proc` as a `SummarizedExperiment`, with
+one assay for each processing stage:
 
 ```{r assays}
 SummarizedExperiment::assayNames(res$se_proc)
 ```
 
-`raw` is the input, `log2` its logarithm, `cycloess` the normalised matrix and
-`Impseqrob_min` the imputed one. The last name is not a label but a record: the
-`combo` method filled values missing at random with `Impseqrob` and those missing
-not at random with `min`, and says so.
+The assays produced in this analysis are:
 
-# The results
+- `raw`, the input quantification matrix;
+- `log2`, the matrix after the logarithmic transformation;
+- `cycloess`, the normalised matrix;
+- `Impseqrob_min`, the matrix after the hybrid imputation.
+
+The name `Impseqrob_min` encodes the two methods used by `combo`: `Impseqrob` for
+the MAR branch first, then `min` for the MNAR branch. This naming helps identify
+where the assay came from, although fully reproducing the analysis also requires
+keeping the arguments used and the package version.
+
+# Differential abundance results
+
+`res$DEPs_results` holds the main table of the differential abundance analysis:
 
 ```{r deps}
 head(res$DEPs_results, 4)
 ```
 
-One row per protein and comparison. All three pairwise contrasts were built
-automatically:
+Each row corresponds to a combination of protein group and comparison. The same
+protein group may therefore appear in several rows if it takes part in more than
+one comparison.
+
+The pairwise comparisons are built automatically from the conditions and the
+order defined during preprocessing:
 
 ```{r contrasts}
 res$comparisons
 table(res$DEPs_results$Change, res$DEPs_results$Comparison)
 ```
 
-`Change` classifies each protein as `Up`, `Down` or `No Change` using `alpha` and
-`logFC_threshold` together. It is a convenience, not a separate test: the
-underlying evidence is in `adj.P.Val` and `logFC`.
+The `Change` column classifies each result as `Up`, `Down` or `No Change`, using
+the thresholds set through `alpha` and `logFC_threshold` together:
 
-The three `Missing*` columns are what makes a result interpretable once
-imputation is in play. They record the percentage of missing values *before* it,
-globally and in each of the two groups being compared. Cross them with `Change`
-and the structure of the data becomes visible:
+- `Up`, statistically significant with a positive logFC above the threshold
+- `Down`, statistically significant with a negative logFC below the threshold
+- `No Change`, not meeting both criteria together
+
+`Change` is an interpretive label, not an additional statistical test. The
+underlying evidence remains in `logFC`, `P.Value` and `adj.P.Val`, and those
+values should be consulted whenever the magnitude and the uncertainty of a result
+need to be interpreted.
+
+## Relationship with the missing values
+
+When imputation has been applied, the statistical result must be interpreted
+together with the information about the values that were missing before that
+stage.
+
+NADIA keeps three columns:
+
+- `MissingGlobal`, the percentage of missing values of the protein group across
+  the samples of the two conditions being compared;
+- `MissingPCT1` and `MissingPCT2`, the percentages of missing values in each of
+  the two groups involved in the comparison. In a `B-A` comparison,
+  `MissingPCT1` corresponds to the numerator (B) and `MissingPCT2` to the
+  denominator (A).
+
+These columns describe the observed support behind a result. They do not
+determine whether a change is biologically real, but they distinguish estimates
+based mainly on measured intensities from estimates that depend largely on
+imputed values.
+
+The relationship between missingness and the differential call can be summarised
+directly:
 
 ```{r missing-cols}
 bins <- cut(res$DEPs_results$MissingGlobal, c(-1, 0, 25, 50, 100),
@@ -174,15 +267,22 @@ bins <- cut(res$DEPs_results$MissingGlobal, c(-1, 0, 25, 50, 100),
 table(missing = bins, res$DEPs_results$Change)
 ```
 
-Read the rows. Proteins with no missing values at all are mostly unchanged, and
-when they do move they move up. Proteins missing between a quarter and a half of
-their values are almost all called *down* — 619 against 70. That asymmetry is not
-a bug in the test; it is the signature of values missing **not** at random. A
-protein that drops below the detection limit in one condition leaves blanks
-there, and blanks filled from the low end of the distribution become a downward
-fold change.
+In this example dataset, most results with no missing values are called
+`No Change`. Among results with 26–50 % missing values, by contrast, there is a
+marked asymmetry: 619 are called `Down` against 70 called `Up`.
 
-At the extreme the pattern is unambiguous:
+This pattern does not prove that all those missing values are MNAR, but it is
+consistent with a substantial abundance-dependent component of missingness. When
+a protein group stops being quantified in one condition, values imputed from the
+lower end of the distribution can produce a large negative change.
+
+Interpretation must always be made in the context of the missingness pattern and
+the imputation method used.
+
+## Detection and non-detection patterns between conditions
+
+The most extreme case arises when a protein group is quantified in no replicate
+of one condition but in every replicate of the other:
 
 ```{r onoff}
 onoff <- subset(res$DEPs_results,
@@ -193,39 +293,66 @@ head(onoff[, c("Protein.IDs", "Comparison", "logFC", "adj.P.Val",
                "MissingPCT1", "MissingPCT2")], 4)
 ```
 
-Five hundred rows where a protein is entirely absent from one group and entirely
-present in the other. Those are on/off signals, and a fold change of -11 is a
-statement about the detection limit rather than a measured ratio. The columns let
-you separate them from fold changes built on measured values, which no p-value
-can do on its own — and they are the reason
-`vignette("missing-values")` is worth reading before trusting a method choice.
+Roughly 500 results in this analysis have 100 % missing values in one group and
+0 % in the other. These are detection versus non-detection patterns between
+conditions. They may represent biologically relevant changes, but they call for a
+different interpretation from the one applied to a ratio computed solely from
+observed intensities.
 
-# Figures
+A logFC of around −11, for example, should not be read as a directly measured
+abundance ratio. Its magnitude depends largely on the value introduced by the
+MNAR method, and it states that one condition lies below the quantifiable range
+relative to the other.
 
-## Interactive
+The `MissingPCT1` and `MissingPCT2` columns make that provenance visible, whereas
+the p-value alone says nothing about how many observations were measured and how
+many were imputed. `vignette("missing-values")` develops this distinction and
+explains how the different imputation strategies affect these results.
 
-Three of the visualisation modules produce Highcharts objects, one per
-comparison. They are not rendered here — the Highcharts library costs about 2 MB
-per document and `vignette("visualization")` is where that is paid, with the
-figures live:
+# Visualising the results
+
+`process_proteomics()` prepares three tables that can be used directly by the
+visualisation modules:
+
+- `res$DEPs_results`, for the *volcano plots*;
+- `res$BoxPlot_Input`, to compare the sample distributions across the different
+  assays;
+- `res$PCA_Input`, for PCA and heatmaps.
+
+The visualisation functions take these tables rather than the complete
+`SummarizedExperiment`, which means they can also be applied to results that have
+been modified or produced by other workflows, provided they keep the expected
+structure.
+
+## Interactive figures
+
+NADIA produces interactive volcano plots, boxplots and PCA projections through
+Highcharts. Each function returns a named list whose elements correspond —
+depending on the module — to comparisons, assays or protein selection modes:
 
 ```{r hc, eval = FALSE}
 volcano <- volcano_highchart_list(res$DEPs_results)
 boxplot <- boxplot_highchart_list(res$BoxPlot_Input)
-pca     <- pca_highchart_list(res$PCA_Input, res$DEPs_results)
+pca     <- pca_highchart_list(res$PCA_Input)
 
 volcano[["B-A"]]
 ```
 
-They are omitted from this vignette's output only to keep it small.
-`vignette("visualization")` covers their options, and
-`vignette("results-and-export")` shows how to save them.
+`volcano[["B-A"]]`, for example, selects the volcano plot for the `B-A`
+comparison.
 
-## Static
+These figures are not rendered in this vignette, to keep the document small.
+`vignette("visualization")` shows live versions of the three modules and explains
+their main customisation options. `vignette("results-and-export")` describes how
+to save each widget as an HTML file.
 
-The heatmap takes `PCA_Input`, the long table the pipeline already built, and
-selects the proteins itself. `mode = "target"` keeps those significant in one
-named comparison.
+## Static figure
+
+`proteomics_heatmap()` produces a static heatmap from `res$PCA_Input`. The
+function can select which protein groups are shown itself.
+
+In the example below, `mode = "target"` restricts the figure to the protein
+groups significant in the comparison named through `comparison`:
 
 ```{r heatmap, fig.width = 6.5, fig.height = 5.5, fig.alt = "Heatmap of the proteins significant in the B-A comparison"}
 hm <- proteomics_heatmap(
@@ -240,12 +367,42 @@ hm <- proteomics_heatmap(
 hm
 ```
 
-# What to read next
+The figure uses the following options:
 
-The single decision with the largest effect on this table is which normalisation
-and imputation methods produced it. `vignette("choosing-methods")` measures the
-alternatives on this same dataset; `vignette("missing-values")` explains what the
-imputation methods actually assume.
+- `comparison = "B-A"` selects the comparison of interest;
+- `scale_data = "row"` standardises the profile of each protein group separately,
+  so that colour represents relative changes between samples rather than
+  differences in absolute abundance between proteins;
+- `sample_order = "condition"` groups the samples by condition;
+- `condition_order = c("A", "B", "D")` sets the order of those conditions
+  explicitly;
+- `show_row_names = FALSE` hides the identifiers, which would otherwise be
+  illegible when many rows are drawn.
+
+The heatmap therefore shows the relative patterns of the selected protein groups
+across the A, B and D samples. It should not be read as a map of absolute protein
+abundances.
+
+Further options for selection, clustering, ordering and customisation are
+described in `vignette("visualization")`.
+
+# Next steps
+
+This vignette has shown the complete workflow using NADIA's default
+configuration. Those defaults provide a reproducible starting point, but they
+should not be read as the best choice for every dataset.
+
+One of the decisions with the largest effect on the final table is which
+normalisation and imputation methods are used. `vignette("missing-values")`
+explains the assumptions behind the available strategies, while
+`vignette("choosing-methods")` shows how to compare them when no known reference
+is available. When the experiment contains a spike-in,
+`vignette("benchmarking")` evaluates them against the expected changes.
+
+To import your own data, adjust figures or export the results, see the vignettes
+linked in the introduction.
+
+The session information used to generate this vignette is shown below:
 
 ```{r session}
 sessionInfo()
