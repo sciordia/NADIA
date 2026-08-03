@@ -354,7 +354,7 @@ function can select which protein groups are shown itself.
 In the example below, `mode = "target"` restricts the figure to the protein
 groups significant in the comparison named through `comparison`:
 
-```{r heatmap, fig.width = 6.5, fig.height = 5.5, fig.alt = "Heatmap of the proteins significant in the B-A comparison"}
+```{r heatmap, message = FALSE, warning = FALSE, fig.width = 6.5, fig.height = 5.5, fig.alt = "Heatmap of the proteins significant in the B-A comparison"}
 hm <- proteomics_heatmap(
     res$PCA_Input,
     mode            = "target",
