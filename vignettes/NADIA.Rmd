@@ -24,11 +24,12 @@ data from bottom-up proteomics. It starts from quantification reports exported b
 Spectronaut, DIA-NN or Proteome Discoverer and produces processed matrices,
 differential abundance results, tables and visualisations.
 
-The name NADIA combines NA, the way R represents missing values, with DIA,
-data-independent acquisition, the proteomics context in which the package was
-first developed. Although NADIA also processes TMT and label-free (DDA) data, it
-pays particular attention to the missing values that routinely appear in DIA
-experiments.
+The name is drawn from the package title, *Missing Value-Aware Differential
+Abundance Analysis of DIA Proteomics Data*, and it reads on two levels: **NA** is
+the way R represents missing values, and **DIA** is data-independent acquisition,
+the proteomics context in which the package was first developed. Although NADIA
+also processes TMT and label-free (DDA) data, it pays particular attention to the
+missing values that routinely appear in DIA experiments.
 
 These values do not always represent random measurement failures. Some may relate
 to abundances close to or below the limit of detection, and therefore carry
@@ -92,11 +93,29 @@ dia
 
 `preprocess_spectronaut()` turns the long-format report — one row per reported
 combination of run and protein group — into a `proteomics_data` object. That
-object holds three main elements:
+object holds three main elements, which split the report along its two natural
+axes, identification and quantification:
 
-- `metadata`, the sample information
-- `protein_id`, the protein group annotation
-- `protein_quant`, the quantification matrix
+- `metadata`, one row per run: file name, condition, replicate, and the
+  identification counts the report gives for the run as a whole.
+- `protein_id` (2,000 × 52 here), the **identification** side. It lists the
+  protein groups the search reported after FDR filtering, with their description,
+  gene names and molecular weight, and then, for each run separately, how many
+  precursors and how many peptides were identified and assigned to each group,
+  along with the sequence coverage and the run-wise C-score.
+- `protein_quant` (2,000 × 44), the **quantification** side. Alongside the same
+  protein annotation it carries the intensity of each protein group in each run,
+  in the `PG.Quantity_*` columns, and next to it how many precursors and peptides
+  were actually used to compute that intensity — which is not the same as how
+  many were identified.
+
+`protein_quant` is the table everything downstream works on. Normalisation,
+imputation and the differential abundance analysis all start from the intensity
+matrix it holds, and the peptide counts beside it are carried through as
+`UniqPepts`, so the results table can say on how few peptides a protein rests.
+`protein_id` is not read by the pipeline at all: it feeds
+`protein_list_reactable()` and is what lets a result be traced back to the
+identification evidence behind it.
 
 In this example, `condition_order = c("A", "B", "D")` selects the conditions to
 keep and sets the order used in the later steps.
@@ -187,8 +206,30 @@ universally optimal choice. `vignette("choosing-methods")` shows how to compare
 the alternatives on the data themselves, while `vignette("missing-values")`
 explains the assumptions behind the different imputation strategies.
 
-The processed object is stored in `res$se_proc` as a `SummarizedExperiment`, with
-one assay for each processing stage:
+## Where the processed data live
+
+From normalisation onwards, NADIA keeps everything in a
+`SummarizedExperiment`, the container most Bioconductor packages use for omics
+data. The quantification report goes in as a plain table and comes out as one of
+these objects, which means the rest of Bioconductor can be pointed at a NADIA
+result without conversion.
+
+The object holds three things at once, indexed together:
+
+- one or more **assays**, matrices of identical shape with protein groups in rows
+  and samples in columns;
+- **`rowData`**, one row of annotation per protein group;
+- **`colData`**, one row of metadata per sample — the conditions and replicates
+  the design is built from.
+
+Keeping them in a single object is not a matter of tidiness. Subsetting the
+object subsets the annotation with it, so a protein can never end up paired with
+another protein's identifier or a sample with another sample's condition. The
+alignment is structural rather than something every function has to maintain.
+
+NADIA uses the assay slot to record the pipeline itself: one assay per stage,
+each the same matrix at a different point in its processing. The processed object
+is in `res$se_proc`:
 
 ```{r assays}
 SummarizedExperiment::assayNames(res$se_proc)

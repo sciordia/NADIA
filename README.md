@@ -10,6 +10,11 @@ abundance analysis of proteins. It processes quantitative data from DIA, TMT and
 label-free (DDA) experiments, with particular attention to the assessment and
 treatment of the missing values that routinely appear in DIA proteomics data.
 
+The name is drawn from the package title, *Missing Value-Aware Differential
+Abundance Analysis of DIA Proteomics Data*, and it reads on two levels: NA is how
+R represents a missing value, and DIA is data-independent acquisition, the
+setting in which the package was first developed.
+
 ## Why missing values matter
 
 DIA proteomics datasets routinely contain an appreciable proportion of missing
@@ -295,9 +300,15 @@ quantification design.
 3. imputation of missing values
 4. differential abundance analysis
 
-The result includes a `SummarizedExperiment` that keeps the matrices produced at
-each stage as separate assays. It also returns the differential abundance table
-and the inputs used by the visualisation modules.
+From normalisation onwards the data live in a `SummarizedExperiment`, the
+container most Bioconductor packages use for omics data: assays of identical
+shape with protein groups in rows and samples in columns, `rowData` with one row
+of annotation per protein group, and `colData` with one row of metadata per
+sample, all indexed together so that subsetting the object subsets the annotation
+with it. NADIA keeps one assay per pipeline stage, so the input matrix, its
+logarithm, the normalised matrix and the imputed matrix all sit in the same
+object. The result also returns the differential abundance table and the inputs
+used by the visualisation modules.
 
 The main stages can be run individually through `normalize_proteomics()`,
 `batch_correct_proteomics()`, `impute_proteomics()` and
