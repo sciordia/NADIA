@@ -61,7 +61,7 @@ export:
    the source software.
 2. *Processing and differential abundance* — Normalises the data through 13
    methods, allows batch effects to be diagnosed and corrected, and imputes
-   missing values with 19 individual methods or with hybrid strategies that treat
+   missing values with 20 individual methods or with hybrid strategies that treat
    values assumed to be MAR and MNAR separately. Differential abundance is
    analysed with `limma` or `limpa`.
 3. *Method assessment and selection* — Compares normalisation and imputation

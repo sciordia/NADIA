@@ -19,7 +19,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
 
 # Introduction
 
-Thirteen normalisation methods and nineteen imputation methods make 247
+Thirteen normalisation methods and twenty imputation methods make 260
 pipelines, all of which run without complaint and none of which announces itself
 as the right one. The choice is usually made by convention, and convention is a
 poor guide here: the methods differ in their assumptions, and your data either

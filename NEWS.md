@@ -10,11 +10,19 @@ without any change to the results the pipeline produces.
   roxygen2. The way to load the code is now `library(NADIA)`.
 * 102 exported functions covering the whole pipeline: preprocessing of
   Spectronaut/DIA-NN and Proteome Discoverer reports (both TMT and label-free),
-  normalization (13 methods), batch correction, imputation (19 methods),
+  normalization (13 methods), batch correction, imputation (20 methods),
   differential expression with limma or limpa, metrics and benchmarking, and
   interactive and static visualization.
 * Example dataset `nadia_dia` and trimmed reports in `inst/extdata/`, with their
   provenance documented in `inst/scripts/`.
+* **`imp_method = "halfmin"`**, the half-minimum imputation that DIA-NN uses for
+  its own differential analysis: "replaces each missing value with half the
+  observed minimum across all runs". It can be used on its own or as the MNAR
+  stage of `combo` and `softHybrid` (`mnar_method = "halfmin"`), and it takes part
+  in the `imputation_metrics()` benchmark. Since the assay is on the log2 scale,
+  halving the intensity means **one unit below** the global observed minimum, not
+  half of the log2 value — `log2(m / 2)` is `log2(m) - 1`. `combo` still defaults
+  to `mnar_method = "min"`; nothing existing changes.
 
 * Nine vignettes covering the pipeline end to end: `NADIA` (start here), plus
   `input-formats`, `missing-values`, `choosing-methods`, `benchmarking`,

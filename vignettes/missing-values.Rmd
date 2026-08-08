@@ -34,7 +34,7 @@ is **missing not at random** (MNAR), and in a DIA experiment it is the common
 case.
 
 No single imputation method handles both well, which is why NADIA's default is a
-two-stage hybrid rather than one of the nineteen individual methods.
+two-stage hybrid rather than one of the twenty individual methods.
 
 # Installation
 
@@ -92,7 +92,7 @@ are will be wrong in a predictable direction.
 
 # The methods on offer
 
-Nineteen in total. They divide by the assumption they make:
+Twenty in total. They divide by the assumption they make:
 
 ```{r methods}
 mar  <- get(".IMP_METHODS_MAR",  envir = asNamespace("NADIA"))
@@ -107,10 +107,20 @@ neighbours (`knn`), principal components (`bpca`), sequential regression
 (`Impseq`, `Impseqrob`), a random forest (`missForest`), chained equations
 (`mice`). They are the right tool for a scattered gap.
 
-MNAR methods draw from the low end instead: the protein's minimum (`min`), a
-deterministic fraction of it (`MinDet`), a truncated distribution (`QRILC`,
+MNAR methods draw from the low end instead: the lowest intensity observed anywhere
+in the experiment (`min`), half that intensity (`halfmin`, the DIA-NN recipe), the
+first percentile of each sample (`MinDet`), a truncated distribution (`QRILC`,
 `MinProb`), a down-shifted normal (`PI`, the Perseus recipe). They are the right
 tool for a protein that dropped out.
+
+`halfmin` deserves a note, because it is where the log2 scale trips people up.
+Every method here operates on log2 values, so halving an intensity means
+subtracting 1, not dividing by 2 — `log2(m / 2)` is `log2(m) - 1`. Dividing the
+log2 value would land roughly eight times lower than intended, at the square root
+of the minimum intensity, and how much lower would depend on where zero happens to
+fall on the log scale. Note also that `min` and `halfmin` both rest on a single
+number out of every value in the matrix, so one aberrantly low measurement moves
+them; `MinDet`, `QRILC` and `MinProb` do not have that fragility.
 
 Applied to the wrong kind of blank, each fails in its own direction. A MAR method
 on a dropout invents a mid-range value and erases a real difference; an MNAR

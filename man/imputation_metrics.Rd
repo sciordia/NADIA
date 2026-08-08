@@ -32,7 +32,7 @@ imputation_metrics(
 NULL (default) = first assay.}
 
 \item{methods}{Character vector of individual methods to benchmark.
-Default: \code{.IM_BENCH_METHODS} (14 methods). Use \code{NULL} or \code{character(0)}
+Default: \code{.IM_BENCH_METHODS} (16 methods). Use \code{NULL} or \code{character(0)}
 to skip individual methods when only using combo_methods.}
 
 \item{combo_methods}{Named list of combo/softHybrid configurations.
@@ -88,7 +88,7 @@ so that a failure in one does not abort all.
 data(nadia_dia)
 se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
 
-# The default sweeps 15 methods; a handful is enough to illustrate it
+# The default sweeps 16 methods; a handful is enough to illustrate it
 res <- imputation_metrics(se, methods = c("min", "zero", "knn"),
                           plots = "ranking", verbose = FALSE)
 res$metrics_table

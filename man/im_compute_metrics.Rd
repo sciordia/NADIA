@@ -25,7 +25,7 @@ im_compute_metrics(
 (typically the normalized assay, pre-imputation, with real NAs).}
 
 \item{methods}{Character vector of individual imputation methods to benchmark.
-Default: \code{.IM_BENCH_METHODS} (14 methods). Use \code{character(0)} or \code{NULL}
+Default: \code{.IM_BENCH_METHODS} (16 methods). Use \code{character(0)} or \code{NULL}
 to skip individual methods.}
 
 \item{combo_methods}{Named list of combo/softHybrid configurations. Each

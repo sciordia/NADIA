@@ -39,7 +39,7 @@ attenuate real differences or introduce artificial ones.
 
 For this reason, NADIA treats normalisation and imputation as decisions to be
 assessed, rather than as default processing steps. The package includes 13
-normalisation methods and 19 imputation strategies, together with functions to
+normalisation methods and 20 imputation strategies, together with functions to
 compare them and evaluate their behaviour on the data themselves or against a
 known reference.
 

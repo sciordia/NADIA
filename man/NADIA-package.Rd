@@ -20,7 +20,7 @@ The package is organised in four blocks:
 three return the same \code{proteomics_data} S3 object, so the rest of the
 pipeline consumes them unchanged.}
 \item{Processing}{\code{\link[=process_proteomics]{process_proteomics()}} coordinates normalization (13
-methods), optional batch correction, imputation (19 methods, including
+methods), optional batch correction, imputation (20 methods, including
 the MAR/MNAR hybrids) and differential expression with limma or limpa.}
 \item{Metrics and benchmarking}{\code{\link[=normalization_metrics]{normalization_metrics()}},
 \code{\link[=imputation_metrics]{imputation_metrics()}}, \code{\link[=benchmarking_proteomics]{benchmarking_proteomics()}} and

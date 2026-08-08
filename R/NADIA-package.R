@@ -31,7 +31,7 @@
 #'     three return the same `proteomics_data` S3 object, so the rest of the
 #'     pipeline consumes them unchanged.}
 #'   \item{Processing}{[process_proteomics()] coordinates normalization (13
-#'     methods), optional batch correction, imputation (19 methods, including
+#'     methods), optional batch correction, imputation (20 methods, including
 #'     the MAR/MNAR hybrids) and differential expression with limma or limpa.}
 #'   \item{Metrics and benchmarking}{[normalization_metrics()],
 #'     [imputation_metrics()], [benchmarking_proteomics()] and

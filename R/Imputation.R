@@ -3,7 +3,7 @@
 # =============================================================================
 #
 # Functions for proteomics data imputation:
-#   - 19 imputation methods (combo + softHybrid + 17 individual)
+#   - 20 imputation methods (combo + softHybrid + 18 individual)
 #   - MNAR mask by condition (for combo mode)
 #   - Pre-filtering by MNAR rules (combo) or NA proportion (single/softHybrid)
 #   - Mixed combo imputation (configurable MAR + MNAR methods)
@@ -35,7 +35,8 @@
 .IMP_METHODS_ALL <- c(
   "combo", "softHybrid", "bpca", "knn", "mice", "missForest", "Impseq",
   "Impseqrob", "QRILC", "MLE",
-  "MinDet", "MinProb", "PI", "min", "zero", "nbavg", "with", "limpa", "none"
+  "MinDet", "MinProb", "PI", "min", "halfmin", "zero", "nbavg", "with",
+  "limpa", "none"
 )
 
 .IMP_METHODS_MAR <- c(
@@ -44,7 +45,7 @@
 )
 
 .IMP_METHODS_MNAR <- c(
-  "QRILC", "MinDet", "MinProb", "PI", "min", "zero", "with", "none"
+  "QRILC", "MinDet", "MinProb", "PI", "min", "halfmin", "zero", "with", "none"
 )
 
 # =============================================================================
@@ -53,7 +54,7 @@
 # Each receives a numeric matrix (proteins x samples, log2) and returns
 # the same matrix with NAs imputed. Additional args via method_args list.
 
-# --- No external dependencies (6) ---
+# --- No external dependencies (7) ---
 
 #' @keywords internal
 .imp_none <- function(x, args = list()) {
@@ -70,6 +71,21 @@
 #' @keywords internal
 .imp_min <- function(x, args = list()) {
   val <- min(x, na.rm = TRUE)
+  x[is.na(x)] <- val
+  x
+}
+
+#' halfmin: half of the global observed minimum (the DIA-NN recipe)
+#'
+#' DIA-NN describes it as replacing each missing value with half the observed
+#' minimum across all runs. The matrix here is on the log2 scale, so halving the
+#' intensity means subtracting 1, not dividing by 2: log2(m / 2) == log2(m) - 1.
+#' Dividing the log2 value would give the square root of the minimum intensity,
+#' eight times lower than intended on a typical dataset, and its magnitude would
+#' depend on where zero happens to fall on the log scale.
+#' @keywords internal
+.imp_halfmin <- function(x, args = list()) {
+  val <- min(x, na.rm = TRUE) - 1
   x[is.na(x)] <- val
   x
 }
@@ -459,6 +475,7 @@
     "none"       = .imp_none(x, args),
     "zero"       = .imp_zero(x, args),
     "min"        = .imp_min(x, args),
+    "halfmin"    = .imp_halfmin(x, args),
     "MinDet"     = .imp_MinDet(x, args),
     "nbavg"      = .imp_nbavg(x, args),
     "with"       = .imp_with(x, args),
@@ -875,7 +892,7 @@
 
 #' Impute proteomics data
 #'
-#' Complete imputation pipeline with 18 methods. Four pathways:
+#' Complete imputation pipeline with 20 methods. Four pathways:
 #'
 #' - `imp_method = "none"`: no imputation
 #' - `imp_method = "combo"`: two-stage MAR+MNAR with binary classification
@@ -890,8 +907,10 @@
 #'   its own name.
 #' @param imp_method Imputation method (default: "combo"). One of:
 #'   "combo", "softHybrid", "bpca", "knn", "mice", "missForest", "Impseq",
-#'   "Impseqrob", "QRILC", "MLE", "MinDet", "MinProb", "min", "zero",
-#'   "nbavg", "with", "none"
+#'   "Impseqrob", "QRILC", "MLE", "MinDet", "MinProb", "PI", "min", "halfmin",
+#'   "zero", "nbavg", "with", "limpa", "none". `"halfmin"` is the DIA-NN
+#'   half-minimum recipe: since the assay is on the log2 scale, halving the
+#'   intensity means one unit below the global observed minimum.
 #' @param mar_method MAR method for combo/softHybrid mode (default: "Impseqrob")
 #' @param mnar_method MNAR method for combo/softHybrid mode (default: "min")
 #' @param prop_na_mnar NA proportion threshold for MNAR classification (default: 0.51)

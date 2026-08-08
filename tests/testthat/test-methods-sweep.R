@@ -91,6 +91,64 @@ test_that("every imputation method fills the matrix and leaves no NAs", {
 })
 
 
+test_that("halfmin fills with half the minimum intensity, not half the log2", {
+    # The DIA-NN recipe is "half the observed minimum across all runs". The
+    # matrix is on the log2 scale, so that is min - 1: log2(m / 2) == log2(m) - 1.
+    # Dividing the log2 value would give the square root of the minimum
+    # intensity, which is what this test exists to rule out.
+    data(nadia_dia, package = "NADIA")
+    se <- normalize_proteomics(nadia_dia, verbose = FALSE)$se
+    x  <- SummarizedExperiment::assay(se, "cycloess")
+    na <- is.na(x)
+    expect_gt(sum(na), 0)   # otherwise there is nothing to impute
+
+    imp_h <- impute_proteomics(se, "cycloess", imp_method = "halfmin",
+                               verbose = FALSE)
+    imp_m <- impute_proteomics(se, "cycloess", imp_method = "min",
+                               verbose = FALSE)
+    h <- SummarizedExperiment::assay(imp_h$se, "halfmin")
+    m <- SummarizedExperiment::assay(imp_m$se, "min")
+
+    obs_min <- min(x, na.rm = TRUE)
+
+    # One single fill value, and it is exactly min - 1
+    expect_length(unique(h[na]), 1L)
+    expect_equal(unique(h[na]), obs_min - 1)
+
+    # The DIA-NN property, stated on the linear scale it was written for
+    expect_equal(2^unique(h[na]), (2^obs_min) / 2)
+
+    # Observed cells are untouched, imputed cells are exactly one unit below min
+    expect_identical(h[!na], m[!na])
+    expect_equal(m[na] - h[na], rep(1, sum(na)))
+
+    # And nothing imputed lands inside the observed range
+    expect_true(all(h[na] < min(x[!na])))
+})
+
+
+test_that("halfmin works both on its own and as the MNAR stage of combo", {
+    data(nadia_dia, package = "NADIA")
+    se <- normalize_proteomics(nadia_dia, verbose = FALSE)$se
+
+    single <- impute_proteomics(se, "cycloess", imp_method = "halfmin",
+                                verbose = FALSE)
+    expect_true("halfmin" %in% SummarizedExperiment::assayNames(single$se))
+    expect_false(anyNA(SummarizedExperiment::assay(single$se, "halfmin")))
+
+    combo <- impute_proteomics(se, "cycloess", imp_method = "combo",
+                               mnar_method = "halfmin", verbose = FALSE)
+    expect_true("Impseqrob_halfmin" %in%
+                    SummarizedExperiment::assayNames(combo$se))
+    expect_false(anyNA(SummarizedExperiment::assay(combo$se,
+                                                   "Impseqrob_halfmin")))
+
+    # It is registered as MNAR, which is what makes the combo call above legal
+    mnar <- get(".IMP_METHODS_MNAR", envir = asNamespace("NADIA"))
+    expect_true("halfmin" %in% mnar)
+})
+
+
 test_that("max_na_prop is disabled by default, for every method alike", {
     # It used not to be: `combo` reached the dispatcher without the pre-filter
     # while softHybrid and every single method went through it, so the same
@@ -166,23 +224,26 @@ test_that("MAR methods impute near the protein's own level, MNAR far below", {
     }
 
     # MNAR: clearly below it, by construction.
-    for (m in c("min", "MinDet")) {
+    for (m in c("min", "halfmin", "MinDet")) {
         expect_lt(filled(m), reference - 2, label = paste("MNAR method", m))
     }
 
     # And the ordering is the one the two families promise.
     expect_lt(filled("min"), filled("knn"))
+
+    # halfmin sits one log2 unit below min, which is the whole of its definition.
+    expect_equal(filled("halfmin"), filled("min") - 1)
 })
 
 
 test_that("the whole grid of normalisation x imputation completes", {
-    # A smaller grid than the full 13 x 19, chosen to cover both scale groups
+    # A smaller grid than the full 13 x 20, chosen to cover both scale groups
     # (methods that receive raw intensities and methods that receive log2) and
     # both missingness assumptions.
     data(nadia_dia, package = "NADIA")
 
     norms <- c("cycloess", "quantile", "MAD", "quantile.robust", "GlobalMedian")
-    imps  <- c("min", "MinDet", "PI", "zero")
+    imps  <- c("min", "halfmin", "MinDet", "PI", "zero")
 
     for (n in norms) {
         for (i in imps) {

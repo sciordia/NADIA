@@ -4,7 +4,7 @@
 #
 # Main function that coordinates the complete pipeline:
 #   1. Normalization.R - Filtering, multiple normalization methods
-#   2. Imputation.R   - 17 imputation methods (combo MAR+MNAR + individual)
+#   2. Imputation.R   - 20 imputation methods (combo MAR+MNAR + individual)
 #   3. DEAnalysis.R   - Differential analysis with limma
 #
 # Dependencies: see the individual modules
