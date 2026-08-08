@@ -60,13 +60,48 @@ test_that("DEPs_results carries the documented columns", {
 
     required <- c("Protein.IDs", "Comparison", "Gene.Names", "logFC",
                   "P.Value", "adj.P.Val", "Change", "Assay",
-                  "MissingGlobal", "MissingPCT1", "MissingPCT2")
+                  "MissGlobal", "MissComp", "MissCND1", "MissCND2")
     expect_true(all(required %in% names(de)))
     expect_gt(nrow(de), 0)   # so the assertions below cannot pass vacuously
 
     expect_type(de$logFC, "double")
     expect_true(all(de$adj.P.Val >= 0 & de$adj.P.Val <= 1))
     expect_true(all(de$P.Value <= de$adj.P.Val + 1e-12))   # BH never lowers p
+})
+
+
+test_that("the four missingness columns mean four different things", {
+    # MissGlobal covers the whole experiment, MissComp only the two conditions
+    # being compared. These used to be a single column whose name promised the
+    # former and delivered the latter, so readers took a comparison-level figure
+    # for an experiment-level one. nadia_dia has three conditions (A, B, D), so
+    # the two genuinely differ here.
+    data(nadia_dia, package = "NADIA")
+    de <- process_proteomics(nadia_dia, verbose = FALSE)$DEPs_results
+
+    miss_cols <- c("MissGlobal", "MissComp", "MissCND1", "MissCND2")
+
+    # They come last, in order from the widest scope to the narrowest
+    expect_identical(tail(names(de), 4L), miss_cols)
+
+    for (col in miss_cols) {
+        expect_type(de[[col]], "double")
+        v <- de[[col]][!is.na(de[[col]])]
+        expect_true(all(v >= 0 & v <= 100))
+    }
+
+    # MissGlobal does not depend on the comparison: one value per protein
+    per_protein <- tapply(de$MissGlobal, de$Protein.IDs,
+                          function(x) length(unique(x)))
+    expect_true(all(per_protein == 1L))
+
+    # ... and it is not a rename of MissComp
+    expect_true(any(de$MissGlobal != de$MissComp))
+
+    # With balanced replicates MissComp is the mean of the two condition
+    # percentages. The margin absorbs the rounding to two decimals, which is
+    # applied to each of the three columns independently.
+    expect_lt(max(abs(de$MissComp - (de$MissCND1 + de$MissCND2) / 2)), 0.01)
 })
 
 

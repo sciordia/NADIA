@@ -22,7 +22,9 @@ results_list_widget(
 \arguments{
 \item{data}{Data frame or path to a TSV/CSV/Parquet file with DE results.
 Required columns: Protein.IDs, Gene.Names, logFC, P.Value, adj.P.Val,
-Change, Comparison. Optional: Assay, MissingGlobal, MissingPCT1, MissingPCT2}
+Change, Comparison. Optional: Assay, and the four missingness columns
+MissGlobal, MissComp, MissCND1 and MissCND2, which are shown only if all
+four are present}
 
 \item{protein_quant}{Data frame (preprocessing$protein_quant) or path to a
 Protein_QUANT_*.tsv file. If not NULL, the Description and Quant_Pepts

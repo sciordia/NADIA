@@ -321,7 +321,7 @@
 #' @param alpha Significance threshold
 #' @param has_assay Logical, whether an Assay column is present
 #' @param single_assay Logical, whether there is a single assay
-#' @param show_missing Logical, whether to show the Missing% columns
+#' @param show_missing Logical, whether to show the four missingness columns
 #' @param has_description Logical, whether a Description column is present
 #' @param has_quant_pepts Logical, whether a Quant_Pepts column is present
 #' @return List of colDef
@@ -504,20 +504,26 @@
 
   # --- Missing% in rating style with a coloured circle ---
   if (show_missing) {
-    cols$MissingGlobal <- colDef(
-      name = "% Missing", width = 110, align = "center", class = "missing-cell",
-      header = function(value) htmltools::tags$span(title = "Global percentage of NAs in the comparison", value),
+    cols$MissGlobal <- colDef(
+      name = "% Global", width = 110, align = "center", class = "missing-cell",
+      header = function(value) htmltools::tags$span(title = "Percentage of NAs across all samples in the experiment", value),
       filterable = TRUE, filterInput = .numeric_filter_hidden, filterMethod = .numeric_filter_method,
       cell = .missing_cell_js, style = .missing_style_js
     )
-    cols$MissingPCT1 <- colDef(
-      name = "% Group 1", width = 110, align = "center", class = "missing-cell",
+    cols$MissComp <- colDef(
+      name = "% Comp", width = 110, align = "center", class = "missing-cell",
+      header = function(value) htmltools::tags$span(title = "Percentage of NAs across the replicates of the two conditions compared", value),
+      filterable = TRUE, filterInput = .numeric_filter_hidden, filterMethod = .numeric_filter_method,
+      cell = .missing_cell_js, style = .missing_style_js
+    )
+    cols$MissCND1 <- colDef(
+      name = "% Cond 1", width = 110, align = "center", class = "missing-cell",
       header = function(value) htmltools::tags$span(title = "Percentage of NAs in the numerator", value),
       filterable = TRUE, filterInput = .numeric_filter_hidden, filterMethod = .numeric_filter_method,
       cell = .missing_cell_js, style = .missing_style_js
     )
-    cols$MissingPCT2 <- colDef(
-      name = "% Group 2", width = 110, align = "center", class = "missing-cell",
+    cols$MissCND2 <- colDef(
+      name = "% Cond 2", width = 110, align = "center", class = "missing-cell",
       header = function(value) htmltools::tags$span(title = "Percentage of NAs in the denominator", value),
       filterable = TRUE, filterInput = .numeric_filter_hidden, filterMethod = .numeric_filter_method,
       cell = .missing_cell_js, style = .missing_style_js
@@ -540,7 +546,9 @@
 #'
 #' @param data Data frame or path to a TSV/CSV/Parquet file with DE results.
 #'   Required columns: Protein.IDs, Gene.Names, logFC, P.Value, adj.P.Val,
-#'   Change, Comparison. Optional: Assay, MissingGlobal, MissingPCT1, MissingPCT2
+#'   Change, Comparison. Optional: Assay, and the four missingness columns
+#'   MissGlobal, MissComp, MissCND1 and MissCND2, which are shown only if all
+#'   four are present
 #' @param protein_quant Data frame (preprocessing$protein_quant) or path to a
 #'   Protein_QUANT_*.tsv file. If not NULL, the Description and Quant_Pepts
 #'   columns are added.
@@ -608,7 +616,7 @@ results_list_reactable <- function(
   }
 
   # --- Detect the optional columns ---
-  has_missing <- all(c("MissingGlobal", "MissingPCT1", "MissingPCT2") %in% names(df))
+  has_missing <- all(c("MissGlobal", "MissComp", "MissCND1", "MissCND2") %in% names(df))
   show_missing <- show_missing && has_missing
   has_assay <- "Assay" %in% names(df)
   single_assay <- has_assay && length(unique(df$Assay)) == 1
@@ -624,7 +632,7 @@ results_list_reactable <- function(
   # --- Reorder the data frame columns (reactable uses this visual order) ---
   desired_order <- c("Comparison", "Protein.IDs", "Description", "Gene.Names",
                      "Quant_Pepts", "Change", "logFC", "P.Value", "adj.P.Val",
-                     "Assay", "MissingGlobal", "MissingPCT1", "MissingPCT2")
+                     "Assay", "MissGlobal", "MissComp", "MissCND1", "MissCND2")
   desired_order <- intersect(desired_order, names(df))
   df <- df[, c(desired_order, setdiff(names(df), desired_order)), drop = FALSE]
 
@@ -734,7 +742,7 @@ results_list_widget <- function(
   }
 
   # --- Detect the optional columns ---
-  has_missing <- all(c("MissingGlobal", "MissingPCT1", "MissingPCT2") %in% names(df))
+  has_missing <- all(c("MissGlobal", "MissComp", "MissCND1", "MissCND2") %in% names(df))
   show_missing_cols <- show_missing && has_missing
   has_assay <- "Assay" %in% names(df)
   single_assay <- has_assay && length(unique(df$Assay)) == 1
@@ -747,7 +755,7 @@ results_list_widget <- function(
   # --- Reorder the data frame columns (reactable uses this visual order) ---
   desired_order <- c("Comparison", "Protein.IDs", "Description", "Gene.Names",
                      "Quant_Pepts", "Change", "logFC", "P.Value", "adj.P.Val",
-                     "Assay", "MissingGlobal", "MissingPCT1", "MissingPCT2")
+                     "Assay", "MissGlobal", "MissComp", "MissCND1", "MissCND2")
   desired_order <- intersect(desired_order, names(df))
   df <- df[, c(desired_order, setdiff(names(df), desired_order)), drop = FALSE]
 
@@ -829,9 +837,10 @@ results_list_widget <- function(
           'Description': 'Description',
           'Quant_Pepts': 'Quant Pepts',
           'Assay': 'Method',
-          'MissingGlobal': '%%Missing',
-          'MissingPCT1': '%%Group1',
-          'MissingPCT2': '%%Group2'
+          'MissGlobal': '%%Global',
+          'MissComp': '%%Comp',
+          'MissCND1': '%%Cond1',
+          'MissCND2': '%%Cond2'
         };
 
         var wb = new ExcelJS.Workbook();
@@ -859,7 +868,7 @@ results_list_widget <- function(
           visibleHeaders.forEach(function(h) { rowData[h] = row[h]; });
           var addedRow = ws.addRow(rowData);
 
-          ['logFC', 'P.Value', 'adj.P.Val', 'MissingGlobal', 'MissingPCT1', 'MissingPCT2', 'Quant_Pepts'].forEach(function(col) {
+          ['logFC', 'P.Value', 'adj.P.Val', 'MissGlobal', 'MissComp', 'MissCND1', 'MissCND2', 'Quant_Pepts'].forEach(function(col) {
             if (visibleHeaders.indexOf(col) === -1) return;
             var cell = addedRow.getCell(col);
             if (cell && cell.value) {
@@ -980,9 +989,10 @@ results_list_widget <- function(
 
   if (show_missing_cols) {
     filter_items <- c(filter_items, list(
-      .make_numeric_filter("% Missing", "MissingGlobal", "\u2264 25 ..."),
-      .make_numeric_filter("% Group 1", "MissingPCT1", "\u2264 50 ..."),
-      .make_numeric_filter("% Group 2", "MissingPCT2", "\u2264 50 ...")
+      .make_numeric_filter("% Global", "MissGlobal", "\u2264 25 ..."),
+      .make_numeric_filter("% Comp", "MissComp", "\u2264 25 ..."),
+      .make_numeric_filter("% Cond 1", "MissCND1", "\u2264 50 ..."),
+      .make_numeric_filter("% Cond 2", "MissCND2", "\u2264 50 ...")
     ))
   }
 

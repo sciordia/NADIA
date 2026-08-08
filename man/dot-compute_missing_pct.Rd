@@ -2,7 +2,7 @@
 % Please edit documentation in R/Processing.R
 \name{.compute_missing_pct}
 \alias{.compute_missing_pct}
-\title{Compute missing-value percentages per protein per comparison}
+\title{Compute missing-value percentages per protein}
 \usage{
 .compute_missing_pct(se, DEPs_results, norm_assay_name)
 }
@@ -14,14 +14,19 @@
 \item{norm_assay_name}{Name of the normalized assay}
 }
 \value{
-DEPs_results with MissingGlobal, MissingPCT1, MissingPCT2 columns added
+DEPs_results with MissGlobal, MissComp, MissCND1, MissCND2 columns added
 }
 \description{
-For each comparison "Cond1-Cond2", calculates:
+Four percentages, all measured on the normalized assay, that is, before
+imputation, and all going from the widest scope to the narrowest:
 \itemize{
-\item MissingGlobal: \% NAs over all samples of both conditions
-\item MissingPCT1: \% NAs over samples of Cond1 (numerator, before "-")
-\item MissingPCT2: \% NAs over samples of Cond2 (denominator, after "-")
+\item MissGlobal: \% NAs over every sample in the experiment, including the
+conditions that take no part in the comparison. It does not depend on the
+comparison, so a given protein carries the same value in all of them.
+\item MissComp: \% NAs over the replicates of the two conditions being compared
+only. With more than two conditions this is not the same as MissGlobal.
+\item MissCND1: \% NAs over the samples of Cond1 (numerator, before "-")
+\item MissCND2: \% NAs over the samples of Cond2 (denominator, after "-")
 }
 }
 \keyword{internal}

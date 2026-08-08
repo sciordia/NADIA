@@ -29,8 +29,8 @@ mechanism of missingness may attenuate real differences or introduce artificial
 ones.
 
 This relationship can be observed in the example dataset included with NADIA. The
-table below crosses the overall percentage of missing values of each protein with
-its call in the differential abundance analysis:
+table below crosses the percentage of missing values of each protein in a
+comparison with its call in the differential abundance analysis:
 
 | Missing values | Up | Down | No Change |
 |---|---|---|---|
@@ -224,10 +224,14 @@ Alongside `logFC`, `P.Value`, `adj.P.Val` and the call recorded in `Change`, the
 results table retains information about the values that were missing before
 imputation:
 
-- `MissingGlobal` — the percentage of missing values of that protein group across
-  the samples of the two conditions being compared.
-- `MissingPCT1` and `MissingPCT2` — the percentage of missing values in each of
-  the two groups involved in the comparison.
+- `MissGlobal` — the percentage of missing values of that protein group across
+  every sample in the experiment, including the conditions that take no part in
+  the comparison.
+- `MissComp` — the percentage across the replicates of the two conditions being
+  compared, and only those. With more than two conditions this is not the same
+  figure as the one above.
+- `MissCND1` and `MissCND2` — the percentage of missing values in each of the two
+  conditions separately.
 
 These columns do not on their own determine whether a change is biologically
 real, but they show how far its estimate rests on observed intensities and how

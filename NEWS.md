@@ -26,6 +26,27 @@ without any change to the results the pipeline produces.
 
 ## Changes
 
+* **The missingness columns of `DEPs_results` are renamed, and there is a fourth
+  one.** `MissingGlobal` was not global: it was the percentage of missing values
+  over the replicates of the two conditions being compared, which coincides with
+  the whole experiment only when there are exactly two conditions. Readers took
+  the name at face value. The four columns are now, from the widest scope to the
+  narrowest:
+
+  | New | Old | Scope |
+  |---|---|---|
+  | `MissGlobal` | *(new)* | every sample in the experiment |
+  | `MissComp` | `MissingGlobal` | the replicates of the two conditions compared |
+  | `MissCND1` | `MissingPCT1` | the numerator condition |
+  | `MissCND2` | `MissingPCT2` | the denominator condition |
+
+  The old names are gone, with no aliases: code that reads `MissingGlobal` now
+  fails loudly rather than returning the wrong figure quietly. The three renamed
+  columns are identical value for value to the ones they replace — this is a
+  rename, not a recomputation — and `MissGlobal` is new information that was not
+  available anywhere before. The columns of the interactive tables are labelled
+  `% Global`, `% Comp`, `% Cond 1` and `% Cond 2`, and each has its own numeric
+  filter.
 * Progress output goes through `message()` instead of `cat()`, so it can be
   silenced with `suppressMessages()` and redirected like any other condition.
   The four `print()` methods still use `cat()`, which is where it belongs. The

@@ -285,25 +285,45 @@ When imputation has been applied, the statistical result must be interpreted
 together with the information about the values that were missing before that
 stage.
 
-NADIA keeps three columns:
+NADIA keeps four columns, which go from the widest scope to the narrowest:
 
-- `MissingGlobal`, the percentage of missing values of the protein group across
-  the samples of the two conditions being compared;
-- `MissingPCT1` and `MissingPCT2`, the percentages of missing values in each of
-  the two groups involved in the comparison. In a `B-A` comparison,
-  `MissingPCT1` corresponds to the numerator (B) and `MissingPCT2` to the
-  denominator (A).
+- `MissGlobal`, the percentage of missing values of the protein group across
+  every sample in the experiment, including the conditions that take no part in
+  the comparison. It therefore does not depend on the comparison: a given
+  protein group carries the same value in all of them.
+- `MissComp`, the percentage across the replicates of the two conditions being
+  compared, and only those. This is the figure that describes the evidence
+  actually available for that contrast.
+- `MissCND1` and `MissCND2`, the percentages in each of the two conditions
+  separately. In a `B-A` comparison, `MissCND1` corresponds to the numerator
+  (B) and `MissCND2` to the denominator (A).
 
-These columns describe the observed support behind a result. They do not
-determine whether a change is biologically real, but they distinguish estimates
-based mainly on measured intensities from estimates that depend largely on
-imputed values.
+The distinction between the first two matters as soon as an experiment has more
+than two conditions, as this one does. `MissGlobal` is a property of the protein
+group in the experiment, so it does not move from one comparison to the next;
+`MissComp` does, because the replicates it counts change with the contrast. A
+protein group that is missing in a single replicate of D shows both behaviours at
+once:
+
+```{r missing-scope}
+pid <- with(res$DEPs_results, Protein.IDs[MissGlobal != MissComp][1])
+subset(res$DEPs_results, Protein.IDs == pid,
+       c("Comparison", "MissGlobal", "MissComp", "MissCND1", "MissCND2"))
+```
+
+`MissGlobal` describes how well the protein group is covered in the experiment
+as a whole, which is useful for deciding how much to trust it at all.
+`MissComp` and the two per-condition columns describe the support behind one
+particular contrast. None of them determines whether a change is biologically
+real, but together they distinguish estimates based mainly on measured
+intensities from estimates that depend largely on imputed values.
 
 The relationship between missingness and the differential call can be summarised
-directly:
+directly. `MissComp` is the right column here, because what is being related to
+the call is the evidence available for that particular contrast:
 
 ```{r missing-cols}
-bins <- cut(res$DEPs_results$MissingGlobal, c(-1, 0, 25, 50, 100),
+bins <- cut(res$DEPs_results$MissComp, c(-1, 0, 25, 50, 100),
             labels = c("0%", "1-25%", "26-50%", ">50%"))
 table(missing = bins, res$DEPs_results$Change)
 ```
@@ -327,11 +347,11 @@ of one condition but in every replicate of the other:
 
 ```{r onoff}
 onoff <- subset(res$DEPs_results,
-                (MissingPCT1 == 100 & MissingPCT2 == 0) |
-                (MissingPCT1 == 0   & MissingPCT2 == 100))
+                (MissCND1 == 100 & MissCND2 == 0) |
+                (MissCND1 == 0   & MissCND2 == 100))
 nrow(onoff)
 head(onoff[, c("Protein.IDs", "Comparison", "logFC", "adj.P.Val",
-               "MissingPCT1", "MissingPCT2")], 4)
+               "MissCND1", "MissCND2")], 4)
 ```
 
 Roughly 500 results in this analysis have 100 % missing values in one group and
@@ -345,7 +365,7 @@ abundance ratio. Its magnitude depends largely on the value introduced by the
 MNAR method, and it states that one condition lies below the quantifiable range
 relative to the other.
 
-The `MissingPCT1` and `MissingPCT2` columns make that provenance visible, whereas
+The `MissCND1` and `MissCND2` columns make that provenance visible, whereas
 the p-value alone says nothing about how many observations were measured and how
 many were imputed. `vignette("missing-values")` develops this distinction and
 explains how the different imputation strategies affect these results.

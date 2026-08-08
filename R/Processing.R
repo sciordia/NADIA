@@ -262,23 +262,38 @@
   invisible(NULL)
 }
 
-#' Compute missing-value percentages per protein per comparison
+#' Compute missing-value percentages per protein
 #'
-#' For each comparison "Cond1-Cond2", calculates:
-#' - MissingGlobal: % NAs over all samples of both conditions
-#' - MissingPCT1: % NAs over samples of Cond1 (numerator, before "-")
-#' - MissingPCT2: % NAs over samples of Cond2 (denominator, after "-")
+#' Four percentages, all measured on the normalized assay, that is, before
+#' imputation, and all going from the widest scope to the narrowest:
+#' - MissGlobal: % NAs over every sample in the experiment, including the
+#'   conditions that take no part in the comparison. It does not depend on the
+#'   comparison, so a given protein carries the same value in all of them.
+#' - MissComp: % NAs over the replicates of the two conditions being compared
+#'   only. With more than two conditions this is not the same as MissGlobal.
+#' - MissCND1: % NAs over the samples of Cond1 (numerator, before "-")
+#' - MissCND2: % NAs over the samples of Cond2 (denominator, after "-")
 #'
 #' @param se SummarizedExperiment with normalized assay
 #' @param DEPs_results Data frame with DE results (must have Protein.IDs, Comparison)
 #' @param norm_assay_name Name of the normalized assay
-#' @return DEPs_results with MissingGlobal, MissingPCT1, MissingPCT2 columns added
+#' @return DEPs_results with MissGlobal, MissComp, MissCND1, MissCND2 columns added
 #' @keywords internal
 .compute_missing_pct <- function(se, DEPs_results, norm_assay_name) {
   x_norm <- SummarizedExperiment::assay(se, norm_assay_name)
 
   cd <- as.data.frame(SummarizedExperiment::colData(se))
   cond_samples <- split(cd$Column, cd$Condition)
+
+  # Global missingness: one value per protein over every sample in the
+  # experiment. It does not depend on the comparison, so it is computed once
+  # here and joined by protein alone, rather than repeated inside the per
+  # comparison loop below.
+  na_global <- if (ncol(x_norm) > 0) {
+    round(100 * rowSums(is.na(x_norm)) / ncol(x_norm), 2)
+  } else {
+    rep(NA_real_, nrow(x_norm))
+  }
 
   known <- names(cond_samples)
   comps <- unique(as.character(DEPs_results$Comparison))
@@ -309,8 +324,8 @@
 
     if (n_all == 0) {
       return(data.frame(Protein.IDs = rownames(x_norm), Comparison = comp,
-                        MissingGlobal = NA_real_, MissingPCT1 = NA_real_,
-                        MissingPCT2 = NA_real_, stringsAsFactors = FALSE))
+                        MissComp = NA_real_, MissCND1 = NA_real_,
+                        MissCND2 = NA_real_, stringsAsFactors = FALSE))
     }
 
     na_all <- if (n_all > 0) rowSums(is.na(x_norm[, s_all, drop = FALSE])) else rep(0L, nrow(x_norm))
@@ -318,11 +333,11 @@
     na2    <- if (n2 > 0)    rowSums(is.na(x_norm[, s2, drop = FALSE]))    else rep(NA_real_, nrow(x_norm))
 
     data.frame(
-      Protein.IDs   = rownames(x_norm),
-      Comparison    = comp,
-      MissingGlobal = round(100 * na_all / n_all, 2),
-      MissingPCT1   = if (n1 > 0) round(100 * na1 / n1, 2) else NA_real_,
-      MissingPCT2   = if (n2 > 0) round(100 * na2 / n2, 2) else NA_real_,
+      Protein.IDs = rownames(x_norm),
+      Comparison  = comp,
+      MissComp    = round(100 * na_all / n_all, 2),
+      MissCND1    = if (n1 > 0) round(100 * na1 / n1, 2) else NA_real_,
+      MissCND2    = if (n2 > 0) round(100 * na2 / n2, 2) else NA_real_,
       stringsAsFactors = FALSE
     )
   })
@@ -332,7 +347,11 @@
                         by = c("Protein.IDs", "Comparison"),
                         all.x = TRUE, sort = FALSE)
 
-  missing_cols <- c("MissingGlobal", "MissingPCT1", "MissingPCT2")
+  # match(), not %in%: Protein.IDs repeats across comparisons in DEPs_results
+  DEPs_results$MissGlobal <-
+    na_global[match(DEPs_results$Protein.IDs, rownames(x_norm))]
+
+  missing_cols <- c("MissGlobal", "MissComp", "MissCND1", "MissCND2")
   other_cols <- setdiff(names(DEPs_results), missing_cols)
   DEPs_results[, c(other_cols, intersect(missing_cols, names(DEPs_results)))]
 }
@@ -682,7 +701,7 @@ process_proteomics <- function(
   DEPs_results <- de_result$DEPs_results
   comparisons <- de_result$comparisons
 
-  # 4b. Add MissingGlobal, MissingPCT1, MissingPCT2
+  # 4b. Add MissGlobal, MissComp, MissCND1, MissCND2
   DEPs_results <- .compute_missing_pct(
     se = se_proc,
     DEPs_results = DEPs_results,
