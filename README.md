@@ -75,7 +75,10 @@ export:
    identifies proteins with similar profiles through fuzzy clustering.
 5. *Tables and export* — Presents the results in interactive tables and exports
    the processed matrices, the differential abundance results and the data used
-   by the visualisations in formats suited to archiving or further analysis.
+   by the visualisations in formats suited to archiving or further analysis. The
+   whole analysis can also be written to a single `.nadia` file — a DuckDB
+   database holding every table without redundancy, along with the parameters
+   and the provenance needed to repeat the run.
 
 ## Method choice is not cosmetic
 

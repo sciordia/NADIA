@@ -128,6 +128,13 @@
 #' @return A list with class `c("lfq_data", "proteomics_data", "list")`
 #'   containing `metadata`, `protein_id` and `protein_quant`.
 #'
+#'   The call that produced the object and a fingerprint of the files it was read
+#'   from -- the report and the annotation -- (path, size, modification time and
+#'   MD5) travel with it as the attributes `nadia_call` and `nadia_source`. They
+#'   are attributes rather than list elements so that the three-element structure
+#'   above is unchanged; [write_nadia()] records them as the provenance of an
+#'   analysis.
+#'
 #' @examples
 #' # A trimmed Proteome Discoverer LFQ report ships with the package. Unlike TMT,
 #' # the sample-to-condition design comes from a separate annotation file rather
@@ -395,6 +402,8 @@ preprocess_lfq <- function(
     protein_quant = as.data.frame(protein_QUANT)
   )
   class(result) <- c("lfq_data", "proteomics_data", "list")
+  result <- .nadia_stamp(result, match.call(),
+                         c(report = file_path, annotation = annot_path))
   return(result)
 }
 

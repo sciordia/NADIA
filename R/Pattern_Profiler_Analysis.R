@@ -963,7 +963,11 @@ pattern_profiler_analysis <- function(se_proc,
     output_file = output_file,
     long_output = long_output,
     cl = cl,
-    eset_std = eset_std
+    eset_std = eset_std,
+    # Mfuzz clustering is stochastic and its result depends on `seed`, `seeds`,
+    # `c_range` and the filtering arguments. Recording the call is what makes a
+    # set of clusters reproducible from the result itself.
+    call = match.call()
   )
 
   class(result) <- c("pattern_profiler_result", "list")

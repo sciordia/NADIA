@@ -35,6 +35,13 @@ the exported files.}
 \value{
 A list with class \code{c("lfq_data", "proteomics_data", "list")}
 containing \code{metadata}, \code{protein_id} and \code{protein_quant}.
+
+The call that produced the object and a fingerprint of the files it was read
+from -- the report and the annotation -- (path, size, modification time and
+MD5) travel with it as the attributes \code{nadia_call} and \code{nadia_source}. They
+are attributes rather than list elements so that the three-element structure
+above is unchanged; \code{\link[=write_nadia]{write_nadia()}} records them as the provenance of an
+analysis.
 }
 \description{
 Converts a Proteome Discoverer LFQ protein export (wide TSV format) into the

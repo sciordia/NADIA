@@ -114,6 +114,12 @@
 #'       protein (includes `PG.Quantity_<Coding>`)}
 #'   }
 #'
+#'   The call that produced the object and a fingerprint of the file it was read
+#'   from (path, size, modification time and MD5) travel with it as the
+#'   attributes `nadia_call` and `nadia_source`. They are attributes rather than
+#'   list elements so that the three-element structure above is unchanged;
+#'   [write_nadia()] records them as the provenance of an analysis.
+#'
 #' @examples
 #' # A trimmed Proteome Discoverer TMTpro report ships with the package
 #' report <- system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA")
@@ -387,6 +393,7 @@ preprocess_tmt <- function(
   )
 
   class(result) <- c("tmt_data", "proteomics_data", "list")
+  result <- .nadia_stamp(result, match.call(), c(report = file_path))
   return(result)
 }
 

@@ -50,6 +50,12 @@ A list with class \code{spectronaut_data} containing:
 \item{protein_quant}{Data frame with the quantification metrics per
 protein}
 }
+
+The call that produced the object and a fingerprint of the file it was read
+from (path, size, modification time and MD5) travel with it as the
+attributes \code{nadia_call} and \code{nadia_source}. They are attributes rather than
+list elements so that the three-element structure above is unchanged;
+\code{\link[=write_nadia]{write_nadia()}} records them as the provenance of an analysis.
 }
 \description{
 Converts a Spectronaut report (long TSV format) into three structured tables:

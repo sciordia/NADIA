@@ -407,6 +407,11 @@ These figures are not rendered in this vignette, to keep the document small.
 their main customisation options. `vignette("results-and-export")` describes how
 to save each widget as an HTML file.
 
+All three take their input from `res`, so they can equally be built from a saved
+analysis: `write_nadia()` puts the whole thing — tables, parameters and
+provenance — into one file, and `nadia_result()` gives back an object these
+functions accept unchanged. See `vignette("results-and-export")`.
+
 ## Static figure
 
 `proteomics_heatmap()` produces a static heatmap from `res$PCA_Input`. The

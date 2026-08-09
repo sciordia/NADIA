@@ -657,6 +657,19 @@ process_proteomics <- function(
 
   se_proc <- imp_result$se
 
+  # Keep the MAR/MNAR masks with the object. They record which cells were filled
+  # and by which branch, which is the difference between a fold change resting on
+  # measurements and one resting on inference. `impute_proteomics()` returns them
+  # but they were discarded here, so that information was lost the moment the
+  # function returned. They are NULL for every method other than `combo` and
+  # `softHybrid`, which is why the reader must not assume they are present.
+  if (!is.null(imp_result$mar_mask)) {
+    S4Vectors::metadata(se_proc)$mar_mask <- imp_result$mar_mask
+  }
+  if (!is.null(imp_result$mnar_mask)) {
+    S4Vectors::metadata(se_proc)$mnar_mask <- imp_result$mnar_mask
+  }
+
   # Export imputed matrix (use raw matrix, matching pre-split behavior)
   if (export_imputed) {
     x_imputed_export <- imp_result$x_imputed
@@ -780,7 +793,12 @@ process_proteomics <- function(
       mnar_method = mnar_method,
       prop_na_mnar = prop_na_mnar,
       prop_present_mar = prop_present_mar,
+      min_present_mar = min_present_mar,
+      require_n_conditions = require_n_conditions,
       max_na_prop = max_na_prop,
+      method_args = method_args,
+      with_value = with_value,
+      control = control,
       logFC_threshold = logFC_threshold,
       alpha = alpha,
       eBayes_trend = eBayes_trend,
@@ -790,9 +808,16 @@ process_proteomics <- function(
       bio_replicate_column = bio_replicate_column,
       export_dir = export_dir,
       export_format = export_format,
+      export_normalized = export_normalized,
+      export_imputed = export_imputed,
       export_volcano = export_volcano,
       export_boxplot = export_boxplot,
-      export_pca = export_pca
+      export_pca = export_pca,
+      # The call itself, because the list above cannot represent everything a
+      # caller can pass: a `covariate_df` is a whole data frame, and a
+      # `comparisons` vector may have been resolved from `control`. Without the
+      # call, a result cannot be reproduced from its own record.
+      call = match.call()
     )
   )
 

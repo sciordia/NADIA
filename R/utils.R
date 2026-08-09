@@ -297,6 +297,57 @@
   m[, 2]
 }
 
+#' Record where an object came from
+#'
+#' Attaches the call that produced an object and a fingerprint of the files it
+#' was read from, as the attributes `nadia_call` and `nadia_source`.
+#'
+#' They are attributes rather than list elements on purpose: every preprocessing
+#' function documents a return value of exactly three elements (`metadata`,
+#' `protein_id`, `protein_quant`), and adding a fourth would change a contract
+#' that code and documentation already depend on. An attribute travels with the
+#' object without appearing in `names()` or in `str()`.
+#'
+#' The fingerprint is what lets someone check, years later, whether a result
+#' corresponds to the raw file in front of them. The MD5 is skipped for files
+#' over 500 MB, where hashing costs more than the answer is worth.
+#'
+#' @param x     Object to stamp.
+#' @param call  The call to record, normally `match.call()` from the caller.
+#' @param files Named character vector of paths; the names become the `role`
+#'   column (`report`, `annotation`).
+#' @return `x`, with the two attributes attached.
+#' @keywords internal
+#' @noRd
+.nadia_stamp <- function(x, call, files = character(0)) {
+  attr(x, "nadia_call") <- call
+
+  files <- files[!vapply(files, is.null, logical(1))]
+  files <- unlist(files)
+
+  if (length(files) > 0) {
+    info <- file.info(files)
+    attr(x, "nadia_source") <- data.frame(
+      role       = names(files),
+      path       = normalizePath(files, mustWork = FALSE),
+      size_bytes = as.numeric(info$size),
+      mtime      = format(info$mtime, tz = "UTC", usetz = FALSE),
+      md5        = vapply(seq_along(files), function(i) {
+        if (is.na(info$size[i]) || info$size[i] > 500e6) {
+          NA_character_
+        } else {
+          unname(tools::md5sum(files[i]))
+        }
+      }, character(1)),
+      stringsAsFactors = FALSE,
+      row.names = NULL
+    )
+  }
+
+  x
+}
+
+
 #' Validate the minimum columns of a Proteome Discoverer export
 #'
 #' @param df Data frame read from the export.

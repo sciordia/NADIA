@@ -8,7 +8,7 @@ without any change to the results the pipeline produces.
 
 * Package structure: `DESCRIPTION`, `NAMESPACE` and help pages generated with
   roxygen2. The way to load the code is now `library(NADIA)`.
-* 102 exported functions covering the whole pipeline: preprocessing of
+* 112 exported functions covering the whole pipeline: preprocessing of
   Spectronaut/DIA-NN and Proteome Discoverer reports (both TMT and label-free),
   normalization (13 methods), batch correction, imputation (20 methods),
   differential expression with limma or limpa, metrics and benchmarking, and
@@ -24,6 +24,28 @@ without any change to the results the pipeline produces.
   half of the log2 value — `log2(m / 2)` is `log2(m) - 1`. `combo` still defaults
   to `mnar_method = "min"`; nothing existing changes.
 
+* **The `.nadia` format: one file for a whole analysis.** `write_nadia()` writes
+  the preprocessing tables, the processing results and, optionally, the Pattern
+  Profiler output to a single [DuckDB](https://duckdb.org) database, together
+  with the parameters and the provenance of the run. `read_nadia()` reads it
+  back, and `nadia_result()` and `nadia_preprocessing()` return objects the rest
+  of the package plots directly — the round trip is `identical()`, column order,
+  integer columns and ordered factors included.
+
+  Nothing is stored twice. The `log2` assay is exactly `log2` of the raw one and
+  is not stored; `PCA_Input` is the imputed assay joined to the results and is
+  not stored either; and of the imputed assay only the cells actually filled are
+  kept, each tagged with the branch that filled it — so `imputed_values` is both
+  the imputed data and the MAR/MNAR mask. On the example dataset the file is
+  4.1 MB against 6.8 MB of TSV and 2.7 MB of Parquet, in one file instead of
+  eleven.
+
+  The reconstruction lives in the file as SQL views rather than in R code, so a
+  single definition serves every client; with backward-compatible storage, that
+  includes DuckDB-WASM in a browser, with no R installed. `nadia_connect()`
+  opens the file for SQL, `nadia_tables()` lists it without loading it, and
+  `nadia_export_parquet()` is the way out to an open format. Needs `duckdb` and
+  `DBI`, both in `Suggests`.
 * Nine vignettes covering the pipeline end to end: `NADIA` (start here), plus
   `input-formats`, `missing-values`, `choosing-methods`, `benchmarking`,
   `batch-correction`, `pattern-profiler`, `visualization` and

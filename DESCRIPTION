@@ -64,6 +64,8 @@ Suggests:
     cluster,
     ComplexHeatmap,
     crosstalk,
+    DBI,
+    duckdb,
     e1071,
     ggsci,
     impute,
@@ -86,8 +88,9 @@ Suggests:
     tidyHeatmap,
     vegan,
     viridis,
-    vsn
+    vsn,
+    withr
 VignetteBuilder: knitr
-RoxygenNote: 8.0.0
 Roxygen: list(markdown = TRUE)
 Config/testthat/edition: 3
+Config/roxygen2/version: 8.1.0

@@ -77,6 +77,113 @@ The individual export switches — `export_normalized`, `export_imputed`,
 `export_volcano`, `export_boxplot`, `export_pca` — turn off anything you do not
 need.
 
+# One file for the whole analysis
+
+The exports above leave a dozen loose files that have to be kept together by
+hand, and that say nothing about how they were made. `write_nadia()` writes all
+of it — the preprocessing tables, the results, the parameters and the
+provenance — to a single file:
+
+```{r nadia-write, eval = requireNamespace("duckdb", quietly = TRUE), message = FALSE}
+f <- file.path(tempdir(), "experiment.nadia")
+write_nadia(f, nadia_dia, res, verbose = FALSE)
+
+round(file.size(f) / 1024)   # KB
+```
+
+A `.nadia` file is a [DuckDB](https://duckdb.org) database under another
+extension. Reading it back gives objects the rest of the package plots
+directly:
+
+```{r nadia-read, eval = requireNamespace("duckdb", quietly = TRUE)}
+db <- read_nadia(f)
+db
+```
+
+```{r nadia-roundtrip, eval = requireNamespace("duckdb", quietly = TRUE)}
+back <- nadia_result(db)
+
+identical(back$DEPs_results,  res$DEPs_results)
+identical(back$PCA_Input,     res$PCA_Input)
+identical(SummarizedExperiment::assay(back$se_proc, "Impseqrob_min"),
+          SummarizedExperiment::assay(res$se_proc,  "Impseqrob_min"))
+```
+
+`identical()`, not `all.equal()`: the round trip preserves integer columns,
+ordered factors and column order, not merely the numbers. From there everything
+works as usual — `volcano_highchart_list(back$DEPs_results)`,
+`pca_highchart_list(back$PCA_Input)`, `proteomics_heatmap(back$PCA_Input)` — and
+`nadia_preprocessing(db)` returns the preprocessing object for the table
+functions.
+
+## Nothing is stored twice
+
+The file is smaller than the sum of the tables it can produce, because anything
+derivable is left out and rebuilt on reading. The `log2` assay is exactly `log2`
+of the raw one, so it is not stored; `PCA_Input` is the imputed assay joined to
+the results, so it is not stored either; and of the imputed assay only the cells
+that were actually filled are kept — on this dataset, 8 % of them.
+
+```{r nadia-tables, eval = requireNamespace("duckdb", quietly = TRUE)}
+nadia_tables(f)
+```
+
+The `v_*` entries are SQL views: the reconstruction lives inside the file rather
+than in R code, so any DuckDB client sees the canonical tables without knowing
+anything about NADIA.
+
+```{r nadia-sql, eval = requireNamespace("duckdb", quietly = TRUE)}
+con <- nadia_connect(f)
+DBI::dbGetQuery(con, "SELECT branch, COUNT(*) AS n
+                      FROM imputed_values GROUP BY branch")
+DBI::dbDisconnect(con, shutdown = TRUE)
+```
+
+That last table is worth knowing about. `imputed_values` holds the imputed
+numbers *and* doubles as the MAR/MNAR mask, so the file records which values
+were measured and which were inferred, and by which branch — which, in a package
+about missing values, is the thing most worth not losing.
+
+## What else it records
+
+Enough to repeat the analysis: the version of NADIA and of the packages that
+influenced the result, the date, every argument, and the literal call — which
+matters because `method_args` and `covariate_df` cannot be reduced to a list of
+scalars.
+
+```{r nadia-provenance, eval = requireNamespace("duckdb", quietly = TRUE)}
+db$calls
+subset(db$parameters, name %in% c("norm_method", "imp_method", "de_method"))
+```
+
+The preprocessing functions also record the path, size and MD5 of the report
+they read, so you can check years later whether a result matches the raw file in
+front of you.
+
+## Two things to know
+
+**Do not write a `.nadia` inside iCloud Drive, Dropbox or OneDrive while you are
+working.** DuckDB keeps the file open with locks and partial writes, and a
+synchronising client can corrupt it. Write it locally and copy it afterwards.
+
+**On portability**, DuckDB writes with backward-compatible storage, so a file
+written here opens with any DuckDB from 0.10.2 onwards — including the
+WebAssembly build, which means a browser can read one of these files with no R
+installed at all. For archiving alongside a publication, though, Parquet is the
+safer bet, and `nadia_export_parquet()` is the way out:
+
+```{r nadia-parquet, eval = requireNamespace("duckdb", quietly = TRUE), message = FALSE}
+pq <- file.path(tempdir(), "nadia_open_format")
+invisible(nadia_export_parquet(db, pq, verbose = FALSE))
+head(list.files(pq), 4)
+```
+
+```{r nadia-cleanup, include = FALSE}
+if (requireNamespace("duckdb", quietly = TRUE)) {
+    unlink(c(f, file.path(tempdir(), "nadia_open_format")), recursive = TRUE)
+}
+```
+
 Two functions in the package have a trap worth knowing: `normalization_metrics()`,
 `imputation_metrics()` and `benchmarking_multiple()` default to
 `export_tables = TRUE`, so they *do* write files unless you pass
