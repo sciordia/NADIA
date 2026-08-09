@@ -8,13 +8,33 @@ without any change to the results the pipeline produces.
 
 * Package structure: `DESCRIPTION`, `NAMESPACE` and help pages generated with
   roxygen2. The way to load the code is now `library(NADIA)`.
-* 112 exported functions covering the whole pipeline: preprocessing of
-  Spectronaut/DIA-NN and Proteome Discoverer reports (both TMT and label-free),
+* 114 exported functions covering the whole pipeline: preprocessing of
+  Spectronaut, DIA-NN and Proteome Discoverer reports (both TMT and label-free),
   normalization (13 methods), batch correction, imputation (20 methods),
   differential expression with limma or limpa, metrics and benchmarking, and
   interactive and static visualization.
 * Example dataset `nadia_dia` and trimmed reports in `inst/extdata/`, with their
   provenance documented in `inst/scripts/`.
+* **`preprocess_diann()`, the fourth input format.** DIA-NN protein-group
+  matrices (`report.pg_matrix.tsv`) are wide — one row per protein group, one
+  column per run — so they need their own reader rather than the Spectronaut
+  one, which expects a long report. The result is the same `proteomics_data`
+  object as the other three, and an example matrix ships in
+  `inst/extdata/nadia_diann_report.tsv.gz`: the same twelve injections as
+  `nadia_dia`, searched with DIA-NN instead of Spectronaut, which puts the
+  missingness at 12.5 % against 8.1 % for the same runs.
+
+  DIA-NN names its intensity columns after the raw file, which does not identify
+  the experimental design, so the design is declared rather than guessed: either
+  rename the columns to the `Abundance: <Condition>_<Replicate>` convention that
+  `preprocess_tmt()` already reads, or pass `sample_names` in column order and
+  leave the report untouched. `R.FileName` keeps the original header either way.
+  A protein-group matrix carries no per-sample metrics at all; what DIA-NN does
+  report is mapped onto the wide contract, and what it does not is left out
+  rather than filled with `NA`, except for the two families the interactive
+  protein and quantification tables need in order to detect their sample
+  columns.
+
 * **`imp_method = "halfmin"`**, the half-minimum imputation that DIA-NN uses for
   its own differential analysis: "replaces each missing value with half the
   observed minimum across all runs". It can be used on its own or as the MNAR

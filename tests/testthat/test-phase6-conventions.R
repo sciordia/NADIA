@@ -16,11 +16,12 @@
     list.files(src, pattern = "[.]R$", full.names = TRUE)
 }
 
-# The four print.* show methods are the only place cat() belongs: there the
+# The five print.* show methods are the only place cat() belongs: there the
 # output IS the return value of the method, and message() would send it to
 # stderr where print() output does not go.
-.NADIA_PRINT_METHODS <- c("print.spectronaut_data", "print.tmt_data",
-                          "print.lfq_data", "print.proteomics_result")
+.NADIA_PRINT_METHODS <- c("print.spectronaut_data", "print.diann_data",
+                          "print.tmt_data", "print.lfq_data",
+                          "print.proteomics_result")
 
 test_that("cat() survives only inside the print.* show methods", {
     files <- .nadia_r_files()

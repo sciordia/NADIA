@@ -15,9 +15,10 @@ to the interactive figure.
 The package is organised in four blocks:
 
 \describe{
-\item{Preprocessing}{\code{\link[=preprocess_spectronaut]{preprocess_spectronaut()}} for Spectronaut/DIA-NN,
+\item{Preprocessing}{\code{\link[=preprocess_spectronaut]{preprocess_spectronaut()}} for Spectronaut,
+\code{\link[=preprocess_diann]{preprocess_diann()}} for DIA-NN protein-group matrices,
 \code{\link[=preprocess_tmt]{preprocess_tmt()}} and \code{\link[=preprocess_lfq]{preprocess_lfq()}} for Proteome Discoverer. All
-three return the same \code{proteomics_data} S3 object, so the rest of the
+four return the same \code{proteomics_data} S3 object, so the rest of the
 pipeline consumes them unchanged.}
 \item{Processing}{\code{\link[=process_proteomics]{process_proteomics()}} coordinates normalization (13
 methods), optional batch correction, imputation (20 methods, including

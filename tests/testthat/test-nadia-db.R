@@ -198,10 +198,13 @@ test_that("norm_method = 'log2' round trips, with no normalized assay of its own
 })
 
 
-test_that("TMT and LFQ round trip, with their different columns", {
+test_that("DIA-NN, TMT and LFQ round trip, with their different columns", {
     skip_if_no_duckdb()
 
     for (pre in list(
+        preprocess_diann(
+            system.file("extdata", "nadia_diann_report.tsv.gz", package = "NADIA"),
+            condition_order = c("A", "B", "D"), verbose = FALSE),
         preprocess_tmt(
             system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA"),
             condition_order = c("A", "B"), verbose = FALSE),
@@ -220,8 +223,27 @@ test_that("TMT and LFQ round trip, with their different columns", {
         expect_identical(db$protein_id,    pre$protein_id)
         expect_identical(db$protein_quant, pre$protein_quant)
         expect_identical(db$PCA_Input,     res$PCA_Input)
+
+        # The leading class has to survive, or the object comes back as
+        # something it is not and print() dispatches to the wrong method.
+        expect_identical(class(nadia_preprocessing(db))[1], class(pre)[1])
         unlink(f)
     }
+})
+
+test_that("DIA-NN records its own experiment_type", {
+    skip_if_no_duckdb()
+
+    pre <- preprocess_diann(
+        system.file("extdata", "nadia_diann_report.tsv.gz", package = "NADIA"),
+        condition_order = c("A", "B", "D"), verbose = FALSE)
+    f <- tempfile(fileext = ".nadia")
+    suppressMessages(write_nadia(f, pre, verbose = FALSE))
+    on.exit(unlink(f), add = TRUE)
+
+    db <- read_nadia(f)
+    expect_identical(unname(db$meta[["experiment_type"]]), "diann")
+    expect_s3_class(nadia_preprocessing(db), "diann_data")
 })
 
 

@@ -10,9 +10,12 @@
 # because `x` was a typo and evaluated to character(0), and `all(character(0))`
 # is TRUE. Checking existence first is what stops that.
 
-test_that("the three preprocessors return the same S3 contract", {
+test_that("the four preprocessors return the same S3 contract", {
     dia <- preprocess_spectronaut(
         system.file("extdata", "nadia_dia_report.tsv.gz", package = "NADIA"),
+        condition_order = c("A", "B", "D"), verbose = FALSE)
+    diann <- preprocess_diann(
+        system.file("extdata", "nadia_diann_report.tsv.gz", package = "NADIA"),
         condition_order = c("A", "B", "D"), verbose = FALSE)
     tmt <- preprocess_tmt(
         system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA"),
@@ -23,16 +26,20 @@ test_that("the three preprocessors return the same S3 contract", {
                                  package = "NADIA"),
         verbose = FALSE)
 
-    for (obj in list(dia, tmt, lfq)) {
+    for (obj in list(dia, diann, tmt, lfq)) {
         expect_s3_class(obj, "proteomics_data")
         expect_identical(names(obj), c("metadata", "protein_id", "protein_quant"))
         expect_s3_class(obj$metadata, "data.frame")
         expect_true(all(c("R.FileName", "R.Condition", "R.Replicate") %in%
                         names(obj$metadata)))
+        # Coding is the join key between the three tables and the pipeline.
+        expect_true(all(paste0("PG.Quantity_", obj$metadata$Coding) %in%
+                        names(obj$protein_quant)))
     }
 
     # The leading class differs, which is what the print methods dispatch on.
     expect_identical(class(dia)[1], "spectronaut_data")
+    expect_identical(class(diann)[1], "diann_data")
     expect_identical(class(tmt)[1], "tmt_data")
     expect_identical(class(lfq)[1], "lfq_data")
 })

@@ -63,6 +63,8 @@ test_that("the documented dimensions of nadia_dia are correct", {
 
 
 test_that("the TMT and LFQ pipelines run to completion", {
+    # DIA-NN has its own file, test-diann.R, because what it does not carry
+    # needs pinning down rather than just running.
     tmt <- preprocess_tmt(
         system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA"),
         condition_order = c("A", "B", "C", "D"), verbose = FALSE)

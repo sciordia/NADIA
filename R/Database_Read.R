@@ -385,11 +385,19 @@ nadia_preprocessing <- function(db) {
               protein_id    = db$protein_id,
               protein_quant = db$protein_quant)
 
-  type <- switch(db$meta[["experiment_type"]],
-                 dia = "spectronaut_data",
-                 tmt = "tmt_data",
-                 lfq = "lfq_data",
-                 "spectronaut_data")
+  # An unregistered type is not silently downgraded to Spectronaut: the object
+  # would come back with the wrong class, print through the wrong method and
+  # fail an identical() against the original, all without a word.
+  known <- c(dia = "spectronaut_data", diann = "diann_data",
+             tmt = "tmt_data", lfq = "lfq_data")
+  et   <- db$meta[["experiment_type"]]
+  type <- unname(known[et])
+  if (is.na(type)) {
+    warning("Unknown experiment_type '", et, "' in the file: it was written by ",
+            "a newer version of NADIA. Reading it as Spectronaut data.",
+            call. = FALSE)
+    type <- "spectronaut_data"
+  }
   class(out) <- c(type, "proteomics_data", "list")
 
   cl <- db$calls$call[db$calls$step == "preprocess"]

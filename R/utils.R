@@ -277,6 +277,50 @@
 
 
 # =============================================================================
+# Shared preprocessing helpers
+# =============================================================================
+
+#' Detect the `Abundance:` columns and derive Coding / Condition / Replicate
+#'
+#' Two of the wide formats declare their design in the column names themselves:
+#' Proteome Discoverer writes `Abundance: <Condition>_<Replicate>`, and a DIA-NN
+#' matrix can be renamed to the same convention so that it needs no annotation
+#' file either. The parser is therefore shared by `preprocess_tmt()` and
+#' `preprocess_diann()`.
+#'
+#' @param df Data frame read from the export.
+#' @return A data frame with `abundance_col`, `Coding`, `R.Condition` and
+#'   `R.Replicate`, one row per column found.
+#' @keywords internal
+#' @noRd
+.parse_abundance_columns <- function(df) {
+  abund_cols <- grep("^Abundance:\\s*", names(df), value = TRUE)
+  if (length(abund_cols) == 0) {
+    stop("No 'Abundance:' columns found in the file. ",
+         "Check that it is a Proteome Discoverer export.")
+  }
+
+  coding <- sub("^Abundance:\\s*", "", abund_cols)
+  m <- stringr::str_match(coding, "^(.+)_(\\d+)$")
+  if (any(is.na(m[, 1]))) {
+    bad <- coding[is.na(m[, 1])]
+    stop(
+      "Could not parse the Abundance suffixes (expected <Condition>_<Replicate>):\n  - ",
+      paste(bad, collapse = "\n  - ")
+    )
+  }
+
+  data.frame(
+    abundance_col = abund_cols,
+    Coding        = coding,
+    R.Condition   = m[, 2],
+    R.Replicate   = as.integer(m[, 3]),
+    stringsAsFactors = FALSE
+  )
+}
+
+
+# =============================================================================
 # Proteome Discoverer helpers
 # =============================================================================
 #

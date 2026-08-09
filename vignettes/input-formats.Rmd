@@ -19,13 +19,13 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
 
 # Introduction
 
-NADIA reads three kinds of report, and after the reading step it stops caring
-which one it was. `preprocess_spectronaut()`, `preprocess_tmt()` and
-`preprocess_lfq()` all return an object of class `proteomics_data`, with the same
-three elements, so `process_proteomics()` and everything downstream take any of
-them unchanged.
+NADIA reads four kinds of report, and after the reading step it stops caring
+which one it was. `preprocess_spectronaut()`, `preprocess_diann()`,
+`preprocess_tmt()` and `preprocess_lfq()` all return an object of class
+`proteomics_data`, with the same three elements, so `process_proteomics()` and
+everything downstream take any of them unchanged.
 
-This vignette shows the three preprocessors on real reports and then makes the
+This vignette shows the four preprocessors on real reports and then makes the
 convergence explicit. The interesting part is not that they converge — it is
 *where they get the experimental design from*, because that differs in each case
 and is the one thing you have to get right.
@@ -42,10 +42,10 @@ BiocManager::install("NADIA")
 library(NADIA)
 ```
 
-# DIA: Spectronaut and DIA-NN
+# DIA: Spectronaut
 
-Spectronaut and DIA-NN export a **long** report: one row per protein group *per
-run*, with the condition and replicate written in every row.
+Spectronaut exports a **long** report: one row per protein group *per run*, with
+the condition and replicate written in every row.
 
 ```{r dia}
 dia_file <- system.file("extdata", "nadia_dia_report.tsv.gz", package = "NADIA")
@@ -76,6 +76,118 @@ dia_median <- preprocess_spectronaut(
 
 These affect only the annotation carried alongside the data, never the
 intensities.
+
+# DIA: DIA-NN
+
+DIA-NN is the other DIA search engine in common use, and it needs its own
+function for a reason that has nothing to do with the acquisition: its
+protein-group matrix (`report.pg_matrix.tsv`) is **wide**. One row per protein
+group, one column per run, like the Proteome Discoverer exports below and unlike
+the Spectronaut report above.
+
+```{r diann}
+diann_file <- system.file("extdata", "nadia_diann_report.tsv.gz",
+                          package = "NADIA")
+diann <- preprocess_diann(diann_file, condition_order = c("A", "B", "D"),
+                          verbose = FALSE)
+diann
+```
+
+## Where the design comes from, and the one thing you must supply
+
+DIA-NN names each intensity column after the raw file it came from:
+
+```
+D:\DIA-NN\Projects\20241014_XII_CursoProtQ_DIA_500ng_sample_A1.raw
+```
+
+That path says nothing the software can rely on. `sample_A1` reads as condition
+A, replicate 1 to a person, and would read the same way to a regular expression
+— right here, and wrong on the next report, silently. So the design is never
+guessed. You declare it, in one of two ways, and neither needs a separate
+annotation file.
+
+**Rename the columns** to the `Abundance: <Condition>_<Replicate>` convention
+that Proteome Discoverer already uses. The report shipped with the package has
+been renamed this way, which is why the call above needs no extra argument.
+
+**Or name the runs in order**, and leave the report exactly as DIA-NN wrote it:
+
+```{r diann-sample-names, eval = FALSE}
+preprocess_diann(
+    "report.pg_matrix.tsv",
+    condition_order = c("A", "B", "D"),
+    sample_names = c("A_1", "A_2", "A_3", "A_4",
+                     "B_1", "B_2", "B_3", "B_4",
+                     "D_1", "D_2", "D_3", "D_4"))
+```
+
+`sample_names` is positional: one label per intensity column, in the order the
+columns appear in the file. If you supply neither, the error lists those columns
+in that order, so the vector is a copy-paste away.
+
+Either way, `R.FileName` keeps the **original** header, so renaming never costs
+you the trail back to the raw file:
+
+```{r diann-md}
+diann$metadata
+```
+
+## What a protein-group matrix does not carry
+
+This is the sparsest of the four formats. A `pg_matrix` holds intensities and
+six annotation columns, and nothing at all per sample — no precursor counts, no
+sequence coverage, no scores, no molecular weight. `protein_id` is
+correspondingly thin:
+
+```{r diann-cols}
+c(spectronaut = ncol(dia$protein_id), diann = ncol(diann$protein_id))
+```
+
+Two DIA-NN columns do map onto the wide contract: `N.Sequences` becomes the
+identified-peptide family and `N.Proteotypic.Sequences` the one used for
+quantification, replicated across runs the same way `preprocess_tmt()` replicates
+the Proteome Discoverer globals. Coverage and the C-score are simply left out
+rather than filled with `NA`, because nothing downstream reads them and an empty
+column is worse than an absent one — it draws a filter box that empties the
+table. The precursor counts *are* kept as `NA`, and only because the protein and
+quantification tables detect their sample columns by looking for them.
+
+The one per-run number a matrix can still give is how many groups were
+quantified in each run, and it is computed rather than read — over the 2,000
+groups of this trimmed file, so it is not comparable with the counts in the
+Spectronaut metadata above, which the search engine reported over the whole
+experiment:
+
+```{r diann-counts}
+diann$metadata[, c("Coding", "R.ProteinGroupsIdentified")]
+```
+
+## The same runs, searched twice
+
+The DIA-NN report here and the Spectronaut report above are the **same twelve
+injections** of the same experiment, put through the two search engines. That
+makes the missingness directly comparable, and it is not the same:
+
+```{r diann-vs-spectronaut}
+miss <- function(x) {
+    q <- as.matrix(x$protein_quant[grep("^PG.Quantity_",
+                                        names(x$protein_quant))])
+    q[q == 0] <- NA
+    c(missing = round(100 * mean(is.na(q)), 1),
+      complete = round(100 * mean(rowSums(is.na(q)) == 0), 1))
+}
+rbind(spectronaut = miss(dia), diann = miss(diann))
+```
+
+Which engine is "right" is not the point — the point is that the choice of
+search engine moves the missingness by half again, before any imputation method
+has been named. That is the decision `vignette("missing-values")` picks up.
+
+A caveat on these two files: each is an independent random sample of 2,000
+protein groups from its own full search, so they overlap in only a few hundred
+groups. They are faithful for comparing *rates*, not for comparing protein by
+protein — that needs the full reports.
 
 # TMT: Proteome Discoverer
 
@@ -148,9 +260,13 @@ That is the whole difference, and it is worth stating in one place:
 
 | Format | Layout | Design taken from |
 |---|---|---|
-| Spectronaut / DIA-NN | long, run-level | the `R.Condition` / `R.Replicate` columns |
+| Spectronaut | long, run-level | the `R.Condition` / `R.Replicate` columns |
+| DIA-NN | wide | the `Abundance: <cond>_<rep>` suffixes, or `sample_names` |
 | TMT (PD) | wide | the `Abundance: <cond>_<rep>` column suffixes |
 | LFQ (PD) | wide | a **separate annotation file** (`annot_path`) |
+
+Only the long format carries its own design. The three wide ones have to be told,
+and the difference between them is just how much editing that costs you.
 
 # Naming the conditions
 
@@ -224,51 +340,56 @@ harmless, because it is not what the matching uses. It is `Coding` and the colum
 names that have to move together. If a run comes back with fewer samples than you
 sent it, this is the first thing to check.
 
-Two format-specific notes. In **TMT** the condition is read from the
-`Abundance: <condition>_<replicate>` suffix; the replicate is matched as the
-trailing digits, so an underscore inside the condition name is still parsed
-correctly (`Ct_a_1` gives condition `Ct_a`, replicate `1`). In **LFQ** the names
-come from the `Condition` column of the annotation file, which is the easiest
-place to fix them — no report needs to be touched.
+Two format-specific notes. In **TMT and DIA-NN** the condition is read from the
+`Abundance: <condition>_<replicate>` suffix — the same parser serves both; the
+replicate is matched as the trailing digits, so an underscore inside the
+condition name is still parsed correctly (`Ct_a_1` gives condition `Ct_a`,
+replicate `1`), and the same holds for a DIA-NN `sample_names` vector. In **LFQ**
+the names come from the `Condition` column of the annotation file, which is the
+easiest place to fix them — no report needs to be touched.
 
-# One contract, three sources
+# One contract, four sources
 
-All three carry the same class hierarchy, and share `proteomics_data`:
+All four carry the same class hierarchy, and share `proteomics_data`:
 
 ```{r classes}
-vapply(list(DIA = dia, TMT = tmt, LFQ = lfq), function(x) class(x)[1], character(1))
-vapply(list(DIA = dia, TMT = tmt, LFQ = lfq),
-       function(x) inherits(x, "proteomics_data"), logical(1))
+all4 <- list(DIA = dia, DIANN = diann, TMT = tmt, LFQ = lfq)
+
+vapply(all4, function(x) class(x)[1], character(1))
+vapply(all4, function(x) inherits(x, "proteomics_data"), logical(1))
 ```
 
 And the same three elements:
 
 ```{r elements}
-lapply(list(DIA = dia, TMT = tmt, LFQ = lfq), names)
+lapply(all4, names)
 ```
 
 Which is what lets the pipeline be indifferent to the source:
 
 ```{r pipeline}
-res_tmt <- process_proteomics(tmt, verbose = FALSE)
-res_lfq <- process_proteomics(lfq, verbose = FALSE)
+res_diann <- process_proteomics(diann, verbose = FALSE)
+res_tmt   <- process_proteomics(tmt, verbose = FALSE)
+res_lfq   <- process_proteomics(lfq, verbose = FALSE)
 
+res_diann$comparisons
 res_tmt$comparisons
 res_lfq$comparisons
 table(res_lfq$DEPs_results$Change)
 ```
 
 Not a single argument had to change. The same is true of every vignette that
-follows: where they say `nadia_dia`, a TMT or LFQ object would do.
+follows: where they say `nadia_dia`, a DIA-NN, TMT or LFQ object would do.
 
 # One caveat about the metadata
 
-The three metadata tables are *not* identical, even though the three objects are
-interchangeable. Spectronaut reports identification counts that Proteome
-Discoverer does not:
+The four metadata tables are *not* identical, even though the four objects are
+interchangeable. Spectronaut reports three identification counts that Proteome
+Discoverer does not report at all and that a DIA-NN matrix can only supply one
+of:
 
 ```{r md-cols}
-lapply(list(DIA = dia, TMT = tmt, LFQ = lfq), function(x) colnames(x$metadata))
+lapply(all4, function(x) colnames(x$metadata))
 ```
 
 Functions that display those counts degrade rather than fail —

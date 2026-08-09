@@ -287,13 +287,15 @@ analysis.
 The preprocessing functions convert the different input formats into a common
 structure:
 
-- `preprocess_spectronaut()` handles Spectronaut and DIA-NN quantification
-  reports in long format.
+- `preprocess_spectronaut()` handles Spectronaut quantification reports in long
+  format.
+- `preprocess_diann()` handles DIA-NN protein-group matrices
+  (`report.pg_matrix.tsv`), which are wide.
 - `preprocess_tmt()` handles TMT reports exported by Proteome Discoverer.
 - `preprocess_lfq()` handles label-free reports exported by Proteome Discoverer,
   together with their experimental annotation.
 
-All three return a `proteomics_data` object with the same basic structure: sample
+All four return a `proteomics_data` object with the same basic structure: sample
 metadata, protein annotation and the quantification matrix. The later stages
 therefore apply in the same way regardless of the source software or
 quantification design.
@@ -354,9 +356,12 @@ The package includes:
 
 - `nadia_dia`, a preprocessed `proteomics_data` object that allows the main
   workflow to be run directly;
-- trimmed DIA, TMT and label-free (DDA) quantification reports, stored in
-  `inst/extdata/`, which demonstrate the import and preprocessing functions from
-  their respective input formats;
+- trimmed Spectronaut, DIA-NN, TMT and label-free (DDA) quantification reports,
+  stored in `inst/extdata/`, which demonstrate the import and preprocessing
+  functions from their respective input formats. The Spectronaut and DIA-NN ones
+  are the same twelve injections searched with the two engines, which is what
+  lets `vignette("input-formats")` show that the choice of search engine moves
+  the missingness from 8.1 % to 12.5 % before any imputation method is named;
 - the additional information needed for the *spike-in* benchmarking examples.
 
 The distributed reports contain a random subset of 2,000 protein groups drawn

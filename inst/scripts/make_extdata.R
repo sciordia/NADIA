@@ -135,10 +135,49 @@ gz(lfq, file.path(EXTDATA, "nadia_lfq_report.tsv.gz"))
 file.copy(file.path(RAW, "20260710_AIturrate_2659_LFQ_QUANT_onlyRAW_Annot.tsv"),
           file.path(EXTDATA, "nadia_lfq_annotation.tsv"), overwrite = TRUE)
 
-# --- 5. Preprocessed object data/nadia_dia.rda ------------------------------
+# --- 5. DIA-NN protein-group matrix -----------------------------------------
+# The same 16 runs as the Spectronaut report in step 1, searched with DIA-NN
+# instead. Wide format, so the sample is drawn from the rows as in steps 3-4.
+#
+# DIA-NN names each intensity column after the raw file, which says nothing
+# about the design. The columns are renamed here to the
+# "Abundance: <Condition>_<Replicate>" convention that preprocess_diann() reads,
+# so that the example needs no annotation file and no extra argument. Reading
+# the report exactly as DIA-NN wrote it is the `sample_names` route instead.
+message("5. nadia_diann_report.tsv.gz")
+dnn <- utils::read.delim(
+  file.path(RAW, "20241014_CursoProtQ_DIA_DIANN_report.pg_matrix.tsv"),
+  sep = "\t", header = TRUE, check.names = FALSE, stringsAsFactors = FALSE)
+
+annot_cols <- c("Protein.Group", "Protein.Ids", "Protein.Names", "Genes",
+                "First.Protein.Description", "N.Sequences",
+                "N.Proteotypic.Sequences")
+run_cols <- setdiff(names(dnn), annot_cols)
+
+# ...sample_A1.raw -> A_1
+tag <- sub("^.*sample_([A-Za-z]+)([0-9]+)\\.raw$", "\\1_\\2", basename(run_cols))
+stopifnot(!any(tag == basename(run_cols)))       # every column parsed
+names(dnn)[match(run_cols, names(dnn))] <- paste0("Abundance: ", tag)
+
+# The sample is drawn before dropping the unused conditions, exactly as in
+# step 1, so that the 2,000 protein groups do not depend on which conditions
+# are kept.
+set.seed(SEED)
+dnn <- dnn[sort(sample(nrow(dnn), min(N_PROTEINS, nrow(dnn)))), , drop = FALSE]
+dnn <- dnn[, c(intersect(annot_cols, names(dnn)),
+               paste0("Abundance: ", tag[sub("_.*$", "", tag) %in% CONDITIONS])),
+           drop = FALSE]
+gz(dnn, file.path(EXTDATA, "nadia_diann_report.tsv.gz"))
+
+dnn_mat <- as.matrix(dnn[, grep("^Abundance: ", names(dnn))])
+message(sprintf("  missing values: %.1f %% | complete proteins: %.1f %%",
+                100 * mean(is.na(dnn_mat)),
+                100 * mean(rowSums(is.na(dnn_mat)) == 0)))
+
+# --- 6. Preprocessed object data/nadia_dia.rda ------------------------------
 # Built from the already trimmed report in inst/extdata, so that the object and
 # the example file describe exactly the same experiment.
-message("5. data/nadia_dia.rda")
+message("6. data/nadia_dia.rda")
 nadia_dia <- NADIA::preprocess_spectronaut(
   file_path       = file.path(EXTDATA, "nadia_dia_report.tsv.gz"),
   condition_order = CONDITIONS,
