@@ -60,11 +60,17 @@ imputation method returns its input unchanged.
 ```{r pattern}
 quant <- as.matrix(nadia_dia$protein_quant[
     grep("^PG.Quantity_", colnames(nadia_dia$protein_quant))])
-quant[quant == 0] <- NA
 
 round(100 * mean(is.na(quant)), 1)
 table(missing_per_protein = rowSums(is.na(quant)))
 ```
+
+The blanks arrive as `NA` already: a Spectronaut report is long, and a protein
+that was not quantified in a run simply has no row, so the pivot to wide format
+is what creates the gap. Some exports write a literal `0` instead, which means
+the same thing and would otherwise be read as a measured intensity of zero;
+`normalize_proteomics()` converts those before doing anything else, so you never
+have to.
 
 The shape of that table is the diagnostic, and this one is unusually legible.
 Counts fall away from zero as you would expect — 70 proteins with one gap, 67
@@ -89,6 +95,73 @@ The downward trend is the whole argument. If missingness were random, this plot
 would be flat: proteins with gaps would be no dimmer than proteins without. It is
 not flat, so the gaps are not random, and an imputation method that assumes they
 are will be wrong in a predictable direction.
+
+# The same runs, a different search engine
+
+Everything above reads as a property of the experiment. Part of it is a property
+of the software. The package also ships the **same twelve injections searched
+with DIA-NN** instead of Spectronaut — same instrument, same digests, same raw
+files — so the two can be put side by side:
+
+```{r engines}
+diann <- preprocess_diann(
+    system.file("extdata", "nadia_diann_report.tsv.gz", package = "NADIA"),
+    condition_order = c("A", "B", "D"), verbose = FALSE)
+
+qd <- as.matrix(diann$protein_quant[
+    grep("^PG.Quantity_", colnames(diann$protein_quant))])
+
+rbind(spectronaut = c(missing  = round(100 * mean(is.na(quant)), 1),
+                      complete = round(100 * mean(rowSums(is.na(quant)) == 0), 1)),
+      diann       = c(round(100 * mean(is.na(qd)), 1),
+                      round(100 * mean(rowSums(is.na(qd)) == 0), 1)))
+```
+
+Half again as many blanks, from the same measurements. That alone would be worth
+knowing. What matters more here is that the extra blanks are not spread evenly —
+they land exactly where MNAR lives:
+
+```{r engines-shape}
+shape <- function(q) table(factor(rowSums(is.na(q)), levels = 0:12))
+rbind(spectronaut = shape(quant), diann = shape(qd))
+```
+
+Read the two rows against the group size, which is four. Both spike at exactly
+four, the signature of a protein vanishing from one whole condition, and DIA-NN's
+spike is the taller one. Then look at the right-hand end: Spectronaut trails off
+to almost nothing past eight, while DIA-NN keeps a run of proteins missing eight,
+nine, ten and eleven values — proteins gone from *two* conditions. Those columns
+are not noise, they are biology the two engines disagree about.
+
+```{r engines-mnar}
+gone_from_a_condition <- function(q) {
+    grp <- rep(c("A", "B", "D"), each = 4)
+    mean(apply(q, 1, function(r) any(tapply(is.na(r), grp, all))))
+}
+
+intensity_drop <- function(q) {
+    n <- rowSums(is.na(q))
+    m <- rowMeans(log2(q), na.rm = TRUE)
+    median(m[n == 0]) - median(m[n > 0], na.rm = TRUE)
+}
+
+rbind(spectronaut = c(pct_gone   = round(100 * gone_from_a_condition(quant), 1),
+                      log2_drop  = round(intensity_drop(quant), 1)),
+      diann       = c(round(100 * gone_from_a_condition(qd), 1),
+                      round(intensity_drop(qd), 1)))
+```
+
+One protein in five drops out of an entire condition with DIA-NN, against one in
+seven with Spectronaut; and the gappy proteins sit further below the complete
+ones — a steeper gradient, so a stronger dependence between abundance and
+absence. (The `log2_drop` is a difference within each engine, which is why it is
+comparable at all: the two report intensities on different scales.)
+
+The conclusion is not that one engine is better. It is that **the search engine
+is part of the missing-value problem, not upstream of it.** The same data can
+hand you a mild MAR-ish matrix or a hard MNAR one, and the imputation choice that
+follows should be made on the matrix you actually have — which is what the rest
+of this vignette, and `vignette("choosing-methods")`, are about.
 
 # The methods on offer
 
