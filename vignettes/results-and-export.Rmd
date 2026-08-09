@@ -77,6 +77,20 @@ The individual export switches — `export_normalized`, `export_imputed`,
 `export_volcano`, `export_boxplot`, `export_pca` — turn off anything you do not
 need.
 
+Two functions in the package have a trap worth knowing: `normalization_metrics()`,
+`imputation_metrics()` and `benchmarking_multiple()` default to
+`export_tables = TRUE`, so they *do* write files unless you pass
+`output_dir = NULL`. Every example and vignette in this package passes it.
+
+```{r no-write}
+before <- length(list.files(tempdir()))
+nm <- normalization_metrics(
+    nm_run_normalizations(nm_prepare_se(nadia_dia, verbose = FALSE),
+                          methods = c("log2Norm", "cycloess"), verbose = FALSE),
+    output_dir = NULL, verbose = FALSE)
+identical(before, length(list.files(tempdir())))
+```
+
 # One file for the whole analysis
 
 The exports above leave a dozen loose files that have to be kept together by
@@ -156,9 +170,10 @@ db$calls
 subset(db$parameters, name %in% c("norm_method", "imp_method", "de_method"))
 ```
 
-The preprocessing functions also record the path, size and MD5 of the report
-they read, so you can check years later whether a result matches the raw file in
-front of you.
+The preprocessing functions also record the path, size and MD5 of the report they
+read, in `nadia_source_files`, so you can check years later whether a result
+matches the raw file in front of you. It is empty above only because `nadia_dia`
+is a stored dataset rather than something read from a report in this session.
 
 ## Two things to know
 
@@ -175,7 +190,7 @@ safer bet, and `nadia_export_parquet()` is the way out:
 ```{r nadia-parquet, eval = requireNamespace("duckdb", quietly = TRUE), message = FALSE}
 pq <- file.path(tempdir(), "nadia_open_format")
 invisible(nadia_export_parquet(db, pq, verbose = FALSE))
-head(list.files(pq), 4)
+list.files(pq)
 ```
 
 ```{r nadia-cleanup, include = FALSE}
@@ -184,19 +199,6 @@ if (requireNamespace("duckdb", quietly = TRUE)) {
 }
 ```
 
-Two functions in the package have a trap worth knowing: `normalization_metrics()`,
-`imputation_metrics()` and `benchmarking_multiple()` default to
-`export_tables = TRUE`, so they *do* write files unless you pass
-`output_dir = NULL`. Every example and vignette in this package passes it.
-
-```{r no-write}
-before <- length(list.files(tempdir()))
-nm <- normalization_metrics(
-    nm_run_normalizations(nm_prepare_se(nadia_dia, verbose = FALSE),
-                          methods = c("log2Norm", "cycloess"), verbose = FALSE),
-    output_dir = NULL, verbose = FALSE)
-identical(before, length(list.files(tempdir())))
-```
 
 # Interactive tables
 
