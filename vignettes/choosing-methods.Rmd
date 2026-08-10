@@ -172,6 +172,66 @@ Note where the two-stage `combo` lands: mid-table. It is worse than pure
 MNAR method by design. On a benchmark composed entirely of MAR gaps, that is
 exactly what should happen.
 
+# Does the answer transfer?
+
+A ranking is only worth computing if it might have come out differently. The
+package ships the same twelve injections searched with DIA-NN instead of
+Spectronaut — a matrix with half again as many blanks, and a much stronger MNAR
+character (`vignette("missing-values")` has the numbers) — so both benchmarks can
+be run a second time on data that differ in exactly the way that should matter.
+
+```{r engines-norm, message = FALSE, warning = FALSE}
+diann <- preprocess_diann(
+    system.file("extdata", "nadia_diann_report.tsv.gz", package = "NADIA"),
+    condition_order = c("A", "B", "D"), verbose = FALSE)
+
+nm_dn <- normalization_metrics(
+    nm_run_normalizations(nm_prepare_se(diann, verbose = FALSE),
+                          methods = c("log2Norm", "cycloess", "Rlr", "quantile"),
+                          verbose = FALSE),
+    output_dir = NULL, verbose = FALSE)
+
+nm_dn$final_rank
+```
+
+The order is the same — `cycloess`, then `Rlr`, then `quantile`, then `log2` —
+which is reassuring right up until you read the last column. On the Spectronaut
+matrix `cycloess` won at 1.4 against 2.2; here the two **tie at 1.6**, and they
+tie for opposite reasons: `cycloess` takes the three dispersion criteria and
+`Rlr` takes both correlation and separation, having placed third on correlation
+before. The winner survived; the margin did not.
+
+```{r engines-imp, message = FALSE, warning = FALSE}
+im_dn <- imputation_metrics(
+    im_prepare_se(diann, norm_method = "cycloess", verbose = FALSE),
+    assay_name = "cycloess",
+    methods    = c("Impseqrob", "knn", "MinDet", "QRILC", "min"),
+    combo_methods = list(
+        Impseqrob_min = list(mar_method = "Impseqrob", mnar_method = "min")),
+    output_dir = NULL, verbose = FALSE)
+
+im_dn$metrics_table[, c("Method", "NRMSE", "ACC_OI", "Rank_Mean")]
+```
+
+The imputation ranking does not move at all — same order, nearly the same
+`Rank_Mean`. That looks like strong evidence that the choice is portable, and it
+is worth being careful about why it is not.
+
+Go back to the caveat above. The simulation can only hide values it can see, so
+it measures **reconstruction of random gaps**, and random gaps are the part these
+two matrices agree about. Where they disagree is whole-condition dropouts — one
+protein in five with DIA-NN against one in seven with Spectronaut — and this
+benchmark contains none of those, by construction, on either matrix. It returns
+the same answer because it is being asked the same question, not because the two
+datasets pose the same problem.
+
+The practical reading is the ordinary one for a proxy. Both tables transfer as
+far as what they measure transfers: normalisation is scored on the real data and
+its verdict here is genuinely thinner than one dataset suggested, while the
+imputation table answers a MAR question that your matrix may be dominated by or
+may barely contain. Which of the two you are in is a property of your data, and
+the tables in `vignette("missing-values")` are how you find out.
+
 # Chaining the two decisions
 
 The imputation benchmark runs on a normalised matrix, so the normalisation
