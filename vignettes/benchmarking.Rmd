@@ -404,15 +404,55 @@ pipelines <- list(
     cycloess_min   = list(norm_method = "cycloess", imp_method = "min"))
 
 invisible(capture.output(
-  opdea <- do.call(rbind, lapply(names(pipelines), function(p) {
+  scored <- lapply(names(pipelines), function(p) {
       r <- do.call(process_proteomics,
                    c(list(nadia_dia, verbose = FALSE), pipelines[[p]]))
       b <- benchmarking_proteomics(r$DEPs_results, expected,
                                    species_df = species_df,
                                    output_dir = NULL, verbose = FALSE)
-      cbind(Assay = p, b$opdea_metrics)
-  }))))
+      list(opdea     = cbind(Assay = p, b$opdea_metrics),
+           confusion = cbind(Assay = p, b$metrics_table))
+  })))
 
+opdea     <- do.call(rbind, lapply(scored, `[[`, "opdea"))
+confusion <- do.call(rbind, lapply(scored, `[[`, "confusion"))
+```
+
+## Look at the four counts before ranking anything
+
+`bm_plot_confusion_stacked()` draws TP, TN, FP and FN as one stacked bar per
+pipeline, faceted by comparison. Every bar spans the same 2,000 proteins, so the
+blocks are directly comparable across rows.
+
+```{r multiple-confusion, eval = have_proc, fig.width = 7.5, fig.height = 4.5, fig.alt = "Confusion matrix counts per pipeline and comparison"}
+bm_plot_confusion_stacked(confusion)
+```
+
+The figure answers a question a ranking cannot: **how** does a pipeline lose. The
+two losers here fail in opposite directions, and only one of them is a
+respectable failure.
+
+`quantile_combo` is the disaster, and it takes one glance rather than a careful
+reading of a table: the false-positive block explodes to 917 in `D-A` and 934 in
+`D-B`, leaving only 337 and 320 true negatives out of some 1,250 background
+proteins. It is calling three quarters of the human background differentially
+abundant. A pipeline like that does not produce a slightly worse protein list; it
+produces one that is mostly wrong, and it would look perfectly healthy in a
+volcano plot with no species information on it.
+
+`cycloess_min` fails the other way. Its false-positive sliver is the thinnest of
+the three — the thinnest possible, in fact, since `min` writes the same low value
+into every gap and rarely manufactures a difference — but its false negatives are
+the largest, 343 against 274 in `B-A`. That is the conservative failure: it
+misses real changes rather than inventing them, which for many purposes is the
+one you would choose if you had to choose.
+
+Ranking compresses all of that into an order. It is worth seeing what is being
+compressed before reading it.
+
+## The ranking
+
+```{r multiple-rank, eval = have_proc}
 ranking <- bm_compute_ranking(opdea)
 names(ranking)
 ranking$mean_ranking
