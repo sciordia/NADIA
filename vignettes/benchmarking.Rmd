@@ -314,6 +314,68 @@ entirely at q-values nobody applies. A difference in pAUC at 5 % is a difference
 where you work. That is why `pAUC_005` carries weight in the ranking below, and
 why the zoom is worth reading before the full curve.
 
+# Scoring the search engine
+
+Everything scored so far is downstream of the search. The same twelve injections
+were also searched with DIA-NN, and since the spike-in ratios are a property of
+how the samples were mixed, **the same `expected` table is the truth for both**.
+That makes the search engine itself scoreable, on exactly the terms used above.
+
+The species annotation does not even need a separate file this time: DIA-NN
+writes the organism into its own `Protein.Names` column.
+
+```{r engines-bench, message = FALSE, warning = FALSE}
+diann <- preprocess_diann(
+    system.file("extdata", "nadia_diann_report.tsv.gz", package = "NADIA"),
+    condition_order = c("A", "B", "D"), verbose = FALSE)
+
+species_dn <- data.frame(
+    Protein.IDs = diann$protein_id$PG.ProteinGroups,
+    Species = toupper(sub(".*_", "",
+                          sub(";.*", "", diann$protein_id$PG.ProteinNames))))
+
+bench_dn <- benchmarking_proteomics(
+    process_proteomics(diann, verbose = FALSE)$DEPs_results,
+    expected, species_df = species_dn, output_dir = NULL, verbose = FALSE)
+
+cbind(engine = rep(c("spectronaut", "diann"), each = 3),
+      rbind(bench$metrics_table, bench_dn$metrics_table)[
+          , c("Comparison", "TP", "FP", "FN", "Sensitivity", "Specificity",
+              "MCC")])
+```
+
+DIA-NN recovers more of the spike-ins in every comparison, and dramatically so
+where the effect is largest: in `D-A` the false negatives fall from 50 to 6.
+It pays for that in specificity, which drops in all three, with false positives
+rising from 27 to 70 in the hard `B-A` comparison. MCC weighs both and still
+comes out ahead, so on this data the trade is worth making.
+
+That is the tidy conclusion, and the zoom of the previous section is what
+complicates it:
+
+```{r engines-pauc, eval = have_proc}
+cbind(engine = rep(c("spectronaut", "diann"), each = 3),
+      rbind(bench$opdea_metrics, bench_dn$opdea_metrics)[
+          , c("Comparison", "pAUC_001", "pAUC_005", "pAUC_010")])
+```
+
+Read the three columns left to right. At a 1 % false positive budget
+**Spectronaut wins all three comparisons**; at 5 % and at 10 % DIA-NN wins all
+three. The ranking reverses inside the region the analysis actually operates in,
+and it reverses at a threshold stricter than the one this vignette used.
+
+So "which search engine is better" has no answer without a false-positive budget
+attached. If you can tolerate one false positive in twenty, DIA-NN's extra
+sensitivity is worth having. If you are working at one in a hundred — a large
+screen, or a claim that has to survive scrutiny — Spectronaut's cleaner matrix
+wins on the same data, against the same truth. This is the same lesson as the
+zoom, applied one step further upstream than usual: the choice of search engine
+is a benchmarkable decision, and it should be benchmarked at the threshold you
+intend to use.
+
+(The DIA-NN annotation also carries a handful of bovine contaminants. They have
+no declared expectation, so they count as background, which is what they are.)
+
 # The volcanoes
 
 Shown but not run, to keep this vignette light; `vignette("visualization")`
