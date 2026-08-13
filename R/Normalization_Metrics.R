@@ -2175,7 +2175,9 @@ nm_plot_final_ranking <- function(se, assay_names = NULL,
 #'   `"fixed"`, or `"both"` to generate and export both variants
 #'   (`mds_free` and `mds_fixed` in the returned list).
 #' @param methods Character vector of normalization method names to
-#'   auto-benchmark, `"all"` for all 14 methods, or NULL (default) to skip
+#'   auto-benchmark, `"all"` for the 12 benchmark methods (`"log2"` is the
+#'   baseline and is excluded, so this is one fewer than the 13 that
+#'   `normalize_proteomics()` accepts), or NULL (default) to skip
 #'   auto-normalization and use existing assays.
 #' @param method_args Named list of per-method arguments forwarded to
 #'   `nm_run_normalizations()`. E.g.

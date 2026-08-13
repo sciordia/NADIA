@@ -61,7 +61,7 @@ by \code{export_normalized}, \code{export_imputed}, \code{export_volcano},
 \item{min_groups_filter}{Minimum groups for filtering (default: 1)}
 
 \item{norm_method}{Normalization method passed to normalize_proteomics()
-(default: "cycloess"). See normalize_proteomics() for all 14 options.}
+(default: "cycloess"). See normalize_proteomics() for all 13 options.}
 
 \item{cyclic_loess_method}{Cyclic Loess method: "fast" or "pairs" (default: "fast")}
 

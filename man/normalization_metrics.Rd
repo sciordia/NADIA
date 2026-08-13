@@ -53,7 +53,9 @@ Default \code{"pearson"}.}
 (\code{mds_free} and \code{mds_fixed} in the returned list).}
 
 \item{methods}{Character vector of normalization method names to
-auto-benchmark, \code{"all"} for all 14 methods, or NULL (default) to skip
+auto-benchmark, \code{"all"} for the 12 benchmark methods (\code{"log2"} is the
+baseline and is excluded, so this is one fewer than the 13 that
+\code{normalize_proteomics()} accepts), or NULL (default) to skip
 auto-normalization and use existing assays.}
 
 \item{method_args}{Named list of per-method arguments forwarded to
