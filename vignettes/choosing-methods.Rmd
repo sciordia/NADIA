@@ -240,7 +240,7 @@ protein-abundance matrix is expressed on the log2 scale.
 
 ::: {.wide-reference-table .normalisation-methods-table}
 
-| `norm_method` | Principle |
+| norm_method | Principle |
 |---|---|
 | `log2` | Applies the log2 transformation and no additional normalisation. It is the natural baseline for comparison. |
 | `log2Norm` | Applies the same log2 transformation. It is retained as a named benchmark method for compatibility. |
@@ -471,7 +471,7 @@ unambiguously.
 
 ::: {.wide-reference-table .imputation-methods-table}
 
-| Group | `imp_method` | Principle |
+| Group | imp_method | Principle |
 |---|---|---|
 | Structure-based, generally used for MAR | `bpca` | Bayesian principal-component imputation using `pcaMethods`. |
 |  | `knn` | Estimates a value from similar proteins using k-nearest neighbours. |
