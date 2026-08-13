@@ -2073,9 +2073,10 @@ nm_plot_final_ranking <- function(se, assay_names = NULL,
     ggplot2::coord_flip() +
     ggplot2::scale_fill_manual(values = rep_len(col_vector, nrow(rank_df))) +
     ggplot2::labs(
-      title = "Combined Normalization Ranking (PCV + PMAD + PEV + Cor + PC1 + MDS1)",
-      x     = NULL,
-      y     = "Mean Rank"
+      title    = "Combined Normalization Ranking",
+      subtitle = "Mean of PCV, PMAD, PEV, correlation and PC1 group-separation ranks",
+      x        = NULL,
+      y        = "Mean Rank"
     ) +
     ggplot2::theme_bw() +
     ggplot2::expand_limits(y = max(rank_df$Rank_Final, na.rm = TRUE) * 1.12)
@@ -2202,7 +2203,9 @@ nm_plot_final_ranking <- function(se, assay_names = NULL,
 #'   data.frames always computed regardless of `plots` selection:
 #'   `metrics_table` (from `nm_compute_metrics()`), `pc1_rank`, `mds1_rank`,
 #'   `pcv_rank`, `pmad_rank`, `pev_rank`, `cor_rank`, and `final_rank`
-#'   (combined ranking as mean of the six individual ranks).
+#'   (combined ranking as the mean of the five ranks `Rank_PCV`, `Rank_PMAD`,
+#'   `Rank_PEV`, `Rank_Cor` and `Rank_Sep`; `pc1_rank` and `mds1_rank` are
+#'   standalone diagnostics and do not enter it).
 #'
 #' @examples
 #' data(nadia_dia)

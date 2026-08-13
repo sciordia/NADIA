@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="820"
+     viewBox="0 0 1440 820" role="img"
+     aria-labelledby="title description">
+  <title id="title">Working distinction between MAR and MNAR missing values in proteomics</title>
+  <desc id="description">Two panels compare missing at random and missing not at random. In the MAR panel, one measurement is missing despite an abundance similar to neighbouring observed measurements, so relationships in the data can be used for imputation. In the MNAR panel, low abundances fall below a detection limit and are preferentially missing, so low-value or detection-aware methods are more plausible. The diagram notes that these are working assumptions and cannot be identified with certainty from a single missing value.</desc>
+
+  <defs>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
+      .main-title { font-size: 39px; font-weight: 750; fill: #1d3557; }
+      .subtitle { font-size: 21px; fill: #526473; }
+      .panel-title { font-size: 31px; font-weight: 750; }
+      .panel-subtitle { font-size: 19px; font-weight: 650; fill: #3e5060; }
+      .axis { font-size: 16px; fill: #5f6f7d; }
+      .label { font-size: 18px; fill: #334756; }
+      .strong { font-size: 19px; font-weight: 700; }
+      .body { font-size: 18px; fill: #334756; }
+      .small { font-size: 16px; fill: #637380; }
+      .footer-head { font-size: 20px; font-weight: 750; fill: #1d3557; }
+      .footer { font-size: 18px; fill: #405363; }
+    </style>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#203040" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#3976a8"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#c64a5c"/>
+    </marker>
+  </defs>
+
+  <rect width="1440" height="820" fill="#ffffff"/>
+
+  <g class="sans">
+    <text x="720" y="58" text-anchor="middle" class="main-title">Why is an intensity missing?</text>
+    <text x="720" y="94" text-anchor="middle" class="subtitle">The plausible mechanism determines which imputation strategy makes sense</text>
+
+    <!-- MAR panel -->
+    <g filter="url(#shadow)">
+      <rect x="55" y="130" width="645" height="545" rx="22" fill="#f3f8fc" stroke="#6ea2ca" stroke-width="2"/>
+    </g>
+    <circle cx="105" cy="181" r="25" fill="#3976a8"/>
+    <text x="105" y="189" text-anchor="middle" font-size="22" font-weight="800" fill="#ffffff">1</text>
+    <text x="146" y="190" class="panel-title" fill="#285f8d">MAR</text>
+    <text x="146" y="220" class="panel-subtitle">Missingness is explainable from observed information</text>
+
+    <!-- MAR mini plot -->
+    <line x1="120" y1="485" x2="120" y2="275" stroke="#71818e" stroke-width="2"/>
+    <line x1="120" y1="485" x2="405" y2="485" stroke="#71818e" stroke-width="2"/>
+    <text x="88" y="385" text-anchor="middle" class="axis" transform="rotate(-90 88 385)">log2 intensity</text>
+    <text x="263" y="516" text-anchor="middle" class="axis">replicate</text>
+    <line x1="120" y1="364" x2="405" y2="364" stroke="#9ec1dc" stroke-width="2" stroke-dasharray="7 6"/>
+    <circle cx="165" cy="354" r="12" fill="#3976a8"/>
+    <circle cx="230" cy="370" r="12" fill="#3976a8"/>
+    <circle cx="360" cy="359" r="12" fill="#3976a8"/>
+    <circle cx="295" cy="364" r="14" fill="#ffffff" stroke="#3976a8" stroke-width="3" stroke-dasharray="5 4"/>
+    <path d="M286 355 L304 373 M304 355 L286 373" stroke="#3976a8" stroke-width="4" stroke-linecap="round"/>
+    <text x="165" y="506" text-anchor="middle" class="small">R1</text>
+    <text x="230" y="506" text-anchor="middle" class="small">R2</text>
+    <text x="295" y="506" text-anchor="middle" class="small">R3</text>
+    <text x="360" y="506" text-anchor="middle" class="small">R4</text>
+    <path d="M395 316 C455 300, 478 310, 505 340" fill="none" stroke="#3976a8" stroke-width="3" marker-end="url(#arrow-blue)"/>
+
+    <rect x="425" y="270" width="228" height="240" rx="14" fill="#ffffff" stroke="#b7d1e4" stroke-width="2"/>
+    <text x="445" y="305" class="strong" fill="#285f8d">Plausible cause</text>
+    <text x="445" y="335" class="body">A measurement failed,</text>
+    <text x="445" y="361" class="body">but the protein is present.</text>
+    <text x="445" y="406" class="strong" fill="#285f8d">Useful information</text>
+    <text x="445" y="436" class="body">Relationships among</text>
+    <text x="445" y="462" class="body">proteins, samples and</text>
+    <text x="445" y="488" class="body">observed covariates.</text>
+
+    <rect x="105" y="535" width="545" height="118" rx="14" fill="#e4f0f8"/>
+    <text x="128" y="570" class="strong" fill="#285f8d">Working imputation choice</text>
+    <text x="128" y="602" class="body">Estimate from the observed data structure</text>
+    <text x="128" y="630" class="small">for example, neighbours, PCA or regression models</text>
+
+    <!-- MNAR panel -->
+    <g filter="url(#shadow)">
+      <rect x="740" y="130" width="645" height="545" rx="22" fill="#fff5f6" stroke="#dc8190" stroke-width="2"/>
+    </g>
+    <circle cx="790" cy="181" r="25" fill="#c64a5c"/>
+    <text x="790" y="189" text-anchor="middle" font-size="22" font-weight="800" fill="#ffffff">2</text>
+    <text x="831" y="190" class="panel-title" fill="#a72f43">MNAR</text>
+    <text x="831" y="220" class="panel-subtitle">Missingness depends on the unobserved abundance</text>
+
+    <!-- MNAR mini plot -->
+    <line x1="805" y1="485" x2="805" y2="275" stroke="#71818e" stroke-width="2"/>
+    <line x1="805" y1="485" x2="1090" y2="485" stroke="#71818e" stroke-width="2"/>
+    <text x="773" y="385" text-anchor="middle" class="axis" transform="rotate(-90 773 385)">log2 intensity</text>
+    <text x="947" y="516" text-anchor="middle" class="axis">protein abundance</text>
+    <line x1="805" y1="395" x2="1090" y2="395" stroke="#c64a5c" stroke-width="3" stroke-dasharray="8 6"/>
+    <text x="1085" y="385" text-anchor="end" class="small" fill="#a72f43">detection limit</text>
+    <circle cx="850" cy="315" r="11" fill="#c64a5c"/>
+    <circle cx="905" cy="342" r="11" fill="#c64a5c"/>
+    <circle cx="960" cy="370" r="11" fill="#c64a5c"/>
+    <circle cx="1015" cy="425" r="12" fill="#ffffff" stroke="#c64a5c" stroke-width="3" stroke-dasharray="5 4"/>
+    <path d="M1007 417 L1023 433 M1023 417 L1007 433" stroke="#c64a5c" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="1060" cy="455" r="12" fill="#ffffff" stroke="#c64a5c" stroke-width="3" stroke-dasharray="5 4"/>
+    <path d="M1052 447 L1068 463 M1068 447 L1052 463" stroke="#c64a5c" stroke-width="4" stroke-linecap="round"/>
+    <path d="M1080 315 C1135 300, 1165 310, 1190 340" fill="none" stroke="#c64a5c" stroke-width="3" marker-end="url(#arrow-red)"/>
+
+    <rect x="1110" y="270" width="228" height="240" rx="14" fill="#ffffff" stroke="#ecc0c7" stroke-width="2"/>
+    <text x="1130" y="305" class="strong" fill="#a72f43">Plausible cause</text>
+    <text x="1130" y="335" class="body">The protein is absent or</text>
+    <text x="1130" y="361" class="body">below the detection limit.</text>
+    <text x="1130" y="406" class="strong" fill="#a72f43">Information in the gap</text>
+    <text x="1130" y="436" class="body">The true value is likely</text>
+    <text x="1130" y="462" class="body">to be low.</text>
+
+    <rect x="790" y="535" width="545" height="118" rx="14" fill="#fde5e9"/>
+    <text x="813" y="570" class="strong" fill="#a72f43">Working imputation choice</text>
+    <text x="813" y="602" class="body">Use a low-value or detection-aware model</text>
+    <text x="813" y="630" class="small">and preserve the evidence carried by non-detection</text>
+
+    <!-- Footer -->
+    <rect x="170" y="716" width="1100" height="70" rx="16" fill="#f4f6f8" stroke="#cbd4dc" stroke-width="2"/>
+    <text x="202" y="746" class="footer-head">Important:</text>
+    <text x="315" y="746" class="footer">MAR and MNAR are working assumptions, not labels that can be proven from one NA.</text>
+    <text x="202" y="773" class="footer">A dataset may contain both mechanisms; inspect missingness by condition and its relationship with intensity.</text>
+  </g>
+</svg>
