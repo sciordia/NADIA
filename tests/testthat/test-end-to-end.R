@@ -77,10 +77,12 @@ test_that("the TMT and LFQ pipelines run to completion", {
     res_tmt <- process_proteomics(tmt, verbose = FALSE)
     res_lfq <- process_proteomics(lfq, verbose = FALSE)
 
-    # 4 conditions give 6 pairwise contrasts; 2 conditions give 1.
+    # 4 conditions give 6 pairwise contrasts; 3 conditions give 3. The LFQ
+    # example is the same A/B/D design as the DIA and DIA-NN ones.
     expect_length(res_tmt$comparisons, 6L)
-    expect_length(res_lfq$comparisons, 1L)
-    expect_identical(as.character(res_lfq$comparisons), "MUT-WT")
+    expect_length(res_lfq$comparisons, 3L)
+    expect_identical(as.character(res_lfq$comparisons),
+                     c("B-A", "D-A", "D-B"))
 
     for (r in list(res_tmt, res_lfq)) {
         expect_s3_class(r, "proteomics_result")

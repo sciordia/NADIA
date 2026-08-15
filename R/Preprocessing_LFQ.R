@@ -247,7 +247,10 @@ preprocess_lfq <- function(
   col_pgids  <- .pd_resolve_col(df, "Protein Group IDs")
   col_fdr    <- .pd_resolve_col(df, "Protein FDR Confidence: Combined",
                                     "Protein FDR Confidence")
-  col_qvalue <- .pd_resolve_col(df, "Exp. q-value: Combined", "Exp. q-value")
+  # Proteome Discoverer 3.3 renamed this field to "Exp. Protein q-value".
+  col_qvalue <- .pd_resolve_col(df, "Exp. Protein q-value: Combined",
+                                    "Exp. Protein q-value",
+                                    "Exp. q-value: Combined", "Exp. q-value")
   col_pep    <- .pd_resolve_col(df, "Sum PEP Score")
   col_psms   <- .pd_resolve_col(df, "# PSMs", "Number of PSMs")
   col_pepts  <- .pd_resolve_col(df, "# Peptides", "Number of Peptides")

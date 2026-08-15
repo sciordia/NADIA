@@ -76,6 +76,25 @@ without any change to the results the pipeline produces.
 
 ## Changes
 
+* **The label-free example is now the same experiment as the DIA ones.** It used
+  to be an unrelated label-free run of six samples in two conditions (WT and
+  MUT). `inst/extdata/nadia_lfq_report.tsv.gz` and its annotation now hold the
+  same twelve injections as `nadia_dia` and `nadia_diann` — conditions A, B and D
+  with four replicates each — acquired label-free and searched with Proteome
+  Discoverer 3.3. Comparing the three example formats is now comparing
+  acquisition and search methods rather than comparing experiments: 8.0 % missing
+  values against 8.1 % for Spectronaut and 12.5 % for DIA-NN on the same runs.
+  Anything reading the example gets three contrasts (`B-A`, `D-A`, `D-B`) where
+  it used to get one (`MUT-WT`).
+
+* **`preprocess_lfq()` and `preprocess_tmt()` read the Proteome Discoverer 3.3
+  column names.** Version 3.3 renamed `Exp. q-value: Combined` to
+  `Exp. Protein q-value: Combined`. Both readers resolve a column by trying a
+  list of known spellings and fall back to `NA` when none matches, so a report
+  from the new version used to produce an `Exp.q.value` column that was entirely
+  `NA`, silently. The new spelling is now among the candidates in both readers;
+  older exports keep working unchanged.
+
 * **The missingness columns of `DEPs_results` are renamed, and there is a fourth
   one.** `MissingGlobal` was not global: it was the percentage of missing values
   over the replicates of the two conditions being compared, which coincides with
@@ -142,6 +161,13 @@ without any change to the results the pipeline produces.
   `.nm_hopkins()` takes the seed as an argument.
 
 ## Bug fixes
+
+* `process_proteomics()` no longer emits a `max()` warning for every protein
+  quantified in no sample by the search engine. The unique-peptide count is the
+  row maximum of the per-sample peptide columns, and a row of all `NA` made
+  `max(na.rm = TRUE)` warn and return `-Inf`. The value was already replaced by
+  zero on the next line, so the warning was noise; a label-free report produces
+  one per protein detected by the feature detector but never scored.
 
 * Eight duplicated definitions of colour and filtering helpers (`hex_to_rgba`,
   `darken_hex`, `normalize_hex`, `get_feature_ids` and others) spread across six

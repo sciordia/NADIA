@@ -168,7 +168,10 @@ preprocess_tmt <- function(
   col_pgids    <- .tmt_resolve_col(df, "Protein Group IDs")
   col_fdr      <- .tmt_resolve_col(df, "Protein FDR Confidence: Combined",
                                        "Protein FDR Confidence")
-  col_qvalue   <- .tmt_resolve_col(df, "Exp. q-value: Combined",
+  # Proteome Discoverer 3.3 renamed this field to "Exp. Protein q-value".
+  col_qvalue   <- .tmt_resolve_col(df, "Exp. Protein q-value: Combined",
+                                       "Exp. Protein q-value",
+                                       "Exp. q-value: Combined",
                                        "Exp. q-value")
   col_pep      <- .tmt_resolve_col(df, "Sum PEP Score")
   col_mascot   <- .tmt_resolve_col(df, "Score Mascot: Mascot", "Score: Mascot")

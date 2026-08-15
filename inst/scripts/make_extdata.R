@@ -28,8 +28,9 @@
 #   group, for the benchmarking based on spiked-in organisms.
 # * TMT (Proteome Discoverer): a TMTpro experiment of two mixes and ten
 #   fractions, searched with three engines.
-# * LFQ (Proteome Discoverer): a label-free experiment, with its sample ->
-#   condition annotation file.
+# * LFQ (Proteome Discoverer): the same injections as the DIA report, acquired
+#   label-free and searched with Proteome Discoverer 3.3, together with the
+#   sample -> condition annotation file the format needs.
 #
 # Trimming applied
 # ----------------
@@ -49,7 +50,9 @@
 # Three of the four conditions are kept (A, B and D) because with only two the
 # soft clustering in the Pattern Profiler becomes degenerate -- it groups profiles
 # across conditions, and with two points per profile there is no pattern left to
-# group.
+# group. The same three are kept in steps 1, 4 and 5, so the Spectronaut, LFQ and
+# DIA-NN examples describe the same twelve injections and differ only in how they
+# were acquired and searched.
 #
 # The 2,000 proteins are drawn as a RANDOM SAMPLE with a fixed seed, and that
 # choice matters. An earlier version took "the 2,000 proteins with the most
@@ -124,16 +127,43 @@ tmt <- tmt[sort(sample(nrow(tmt), min(N_PROTEINS, nrow(tmt)))), , drop = FALSE]
 gz(tmt, file.path(EXTDATA, "nadia_tmt_report.tsv.gz"))
 
 # --- 4. Proteome Discoverer LFQ report and its annotation -------------------
+# The same twelve injections as steps 1 and 5, searched label-free with
+# Proteome Discoverer 3.3 instead of Spectronaut or DIA-NN. The export ships the
+# four conditions of the course; as in step 5 the sample is drawn first and the
+# unused condition is dropped afterwards, so the 2,000 protein groups do not
+# depend on which conditions are kept.
 message("4. nadia_lfq_report.tsv.gz + nadia_lfq_annotation.tsv")
 lfq <- utils::read.delim(
-  file.path(RAW, "20260710_AIturrate_2659_LFQ_QUANT_onlyRAW.tsv"),
+  file.path(RAW, "20260814_Q24_LFQ_NADIA_Multiconsensus_Minora.tsv"),
   sep = "\t", header = TRUE, check.names = FALSE, stringsAsFactors = FALSE)
 set.seed(SEED)
 lfq <- lfq[sort(sample(nrow(lfq), min(N_PROTEINS, nrow(lfq)))), , drop = FALSE]
+
+# An LFQ export carries four column families per sample, and all four have to
+# lose the same samples -- dropping only the abundances would leave the metrics
+# describing runs that are no longer there.
+lfq_samples  <- sub("^Abundance: ", "",
+                    grep("^Abundance: ", names(lfq), value = TRUE))
+drop_samples <- lfq_samples[!sub("_.*$", "", lfq_samples) %in% CONDITIONS]
+lfq <- lfq[, setdiff(names(lfq), as.vector(outer(
+  c("Abundance: ", "Score Mascot: ", "# PSMs (by Search Engine): ",
+    "# Peptides (by Search Engine): "),
+  drop_samples, paste0))), drop = FALSE]
 gz(lfq, file.path(EXTDATA, "nadia_lfq_report.tsv.gz"))
 
-file.copy(file.path(RAW, "20260710_AIturrate_2659_LFQ_QUANT_onlyRAW_Annot.tsv"),
-          file.path(EXTDATA, "nadia_lfq_annotation.tsv"), overwrite = TRUE)
+# The annotation is filtered rather than copied, so that it describes the twelve
+# samples the trimmed report actually contains.
+lfq_annot <- utils::read.delim(
+  file.path(RAW, "20260814_Q24_LFQ_NADIA_Multiconsensus_Minora_Annot.tsv"),
+  sep = "\t", header = TRUE, check.names = FALSE, stringsAsFactors = FALSE)
+lfq_annot <- lfq_annot[lfq_annot$Condition %in% CONDITIONS, , drop = FALSE]
+utils::write.table(lfq_annot, file.path(EXTDATA, "nadia_lfq_annotation.tsv"),
+                   sep = "\t", row.names = FALSE, quote = FALSE, na = "")
+
+lfq_mat <- as.matrix(lfq[, grep("^Abundance: ", names(lfq))])
+message(sprintf("  missing values: %.1f %% | complete proteins: %.1f %%",
+                100 * mean(is.na(lfq_mat)),
+                100 * mean(rowSums(is.na(lfq_mat)) == 0)))
 
 # --- 5. DIA-NN protein-group matrix -----------------------------------------
 # The same 16 runs as the Spectronaut report in step 1, searched with DIA-NN

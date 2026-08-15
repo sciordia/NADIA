@@ -91,7 +91,12 @@
   # Compute UniqPepts as max per row
   if (length(pept_cols) > 0) {
     pept_mat <- as.matrix(pq[, pept_cols, drop = FALSE])
-    UniqPepts <- apply(pept_mat, 1, function(x) max(x, na.rm = TRUE))
+    # A protein with no peptide count in any sample makes max(na.rm = TRUE)
+    # warn and return -Inf. That case is handled on the next line, so the
+    # warning is noise: an LFQ report has one per protein quantified by the
+    # feature detector but never scored by the search engine.
+    UniqPepts <- suppressWarnings(
+      apply(pept_mat, 1, function(x) max(x, na.rm = TRUE)))
     UniqPepts[!is.finite(UniqPepts)] <- 0L
   } else {
     UniqPepts <- rep(NA_integer_, nrow(pq))
