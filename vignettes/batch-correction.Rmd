@@ -488,6 +488,48 @@ round(100 * cbind(uncorrected = found(tmt_res, "D-A"),
 More of the proteins that should have been found are found. The verdict the
 simulated example could only assert, this one can check.
 
+## Seeing it
+
+The decomposition summarises; the projection shows. Same two covariates, the same
+data, before and after:
+
+```{r tmt-pca-before, eval = run_bc, message = FALSE, fig.width = 7, fig.height = 3.4, fig.alt = "PCA of the TMT experiment before correction, coloured by condition and by TMT mix. The samples separate by mix along the first component."}
+pca_covariates_plot(tmt_res$se_proc, assay_name = "Impseqrob_min",
+                    covariates = c("Condition", "Mix"),
+                    scale. = TRUE, verbose = FALSE)$grid
+```
+
+PC1 carries two thirds of the variance, and it is the mix: the two labelling
+reactions sit on opposite sides of it, while the conditions are smeared across it
+in the other panel. The biology has not gone anywhere — it is on PC2 — but the
+loudest thing these data say is which mix a sample came from.
+
+```{r tmt-pca-after, eval = run_bc, message = FALSE, fig.width = 7, fig.height = 3.4, fig.alt = "PCA of the TMT experiment after correction, coloured by condition and by TMT mix. The mix panel has no structure left and the conditions separate along the first component."}
+pca_covariates_plot(tmt_bc$se_proc, assay_name = "BERT",
+                    covariates = c("Condition", "Mix"),
+                    scale. = TRUE, verbose = FALSE)$grid
+```
+
+The mix panel now has no structure left to see, and PC1 -- still the dominant
+axis -- separates the conditions instead. This is the picture the last section of
+the simulated example described in words, on data where nobody arranged for it.
+
+## What it changed in the results
+
+```{r tmt-de-effect, eval = run_bc}
+table(uncorrected = tmt_res$DEPs_results$Change)
+table(corrected   = tmt_bc$DEPs_results$Change)
+```
+
+The same shape as the simulated example: across the three comparisons the number
+of proteins called significant roughly triples, from about 1,100 to about 3,300.
+
+And the same caution applies. On its own that table proves nothing -- a correction
+that had eaten the biology would also return more significant proteins. What
+settles it here is the species table above, which says the extra calls are going
+to the proteins that were spiked in. That is the luxury a spike-in buys you, and
+the reason this section exists.
+
 ## What the correction actually bought
 
 It is worth being precise about *what* improved, because it is not what most
