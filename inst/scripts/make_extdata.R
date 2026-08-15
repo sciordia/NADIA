@@ -32,10 +32,12 @@
 #   what they mean everywhere else. Replicates 1-4 are the first TMT mix and 5-8
 #   the second, bridged by the four IS channels; that mapping lives only in the
 #   _Annot of this directory, since a Proteome Discoverer report does not carry
-#   it and preprocess_tmt() takes no annotation file.
+#   it. It is a batch, not a design, so it belongs in covariate_df rather than in
+#   the sheet preprocess_tmt() reads.
 # * LFQ (Proteome Discoverer): the same injections as the DIA report, acquired
-#   label-free and searched with Proteome Discoverer 3.3, together with the
-#   sample -> condition annotation file the format needs.
+#   label-free and searched with Proteome Discoverer 3.3, together with a
+#   sample -> condition sheet that the format does not need but that serves as
+#   the worked example of the annot_path route.
 #
 # One file in inst/extdata/ is not data and is not produced here
 # --------------------------------------------------------------
@@ -185,12 +187,17 @@ lfq <- lfq[, setdiff(names(lfq), as.vector(outer(
   drop_samples, paste0))), drop = FALSE]
 gz(lfq, file.path(EXTDATA, "nadia_lfq_report.tsv.gz"))
 
-# The annotation is filtered rather than copied, so that it describes the twelve
-# samples the trimmed report actually contains.
+# The sample sheet is not needed to read this report -- its columns follow the
+# convention, so preprocess_lfq() derives the design from them. It ships anyway,
+# filtered to the twelve samples the trimmed report contains, as the worked
+# example of the annot_path route that the three wide readers offer for exports
+# whose columns are NOT named that way. Only Column and Condition are kept:
+# anything else in a sheet is ignored, and batch structure goes to covariate_df.
 lfq_annot <- utils::read.delim(
   file.path(RAW, "20260814_Q24_LFQ_NADIA_Multiconsensus_Minora_Annot.tsv"),
   sep = "\t", header = TRUE, check.names = FALSE, stringsAsFactors = FALSE)
-lfq_annot <- lfq_annot[lfq_annot$Condition %in% CONDITIONS, , drop = FALSE]
+lfq_annot <- lfq_annot[lfq_annot$Condition %in% CONDITIONS,
+                       c("Column", "Condition"), drop = FALSE]
 utils::write.table(lfq_annot, file.path(EXTDATA, "nadia_lfq_annotation.tsv"),
                    sep = "\t", row.names = FALSE, quote = FALSE, na = "")
 
@@ -207,7 +214,8 @@ message(sprintf("  missing values: %.1f %% | complete proteins: %.1f %%",
 # about the design. The columns are renamed here to the
 # "Abundance: <Condition>_<Replicate>" convention that preprocess_diann() reads,
 # so that the example needs no annotation file and no extra argument. Reading
-# the report exactly as DIA-NN wrote it is the `sample_names` route instead.
+# the report exactly as DIA-NN wrote it is the `annot_path` route instead, with
+# a sheet whose Column values are those raw-file headers.
 message("5. nadia_diann_report.tsv.gz")
 dnn <- utils::read.delim(
   file.path(RAW, "20241014_CursoProtQ_DIA_DIANN_report.pg_matrix.tsv"),

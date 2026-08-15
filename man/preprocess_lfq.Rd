@@ -6,7 +6,7 @@
 \usage{
 preprocess_lfq(
   file_path,
-  annot_path,
+  annot_path = NULL,
   condition_order = NULL,
   export_dir = NULL,
   timestamp_suffix = TRUE,
@@ -16,15 +16,17 @@ preprocess_lfq(
 \arguments{
 \item{file_path}{Path to the data TSV exported from Proteome Discoverer.}
 
-\item{annot_path}{Path to the annotation TSV with columns \code{Column},
-\code{Condition} (mandatory) and \code{Experiment} (optional).}
+\item{annot_path}{Path to a sample sheet with columns \code{Column} and
+\code{Condition}, where \code{Column} holds the text after \verb{Abundance: }. If \code{NULL}
+(default), the design comes from the suffixes. Any other column in the sheet
+is ignored -- batch structure belongs in \code{covariate_df} of
+\code{\link[=process_proteomics]{process_proteomics()}}, see \code{vignette("batch-correction")}.}
 
 \item{condition_order}{Character vector with the order of the conditions. If
-\code{NULL} (default), it is derived from \code{Condition} (order of appearance). If
+\code{NULL} (default), it is derived from the data (order of appearance). If
 supplied, it fixes the factor levels and discards samples whose condition is
-not in the list; conditions listed but absent from the annotation file are
-dropped too, with a warning, so that no empty factor level reaches the
-metadata.}
+not in the list; conditions listed but absent are dropped too, with a
+warning, so that no empty factor level reaches the metadata.}
 
 \item{export_dir}{Directory to export the TSVs to. \code{NULL} (default) = no
 export.}
@@ -39,8 +41,9 @@ A list with class \code{c("lfq_data", "proteomics_data", "list")}
 containing \code{metadata}, \code{protein_id} and \code{protein_quant}.
 
 The call that produced the object and a fingerprint of the files it was read
-from -- the report and the annotation -- (path, size, modification time and
-MD5) travel with it as the attributes \code{nadia_call} and \code{nadia_source}. They
+from -- the report, and the sample sheet when there is one -- (path, size,
+modification time and MD5) travel with it as the attributes \code{nadia_call} and
+\code{nadia_source}. They
 are attributes rather than list elements so that the three-element structure
 above is unchanged; \code{\link[=write_nadia]{write_nadia()}} records them as the provenance of an
 analysis.
@@ -51,21 +54,31 @@ same output structure as \code{preprocess_spectronaut()} / \code{preprocess_tmt(
 three data.frames (\code{metadata}, \code{protein_id}, \code{protein_quant}) ready for the
 downstream pipeline (\code{process_proteomics()}).
 
-The experimental design (sample -> condition) is taken from the annotation
-file \code{annot_path} (columns \code{Column}, \code{Condition}, and optionally
-\code{Experiment}). The intensities (\verb{Abundance: <sample>}) and the per-sample
-metrics (\verb{# PSMs (by Search Engine)}, \verb{# Peptides (by Search Engine)},
-\verb{Score Mascot}) are mapped BY SAMPLE NAME.
+The experimental design comes from the \verb{Abundance: <Condition>_<Replicate>}
+column suffixes, exactly as in \code{\link[=preprocess_tmt]{preprocess_tmt()}} and \code{\link[=preprocess_diann]{preprocess_diann()}}.
+For a report whose columns are not named that way, \code{annot_path} takes a sample
+sheet instead.
+
+The intensities (\verb{Abundance: <sample>}) and the three per-sample metric
+families (\verb{Score Mascot}, \verb{# PSMs (by Search Engine)},
+\verb{# Peptides (by Search Engine)}) are mapped BY SAMPLE NAME, never by position:
+Proteome Discoverer writes the four families in different orders.
 }
 \examples{
-# A trimmed Proteome Discoverer LFQ report ships with the package. Unlike TMT,
-# the sample-to-condition design comes from a separate annotation file rather
-# than from the column suffixes.
+# A trimmed Proteome Discoverer LFQ report ships with the package. Its columns
+# follow the "Abundance: <Condition>_<Replicate>" convention, so the design
+# needs no further argument.
 report <- system.file("extdata", "nadia_lfq_report.tsv.gz", package = "NADIA")
-annot  <- system.file("extdata", "nadia_lfq_annotation.tsv", package = "NADIA")
 
-lfq <- preprocess_lfq(report, annot_path = annot, verbose = FALSE)
+lfq <- preprocess_lfq(report, verbose = FALSE)
 lfq
 lfq$metadata[, c("Coding", "R.Condition", "R.Replicate")]
+
+# The same design, declared in a sheet instead. Use this route when the
+# columns are not named by the convention; here it is the same experiment, so
+# it produces the same sample table.
+annot <- system.file("extdata", "nadia_lfq_annotation.tsv", package = "NADIA")
+from_sheet <- preprocess_lfq(report, annot_path = annot, verbose = FALSE)
+identical(from_sheet$metadata, lfq$metadata)
 
 }

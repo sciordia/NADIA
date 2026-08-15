@@ -292,8 +292,11 @@ structure:
 - `preprocess_diann()` handles DIA-NN protein-group matrices
   (`report.pg_matrix.tsv`), which are wide.
 - `preprocess_tmt()` handles TMT reports exported by Proteome Discoverer.
-- `preprocess_lfq()` handles label-free reports exported by Proteome Discoverer,
-  together with their experimental annotation.
+- `preprocess_lfq()` handles label-free reports exported by Proteome Discoverer.
+
+The three wide formats declare their design the same way: the
+`Abundance: <condition>_<replicate>` column suffixes, or a two-column sample
+sheet through `annot_path` when the columns are not named that way.
 
 All four return a `proteomics_data` object with the same basic structure: sample
 metadata, protein annotation and the quantification matrix. The later stages

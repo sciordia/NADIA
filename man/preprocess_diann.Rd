@@ -7,7 +7,7 @@
 preprocess_diann(
   file_path,
   condition_order,
-  sample_names = NULL,
+  annot_path = NULL,
   export_dir = NULL,
   timestamp_suffix = TRUE,
   verbose = TRUE
@@ -22,10 +22,17 @@ this vector are kept, so it doubles as a filter. Conditions listed but
 absent from the report are dropped, with a warning, so that no empty factor
 level reaches the metadata.}
 
-\item{sample_names}{Character vector of \verb{<Condition>_<Replicate>} labels, one
-per run column, \strong{in the order the columns appear in the file}. Use it to
-read the report exactly as DIA-NN wrote it. If \code{NULL} (default), the
-columns are expected to follow the \verb{Abundance:} convention.}
+\item{annot_path}{Path to a sample sheet with columns \code{Column} and
+\code{Condition}, used to read the report exactly as DIA-NN wrote it: \code{Column}
+holds the run headers, raw-file names and all. If \code{NULL} (default), the
+columns are expected to follow the \verb{Abundance:} convention. Any other column
+in the sheet is ignored -- batch structure belongs in \code{covariate_df} of
+\code{\link[=process_proteomics]{process_proteomics()}}, see \code{vignette("batch-correction")}.
+
+The sheet is a file rather than a vector of labels because a vector would be
+positional, and nothing guarantees the column order of an export: a
+re-export that reordered them would relabel every run without any way to
+notice. Matching by name either matches or fails.}
 
 \item{export_dir}{Directory to export the TSV files to. If \code{NULL} (default),
 no files are exported.}
@@ -61,11 +68,10 @@ downstream pipeline (\code{\link[=process_proteomics]{process_proteomics()}} and
 
 DIA-NN names its intensity columns after the raw file, which says nothing
 about the experimental design, so the design has to be declared. There are
-two ways, and neither needs a separate annotation file: rename the columns to
-\verb{Abundance: <Condition>_<Replicate>} as Proteome Discoverer writes them, or
-pass \code{sample_names} in the order the run columns appear in the file. The
-design is never inferred from the raw-file name -- a guess that happened to
-be right for one export would be wrong and silent for the next.
+two ways: rename the columns to \verb{Abundance: <Condition>_<Replicate>} as
+Proteome Discoverer writes them, or pass a sample sheet through \code{annot_path}.
+The design is never inferred from the raw-file name -- a guess that happened
+to be right for one export would be wrong and silent for the next.
 
 A protein-group matrix carries only intensities. The identification metrics
 the wide contract expects are filled from what DIA-NN does report
@@ -86,11 +92,9 @@ diann
 table(diann$metadata$R.Condition)
 
 # Straight from DIA-NN, where the columns are still raw-file paths, the
-# design is given instead by naming the runs in the order they appear:
+# design is given instead by a sheet whose 'Column' holds those paths:
 # preprocess_diann("report.pg_matrix.tsv",
 #                  condition_order = c("A", "B", "D"),
-#                  sample_names = c("A_1", "A_2", "A_3", "A_4",
-#                                   "B_1", "B_2", "B_3", "B_4",
-#                                   "D_1", "D_2", "D_3", "D_4"))
+#                  annot_path = "design.tsv")
 
 }

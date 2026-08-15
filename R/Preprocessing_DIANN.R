@@ -58,17 +58,17 @@
 #'
 #' Two routes, and deliberately no third one that guesses. Either the columns
 #' already carry the `Abundance: <Condition>_<Replicate>` convention, or the
-#' caller names them in file order through `sample_names`. Inferring the design
+#' caller supplies a sample sheet through `annot_path`. Inferring the design
 #' from the raw-file name would work on one export and fail silently on the
 #' next, which is the worst of both.
 #'
-#' @param df           Data frame read from the export.
-#' @param sample_names Character vector in the order of the run columns, or
-#'   `NULL`.
+#' @param df         Data frame read from the export.
+#' @param annot_path Path to a `Column`/`Condition` sheet, or `NULL`.
+#' @param verbose    Passed through to the sheet reader.
 #' @return A data frame with `abundance_col` (the original header),
 #'   `Coding`, `R.Condition` and `R.Replicate`.
 #' @noRd
-.diann_resolve_design <- function(df, sample_names = NULL) {
+.diann_resolve_design <- function(df, annot_path = NULL, verbose = TRUE) {
   run_cols <- setdiff(names(df), .DIANN_ANNOT_COLS)
   if (length(run_cols) == 0) {
     stop("No run columns found in the file: every column is a known DIA-NN ",
@@ -76,47 +76,25 @@
          "(report.pg_matrix.tsv).")
   }
 
-  if (is.null(sample_names)) {
+  if (is.null(annot_path)) {
     if (!any(grepl("^Abundance:\\s*", names(df)))) {
       stop(
         "Could not work out which sample each run column belongs to.\n",
         "Either rename them to the 'Abundance: <Condition>_<Replicate>' ",
-        "convention, or pass sample_names in this order:\n  - ",
+        "convention, or pass annot_path with a sheet whose 'Column' values are ",
+        "these headers:\n  - ",
         paste(run_cols, collapse = "\n  - ")
       )
     }
     return(.parse_abundance_columns(df))
   }
 
-  if (!is.character(sample_names)) {
-    stop("sample_names must be a character vector.")
-  }
-  if (length(sample_names) != length(run_cols)) {
-    stop("sample_names has ", length(sample_names), " values but the file has ",
-         length(run_cols), " run columns. They are, in order:\n  - ",
-         paste(run_cols, collapse = "\n  - "))
-  }
-  if (anyDuplicated(sample_names) > 0) {
-    stop("sample_names has duplicated values:\n  - ",
-         paste(unique(sample_names[duplicated(sample_names)]),
-               collapse = "\n  - "))
-  }
-
-  m <- stringr::str_match(sample_names, "^(.+)_(\\d+)$")
-  if (any(is.na(m[, 1]))) {
-    stop(
-      "Could not parse these sample_names (expected <Condition>_<Replicate>):\n  - ",
-      paste(sample_names[is.na(m[, 1])], collapse = "\n  - ")
-    )
-  }
-
-  data.frame(
-    abundance_col = run_cols,
-    Coding        = sample_names,
-    R.Condition   = m[, 2],
-    R.Replicate   = as.integer(m[, 3]),
-    stringsAsFactors = FALSE
-  )
+  # One rule across the three readers: `Column` is the sample identifier, which
+  # is the text after "Abundance: " when the columns carry that prefix and the
+  # header itself when they do not -- raw-file names and all, as DIA-NN wrote
+  # them. sub() leaves an unprefixed header untouched, so both cases are one line.
+  .design_from_annotation(annot_path, sub("^Abundance:\\s*", "", run_cols),
+                          run_cols, verbose = verbose)
 }
 
 # =============================================================================
@@ -133,11 +111,10 @@
 #'
 #' DIA-NN names its intensity columns after the raw file, which says nothing
 #' about the experimental design, so the design has to be declared. There are
-#' two ways, and neither needs a separate annotation file: rename the columns to
-#' `Abundance: <Condition>_<Replicate>` as Proteome Discoverer writes them, or
-#' pass `sample_names` in the order the run columns appear in the file. The
-#' design is never inferred from the raw-file name -- a guess that happened to
-#' be right for one export would be wrong and silent for the next.
+#' two ways: rename the columns to `Abundance: <Condition>_<Replicate>` as
+#' Proteome Discoverer writes them, or pass a sample sheet through `annot_path`.
+#' The design is never inferred from the raw-file name -- a guess that happened
+#' to be right for one export would be wrong and silent for the next.
 #'
 #' A protein-group matrix carries only intensities. The identification metrics
 #' the wide contract expects are filled from what DIA-NN does report
@@ -151,10 +128,17 @@
 #'   this vector are kept, so it doubles as a filter. Conditions listed but
 #'   absent from the report are dropped, with a warning, so that no empty factor
 #'   level reaches the metadata.
-#' @param sample_names Character vector of `<Condition>_<Replicate>` labels, one
-#'   per run column, **in the order the columns appear in the file**. Use it to
-#'   read the report exactly as DIA-NN wrote it. If `NULL` (default), the
-#'   columns are expected to follow the `Abundance:` convention.
+#' @param annot_path Path to a sample sheet with columns `Column` and
+#'   `Condition`, used to read the report exactly as DIA-NN wrote it: `Column`
+#'   holds the run headers, raw-file names and all. If `NULL` (default), the
+#'   columns are expected to follow the `Abundance:` convention. Any other column
+#'   in the sheet is ignored -- batch structure belongs in `covariate_df` of
+#'   [process_proteomics()], see `vignette("batch-correction")`.
+#'
+#'   The sheet is a file rather than a vector of labels because a vector would be
+#'   positional, and nothing guarantees the column order of an export: a
+#'   re-export that reordered them would relabel every run without any way to
+#'   notice. Matching by name either matches or fails.
 #' @param export_dir Directory to export the TSV files to. If `NULL` (default),
 #'   no files are exported.
 #' @param timestamp_suffix Logical. If `TRUE` (default), appends a timestamp to
@@ -191,18 +175,16 @@
 #' table(diann$metadata$R.Condition)
 #'
 #' # Straight from DIA-NN, where the columns are still raw-file paths, the
-#' # design is given instead by naming the runs in the order they appear:
+#' # design is given instead by a sheet whose 'Column' holds those paths:
 #' # preprocess_diann("report.pg_matrix.tsv",
 #' #                  condition_order = c("A", "B", "D"),
-#' #                  sample_names = c("A_1", "A_2", "A_3", "A_4",
-#' #                                   "B_1", "B_2", "B_3", "B_4",
-#' #                                   "D_1", "D_2", "D_3", "D_4"))
+#' #                  annot_path = "design.tsv")
 #'
 #' @export
 preprocess_diann <- function(
     file_path,
     condition_order,
-    sample_names = NULL,
+    annot_path = NULL,
     export_dir = NULL,
     timestamp_suffix = TRUE,
     verbose = TRUE
@@ -232,7 +214,7 @@ preprocess_diann <- function(
   # ==========================================================================
   # The design
   # ==========================================================================
-  runs <- .diann_resolve_design(df, sample_names)
+  runs <- .diann_resolve_design(df, annot_path, verbose = verbose)
 
   keep <- runs$R.Condition %in% condition_order
   if (!any(keep)) {

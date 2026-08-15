@@ -7,6 +7,7 @@
 preprocess_tmt(
   file_path,
   condition_order,
+  annot_path = NULL,
   export_dir = NULL,
   timestamp_suffix = TRUE,
   verbose = TRUE
@@ -21,6 +22,14 @@ condition is in this vector are kept -- handy for excluding Internal
 Standards by omitting \code{"IS"}. Conditions listed but absent from the report
 are dropped, with a warning, so that no empty factor level reaches the
 metadata.}
+
+\item{annot_path}{Path to a sample sheet with columns \code{Column} and
+\code{Condition}, for reports whose channels are not named
+\verb{<Condition>_<Replicate>} -- an export left with the TMT tags, \code{126},
+\verb{127N} and so on. \code{Column} holds the text after \verb{Abundance: }. If \code{NULL}
+(default), the design comes from the suffixes. Any other column in the
+sheet is ignored -- batch structure belongs in \code{covariate_df} of
+\code{\link[=process_proteomics]{process_proteomics()}}, see \code{vignette("batch-correction")}.}
 
 \item{export_dir}{Directory to export the TSV files to. If \code{NULL} (default),
 no files are exported.}

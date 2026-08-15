@@ -39,21 +39,60 @@ test_that("condition_order doubles as a filter", {
     expect_identical(nrow(d$metadata), 8L)
 })
 
-test_that("sample_names reads the report as DIA-NN wrote it", {
+.diann_sheet <- function(ids, conditions = sub("_[0-9]+$", "", ids)) {
+    p <- tempfile(fileext = ".tsv")
+    utils::write.table(data.frame(Column = ids, Condition = conditions),
+                       p, sep = "\t", row.names = FALSE, quote = FALSE)
+    p
+}
+
+test_that("a sample sheet reads the report as DIA-NN wrote it", {
     # The shipped example has already been renamed, so the two routes are
-    # exercised against the same file by pretending the headers are opaque.
+    # exercised against the same file by declaring the design that the suffixes
+    # would otherwise have given.
+    ids <- c(paste0("A_", 1:4), paste0("B_", 1:4), paste0("D_", 1:4))
+
     d_named <- preprocess_diann(.diann_report(),
                                 condition_order = c("A", "B", "D"),
                                 verbose = FALSE)
-    d_pos <- preprocess_diann(
-        .diann_report(), condition_order = c("A", "B", "D"),
-        sample_names = c(paste0("A_", 1:4), paste0("B_", 1:4),
-                         paste0("D_", 1:4)),
-        verbose = FALSE)
+    d_sheet <- preprocess_diann(.diann_report(),
+                                condition_order = c("A", "B", "D"),
+                                annot_path = .diann_sheet(ids),
+                                verbose = FALSE)
 
-    expect_identical(d_pos$protein_quant, d_named$protein_quant)
-    expect_identical(d_pos$protein_id,    d_named$protein_id)
-    expect_identical(d_pos$metadata,      d_named$metadata)
+    expect_identical(d_sheet$protein_quant, d_named$protein_quant)
+    expect_identical(d_sheet$protein_id,    d_named$protein_id)
+    expect_identical(d_sheet$metadata,      d_named$metadata)
+})
+
+test_that("the sheet is matched by name, so order and gaps do not mislabel", {
+    # The reason it is a file and not a vector of labels: a vector is
+    # positional, and nothing guarantees the column order of an export.
+    ids <- c(paste0("A_", 1:4), paste0("B_", 1:4), paste0("D_", 1:4))
+    d <- preprocess_diann(.diann_report(), condition_order = c("A", "B", "D"),
+                          verbose = FALSE)
+
+    # Shuffled sheet, same answer.
+    shuffled <- preprocess_diann(
+        .diann_report(), condition_order = c("A", "B", "D"),
+        annot_path = .diann_sheet(rev(ids)), verbose = FALSE)
+    expect_identical(shuffled$metadata, d$metadata)
+
+    # A sheet naming a run that is not there names it in the error.
+    expect_error(
+        preprocess_diann(.diann_report(), condition_order = "A",
+                         annot_path = .diann_sheet(c(ids, "Z_9")),
+                         verbose = FALSE),
+        "Z_9", fixed = TRUE)
+
+    # A sheet that leaves runs out drops them, and says so. That is how a pool
+    # or a blank is excluded, so it must not be silent.
+    expect_message(
+        part <- preprocess_diann(.diann_report(),
+                                 condition_order = c("A", "B"),
+                                 annot_path = .diann_sheet(ids[1:8])),
+        "columns ignored")
+    expect_identical(nrow(part$metadata), 8L)
 })
 
 test_that("an undeclared design fails with the columns listed in order", {
@@ -71,7 +110,15 @@ test_that("an undeclared design fails with the columns listed in order", {
         "run_one.raw", fixed = TRUE)
     expect_error(
         preprocess_diann(tmp, condition_order = "A", verbose = FALSE),
-        "sample_names")
+        "annot_path")
+
+    # And the sheet route reads those raw headers as they are.
+    d <- preprocess_diann(tmp, condition_order = "A",
+                          annot_path = .diann_sheet(c("run_one.raw", "run_two.raw"),
+                                                    c("A", "A")),
+                          verbose = FALSE)
+    expect_identical(d$metadata$Coding, c("run_one.raw", "run_two.raw"))
+    expect_identical(d$metadata$R.Replicate, 1:2)
 })
 
 test_that("input validation catches the usual mistakes", {
@@ -85,17 +132,13 @@ test_that("input validation catches the usual mistakes", {
                  "No run matches condition_order")
     expect_error(
         preprocess_diann(f, condition_order = "A",
-                         sample_names = c("A_1", "A_2"), verbose = FALSE),
-        "12 run columns")
+                         annot_path = "no_such_sheet.tsv", verbose = FALSE),
+        "Annotation file not found")
     expect_error(
         preprocess_diann(f, condition_order = "A",
-                         sample_names = rep("A_1", 12), verbose = FALSE),
-        "duplicated")
-    expect_error(
-        preprocess_diann(f, condition_order = "A",
-                         sample_names = c(paste0("A_", 1:11), "no_replicate"),
+                         annot_path = .diann_sheet(rep("A_1", 12)),
                          verbose = FALSE),
-        "Could not parse these sample_names")
+        "duplicated")
 
     # A file that is not a protein-group matrix at all
     tmp <- tempfile(fileext = ".tsv")

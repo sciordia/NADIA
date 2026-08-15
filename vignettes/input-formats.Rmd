@@ -104,27 +104,28 @@ D:\DIA-NN\Projects\20241014_XII_CursoProtQ_DIA_500ng_sample_A1.raw
 That path says nothing the software can rely on. `sample_A1` reads as condition
 A, replicate 1 to a person, and would read the same way to a regular expression
 — right here, and wrong on the next report, silently. So the design is never
-guessed. You declare it, in one of two ways, and neither needs a separate
-annotation file.
+guessed. You declare it, in one of two ways.
 
 **Rename the columns** to the `Abundance: <Condition>_<Replicate>` convention
 that Proteome Discoverer already uses. The report shipped with the package has
 been renamed this way, which is why the call above needs no extra argument.
 
-**Or name the runs in order**, and leave the report exactly as DIA-NN wrote it:
+**Or hand over a sample sheet**, and leave the report exactly as DIA-NN wrote it.
+`Column` holds the run headers, raw-file paths and all:
 
-```{r diann-sample-names, eval = FALSE}
+```{r diann-annot, eval = FALSE}
 preprocess_diann(
     "report.pg_matrix.tsv",
     condition_order = c("A", "B", "D"),
-    sample_names = c("A_1", "A_2", "A_3", "A_4",
-                     "B_1", "B_2", "B_3", "B_4",
-                     "D_1", "D_2", "D_3", "D_4"))
+    annot_path = "design.tsv")
 ```
 
-`sample_names` is positional: one label per intensity column, in the order the
-columns appear in the file. If you supply neither, the error lists those columns
-in that order, so the vector is a copy-paste away.
+The sheet is a file rather than a vector of labels on purpose. A vector would
+have to be positional, and nothing guarantees the column order of an export: a
+re-export that reordered the runs would relabel every one of them without any way
+to notice. A sheet is matched by name, so it either matches or it fails. Supply
+neither route and the error lists the run columns, so the `Column` values are a
+copy-paste away.
 
 Either way, `R.FileName` keeps the **original** header, so renaming never costs
 you the trail back to the raw file:
@@ -236,24 +237,33 @@ vapply(per_sample, function(p) sum(startsWith(lfq_cols, paste0(p, ":"))), intege
 
 Those are matched to samples **by sample name**, not by column position.
 
-Second, and more important, the design does **not** live in the column names.
-It comes from a separate annotation file:
+Second, the design comes from the same `Abundance: <cond>_<rep>` suffixes as in
+the two formats above:
+
+```{r lfq-run}
+lfq <- preprocess_lfq(lfq_file, verbose = FALSE)
+lfq
+lfq$metadata
+```
+
+Should the columns not be named that way — a report exported before the study
+design was set up, say — `annot_path` takes the same sheet the other two wide
+readers accept. Here it states what the suffixes already say, so it changes
+nothing:
 
 ```{r lfq-annot}
 annot_file <- system.file("extdata", "nadia_lfq_annotation.tsv", package = "NADIA")
 read.delim(annot_file)
+
+identical(preprocess_lfq(lfq_file, annot_path = annot_file,
+                         verbose = FALSE)$metadata,
+          lfq$metadata)
 ```
 
-`Column` names the sample as it appears in the report, `Condition` assigns it to
-a group, and the optional `Experiment` column separates independent experiments.
-This is the more flexible arrangement: relabelling an experiment means editing a
-small text file rather than renaming columns in the report.
-
-```{r lfq-run}
-lfq <- preprocess_lfq(lfq_file, annot_path = annot_file, verbose = FALSE)
-lfq
-lfq$metadata
-```
+`Column` names the sample as it appears in the report — the text after
+`Abundance: ` — and `Condition` assigns it to a group. Any other column is
+ignored: batch structure belongs in `covariate_df` of `process_proteomics()`,
+which `vignette("batch-correction")` covers.
 
 # Where the design comes from
 
@@ -262,12 +272,13 @@ That is the whole difference, and it is worth stating in one place:
 | Format | Layout | Design taken from |
 |---|---|---|
 | Spectronaut | long, run-level | the `R.Condition` / `R.Replicate` columns |
-| DIA-NN | wide | the `Abundance: <cond>_<rep>` suffixes, or `sample_names` |
-| TMT (PD) | wide | the `Abundance: <cond>_<rep>` column suffixes |
-| LFQ (PD) | wide | a **separate annotation file** (`annot_path`) |
+| DIA-NN | wide | the `Abundance: <cond>_<rep>` suffixes, or `annot_path` |
+| TMT (PD) | wide | the `Abundance: <cond>_<rep>` suffixes, or `annot_path` |
+| LFQ (PD) | wide | the `Abundance: <cond>_<rep>` suffixes, or `annot_path` |
 
 Only the long format carries its own design. The three wide ones have to be told,
-and the difference between them is just how much editing that costs you.
+and they are told the same way: name the columns by the convention, or write a
+two-column sheet.
 
 # Naming the conditions
 
@@ -345,9 +356,9 @@ Two format-specific notes. In **TMT and DIA-NN** the condition is read from the
 `Abundance: <condition>_<replicate>` suffix — the same parser serves both; the
 replicate is matched as the trailing digits, so an underscore inside the
 condition name is still parsed correctly (`Ct_a_1` gives condition `Ct_a`,
-replicate `1`), and the same holds for a DIA-NN `sample_names` vector. In **LFQ**
-the names come from the `Condition` column of the annotation file, which is the
-easiest place to fix them — no report needs to be touched.
+replicate `1`). **LFQ** reads the same suffixes; where a sample sheet is used
+instead, in any of the three, the names come from its `Condition` column, which
+is the easiest place to fix them — no report needs to be touched.
 
 # One contract, four sources
 

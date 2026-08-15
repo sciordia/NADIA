@@ -27,8 +27,9 @@ without any change to the results the pipeline produces.
   DIA-NN names its intensity columns after the raw file, which does not identify
   the experimental design, so the design is declared rather than guessed: either
   rename the columns to the `Abundance: <Condition>_<Replicate>` convention that
-  `preprocess_tmt()` already reads, or pass `sample_names` in column order and
-  leave the report untouched. `R.FileName` keeps the original header either way.
+  `preprocess_tmt()` already reads, or pass a sample sheet through `annot_path`
+  and leave the report untouched. `R.FileName` keeps the original header either
+  way.
   A protein-group matrix carries no per-sample metrics at all; what DIA-NN does
   report is mapped onto the wide contract, and what it does not is left out
   rather than filled with `NA`, except for the two families the interactive
@@ -86,6 +87,29 @@ without any change to the results the pipeline produces.
   values against 8.1 % for Spectronaut and 12.5 % for DIA-NN on the same runs.
   Anything reading the example gets three contrasts (`B-A`, `D-A`, `D-B`) where
   it used to get one (`MUT-WT`).
+
+* **The three wide readers declare their design the same way.** Proteome
+  Discoverer LFQ used to be the odd one out: it *required* a separate annotation
+  file, while TMT and DIA-NN read the `Abundance: <Condition>_<Replicate>`
+  column suffixes. Those suffixes were there all along -- the sheet the package
+  ships is a table restating them -- so `preprocess_lfq()` now reads them too,
+  and `annot_path` is optional in all three.
+
+  `sample_names` is retired from `preprocess_diann()` in favour of the same
+  `annot_path`. A vector of labels has to be positional, and nothing guarantees
+  the column order of an export: Proteome Discoverer does not even write the
+  four LFQ column families in the same order as each other, so a re-export that
+  reordered runs would have relabelled them all without any way to notice. A
+  sheet is matched by name, so it either matches or it aborts.
+
+  The sheet needs `Column` and `Condition`, where `Column` is the sample
+  identifier as it appears in the report. Replicates come from a trailing
+  `_<digits>` when the identifier has one, so a sheet restating the suffixes
+  gives a result `identical()` to supplying no sheet at all. Anything else in
+  the sheet is ignored, including the `Experiment` column the LFQ annotation
+  used to carry: batch and experiment structure belongs in `covariate_df` of
+  `process_proteomics()`. The `R.Experiment` column is gone from `metadata`,
+  where nothing ever read it.
 
 * **The Spectronaut export schema ships with the package.** Reading a Spectronaut
   report requires it to have been exported with the right columns, which until

@@ -76,6 +76,13 @@
 #'   Standards by omitting `"IS"`. Conditions listed but absent from the report
 #'   are dropped, with a warning, so that no empty factor level reaches the
 #'   metadata.
+#' @param annot_path Path to a sample sheet with columns `Column` and
+#'   `Condition`, for reports whose channels are not named
+#'   `<Condition>_<Replicate>` -- an export left with the TMT tags, `126`,
+#'   `127N` and so on. `Column` holds the text after `Abundance: `. If `NULL`
+#'   (default), the design comes from the suffixes. Any other column in the
+#'   sheet is ignored -- batch structure belongs in `covariate_df` of
+#'   [process_proteomics()], see `vignette("batch-correction")`.
 #' @param export_dir Directory to export the TSV files to. If `NULL` (default),
 #'   no files are exported.
 #' @param timestamp_suffix Logical. If `TRUE` (default), appends a timestamp to
@@ -116,6 +123,7 @@
 preprocess_tmt <- function(
     file_path,
     condition_order,
+    annot_path = NULL,
     export_dir = NULL,
     timestamp_suffix = TRUE,
     verbose = TRUE
@@ -145,7 +153,7 @@ preprocess_tmt <- function(
   .validate_pd_columns(df)
 
   # --- Parse the Abundance columns ---
-  abund <- .parse_abundance_columns(df)
+  abund <- .pd_resolve_design(df, annot_path, verbose = verbose)
 
   # Filter the channels by condition_order (drops e.g. "IS" when not listed)
   keep <- abund$R.Condition %in% condition_order

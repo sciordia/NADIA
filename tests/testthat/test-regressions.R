@@ -260,3 +260,88 @@ test_that("the other three readers drop absent conditions too", {
         "absent from the annotation file")
     expect_identical(levels(lfq$metadata$R.Condition), c("A", "B"))
 })
+
+# --- The design: suffixes, or a sheet, and the two must agree ----------------
+
+test_that("both routes to the design give the same object", {
+    # preprocess_lfq() used to require an annotation file while TMT and DIA-NN
+    # read the Abundance: suffixes, and the sheet the package ships was a table
+    # restating what those suffixes already said. The two routes are now one
+    # code path, and this pins them together.
+    sf <- function(x) system.file("extdata", x, package = "NADIA")
+    sheet <- function(ids) {
+        p <- tempfile(fileext = ".tsv")
+        utils::write.table(
+            data.frame(Column = ids, Condition = sub("_[0-9]+$", "", ids)),
+            p, sep = "\t", row.names = FALSE, quote = FALSE)
+        p
+    }
+    ids_of <- function(f) {
+        h <- names(read.delim(gzfile(f), sep = "\t", check.names = FALSE,
+                              nrows = 1))
+        sub("^Abundance: ", "", grep("^Abundance: ", h, value = TRUE))
+    }
+
+    lfq_f <- sf("nadia_lfq_report.tsv.gz")
+    expect_identical(
+        preprocess_lfq(lfq_f, annot_path = sheet(ids_of(lfq_f)), verbose = FALSE)$metadata,
+        preprocess_lfq(lfq_f, verbose = FALSE)$metadata)
+
+    tmt_f <- sf("nadia_tmt_report.tsv.gz")
+    expect_identical(
+        preprocess_tmt(tmt_f, condition_order = c("A", "B", "D"),
+                       annot_path = sheet(ids_of(tmt_f)), verbose = FALSE)$metadata,
+        preprocess_tmt(tmt_f, condition_order = c("A", "B", "D"),
+                       verbose = FALSE)$metadata)
+
+    # And the sheet that ships with the package is one of those restatements.
+    expect_identical(
+        preprocess_lfq(lfq_f, annot_path = sf("nadia_lfq_annotation.tsv"),
+                       verbose = FALSE)$metadata,
+        preprocess_lfq(lfq_f, verbose = FALSE)$metadata)
+})
+
+test_that("the LFQ per-sample metric families survive the suffix route", {
+    # They are matched by name because Proteome Discoverer writes the four
+    # families in different orders. A route that broke that matching would
+    # return them entirely NA rather than fail, which is how it went unnoticed
+    # once before.
+    lfq <- preprocess_lfq(
+        system.file("extdata", "nadia_lfq_report.tsv.gz", package = "NADIA"),
+        verbose = FALSE)
+    both <- cbind(lfq$protein_quant, lfq$protein_id)
+
+    for (fam in c("PG.Quantity_", "PG.Cscore.RunWise_",
+                  "PG.NrOfPrecursorsIdentified_",
+                  "PG.NrOfStrippedSequencesIdentified_")) {
+        cols <- grep(paste0("^", fam), names(both), value = TRUE)
+        expect_length(cols, 12L)
+        expect_false(all(is.na(as.matrix(both[, cols, drop = FALSE]))))
+    }
+})
+
+test_that("a sample sheet is rejected when it does not describe the report", {
+    lfq_f <- system.file("extdata", "nadia_lfq_report.tsv.gz", package = "NADIA")
+    write_sheet <- function(df) {
+        p <- tempfile(fileext = ".tsv")
+        utils::write.table(df, p, sep = "\t", row.names = FALSE, quote = FALSE)
+        p
+    }
+
+    expect_error(
+        preprocess_lfq(lfq_f, annot_path = write_sheet(
+            data.frame(Column = "A_1")), verbose = FALSE),
+        "Condition")
+    expect_error(
+        preprocess_lfq(lfq_f, annot_path = write_sheet(
+            data.frame(Column = c("A_1", "A_1"), Condition = "A")),
+            verbose = FALSE),
+        "duplicated")
+    expect_error(
+        preprocess_lfq(lfq_f, annot_path = write_sheet(
+            data.frame(Column = "nowhere_1", Condition = "A")), verbose = FALSE),
+        "no column in the report")
+    expect_error(
+        preprocess_lfq(lfq_f, annot_path = "no_such_sheet.tsv", verbose = FALSE),
+        "Annotation file not found")
+})

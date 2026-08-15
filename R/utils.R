@@ -354,6 +354,110 @@
   condition_order
 }
 
+#' Read a sample sheet and turn it into a design table
+#'
+#' @description
+#' The escape hatch for reports whose intensity columns are not named
+#' `<Condition>_<Replicate>`. It is a file rather than a vector of labels on
+#' purpose: a vector is positional, and column order is not something an export
+#' guarantees, so a re-export that reorders the columns would relabel every run
+#' without any way to notice. Matching by name either matches or fails.
+#'
+#' Replicate numbers come from the identifier when it ends in `_<digits>`, which
+#' is what the suffix route does, so a sheet stating the obvious gives exactly
+#' the same answer as no sheet at all. Identifiers that do not carry a number --
+#' raw-file names, TMT tags -- are numbered sequentially within their condition.
+#' Either way the number does not depend on the order the sheet lists them in,
+#' so a reordered sheet cannot relabel anything.
+#'
+#' @param annot_path Path to a TSV with `Column` and `Condition`. Any other
+#'   column is ignored: batch and covariate structure belongs in `covariate_df`
+#'   of [process_proteomics()], not here.
+#' @param ids Sample identifiers as they appear in the report, one per intensity
+#'   column, in column order.
+#' @param cols The intensity column names themselves, parallel to `ids`.
+#' @param verbose Report the columns the sheet leaves out.
+#' @return A data frame with `abundance_col`, `Coding`, `R.Condition` and
+#'   `R.Replicate` -- the same shape `.parse_abundance_columns()` returns, so
+#'   that everything downstream is blind to which route was taken.
+#' @keywords internal
+#' @noRd
+.design_from_annotation <- function(annot_path, ids, cols, verbose = TRUE) {
+  if (!file.exists(annot_path)) stop("Annotation file not found: ", annot_path)
+
+  annot <- utils::read.delim(annot_path, header = TRUE, sep = "\t",
+                             stringsAsFactors = FALSE, check.names = FALSE)
+
+  missing_cols <- setdiff(c("Column", "Condition"), names(annot))
+  if (length(missing_cols) > 0) {
+    stop("Required columns missing from the annotation file:\n  - ",
+         paste(missing_cols, collapse = "\n  - "),
+         "\nIt must have at least 'Column' and 'Condition'.")
+  }
+  annot$Column    <- as.character(annot$Column)
+  annot$Condition <- as.character(annot$Condition)
+
+  if (anyDuplicated(annot$Column) > 0) {
+    stop("The annotation file has duplicated values in 'Column':\n  - ",
+         paste(unique(annot$Column[duplicated(annot$Column)]),
+               collapse = "\n  - "))
+  }
+
+  hit <- match(annot$Column, ids)
+  if (anyNA(hit)) {
+    stop("These samples of the annotation file have no column in the report:",
+         "\n  - ", paste(annot$Column[is.na(hit)], collapse = "\n  - "),
+         "\nThe report has:\n  - ", paste(ids, collapse = "\n  - "))
+  }
+
+  # Columns the sheet leaves out are dropped, which is how a pool or a blank is
+  # excluded. Worth saying out loud, since it silently shrinks the experiment.
+  extra <- setdiff(ids, annot$Column)
+  if (length(extra) > 0 && verbose) {
+    message("Note: columns ignored (not listed in the annotation file): ",
+            paste(extra, collapse = ", "))
+  }
+
+  # Take the replicate from the identifier when it has one, so that a sheet
+  # spelling out what the suffixes already say lands on the same answer. Fall
+  # back to a per-condition counter for identifiers that carry no number, and
+  # take that fallback for the whole sheet rather than per row, so the numbering
+  # cannot be a mixture of two schemes.
+  m <- stringr::str_match(annot$Column, "^(.+)_(\\d+)$")
+  replicate <- if (anyNA(m[, 1])) {
+    as.integer(stats::ave(seq_len(nrow(annot)), annot$Condition, FUN = seq_along))
+  } else {
+    as.integer(m[, 3])
+  }
+
+  data.frame(
+    abundance_col = cols[hit],
+    Coding        = annot$Column,
+    R.Condition   = annot$Condition,
+    R.Replicate   = replicate,
+    stringsAsFactors = FALSE
+  )
+}
+
+#' Resolve the design of a Proteome Discoverer export
+#'
+#' @description Suffixes if they are there, sample sheet if they are not. Shared
+#'   by `preprocess_tmt()` and `preprocess_lfq()`, whose exports both name their
+#'   intensity columns `Abundance: <sample>`.
+#' @keywords internal
+#' @noRd
+.pd_resolve_design <- function(df, annot_path = NULL, verbose = TRUE) {
+  if (is.null(annot_path)) return(.parse_abundance_columns(df))
+
+  cols <- grep("^Abundance:\\s*", names(df), value = TRUE)
+  if (length(cols) == 0) {
+    stop("No 'Abundance:' columns found in the file. ",
+         "Check that it is a Proteome Discoverer export.")
+  }
+  .design_from_annotation(annot_path, sub("^Abundance:\\s*", "", cols), cols,
+                          verbose = verbose)
+}
+
 # =============================================================================
 # Proteome Discoverer helpers
 # =============================================================================

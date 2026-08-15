@@ -13,10 +13,15 @@
 #   - `# Peptides (by Search Engine): <sample>`   (peptides per sample)
 #   - `Score Mascot: <sample>`                    (score per sample)
 #
-# The sample->condition mapping is taken from the annotation file (`_Annot`),
-# with columns `Column`, `Condition` (mandatory) and `Experiment` (optional).
-# Intensities are mapped BY SAMPLE NAME (not by position): the order of the
-# `Abundance:` columns may differ from that of the metric columns.
+# The sample->condition mapping comes from the `Abundance:` suffixes, as in TMT
+# and DIA-NN, or from a `Column`/`Condition` sheet when the columns are not
+# named that way.
+#
+# All four families are mapped BY SAMPLE NAME, never by position, and that is
+# not a stylistic choice: Proteome Discoverer writes them in different orders.
+# Measured on a real export, `Score Mascot:` came out WT_1, MUT_1, WT_2, ...
+# while `Abundance:` came out MUT_1, MUT_2, MUT_3, WT_1, ... Anything positional
+# would have silently paired the score of one run with the intensity of another.
 #
 # Copyright 2025 Sergio Ciordia
 # License: GPL-3
@@ -61,24 +66,6 @@
   as.character(df[[col]])
 }
 
-#' Validate the annotation file (experimental design)
-#' @noRd
-.validate_lfq_annot <- function(annot) {
-  required <- c("Column", "Condition")
-  missing <- setdiff(required, names(annot))
-  if (length(missing) > 0) {
-    stop(
-      "Required columns missing from the annotation file (_Annot):\n  - ",
-      paste(missing, collapse = "\n  - "),
-      "\nThe _Annot must have at least 'Column' and 'Condition'."
-    )
-  }
-  if (anyDuplicated(annot$Column) > 0) {
-    stop("The annotation file has duplicated values in 'Column'.")
-  }
-  invisible(TRUE)
-}
-
 #' Map the columns of a family (by prefix) to sample names
 #' @description Runs `grep(prefix_regex, ...)`, strips the prefix to obtain the
 #'   sample name and returns a named vector (sample name -> column name)
@@ -106,21 +93,27 @@
 #' three data.frames (`metadata`, `protein_id`, `protein_quant`) ready for the
 #' downstream pipeline (`process_proteomics()`).
 #'
-#' The experimental design (sample -> condition) is taken from the annotation
-#' file `annot_path` (columns `Column`, `Condition`, and optionally
-#' `Experiment`). The intensities (`Abundance: <sample>`) and the per-sample
-#' metrics (`# PSMs (by Search Engine)`, `# Peptides (by Search Engine)`,
-#' `Score Mascot`) are mapped BY SAMPLE NAME.
+#' The experimental design comes from the `Abundance: <Condition>_<Replicate>`
+#' column suffixes, exactly as in [preprocess_tmt()] and [preprocess_diann()].
+#' For a report whose columns are not named that way, `annot_path` takes a sample
+#' sheet instead.
+#'
+#' The intensities (`Abundance: <sample>`) and the three per-sample metric
+#' families (`Score Mascot`, `# PSMs (by Search Engine)`,
+#' `# Peptides (by Search Engine)`) are mapped BY SAMPLE NAME, never by position:
+#' Proteome Discoverer writes the four families in different orders.
 #'
 #' @param file_path Path to the data TSV exported from Proteome Discoverer.
-#' @param annot_path Path to the annotation TSV with columns `Column`,
-#'   `Condition` (mandatory) and `Experiment` (optional).
+#' @param annot_path Path to a sample sheet with columns `Column` and
+#'   `Condition`, where `Column` holds the text after `Abundance: `. If `NULL`
+#'   (default), the design comes from the suffixes. Any other column in the sheet
+#'   is ignored -- batch structure belongs in `covariate_df` of
+#'   [process_proteomics()], see `vignette("batch-correction")`.
 #' @param condition_order Character vector with the order of the conditions. If
-#'   `NULL` (default), it is derived from `Condition` (order of appearance). If
+#'   `NULL` (default), it is derived from the data (order of appearance). If
 #'   supplied, it fixes the factor levels and discards samples whose condition is
-#'   not in the list; conditions listed but absent from the annotation file are
-#'   dropped too, with a warning, so that no empty factor level reaches the
-#'   metadata.
+#'   not in the list; conditions listed but absent are dropped too, with a
+#'   warning, so that no empty factor level reaches the metadata.
 #' @param export_dir Directory to export the TSVs to. `NULL` (default) = no
 #'   export.
 #' @param timestamp_suffix Logical. If `TRUE` (default), appends a timestamp to
@@ -131,27 +124,34 @@
 #'   containing `metadata`, `protein_id` and `protein_quant`.
 #'
 #'   The call that produced the object and a fingerprint of the files it was read
-#'   from -- the report and the annotation -- (path, size, modification time and
-#'   MD5) travel with it as the attributes `nadia_call` and `nadia_source`. They
+#'   from -- the report, and the sample sheet when there is one -- (path, size,
+#'   modification time and MD5) travel with it as the attributes `nadia_call` and
+#'   `nadia_source`. They
 #'   are attributes rather than list elements so that the three-element structure
 #'   above is unchanged; [write_nadia()] records them as the provenance of an
 #'   analysis.
 #'
 #' @examples
-#' # A trimmed Proteome Discoverer LFQ report ships with the package. Unlike TMT,
-#' # the sample-to-condition design comes from a separate annotation file rather
-#' # than from the column suffixes.
+#' # A trimmed Proteome Discoverer LFQ report ships with the package. Its columns
+#' # follow the "Abundance: <Condition>_<Replicate>" convention, so the design
+#' # needs no further argument.
 #' report <- system.file("extdata", "nadia_lfq_report.tsv.gz", package = "NADIA")
-#' annot  <- system.file("extdata", "nadia_lfq_annotation.tsv", package = "NADIA")
 #'
-#' lfq <- preprocess_lfq(report, annot_path = annot, verbose = FALSE)
+#' lfq <- preprocess_lfq(report, verbose = FALSE)
 #' lfq
 #' lfq$metadata[, c("Coding", "R.Condition", "R.Replicate")]
+#'
+#' # The same design, declared in a sheet instead. Use this route when the
+#' # columns are not named by the convention; here it is the same experiment, so
+#' # it produces the same sample table.
+#' annot <- system.file("extdata", "nadia_lfq_annotation.tsv", package = "NADIA")
+#' from_sheet <- preprocess_lfq(report, annot_path = annot, verbose = FALSE)
+#' identical(from_sheet$metadata, lfq$metadata)
 #'
 #' @export
 preprocess_lfq <- function(
     file_path,
-    annot_path,
+    annot_path = NULL,
     condition_order = NULL,
     export_dir = NULL,
     timestamp_suffix = TRUE,
@@ -160,7 +160,6 @@ preprocess_lfq <- function(
 
   # --- Argument validation ---
   if (!file.exists(file_path)) stop("Data file not found: ", file_path)
-  if (!file.exists(annot_path)) stop("Annotation file not found: ", annot_path)
   if (!is.null(condition_order) &&
       (length(condition_order) == 0 || !is.character(condition_order))) {
     stop("condition_order must be NULL or a non-empty character vector.")
@@ -172,70 +171,47 @@ preprocess_lfq <- function(
                    stringsAsFactors = FALSE, check.names = FALSE)
   .validate_pd_columns(df)
 
-  if (verbose) message("Reading annotation file: ", basename(annot_path))
-  annot <- read.delim(annot_path, header = TRUE, sep = "\t",
-                      stringsAsFactors = FALSE, check.names = FALSE)
-  .validate_lfq_annot(annot)
-  annot$Column    <- as.character(annot$Column)
-  annot$Condition <- as.character(annot$Condition)
-  annot$Experiment <- if ("Experiment" %in% names(annot)) {
-    as.character(annot$Experiment)
-  } else {
-    NA_character_
+  # --- The design: the Abundance suffixes, or the sample sheet ---
+  if (verbose && !is.null(annot_path)) {
+    message("Reading annotation file: ", basename(annot_path))
   }
+  design <- .pd_resolve_design(df, annot_path, verbose = verbose)
+  from_sheet <- !is.null(annot_path)
 
   # --- Resolve the condition order and filter the design ---
   if (is.null(condition_order)) {
-    condition_order <- unique(annot$Condition)
+    condition_order <- unique(design$R.Condition)
   } else {
-    keep_ann <- annot$Condition %in% condition_order
-    if (!any(keep_ann)) {
-      stop("No condition in the _Annot matches condition_order = c(",
+    keep <- design$R.Condition %in% condition_order
+    if (!any(keep)) {
+      stop("No condition in the ",
+           if (from_sheet) "annotation file" else "report",
+           " matches condition_order = c(",
            paste0("'", condition_order, "'", collapse = ", "), ").\n",
-           "Conditions in the _Annot: ", paste(unique(annot$Condition), collapse = ", "))
+           "Conditions detected: ",
+           paste(unique(design$R.Condition), collapse = ", "))
     }
-    annot <- annot[keep_ann, , drop = FALSE]
-    condition_order <- .drop_absent_conditions(condition_order, annot$Condition,
-                                               source = "annotation file")
+    design <- design[keep, , drop = FALSE]
+    condition_order <- .drop_absent_conditions(
+      condition_order, design$R.Condition,
+      source = if (from_sheet) "annotation file" else "report")
   }
 
-  # --- Sample table (sorted by condition and by the order in the Annot) ---
-  annot$R.Condition <- factor(annot$Condition, levels = condition_order,
-                              ordered = TRUE)
-  annot <- annot[order(annot$R.Condition, seq_len(nrow(annot))), , drop = FALSE]
-  # Replicate = sequential index within each condition (robust to names)
-  annot$R.Replicate <- as.integer(
-    stats::ave(seq_len(nrow(annot)), annot$R.Condition,
-               FUN = function(i) seq_along(i))
-  )
-  coding_levels <- annot$Column   # Coding = sample name from the _Annot
-
-  # --- Check that every sample in the design has its Abundance column ---
-  abund_map <- .lfq_sample_cols(df, "^Abundance:\\s*", coding_levels)
-  missing_abund <- setdiff(coding_levels, names(abund_map))
-  if (length(missing_abund) > 0) {
-    stop("No 'Abundance:' column found for these samples of the _Annot:\n  - ",
-         paste(missing_abund, collapse = "\n  - "))
-  }
-  # Warn about Abundance columns in the TSV that are not part of the design
-  all_abund <- sub("^Abundance:\\s*", "",
-                   grep("^Abundance:\\s*", names(df), value = TRUE))
-  extra_abund <- setdiff(all_abund, coding_levels)
-  if (length(extra_abund) > 0 && verbose) {
-    message("Note: 'Abundance:' columns ignored (not present in the _Annot): ",
-            paste(extra_abund, collapse = ", "))
-  }
+  # --- Sample table, sorted by condition and then by replicate ---
+  design$R.Condition <- factor(design$R.Condition, levels = condition_order,
+                               ordered = TRUE)
+  design <- design[order(design$R.Condition, design$R.Replicate), , drop = FALSE]
+  coding_levels <- design$Coding
 
   # ==========================================================================
   # metadata
   # ==========================================================================
   if (verbose) message("Generating sample metadata...")
   run_summary <- data.frame(
-    R.FileName   = unname(abund_map[coding_levels]),
-    R.Condition  = annot$R.Condition,
-    R.Replicate  = annot$R.Replicate,
+    R.FileName   = design$abundance_col,
+    R.Condition  = design$R.Condition,
+    R.Replicate  = design$R.Replicate,
     Coding       = coding_levels,
-    R.Experiment = annot$Experiment,
     stringsAsFactors = FALSE
   )
   rownames(run_summary) <- run_summary$Coding
@@ -314,7 +290,7 @@ preprocess_lfq <- function(
                            "PG.NrOfStrippedSequencesUsedForQuantification")
   mascot_by <- sample_matrix("^Score Mascot:\\s*", "PG.Cscore.RunWise")
 
-  abund_mat <- df[, unname(abund_map[coding_levels]), drop = FALSE]
+  abund_mat <- df[, design$abundance_col, drop = FALSE]
   abund_mat[] <- lapply(abund_mat, function(v) suppressWarnings(as.numeric(v)))
   names(abund_mat) <- paste0("PG.Quantity_", coding_levels)
 
