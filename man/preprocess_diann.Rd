@@ -18,7 +18,9 @@ preprocess_diann(
 
 \item{condition_order}{Character vector with the order of the experimental
 conditions (e.g. \code{c("A", "B", "D")}). Only the runs whose condition is in
-this vector are kept, so it doubles as a filter.}
+this vector are kept, so it doubles as a filter. Conditions listed but
+absent from the report are dropped, with a warning, so that no empty factor
+level reaches the metadata.}
 
 \item{sample_names}{Character vector of \verb{<Condition>_<Replicate>} labels, one
 per run column, \strong{in the order the columns appear in the file}. Use it to

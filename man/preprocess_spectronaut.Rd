@@ -19,8 +19,11 @@ preprocess_spectronaut(
 \arguments{
 \item{file_path}{Path to the Spectronaut TSV file.}
 
-\item{condition_order}{Character vector with the order of the experimental
-conditions (e.g. \code{c("Control", "Treated")}).}
+\item{condition_order}{Character vector that selects the experimental
+conditions to retain and sets their order in subsequent analysis stages
+(e.g. \code{c("Control", "Treated")}). Runs whose condition is not listed are
+dropped; conditions listed but absent from the report are dropped too, with
+a warning, so that no empty factor level reaches the metadata.}
 
 \item{export_dir}{Directory to export the TSV files to. If \code{NULL} (default),
 no files are exported.}

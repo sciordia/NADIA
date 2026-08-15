@@ -321,6 +321,40 @@
 
 
 # =============================================================================
+# Shared by the four preprocessing functions
+# =============================================================================
+
+#' Drop conditions that were asked for but are not in the data
+#'
+#' @description
+#' Every `preprocess_*()` function takes `condition_order`, uses it to select the
+#' samples to keep, and then makes it the levels of the `R.Condition` factor.
+#' Those two roles disagree when a condition is listed but does not occur in the
+#' file: the selection finds nothing to keep, while the factor gains a level with
+#' no samples behind it. An empty level is not inert -- it travels into
+#' `colData()` and from there into legends and axes.
+#'
+#' Rather than fail (the other conditions are perfectly usable), this warns and
+#' narrows `condition_order` to what is actually there. `setdiff()` preserves the
+#' order of its first argument, so the order that was asked for survives.
+#'
+#' @param condition_order Character vector as supplied by the caller.
+#' @param present The conditions occurring in the data, in any form.
+#' @param source Word naming where they were looked for, for the message.
+#' @return `condition_order` without the absent conditions.
+#' @keywords internal
+#' @noRd
+.drop_absent_conditions <- function(condition_order, present, source = "report") {
+  absent <- setdiff(condition_order, unique(as.character(present)))
+  if (length(absent) > 0) {
+    warning("Conditions listed in condition_order but absent from the ", source,
+            ", and dropped: ", paste(absent, collapse = ", "), call. = FALSE)
+    condition_order <- setdiff(condition_order, absent)
+  }
+  condition_order
+}
+
+# =============================================================================
 # Proteome Discoverer helpers
 # =============================================================================
 #

@@ -18,7 +18,9 @@ preprocess_tmt(
 \item{condition_order}{Character vector with the order of the experimental
 conditions (e.g. \code{c("A","B","D","IS")}). Only the channels whose
 condition is in this vector are kept -- handy for excluding Internal
-Standards by omitting \code{"IS"}.}
+Standards by omitting \code{"IS"}. Conditions listed but absent from the report
+are dropped, with a warning, so that no empty factor level reaches the
+metadata.}
 
 \item{export_dir}{Directory to export the TSV files to. If \code{NULL} (default),
 no files are exported.}

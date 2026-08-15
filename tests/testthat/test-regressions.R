@@ -187,3 +187,76 @@ test_that(".sigmoid is monotone, bounded and centred on x0", {
     vals <- f(seq(-20, 20, by = 0.5), k = 2, x0 = 3)
     expect_true(all(vals >= 0 & vals <= 1))
 })
+
+# --- condition_order: a selection, not just an ordering -----------------------
+
+test_that("condition_order filters the runs, it does not only order them", {
+    # Defect: preprocess_spectronaut() applied condition_order as factor levels
+    # without dropping the runs first. Unlisted conditions became NA in the
+    # factor, and .make_coding() builds Coding by pasting that factor, so their
+    # samples survived the whole pipeline as "NA_1", "NA_2", ... and reached the
+    # column names as PG.Quantity_NA_1.
+    #
+    # Only Spectronaut was affected: the other three readers already filtered,
+    # and none of them derives Coding from the factor.
+    p <- preprocess_spectronaut(
+        system.file("extdata", "nadia_dia_report.tsv.gz", package = "NADIA"),
+        condition_order = c("A", "B"), verbose = FALSE)
+
+    expect_identical(nrow(p$metadata), 8L)
+    expect_identical(levels(p$metadata$R.Condition), c("A", "B"))
+    expect_false(any(grepl("NA", p$metadata$Coding, fixed = TRUE)))
+
+    # The invariant in test-contract.R could not catch this: a broken Coding and
+    # a broken column name agreed with each other, so the %in% still held.
+    expect_identical(
+        grep("^PG.Quantity_", names(p$protein_quant), value = TRUE),
+        paste0("PG.Quantity_", p$metadata$Coding))
+})
+
+test_that("a condition asked for but absent is dropped, with a warning", {
+    # Defect: the guard only aborted when NO condition matched, so naming a
+    # condition that does not occur passed silently and left a factor level with
+    # no samples behind it -- which travels into colData and the plot axes.
+    report <- system.file("extdata", "nadia_dia_report.tsv.gz", package = "NADIA")
+
+    expect_warning(
+        p <- preprocess_spectronaut(report, condition_order = c("A", "B", "Z"),
+                                    verbose = FALSE),
+        "absent from the report")
+
+    expect_identical(levels(p$metadata$R.Condition), c("A", "B"))
+    expect_false(any(table(p$metadata$R.Condition) == 0))
+
+    # Naming them all still aborts, and says what is there.
+    expect_error(
+        preprocess_spectronaut(report, condition_order = c("Y", "Z"),
+                               verbose = FALSE),
+        "No condition in the Spectronaut report matches")
+})
+
+test_that("the other three readers drop absent conditions too", {
+    # The same asymmetry existed in all four, and the fix is one shared helper.
+    expect_warning(
+        tmt <- preprocess_tmt(
+            system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA"),
+            condition_order = c("A", "B", "C"), verbose = FALSE),
+        "absent from the report")
+    expect_identical(levels(tmt$metadata$R.Condition), c("A", "B"))
+
+    expect_warning(
+        diann <- preprocess_diann(
+            system.file("extdata", "nadia_diann_report.tsv.gz", package = "NADIA"),
+            condition_order = c("A", "D", "C"), verbose = FALSE),
+        "absent from the report")
+    expect_identical(levels(diann$metadata$R.Condition), c("A", "D"))
+
+    expect_warning(
+        lfq <- preprocess_lfq(
+            system.file("extdata", "nadia_lfq_report.tsv.gz", package = "NADIA"),
+            annot_path = system.file("extdata", "nadia_lfq_annotation.tsv",
+                                     package = "NADIA"),
+            condition_order = c("A", "B", "C"), verbose = FALSE),
+        "absent from the annotation file")
+    expect_identical(levels(lfq$metadata$R.Condition), c("A", "B"))
+})

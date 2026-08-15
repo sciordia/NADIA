@@ -160,8 +160,11 @@
 #' alongside it.
 #'
 #' @param file_path Path to the Spectronaut TSV file.
-#' @param condition_order Character vector with the order of the experimental
-#'   conditions (e.g. `c("Control", "Treated")`).
+#' @param condition_order Character vector that selects the experimental
+#'   conditions to retain and sets their order in subsequent analysis stages
+#'   (e.g. `c("Control", "Treated")`). Runs whose condition is not listed are
+#'   dropped; conditions listed but absent from the report are dropped too, with
+#'   a warning, so that no empty factor level reaches the metadata.
 #' @param export_dir Directory to export the TSV files to. If `NULL` (default),
 #'   no files are exported.
 #' @param agg_coverage_run Aggregation method for the per-sample PG.Coverage.
@@ -254,6 +257,19 @@ preprocess_spectronaut <- function(
     "PG.ProteinGroups", "PG.Quantity"
   )
   .validate_spectronaut_columns(df, required_cols)
+
+  # Retain only the requested conditions before creating factors and coding.
+  keep <- df$R.Condition %in% condition_order
+  if (!any(keep)) {
+    stop(
+      "No condition in the Spectronaut report matches condition_order = c(",
+      paste0("'", condition_order, "'", collapse = ", "), ").\n",
+      "Conditions detected in the file: ",
+      paste(unique(df$R.Condition), collapse = ", ")
+    )
+  }
+  df <- df[keep, , drop = FALSE]
+  condition_order <- .drop_absent_conditions(condition_order, df$R.Condition)
 
   # Create the Coding column
   df <- .make_coding(df, condition_order)

@@ -22,7 +22,9 @@ preprocess_lfq(
 \item{condition_order}{Character vector with the order of the conditions. If
 \code{NULL} (default), it is derived from \code{Condition} (order of appearance). If
 supplied, it fixes the factor levels and discards samples whose condition is
-not in the list.}
+not in the list; conditions listed but absent from the annotation file are
+dropped too, with a warning, so that no empty factor level reaches the
+metadata.}
 
 \item{export_dir}{Directory to export the TSVs to. \code{NULL} (default) = no
 export.}

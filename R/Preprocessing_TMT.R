@@ -73,7 +73,9 @@
 #' @param condition_order Character vector with the order of the experimental
 #'   conditions (e.g. `c("A","B","D","IS")`). Only the channels whose
 #'   condition is in this vector are kept -- handy for excluding Internal
-#'   Standards by omitting `"IS"`.
+#'   Standards by omitting `"IS"`. Conditions listed but absent from the report
+#'   are dropped, with a warning, so that no empty factor level reaches the
+#'   metadata.
 #' @param export_dir Directory to export the TSV files to. If `NULL` (default),
 #'   no files are exported.
 #' @param timestamp_suffix Logical. If `TRUE` (default), appends a timestamp to
@@ -156,6 +158,7 @@ preprocess_tmt <- function(
     )
   }
   abund <- abund[keep, , drop = FALSE]
+  condition_order <- .drop_absent_conditions(condition_order, abund$R.Condition)
 
   # Final ordering by condition_order and replicate
   abund$R.Condition <- factor(abund$R.Condition,

@@ -118,7 +118,9 @@
 #' @param condition_order Character vector with the order of the conditions. If
 #'   `NULL` (default), it is derived from `Condition` (order of appearance). If
 #'   supplied, it fixes the factor levels and discards samples whose condition is
-#'   not in the list.
+#'   not in the list; conditions listed but absent from the annotation file are
+#'   dropped too, with a warning, so that no empty factor level reaches the
+#'   metadata.
 #' @param export_dir Directory to export the TSVs to. `NULL` (default) = no
 #'   export.
 #' @param timestamp_suffix Logical. If `TRUE` (default), appends a timestamp to
@@ -193,6 +195,8 @@ preprocess_lfq <- function(
            "Conditions in the _Annot: ", paste(unique(annot$Condition), collapse = ", "))
     }
     annot <- annot[keep_ann, , drop = FALSE]
+    condition_order <- .drop_absent_conditions(condition_order, annot$Condition,
+                                               source = "annotation file")
   }
 
   # --- Sample table (sorted by condition and by the order in the Annot) ---
