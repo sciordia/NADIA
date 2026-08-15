@@ -90,6 +90,13 @@ protein by a constant would be removed by normalisation and would never reach
 this vignette; a real digestion-day effect hits different proteins differently,
 and that is what survives normalisation and needs ComBat.
 
+It is also deliberately large — six-fold, up or down. These conditions differ
+enormously from one another, with many proteins absent from one of them
+altogether, so a subtler batch would be real and correctable but would sit at a
+few per cent of the variance and make every diagnostic below harder to read. The
+size is chosen so the figures are legible; nothing about the procedure depends
+on it.
+
 ```{r inject}
 batched <- nadia_dia
 qcols   <- grep("^PG.Quantity_", colnames(batched$protein_quant))
@@ -98,7 +105,7 @@ d2_cols <- qcols[samples %in% covariates$Column[covariates$Digestion == "d2"]]
 
 set.seed(1)
 up     <- sample(c(TRUE, FALSE), nrow(batched$protein_quant), replace = TRUE)
-factor <- ifelse(up, 2.5, 1 / 2.5)   # half the proteins up, half down, in d2
+factor <- ifelse(up, 6, 1 / 6)       # half the proteins up, half down, in d2
 batched$protein_quant[, d2_cols] <- batched$protein_quant[, d2_cols] * factor
 
 length(d2_cols)   # the six samples digested on day 2
@@ -147,7 +154,7 @@ pvca_default$variance_components
 ```
 
 Condition explains essentially everything and the digestion day does not appear
-at all — even though we injected a 2.5-fold effect into half the proteins and
+at all — even though we injected a six-fold effect into half the proteins and
 know for a fact that it is there.
 
 ## Why the default hides it, and what to do
@@ -173,9 +180,16 @@ pvca_before <- pvca_analysis(
 pvca_before$variance_components
 ```
 
-Digestion accounts for about three quarters of the variance across those
-components, and condition for barely a fifth. **The batch effect is not merely
-present; it is dominant, and it is masking the biology.**
+Digestion now accounts for **more than a quarter** of the variance across those
+components, against roughly seven tenths for condition. The default reported none
+of it.
+
+Note what that means before moving on: the batch does not have to outweigh the
+biology to be worth removing. Here the biology is genuinely the larger signal —
+these conditions differ enormously — and a factor sitting at a quarter of the
+variance is still large enough to bury real differences, as step 4 will show. The
+share tells you how much of the spread a factor explains, not whether it is big
+enough to distort your results.
 
 The lesson generalises beyond this dataset: a decomposition that reports nothing
 technical is not evidence that there is nothing technical. Check what
@@ -284,13 +298,18 @@ merge(pvca_before$variance_components, pvca_after$variance_components,
       by = "label", suffixes = c("_before", "_after"))[, c(1, 2, 4)]
 ```
 
-Digestion falls from roughly 0.74 to numerically zero, and condition rises from
-about 0.22 to 0.79. That is the pattern you want: the technical factor gone,
-the biological factor **recovered**, not merely preserved.
+Digestion falls from 0.27 to numerically zero, and condition rises from about
+0.70 to 0.78. That is the pattern you want: the technical factor gone, the
+biological factor **recovered**, not merely preserved.
 
-The failure case looks different — the technical factor falls and the biological
-one falls with it. This table is where you would see it, which is the whole
-reason for computing the decomposition twice.
+The rise is the informative half. Condition's absolute contribution did not
+change — the correction never touched the biology — but it is now a share of a
+smaller total, because the variance the batch was contributing is no longer
+there. The biology was always that strong; the batch was hiding how strong.
+
+The failure case looks nothing like this, and that is the whole point of
+computing the decomposition twice: there the technical factor falls and the
+biological one falls with it, because ComBat removed both.
 
 ## What it changed in the results
 
@@ -303,10 +322,12 @@ Uncorrected, the batch effect inflates the residual variance and buries real
 differences. After correction the number of proteins called significant rises
 sharply, because the biology was there all along.
 
-This is also why the direction of the check matters. A correction that *increases*
-significance while the biological share of the variance rises is doing its job. A
-correction that increases significance while the biological share falls is
-manufacturing results, and only the decomposition can tell you which one you have.
+This is also why the count on its own settles nothing, and the decomposition
+does. A correction that increases significance while the technical factor goes to
+zero and the biological share **holds or rises** is doing its job. A correction
+that increases significance while the biological share **falls** is manufacturing
+results — it has taken the biology out along with the batch and left a cleaner,
+emptier dataset. In this table of counts the two are indistinguishable.
 
 # Removing two factors, one after the other
 
@@ -364,9 +385,9 @@ Everything so far rested on an effect we planted ourselves. That was deliberate:
 planting it is what let us check that what came out was what went in.
 
 But it leaves the last test hanging. The rule stated above — significance rises
-*and* the biological share of the variance rises — is a rule about telling a real
-correction from a manufactured one. Applied to an invented effect, the only thing
-it can be checked against is the invention.
+while the technical factor goes to zero and the biological share holds or rises —
+is a rule about telling a real correction from a manufactured one. Applied to an
+invented effect, the only thing it can be checked against is the invention.
 
 The TMT example report closes that circle. It carries a batch nobody planted, and
 a biology that is known in advance.
