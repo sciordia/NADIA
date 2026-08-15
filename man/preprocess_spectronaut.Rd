@@ -60,6 +60,17 @@ list elements so that the three-element structure above is unchanged;
 \description{
 Converts a Spectronaut report (long TSV format) into three structured tables:
 run metadata, protein identification and protein quantification.
+
+The report has to carry the right columns, and rather than leave that to be
+reconstructed by hand the package ships the Spectronaut export schema that
+produces them:
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{system.file("extdata", "NADIA_Report.rs", package = "NADIA")
+}\if{html}{\out{</div>}}
+
+Import that file into Spectronaut as a report schema and export with it. The
+result has the shape of \code{nadia_dia_report.tsv.gz}, the example that ships
+alongside it.
 }
 \examples{
 # A trimmed Spectronaut report ships with the package

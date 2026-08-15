@@ -87,6 +87,13 @@ without any change to the results the pipeline produces.
   Anything reading the example gets three contrasts (`B-A`, `D-A`, `D-B`) where
   it used to get one (`MUT-WT`).
 
+* **The Spectronaut export schema ships with the package.** Reading a Spectronaut
+  report requires it to have been exported with the right columns, which until
+  now meant assembling that list by hand from the documentation.
+  `system.file("extdata", "NADIA_Report.rs", package = "NADIA")` is the schema
+  itself: import it into Spectronaut and export with it, and the report has the
+  shape `preprocess_spectronaut()` expects.
+
 * **The TMT example drops condition C, so all four example reports share one
   design.** The TMTpro report is a separate experiment from the other three, but
   it reproduces the same three-proteome spike-in — *E. coli* rising from A to D
