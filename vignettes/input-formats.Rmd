@@ -215,7 +215,7 @@ tmt <- preprocess_tmt(tmt_file, condition_order = c("A", "B", "C", "D"),
                       verbose = FALSE)
 tmt
 head(tmt$metadata)
-table(tmt$metadata$Condition)
+table(tmt$metadata$R.Condition)
 ```
 
 # Label-free: Proteome Discoverer
