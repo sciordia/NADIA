@@ -21,7 +21,7 @@ shape of the experiment can be checked at a glance before processing it.
 \examples{
 tmt <- preprocess_tmt(
   system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA"),
-  condition_order = c("A", "B", "C", "D"),
+  condition_order = c("A", "B", "D"),
   verbose = FALSE)
 print(tmt)
 

@@ -87,6 +87,21 @@ without any change to the results the pipeline produces.
   Anything reading the example gets three contrasts (`B-A`, `D-A`, `D-B`) where
   it used to get one (`MUT-WT`).
 
+* **The TMT example drops condition C, so all four example reports share one
+  design.** The TMTpro report is a separate experiment from the other three, but
+  it reproduces the same three-proteome spike-in — *E. coli* rising from A to D
+  and yeast falling, with human and bovine flat — so its condition labels already
+  meant what they mean elsewhere. It now ships conditions A, B and D of eight
+  replicates (2,000 × 43), and `condition_order = c("A", "B", "D")` replaces
+  `c("A", "B", "C", "D")` in the examples and the vignette.
+
+  The two TMT mixes are deliberately kept. They are the only real batch structure
+  among the examples and a balanced one — replicates 1–4 are the first mix and 5–8
+  the second, bridged by the four `IS` channels — with the mix accounting for 67 %
+  of the variance on PC1 and the condition for 29 % on PC2, orthogonally. A
+  Proteome Discoverer report carries no mix column, so that mapping is now stated
+  in the vignette and in the help page rather than left implicit.
+
 * **`preprocess_lfq()` and `preprocess_tmt()` read the Proteome Discoverer 3.3
   column names.** Version 3.3 renamed `Exp. q-value: Combined` to
   `Exp. Protein q-value: Combined`. Both readers resolve a column by trying a

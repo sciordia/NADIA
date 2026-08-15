@@ -67,7 +67,7 @@ test_that("the TMT and LFQ pipelines run to completion", {
     # needs pinning down rather than just running.
     tmt <- preprocess_tmt(
         system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA"),
-        condition_order = c("A", "B", "C", "D"), verbose = FALSE)
+        condition_order = c("A", "B", "D"), verbose = FALSE)
     lfq <- preprocess_lfq(
         system.file("extdata", "nadia_lfq_report.tsv.gz", package = "NADIA"),
         annot_path = system.file("extdata", "nadia_lfq_annotation.tsv",
@@ -77,18 +77,39 @@ test_that("the TMT and LFQ pipelines run to completion", {
     res_tmt <- process_proteomics(tmt, verbose = FALSE)
     res_lfq <- process_proteomics(lfq, verbose = FALSE)
 
-    # 4 conditions give 6 pairwise contrasts; 3 conditions give 3. The LFQ
-    # example is the same A/B/D design as the DIA and DIA-NN ones.
-    expect_length(res_tmt$comparisons, 6L)
-    expect_length(res_lfq$comparisons, 3L)
-    expect_identical(as.character(res_lfq$comparisons),
-                     c("B-A", "D-A", "D-B"))
+    # All four examples now share the A/B/D design, so 3 pairwise contrasts
+    # each. The 4-condition case is covered directly, below.
+    for (cmp in list(res_tmt$comparisons, res_lfq$comparisons)) {
+        expect_length(cmp, 3L)
+        expect_identical(as.character(cmp), c("B-A", "D-A", "D-B"))
+    }
 
     for (r in list(res_tmt, res_lfq)) {
         expect_s3_class(r, "proteomics_result")
         expect_gt(nrow(r$DEPs_results), 0)
         expect_false(anyNA(r$DEPs_results$logFC))
     }
+})
+
+
+test_that("every pairwise contrast is built beyond three conditions", {
+    # No example dataset has four conditions any more -- they all share the
+    # A/B/D design -- so the combinatorial branch is exercised directly.
+    se <- SummarizedExperiment::SummarizedExperiment(
+        assays  = list(x = matrix(0, nrow = 1, ncol = 8)),
+        colData = S4Vectors::DataFrame(
+            Condition = rep(c("A", "B", "C", "D"), each = 2)))
+
+    expect_identical(
+        as.character(NADIA:::.specify_comparisons(se,
+            condition_column = "Condition", control = NULL)),
+        c("B-A", "C-A", "D-A", "C-B", "D-B", "D-C"))
+
+    # And against a reference, which no other test covers.
+    expect_identical(
+        as.character(NADIA:::.specify_comparisons(se,
+            condition_column = "Condition", control = "A")),
+        c("B-A", "C-A", "D-A"))
 })
 
 

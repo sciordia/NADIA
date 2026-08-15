@@ -27,7 +27,12 @@
 # * DIA spike-in: the same report annotated with the species of every protein
 #   group, for the benchmarking based on spiked-in organisms.
 # * TMT (Proteome Discoverer): a TMTpro experiment of two mixes and ten
-#   fractions, searched with three engines.
+#   fractions, searched with three engines. Not the same injections as the DIA
+#   report, but the same three-proteome spike-in design, so its conditions mean
+#   what they mean everywhere else. Replicates 1-4 are the first TMT mix and 5-8
+#   the second, bridged by the four IS channels; that mapping lives only in the
+#   _Annot of this directory, since a Proteome Discoverer report does not carry
+#   it and preprocess_tmt() takes no annotation file.
 # * LFQ (Proteome Discoverer): the same injections as the DIA report, acquired
 #   label-free and searched with Proteome Discoverer 3.3, together with the
 #   sample -> condition annotation file the format needs.
@@ -50,9 +55,11 @@
 # Three of the four conditions are kept (A, B and D) because with only two the
 # soft clustering in the Pattern Profiler becomes degenerate -- it groups profiles
 # across conditions, and with two points per profile there is no pattern left to
-# group. The same three are kept in steps 1, 4 and 5, so the Spectronaut, LFQ and
-# DIA-NN examples describe the same twelve injections and differ only in how they
-# were acquired and searched.
+# group. The same three are kept in every step, so all four examples share one
+# condition set. Steps 1, 4 and 5 go further than that: the Spectronaut, LFQ and
+# DIA-NN reports describe the very same twelve injections and differ only in how
+# they were acquired and searched. Step 3 is a separate experiment that
+# reproduces the design.
 #
 # The 2,000 proteins are drawn as a RANDOM SAMPLE with a fixed seed, and that
 # choice matters. An earlier version took "the 2,000 proteins with the most
@@ -118,13 +125,30 @@ gz(spk, file.path(EXTDATA, "nadia_dia_spikein.tsv.gz"))
 # --- 3. Proteome Discoverer TMT report --------------------------------------
 # TMT and LFQ come in wide format, one row per protein, so the sample is drawn
 # straight from the rows. Same criterion as the DIA report: random, fixed seed.
+#
+# The same three conditions as the other steps are kept. The four IS channels
+# stay: they are not a biological group -- condition_order is where they are
+# left out -- but they are what bridges the two TMT mixes, which are the only
+# real batch structure among the examples and are kept on purpose.
 message("3. nadia_tmt_report.tsv.gz")
 tmt <- utils::read.delim(
   file.path(RAW, "20260527_Q25_TMTpro_TMT1y2_10Fr_Static_3engines_onlyRAW.tsv"),
   sep = "\t", header = TRUE, check.names = FALSE, stringsAsFactors = FALSE)
 set.seed(SEED)
 tmt <- tmt[sort(sample(nrow(tmt), min(N_PROTEINS, nrow(tmt)))), , drop = FALSE]
+
+tmt_channels  <- sub("^Abundance: ", "",
+                     grep("^Abundance: ", names(tmt), value = TRUE))
+drop_channels <- tmt_channels[!sub("_.*$", "", tmt_channels) %in%
+                                c(CONDITIONS, "IS")]
+tmt <- tmt[, setdiff(names(tmt), paste0("Abundance: ", drop_channels)),
+           drop = FALSE]
 gz(tmt, file.path(EXTDATA, "nadia_tmt_report.tsv.gz"))
+
+tmt_mat <- as.matrix(tmt[, grep("^Abundance: [ABD]_", names(tmt))])
+message(sprintf("  missing values: %.1f %% | complete proteins: %.1f %%",
+                100 * mean(is.na(tmt_mat)),
+                100 * mean(rowSums(is.na(tmt_mat)) == 0)))
 
 # --- 4. Proteome Discoverer LFQ report and its annotation -------------------
 # The same twelve injections as steps 1 and 5, searched label-free with

@@ -205,13 +205,14 @@ grep("^Abundance", tmt_cols, value = TRUE)
 Nothing else is consulted, which is worth knowing: **if the channel names are
 wrong, the design is wrong**, and there is no annotation file to correct it.
 
-This experiment has four conditions of eight replicates plus four `IS` channels,
-an internal standard used to bridge the two TMT mixes. `condition_order` is where
-you leave it out, because a standard is not a biological group and including it
-would generate contrasts against it:
+This experiment has three conditions of eight replicates plus four `IS` channels,
+an internal standard used to bridge the two TMT mixes: replicates 1 to 4 are the
+first mix and 5 to 8 the second. `condition_order` is where you leave the standard
+out, because it is not a biological group and including it would generate
+contrasts against it:
 
 ```{r tmt-run}
-tmt <- preprocess_tmt(tmt_file, condition_order = c("A", "B", "C", "D"),
+tmt <- preprocess_tmt(tmt_file, condition_order = c("A", "B", "D"),
                       verbose = FALSE)
 tmt
 head(tmt$metadata)

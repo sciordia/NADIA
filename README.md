@@ -358,10 +358,14 @@ The package includes:
   workflow to be run directly;
 - trimmed Spectronaut, DIA-NN, TMT and label-free (DDA) quantification reports,
   stored in `inst/extdata/`, which demonstrate the import and preprocessing
-  functions from their respective input formats. The Spectronaut and DIA-NN ones
-  are the same twelve injections searched with the two engines, which is what
-  lets `vignette("input-formats")` show that the choice of search engine moves
-  the missingness from 8.1 % to 12.5 % before any imputation method is named;
+  functions from their respective input formats. All four share one design —
+  conditions A, B and D of four replicates — and three of them are literally the
+  same twelve injections, acquired and searched three ways, which is what lets
+  `vignette("input-formats")` show that those choices move the missingness from
+  8.0 % to 8.1 % to 12.5 % before any imputation method is named. The TMT report
+  is a separate experiment reproducing the same three-proteome spike-in, and it
+  is the only example with a real batch structure: two TMT mixes, replicates 1–4
+  and 5–8, bridged by four internal-standard channels;
 - the additional information needed for the *spike-in* benchmarking examples.
 
 The distributed reports contain a random subset of 2,000 protein groups drawn

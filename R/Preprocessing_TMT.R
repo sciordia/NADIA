@@ -71,7 +71,7 @@
 #'
 #' @param file_path Path to the TSV exported from Proteome Discoverer.
 #' @param condition_order Character vector with the order of the experimental
-#'   conditions (e.g. `c("A","B","C","D","IS")`). Only the channels whose
+#'   conditions (e.g. `c("A","B","D","IS")`). Only the channels whose
 #'   condition is in this vector are kept -- handy for excluding Internal
 #'   Standards by omitting `"IS"`.
 #' @param export_dir Directory to export the TSV files to. If `NULL` (default),
@@ -97,13 +97,15 @@
 #'   [write_nadia()] records them as the provenance of an analysis.
 #'
 #' @examples
-#' # A trimmed Proteome Discoverer TMTpro report ships with the package
+#' # A trimmed Proteome Discoverer TMTpro report ships with the package: three
+#' # conditions of eight replicates, split across two TMT mixes (replicates 1-4
+#' # are the first mix, 5-8 the second) and bridged by four "IS" channels.
 #' report <- system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA")
 #'
 #' # condition_order is required, and doubles as a filter: the report also holds
 #' # an "IS" channel (internal standards) that is left out by not listing it
 #' tmt <- preprocess_tmt(report,
-#'                       condition_order = c("A", "B", "C", "D"),
+#'                       condition_order = c("A", "B", "D"),
 #'                       verbose = FALSE)
 #' tmt
 #' table(tmt$metadata$R.Condition)
@@ -392,7 +394,7 @@ preprocess_tmt <- function(
 #' @examples
 #' tmt <- preprocess_tmt(
 #'   system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA"),
-#'   condition_order = c("A", "B", "C", "D"),
+#'   condition_order = c("A", "B", "D"),
 #'   verbose = FALSE)
 #' print(tmt)
 #'
