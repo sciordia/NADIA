@@ -358,6 +358,152 @@ Samples grouping by condition and mixed with respect to the technical factors is
 the picture you want. Still grouping by digestion day means the correction did not
 take, and the cascade above is the next thing to try.
 
+# The same thing on a real batch
+
+Everything so far rested on an effect we planted ourselves. That was deliberate:
+planting it is what let us check that what came out was what went in.
+
+But it leaves the last test hanging. The rule stated above — significance rises
+*and* the biological share of the variance rises — is a rule about telling a real
+correction from a manufactured one. Applied to an invented effect, the only thing
+it can be checked against is the invention.
+
+The TMT example report closes that circle. It carries a batch nobody planted, and
+a biology that is known in advance.
+
+## The batch has to be declared, not discovered
+
+`nadia_tmt_report.tsv.gz` was labelled in two TMTpro mixes: replicates 1 to 4 of
+every condition in the first, replicates 5 to 8 in the second. Two labelling
+reactions, two acquisitions — a batch effect in the plainest sense.
+
+It is also nowhere in the file. A Proteome Discoverer report has no column naming
+the mix a channel came from, and `preprocess_tmt()` reads nothing but the report.
+So this batch is declared exactly as the digestion days were declared at the start
+of this vignette, and by the same mechanism: a data frame whose `Column` values
+match the sample names, handed to `process_proteomics()`. Where that information
+comes from is your problem, not the pipeline's — here it happens to be recoverable
+from the replicate number.
+
+```{r tmt-data}
+tmt <- preprocess_tmt(
+    system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA"),
+    condition_order = c("A", "B", "D"), verbose = FALSE)
+
+tmt_cov <- data.frame(
+    Column = tmt$metadata$Coding,
+    Mix    = ifelse(tmt$metadata$R.Replicate <= 4, "mix1", "mix2"),
+    stringsAsFactors = FALSE)
+
+table(Condition = tmt$metadata$R.Condition, Mix = tmt_cov$Mix)
+```
+
+Step 1, again, and it passes: every condition appears in both mixes, four samples
+each. The batch is separable from the biology. Hold on to the fact that the table
+is *balanced* — it decides what the correction is going to buy.
+
+## The decomposition finds it
+
+```{r tmt-process, eval = run_bc, message = FALSE}
+tmt_res <- process_proteomics(tmt, covariate_df = tmt_cov, verbose = FALSE)
+```
+
+```{r tmt-pvca, eval = run_all, message = FALSE, warning = FALSE}
+pvca_analysis(
+    tmt_res$se_proc,
+    assay_name         = "Impseqrob_min",
+    technical_factors  = "Mix",
+    biological_factors = "Condition",
+    pca_threshold      = 0.95,
+    variance_threshold = 0,
+    verbose            = FALSE)$variance_components
+```
+
+The mix takes the larger share. Nothing was injected to make that happen: it is
+what two labelling reactions do to real samples, and it is the reason this step
+is worth running on data you did not simulate.
+
+## Correcting it, and checking against biology
+
+```{r tmt-correct, eval = run_bc, message = FALSE, warning = FALSE, results = "hide"}
+tmt_bc <- process_proteomics(
+    tmt, covariate_df = tmt_cov,
+    batch_correct = TRUE, batch_column = "Mix",
+    batch_algorithm = "ComBat", batch_ComBat_mode = 1,
+    verbose = FALSE)
+```
+
+No `batch_covariates` here. The design table above showed the mix and the
+condition are fully crossed, so there is no biological signal riding on the batch
+for ComBat to mistake for one — which is the situation that argument exists to
+protect against.
+
+Now the part the simulated example could not do. This report is a three-proteome
+spike-in: *E. coli* was loaded in increasing amounts from condition A to D, yeast
+in decreasing amounts, and human protein was held constant. So for the `D-A`
+comparison we know the answer before running anything — every *E. coli* protein
+should come out up, every yeast protein down.
+
+The species is in the description line, in UniProt's `OS=` field. `preprocess_lfq()`
+parses it for you; the TMT reader does not, so we take it here:
+
+```{r tmt-verify, eval = run_bc}
+species <- sub(".*OS=(.+?)\\s+[A-Za-z]+=.*", "\\1",
+               tmt$protein_id$PG.ProteinDescriptions)
+names(species) <- tmt$protein_id$PG.ProteinGroups
+
+found <- function(res, comparison) {
+    d  <- res$DEPs_results
+    d  <- d[d$Comparison == comparison, ]
+    sp <- species[match(d$Protein.IDs, names(species))]
+    c(`E. coli called up` = mean(d$Change[grepl("^Escherichia", sp)] == "Up"),
+      `yeast called down` = mean(d$Change[grepl("^Saccharomyces", sp)] == "Down"))
+}
+
+round(100 * cbind(uncorrected = found(tmt_res, "D-A"),
+                  corrected   = found(tmt_bc,  "D-A")), 1)
+```
+
+More of the proteins that should have been found are found. The verdict the
+simulated example could only assert, this one can check.
+
+## What the correction actually bought
+
+It is worth being precise about *what* improved, because it is not what most
+people expect. Compare the effect sizes themselves — the median log2 fold change
+per species, which for a spike-in is a quantity we can also predict:
+
+```{r tmt-fold, eval = run_bc}
+fold <- function(res) {
+    d  <- res$DEPs_results
+    d  <- d[d$Comparison == "D-A", ]
+    sp <- species[match(d$Protein.IDs, names(species))]
+    vapply(list(`E. coli` = "^Escherichia",
+                yeast     = "^Saccharomyces",
+                human     = "^Homo"),
+           function(p) median(d$logFC[grepl(p, sp)]), numeric(1))
+}
+
+round(cbind(uncorrected = fold(tmt_res), corrected = fold(tmt_bc)), 2)
+```
+
+**They barely move.** The fold changes were right before the correction and are
+right after it. What changed is how many of them cleared the significance
+threshold.
+
+That is not a disappointment; it is what a balanced design implies, and it is
+worth stating as a rule:
+
+> When every condition is equally represented in every batch, the batch cannot
+> bias your fold changes. It inflates the residual variance instead, and buries
+> real differences under it. Correcting it does not make the answers more
+> accurate — it makes more of the true answers reach significance.
+
+The confounded case is the other one, and it is the dangerous one: there the batch
+*does* distort the fold changes, and no amount of statistical power rescues them.
+Which of the two you are in is decided by the design table in step 1, printed
+before any of this begins — which is why that step is the one not to skip.
+
 ```{r session}
 sessionInfo()
 ```
