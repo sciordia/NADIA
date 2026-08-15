@@ -524,11 +524,18 @@ table(corrected   = tmt_bc$DEPs_results$Change)
 The same shape as the simulated example: across the three comparisons the number
 of proteins called significant roughly triples, from about 1,100 to about 3,300.
 
-And the same caution applies. On its own that table proves nothing -- a correction
-that had eaten the biology would also return more significant proteins. What
-settles it here is the species table above, which says the extra calls are going
-to the proteins that were spiked in. That is the luxury a spike-in buys you, and
-the reason this section exists.
+And the same caution applies, with a twist worth spelling out because the spike-in
+makes it visible. The extra calls do **not** all go to the proteins that were
+spiked in. Many land on the human background — and those are not mistakes either.
+Loading four times more *E. coli* into condition D pushes the human fraction of
+the mixture down by a few per cent, and once the batch is out of the residual
+variance the analysis has enough power to see it: a real, tiny, systematic shift
+that the benchmark's notion of "background" does not allow for.
+
+So the count is not the evidence, and neither is the false-positive rate against a
+background that is not quite null. The species table above is, because it asks a
+question the mixture cannot confound: are the proteins that were *designed* to
+move now being found? They are, from 79 % to 97 %.
 
 ## What the correction actually bought
 
