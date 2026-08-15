@@ -484,15 +484,16 @@
 #' Prepare a SummarizedExperiment from a proteomics_data object
 #'
 #' Convenience wrapper that extracts metadata and protein data from a
-#' `proteomics_data` object (output of `preprocess_spectronaut()` or
-#' `preprocess_tmt()`), performs zero-to-NA conversion, protein filtering,
+#' `proteomics_data` object (from any of the preprocess_*() functions),
+#' performs zero-to-NA conversion, protein filtering,
 #' and returns a SE with assays `"raw"` and `"log2"` -- ready for
 #' `nm_run_normalizations()` or `normalization_metrics(..., methods = "all")`.
 #'
 #' Internally calls `normalize_proteomics()` with `norm_method = "log2"`
 #' (no additional normalization).
 #'
-#' @param preprocessing `proteomics_data` list from `preprocess_spectronaut()` or `preprocess_tmt()`.
+#' @param preprocessing A `proteomics_data` object, from any of the
+#'   `preprocess_*()` functions.
 #' @param min_reps Minimum replicates with non-NA values per group for protein
 #'   filtering. If NULL, auto-computed as half the smallest group. Default `NULL`.
 #' @param min_groups Minimum groups meeting `min_reps` (default: 1).
@@ -516,7 +517,7 @@ nm_prepare_se <- function(preprocessing,
 
   if (!inherits(preprocessing, "proteomics_data"))
     stop("'preprocessing' must be a proteomics_data object ",
-         "(output of preprocess_spectronaut() or preprocess_tmt()).")
+         "(from any of the preprocess_*() functions).")
 
   # .prepare_metadata() and .prepare_protein_data() live in Processing.R,
   # which shares its namespace with this file.

@@ -7,7 +7,7 @@
 .prepare_protein_data(preprocessing)
 }
 \arguments{
-\item{preprocessing}{proteomics_data list (output of preprocess_spectronaut or preprocess_tmt)}
+\item{preprocessing}{A \code{proteomics_data} object, from any of the preprocess_*() functions}
 }
 \value{
 Data frame with columns: ProteinGroups, GeneNames, UniqPepts, and intensity columns

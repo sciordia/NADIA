@@ -429,9 +429,10 @@
 #' the selected method. Output is always in log2 scale.
 #'
 #' @param data Either a `proteomics_data` object -- the output of
-#'   [preprocess_spectronaut()], [preprocess_tmt()] or [preprocess_lfq()] -- in
-#'   which case `metadata` is derived from it and must be left `NULL`, or a data
-#'   frame with ProteinGroups, GeneNames, UniqPepts and the intensity columns.
+#'   [preprocess_spectronaut()], [preprocess_diann()], [preprocess_tmt()] or
+#'   [preprocess_lfq()] -- in which case `metadata` is derived from it and must
+#'   be left `NULL`, or a data frame with ProteinGroups, GeneNames, UniqPepts and
+#'   the intensity columns.
 #' @param metadata Data frame with Column, Condition, Replicate. Only needed when
 #'   `data` is a data frame.
 #' @param min_reps Minimum replicates for filtering. NULL = auto: floor(min_group_size / 2)
@@ -485,7 +486,7 @@ normalize_proteomics <- function(
     cyclic_loess_span       = 0.7,
     verbose                 = TRUE
 ) {
-  # Accept the object returned by preprocess_spectronaut()/_tmt()/_lfq() directly.
+  # Accept the object any of the preprocess_*() functions returns, directly.
   # Otherwise the function would be unusable on its own, since the two tables it
   # expects are only produced by internal helpers.
   if (inherits(data, "proteomics_data")) {
@@ -498,8 +499,9 @@ normalize_proteomics <- function(
     data          <- .prepare_protein_data(preprocessing)
   } else if (is.null(metadata)) {
     stop("'metadata' is required when 'data' is a data frame. Pass the object ",
-         "returned by preprocess_spectronaut(), preprocess_tmt() or ",
-         "preprocess_lfq() to have both derived automatically.")
+         "returned by preprocess_spectronaut(), preprocess_diann(), ",
+         "preprocess_tmt() or preprocess_lfq() to have both derived ",
+         "automatically.")
   }
 
   # Match cycloess sub-parameters

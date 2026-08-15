@@ -649,9 +649,8 @@
 #'
 #' @param file             Path to write to. The `.nadia` extension is a
 #'   convention; the file is a DuckDB database whatever it is called.
-#' @param preprocessing    Object from `preprocess_spectronaut()`,
-#'   `preprocess_tmt()` or `preprocess_lfq()`. Required: it is the base of the
-#'   file.
+#' @param preprocessing    A `proteomics_data` object, from any of the
+#'   `preprocess_*()` functions. Required: it is the base of the file.
 #' @param result           Object from [process_proteomics()], or `NULL` to
 #'   store only the preprocessing.
 #' @param pattern_profiler Object from [pattern_profiler_analysis()], or `NULL`.
@@ -686,8 +685,9 @@ write_nadia <- function(file,
   .db_require()
 
   if (!inherits(preprocessing, "proteomics_data")) {
-    stop("`preprocessing` must be the object returned by preprocess_spectronaut(), ",
-         "preprocess_tmt() or preprocess_lfq().", call. = FALSE)
+    stop("`preprocessing` must be a 'proteomics_data' object, as returned by ",
+         "preprocess_spectronaut(), preprocess_diann(), preprocess_tmt() or ",
+         "preprocess_lfq().", call. = FALSE)
   }
   if (!is.null(result) && !inherits(result, "proteomics_result")) {
     stop("`result` must be the object returned by process_proteomics().",

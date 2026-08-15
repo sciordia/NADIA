@@ -355,9 +355,9 @@ print.nadia_db <- function(x, ...) {
 
 #' Rebuild the preprocessing object from a `.nadia` file
 #'
-#' Returns an object indistinguishable from what `preprocess_spectronaut()`,
-#' `preprocess_tmt()` or `preprocess_lfq()` produced, so it can be fed straight
-#' to [process_proteomics()] or to the table functions.
+#' Returns an object indistinguishable from what the `preprocess_*()` function
+#' that wrote the file produced -- Spectronaut, DIA-NN, TMT or label-free -- so
+#' it can be fed straight to [process_proteomics()] or to the table functions.
 #'
 #' @param db A `nadia_db` from [read_nadia()].
 #'

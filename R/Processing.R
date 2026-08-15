@@ -22,7 +22,7 @@
 
 #' Prepare metadata from proteomics_data object
 #'
-#' @param preprocessing proteomics_data list (output of preprocess_spectronaut or preprocess_tmt)
+#' @param preprocessing A `proteomics_data` object, from any of the preprocess_*() functions
 #' @return Data frame with columns: Column, Condition, Replicate
 #' @keywords internal
 .prepare_metadata <- function(preprocessing, covariate_df = NULL) {
@@ -71,7 +71,7 @@
 
 #' Prepare protein data from proteomics_data object
 #'
-#' @param preprocessing proteomics_data list (output of preprocess_spectronaut or preprocess_tmt)
+#' @param preprocessing A `proteomics_data` object, from any of the preprocess_*() functions
 #' @return Data frame with columns: ProteinGroups, GeneNames, UniqPepts, and intensity columns
 #' @keywords internal
 .prepare_protein_data <- function(preprocessing) {
@@ -365,13 +365,19 @@
 # MAIN FUNCTION
 # =============================================================================
 
-#' Process proteomics data from Spectronaut
+#' Process proteomics data
 #'
 #' Complete processing pipeline: filtering, normalization, imputation
 #' and differential expression analysis. Coordinates sub-modules
 #' Normalization.R, Imputation.R, and DEAnalysis.R.
 #'
-#' @param preprocessing proteomics_data list (result of preprocess_spectronaut or preprocess_tmt)
+#' The input is a `proteomics_data` object, which every preprocessing function
+#' returns with the same three elements, so the pipeline is indifferent to the
+#' acquisition and the search engine the data came from.
+#'
+#' @param preprocessing A `proteomics_data` object, as returned by
+#'   [preprocess_spectronaut()], [preprocess_diann()], [preprocess_tmt()] or
+#'   [preprocess_lfq()].
 #' @param export_dir Output directory for exported files. Defaults to `NULL`,
 #'   which writes nothing to disk; pass a path to enable the exports controlled
 #'   by `export_normalized`, `export_imputed`, `export_volcano`,
@@ -513,7 +519,9 @@ process_proteomics <- function(
   # =========================================================================
 
   if (!inherits(preprocessing, "proteomics_data")) {
-    stop("The 'preprocessing' argument must be the result of preprocess_spectronaut() or preprocess_tmt()")
+    stop("The 'preprocessing' argument must be a 'proteomics_data' object, as ",
+         "returned by preprocess_spectronaut(), preprocess_diann(), ",
+         "preprocess_tmt() or preprocess_lfq().")
   }
 
   # Without export_dir nothing is written to disk. The function must not create

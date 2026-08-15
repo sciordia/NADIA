@@ -1097,7 +1097,7 @@ results_list_widget <- function(
 
   if (!"PG.ProteinGroups" %in% names(df)) {
     stop("Required column 'PG.ProteinGroups' not found. ",
-         "The file must be a Protein_ID exported by preprocess_spectronaut().")
+         "The file must be a Protein_ID exported by any of the preprocess_*() functions.")
   }
   if (!any(grepl("^PG\\.NrOfPrecursorsIdentified_", names(df)))) {
     stop("No sample columns were detected (PG.NrOfPrecursorsIdentified_*). ",
@@ -1439,7 +1439,7 @@ results_list_widget <- function(
 
   if (!"PG.ProteinGroups" %in% names(df)) {
     stop("Required column 'PG.ProteinGroups' not found. ",
-         "The file must be a Protein_QUANT exported by preprocess_spectronaut().")
+         "The file must be a Protein_QUANT exported by any of the preprocess_*() functions.")
   }
   if (!any(grepl("^PG\\.NrOfPrecursorsUsedForQuantification_", names(df)))) {
     stop("No sample columns were detected (PG.NrOfPrecursorsUsedForQuantification_*). ",
@@ -1975,7 +1975,7 @@ results_list_widget <- function(
 #' cell. It reproduces the usual Excel layout and improves on it.
 #'
 #' @param data Data frame or path to a Protein_ID TSV/CSV/Parquet file (output of
-#'   preprocess_spectronaut() -> protein_id).
+#'   any preprocess_*() function -> protein_id).
 #' @param metadata Optional: metadata data frame (run_summary) with a Coding
 #'   column that fixes the order of the sample columns.
 #' @param page_size Rows per page (default 15).

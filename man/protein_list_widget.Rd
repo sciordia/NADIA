@@ -16,7 +16,7 @@ protein_list_widget(
 }
 \arguments{
 \item{data}{Data frame or path to a Protein_ID TSV/CSV/Parquet file (output of
-preprocess_spectronaut() -> protein_id).}
+any preprocess_*() function -> protein_id).}
 
 \item{metadata}{Optional: metadata data frame (run_summary) with a Coding
 column that fixes the order of the sample columns.}

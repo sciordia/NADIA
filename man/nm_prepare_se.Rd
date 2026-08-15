@@ -13,7 +13,8 @@ nm_prepare_se(
 )
 }
 \arguments{
-\item{preprocessing}{\code{proteomics_data} list from \code{preprocess_spectronaut()} or \code{preprocess_tmt()}.}
+\item{preprocessing}{A \code{proteomics_data} object, from any of the
+\verb{preprocess_*()} functions.}
 
 \item{min_reps}{Minimum replicates with non-NA values per group for protein
 filtering. If NULL, auto-computed as half the smallest group. Default \code{NULL}.}
@@ -30,8 +31,8 @@ SummarizedExperiment with assays \code{"raw"} and \code{"log2"}.
 }
 \description{
 Convenience wrapper that extracts metadata and protein data from a
-\code{proteomics_data} object (output of \code{preprocess_spectronaut()} or
-\code{preprocess_tmt()}), performs zero-to-NA conversion, protein filtering,
+\code{proteomics_data} object (from any of the preprocess_*() functions),
+performs zero-to-NA conversion, protein filtering,
 and returns a SE with assays \code{"raw"} and \code{"log2"} -- ready for
 \code{nm_run_normalizations()} or \code{normalization_metrics(..., methods = "all")}.
 }

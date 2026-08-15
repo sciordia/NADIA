@@ -597,7 +597,8 @@ import_imp_matrices <- function(tsv_dir,
 #' `"log2"`, then applies the chosen normalization via
 #' `.nm_dispatch_normalization()`.
 #'
-#' @param preprocessing `proteomics_data` list from `preprocess_spectronaut()` or `preprocess_tmt()`.
+#' @param preprocessing A `proteomics_data` object, from any of the
+#'   `preprocess_*()` functions.
 #' @param norm_method Character scalar. Normalization method name (e.g.
 #'   `"cycloess"`). If provided, used directly. Default `NULL`.
 #' @param pc1_rank data.frame from `nm_rank_pc1()` or
@@ -645,7 +646,7 @@ im_prepare_se <- function(preprocessing,
   # --- Validate preprocessing ---
   if (!inherits(preprocessing, "proteomics_data"))
     stop("'preprocessing' must be a proteomics_data object ",
-         "(output of preprocess_spectronaut() or preprocess_tmt()).")
+         "(from any of the preprocess_*() functions).")
 
   # --- Resolve winner method ---
   if (is.null(norm_method) && is.null(pc1_rank))

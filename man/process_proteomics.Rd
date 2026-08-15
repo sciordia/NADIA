@@ -2,7 +2,7 @@
 % Please edit documentation in R/Processing.R
 \name{process_proteomics}
 \alias{process_proteomics}
-\title{Process proteomics data from Spectronaut}
+\title{Process proteomics data}
 \usage{
 process_proteomics(
   preprocessing,
@@ -49,7 +49,9 @@ process_proteomics(
 )
 }
 \arguments{
-\item{preprocessing}{proteomics_data list (result of preprocess_spectronaut or preprocess_tmt)}
+\item{preprocessing}{A \code{proteomics_data} object, as returned by
+\code{\link[=preprocess_spectronaut]{preprocess_spectronaut()}}, \code{\link[=preprocess_diann]{preprocess_diann()}}, \code{\link[=preprocess_tmt]{preprocess_tmt()}} or
+\code{\link[=preprocess_lfq]{preprocess_lfq()}}.}
 
 \item{export_dir}{Output directory for exported files. Defaults to \code{NULL},
 which writes nothing to disk; pass a path to enable the exports controlled
@@ -168,6 +170,11 @@ trip through disk to obtain them would be gratuitous.
 Complete processing pipeline: filtering, normalization, imputation
 and differential expression analysis. Coordinates sub-modules
 Normalization.R, Imputation.R, and DEAnalysis.R.
+}
+\details{
+The input is a \code{proteomics_data} object, which every preprocessing function
+returns with the same three elements, so the pipeline is indifferent to the
+acquisition and the search engine the data came from.
 }
 \examples{
 data(nadia_dia)

@@ -17,9 +17,8 @@ write_nadia(
 \item{file}{Path to write to. The \code{.nadia} extension is a
 convention; the file is a DuckDB database whatever it is called.}
 
-\item{preprocessing}{Object from \code{preprocess_spectronaut()},
-\code{preprocess_tmt()} or \code{preprocess_lfq()}. Required: it is the base of the
-file.}
+\item{preprocessing}{A \code{proteomics_data} object, from any of the
+\verb{preprocess_*()} functions. Required: it is the base of the file.}
 
 \item{result}{Object from \code{\link[=process_proteomics]{process_proteomics()}}, or \code{NULL} to
 store only the preprocessing.}

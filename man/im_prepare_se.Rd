@@ -17,7 +17,8 @@ im_prepare_se(
 )
 }
 \arguments{
-\item{preprocessing}{\code{proteomics_data} list from \code{preprocess_spectronaut()} or \code{preprocess_tmt()}.}
+\item{preprocessing}{A \code{proteomics_data} object, from any of the
+\verb{preprocess_*()} functions.}
 
 \item{norm_method}{Character scalar. Normalization method name (e.g.
 \code{"cycloess"}). If provided, used directly. Default \code{NULL}.}

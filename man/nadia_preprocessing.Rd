@@ -14,9 +14,9 @@ A \code{proteomics_data} object with \code{metadata}, \code{protein_id} and
 \code{protein_quant}.
 }
 \description{
-Returns an object indistinguishable from what \code{preprocess_spectronaut()},
-\code{preprocess_tmt()} or \code{preprocess_lfq()} produced, so it can be fed straight
-to \code{\link[=process_proteomics]{process_proteomics()}} or to the table functions.
+Returns an object indistinguishable from what the \verb{preprocess_*()} function
+that wrote the file produced -- Spectronaut, DIA-NN, TMT or label-free -- so
+it can be fed straight to \code{\link[=process_proteomics]{process_proteomics()}} or to the table functions.
 }
 \examples{
 if (requireNamespace("duckdb", quietly = TRUE)) {

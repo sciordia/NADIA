@@ -18,9 +18,10 @@ normalize_proteomics(
 }
 \arguments{
 \item{data}{Either a \code{proteomics_data} object -- the output of
-\code{\link[=preprocess_spectronaut]{preprocess_spectronaut()}}, \code{\link[=preprocess_tmt]{preprocess_tmt()}} or \code{\link[=preprocess_lfq]{preprocess_lfq()}} -- in
-which case \code{metadata} is derived from it and must be left \code{NULL}, or a data
-frame with ProteinGroups, GeneNames, UniqPepts and the intensity columns.}
+\code{\link[=preprocess_spectronaut]{preprocess_spectronaut()}}, \code{\link[=preprocess_diann]{preprocess_diann()}}, \code{\link[=preprocess_tmt]{preprocess_tmt()}} or
+\code{\link[=preprocess_lfq]{preprocess_lfq()}} -- in which case \code{metadata} is derived from it and must
+be left \code{NULL}, or a data frame with ProteinGroups, GeneNames, UniqPepts and
+the intensity columns.}
 
 \item{metadata}{Data frame with Column, Condition, Replicate. Only needed when
 \code{data} is a data frame.}
