@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg viewBox="0 0 1200 560" role="img" aria-labelledby="title desc" xmlns="http://www.w3.org/2000/svg">
+  <title id="title">Structure of a Proteome Discoverer LFQ input report</title>
+  <desc id="desc">A wide-format table with one protein group per row. Protein annotations are followed by repeated families of Mascot scores, PSM counts, peptide counts and abundances, each identified by the same sample suffix. NADIA matches these families by sample name.</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#17324d" flood-opacity="0.13"/>
+    </filter>
+    <style>
+      .h1{font:700 25px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#17324d}.sub{font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#526779}.group{font:700 14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#17324d}.head{font:600 12px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#17324d}.cell{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#334e60}.noteh{font:700 18px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#17324d}.note{font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#334e60}.small{font:13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#526779}.grid{stroke:#b9c7d2;stroke-width:1}.box{filter:url(#shadow);stroke-width:1.5}
+    </style>
+  </defs>
+  <rect width="1200" height="560" rx="18" fill="#f8fafc"/>
+  <text class="h1" x="32" y="43" style="white-space: pre;">LFQ report from Proteome Discoverer — wide format</text>
+  <text class="sub" x="32" y="70" style="white-space: pre;">One row represents one protein group; several column families are repeated for every sample</text>
+  <rect class="box" x="30" y="102" width="835" height="388" rx="10" fill="#fff" stroke="#75ad86"/>
+  <rect x="32" y="104" width="210" height="42" fill="#dcfce7"/>
+  <rect x="242" y="104" width="150" height="42" fill="#ede9fe"/>
+  <rect x="392" y="104" width="150" height="42" fill="#dbeafe"/>
+  <rect x="542" y="104" width="150" height="42" fill="#fef3c7"/>
+  <rect x="692" y="104" width="171" height="42" fill="#ffedd5"/>
+  <text class="group" x="68" y="130" style="white-space: pre; font-size: 14px;">Protein annotations</text>
+  <text class="group" x="272" y="130" style="white-space: pre; font-size: 14px;">Mascot score</text>
+  <text class="group" x="447" y="130" style="white-space: pre; font-size: 14px;">PSMs</text>
+  <text class="group" x="586" y="130" style="white-space: pre; font-size: 14px;">Peptides</text>
+  <text class="group" x="726" y="130" style="white-space: pre;">Abundance</text>
+  <rect x="30" y="146" width="835" height="72" fill="#f8fff9"/>
+  <rect x="30" y="286" width="835" height="68" fill="#fbfefb"/>
+  <path class="grid" d="M 135 145.881 L 135 490 M 242 102 L 242 490 M 317 145.739 L 317 490 M 392 102 L 392 490 M 467 145.783 L 467 490 M 542 102 L 542 490 M 617 145.089 L 617 490 M 692 102 L 692 490 M 777 145.664 L 777 490 M 30 146 L 865 146 M 30 218 L 865 218 M 30 286 L 865 286 M 30 354 L 865 354 M 30 422 L 865 422"/>
+  <text class="head" x="48" y="186" style="white-space: pre; font-size: 12px;">Accession</text>
+  <text class="head" x="149" y="186" style="white-space: pre;">Description</text>
+  <text class="head" x="259" y="174" style="white-space: pre; font-size: 12px;">Score:</text>
+  <text class="head" x="271" y="196" style="white-space: pre; font-size: 12px;">A_1</text>
+  <text class="head" x="334" y="174" style="white-space: pre; font-size: 12px;">Score:</text>
+  <text class="head" x="346" y="196" style="white-space: pre; font-size: 12px;">A_2</text>
+  <text class="head" x="405" y="174" style="white-space: pre;"># PSMs:</text>
+  <text class="head" x="417" y="196" style="white-space: pre;">A_1</text>
+  <text class="head" x="480" y="174" style="white-space: pre;"># PSMs:</text>
+  <text class="head" x="492" y="196" style="white-space: pre;">A_2</text>
+  <text class="head" x="554" y="174" style="white-space: pre; font-size: 12px;"># Pept:</text>
+  <text class="head" x="571" y="196" style="white-space: pre; font-size: 12px;">A_1</text>
+  <text class="head" x="629" y="174" style="white-space: pre; font-size: 12px;"># Pept:</text>
+  <text class="head" x="646" y="196" style="white-space: pre; font-size: 12px;">A_2</text>
+  <text class="head" x="699" y="174" style="white-space: pre; font-size: 12px;">Abundance:</text>
+  <text class="head" x="723" y="196" style="white-space: pre; font-size: 12px;">A_1</text>
+  <text class="head" x="786" y="174" style="white-space: pre; font-size: 12px;">Abundance:</text>
+  <text class="head" x="809" y="196" style="white-space: pre; font-size: 12px;">A_2</text>
+  <g class="cell">
+    <text x="65" y="259" style="white-space: pre; font-size: 12px;">P001</text>
+    <text x="154" y="259" style="white-space: pre; font-size: 12px;">Protein 1</text>
+    <text x="263" y="259" style="white-space: pre; font-size: 12px;">1393</text>
+    <text x="338" y="259" style="white-space: pre; font-size: 12px;">1366</text>
+    <text x="420" y="259" style="white-space: pre; font-size: 12px;">42</text>
+    <text x="495" y="259" style="white-space: pre; font-size: 12px;">39</text>
+    <text x="570" y="259" style="white-space: pre; font-size: 12px;">18</text>
+    <text x="645" y="259" style="white-space: pre; font-size: 12px;">17</text>
+    <text x="717" y="259" style="white-space: pre;">8.2e6</text>
+    <text x="802" y="259" style="white-space: pre;">7.9e6</text>
+    <text x="65" y="327" style="white-space: pre; font-size: 12px;">P002</text>
+    <text x="154" y="327" style="white-space: pre; font-size: 12px;">Protein 2</text>
+    <text x="267" y="327" style="white-space: pre;">612</text>
+    <text x="342" y="327" style="white-space: pre;">590</text>
+    <text x="420" y="327" style="white-space: pre; font-size: 12px;">21</text>
+    <text x="495" y="327" style="white-space: pre; font-size: 12px;">20</text>
+    <text x="574" y="327" style="white-space: pre; font-size: 12px;">9</text>
+    <text x="649" y="327" style="white-space: pre; font-size: 12px;">9</text>
+    <text x="717" y="327" style="white-space: pre;">3.5e6</text>
+    <text x="802" y="327" style="white-space: pre;">3.4e6</text>
+    <text x="65" y="395" style="white-space: pre; font-size: 12px;">P003</text>
+    <text x="154" y="395" style="white-space: pre; font-size: 12px;">Protein 3</text>
+    <text x="267" y="395" style="white-space: pre;">208</text>
+    <text x="345" y="395" style="white-space: pre; font-size: 12px;">NA</text>
+    <text x="424" y="395" style="white-space: pre; font-size: 12px;">8</text>
+    <text x="499" y="395" style="white-space: pre; font-size: 12px;">0</text>
+    <text x="574" y="395" style="white-space: pre; font-size: 12px;">4</text>
+    <text x="649" y="395" style="white-space: pre; font-size: 12px;">0</text>
+    <text x="717" y="395" style="white-space: pre;">1.2e6</text>
+    <text x="811" y="395" style="white-space: pre; font-size: 12px;">NA</text>
+    <text x="73" y="463" style="white-space: pre; font-size: 12px;">…</text>
+    <text x="182" y="463" style="white-space: pre; font-size: 12px;">…</text>
+    <text x="275" y="463" style="white-space: pre; font-size: 12px;">…</text>
+    <text x="348" y="463" style="white-space: pre; font-size: 12px;">…</text>
+    <text x="423" y="463" style="white-space: pre; font-size: 12px;">…</text>
+    <text x="499" y="463" style="white-space: pre; font-size: 12px;">…</text>
+    <text x="574" y="463" style="white-space: pre; font-size: 12px;">…</text>
+    <text x="650" y="463" style="white-space: pre; font-size: 12px;">…</text>
+    <text x="730" y="463" style="white-space: pre; font-size: 12px;">…</text>
+    <text x="813" y="463" style="white-space: pre; font-size: 12px;">…</text>
+  </g>
+  <rect class="box" x="900" y="102" width="270" height="388" rx="12" fill="#f2fbf4" stroke="#16a34a"/>
+  <text class="noteh" x="925" y="139" style="white-space: pre;">How NADIA reads it</text>
+  <circle cx="927" cy="181" r="5" fill="#16a34a"/>
+  <text class="note" x="943" y="186" style="white-space: pre;">Design from suffixes or</text>
+  <text class="head" x="943" y="210" style="white-space: pre;">annot_path</text>
+  <circle cx="927" cy="253" r="5" fill="#7c3aed"/>
+  <text class="note" x="943" y="258" style="white-space: pre;">Every family is matched by</text>
+  <text class="note" x="943" y="280" style="white-space: pre;">sample name, not position</text>
+  <circle cx="927" cy="325" r="5" fill="#2563eb"/>
+  <text class="note" x="943" y="330" style="white-space: pre;">The same suffix</text>
+  <text class="head" x="943" y="352" style="white-space: pre;">A_1</text>
+  <text class="note" x="976" y="352" style="white-space: pre;">links score, PSMs,</text>
+  <text class="note" x="943" y="374" style="white-space: pre;">peptides and abundance</text>
+  <circle cx="927" cy="417" r="5" fill="#d97706"/>
+  <text class="note" x="943" y="422" style="white-space: pre;">Missing measurements remain</text>
+  <text class="head" x="943" y="444" style="white-space: pre;">NA</text>
+  <text class="small" x="925" y="472" style="white-space: pre;">preprocess_lfq()</text>
+</svg>

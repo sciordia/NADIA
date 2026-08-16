@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">NADIA input formats converge on a common data structure</title>
+  <desc id="desc">Spectronaut, DIA-NN, TMT and LFQ reports are read by four dedicated preprocessing functions. Spectronaut carries the experimental design in the report, whereas the three wide formats obtain it from Abundance column suffixes or an annotation file. All four functions return a proteomics_data object containing metadata, protein_id and protein_quant for process_proteomics.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#526779"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#17324d" flood-opacity="0.14"/>
+    </filter>
+    <style>
+      .heading { font: 700 21px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #17324d; }
+      .title { font: 700 20px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #17324d; }
+      .body { font: 16px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #334e60; }
+      .small { font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #526779; }
+      .code { font: 600 17px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #17324d; }
+      .box { stroke-width: 2; rx: 12; filter: url(#shadow); }
+      .flow { fill: none; stroke: #526779; stroke-width: 2.5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1200" height="620" fill="#f8fafc" rx="18"/>
+
+  <text class="heading" x="32" y="38">Source report and design</text>
+  <text class="heading" x="382" y="38">NADIA importer</text>
+  <text class="heading" x="892" y="38">Common output</text>
+
+  <!-- Spectronaut -->
+  <rect class="box" x="30" y="62" width="310" height="100" fill="#dbeafe" stroke="#2563eb"/>
+  <text class="title" x="50" y="91">Spectronaut</text>
+  <text class="body" x="50" y="119">Long: one row per group and run</text>
+  <text class="small" x="50" y="144">Design: R.Condition + R.Replicate</text>
+  <path class="flow" d="M340 112 H378"/>
+  <rect class="box" x="390" y="76" width="280" height="72" fill="#eff6ff" stroke="#2563eb"/>
+  <text class="code" x="530" y="119" text-anchor="middle">preprocess_spectronaut()</text>
+
+  <!-- DIA-NN -->
+  <rect class="box" x="30" y="184" width="310" height="100" fill="#ede9fe" stroke="#7c3aed"/>
+  <text class="title" x="50" y="213">DIA-NN pg_matrix</text>
+  <text class="body" x="50" y="241">Wide: one column per run</text>
+  <text class="small" x="50" y="266">Design: suffixes or annot_path</text>
+  <path class="flow" d="M340 234 H378"/>
+  <rect class="box" x="390" y="198" width="280" height="72" fill="#f5f3ff" stroke="#7c3aed"/>
+  <text class="code" x="530" y="241" text-anchor="middle">preprocess_diann()</text>
+
+  <!-- TMT -->
+  <rect class="box" x="30" y="306" width="310" height="100" fill="#ffedd5" stroke="#ea580c"/>
+  <text class="title" x="50" y="335">TMT report (PD)</text>
+  <text class="body" x="50" y="363">Wide: one column per channel</text>
+  <text class="small" x="50" y="388">Design: suffixes or annot_path</text>
+  <path class="flow" d="M340 356 H378"/>
+  <rect class="box" x="390" y="320" width="280" height="72" fill="#fff7ed" stroke="#ea580c"/>
+  <text class="code" x="530" y="363" text-anchor="middle">preprocess_tmt()</text>
+
+  <!-- LFQ -->
+  <rect class="box" x="30" y="428" width="310" height="100" fill="#dcfce7" stroke="#16a34a"/>
+  <text class="title" x="50" y="457">LFQ report (PD)</text>
+  <text class="body" x="50" y="485">Wide: one column per sample</text>
+  <text class="small" x="50" y="510">Design: suffixes or annot_path</text>
+  <path class="flow" d="M340 478 H378"/>
+  <rect class="box" x="390" y="442" width="280" height="72" fill="#f0fdf4" stroke="#16a34a"/>
+  <text class="code" x="530" y="485" text-anchor="middle">preprocess_lfq()</text>
+
+  <!-- Convergence -->
+  <path d="M670 112 H735 M670 234 H735 M670 356 H735 M670 478 H735 M735 112 V478" fill="none" stroke="#526779" stroke-width="2.5"/>
+  <path class="flow" d="M735 295 H828"/>
+
+  <!-- Common object -->
+  <rect class="box" x="840" y="76" width="330" height="404" fill="#e6f3f8" stroke="#1f6f8b"/>
+  <text class="title" x="1005" y="112" text-anchor="middle">proteomics_data</text>
+  <text class="small" x="1005" y="137" text-anchor="middle">same interface for every format</text>
+
+  <rect x="870" y="164" width="270" height="72" rx="9" fill="#ffffff" stroke="#79aabd" stroke-width="1.5"/>
+  <text class="code" x="892" y="193">metadata</text>
+  <text class="small" x="892" y="218">samples, conditions and replicates</text>
+
+  <rect x="870" y="254" width="270" height="72" rx="9" fill="#ffffff" stroke="#79aabd" stroke-width="1.5"/>
+  <text class="code" x="892" y="283">protein_id</text>
+  <text class="small" x="892" y="308">protein annotations and ID metrics</text>
+
+  <rect x="870" y="344" width="270" height="92" rx="9" fill="#ffffff" stroke="#79aabd" stroke-width="1.5"/>
+  <text class="code" x="892" y="373">protein_quant</text>
+  <text class="small" x="892" y="398">protein intensities in</text>
+  <text class="small" x="892" y="419">PG.Quantity_&lt;coding&gt; columns</text>
+
+  <!-- Downstream -->
+  <path class="flow" d="M1005 480 V530"/>
+  <rect class="box" x="840" y="542" width="330" height="58" fill="#17324d" stroke="#17324d"/>
+  <text x="1005" y="578" text-anchor="middle" style="font: 600 19px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #ffffff;">process_proteomics()</text>
+</svg>
