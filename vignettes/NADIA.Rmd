@@ -458,9 +458,8 @@ matrix and the normalised matrix are kept as separate assays in the resulting
 The *Normalisation* section of `vignette("choosing-methods")` shows how to run and
 compare alternative normalisation methods. A separate optional filter,
 `max_na_prop`, can remove proteins with a high overall proportion of missing
-values immediately before imputation; it is disabled by default and is described
-in the *A guard you should know about* section of
-`vignette("missing-values")`.
+values immediately before imputation; it is disabled by default and is
+documented in `?impute_proteomics`.
 
 # Imputation of missing values
 

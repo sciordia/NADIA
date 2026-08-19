@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="820"
-     viewBox="0 0 1440 820" role="img"
+<svg xmlns="http://www.w3.org/2000/svg" width="1340" height="820"
+     viewBox="50 0 1340 820" role="img"
      aria-labelledby="title description">
-  <title id="title">Working distinction between MAR and MNAR missing values in proteomics</title>
-  <desc id="description">Two panels compare missing at random and missing not at random. In the MAR panel, one measurement is missing despite an abundance similar to neighbouring observed measurements, so relationships in the data can be used for imputation. In the MNAR panel, low abundances fall below a detection limit and are preferentially missing, so low-value or detection-aware methods are more plausible. The diagram notes that these are working assumptions and cannot be identified with certainty from a single missing value.</desc>
+  <title id="title">Practical distinction between MAR and MNAR missing values in proteomics</title>
+  <desc id="description">Two panels compare missing at random and missing not at random. In the MAR panel, one measurement is missing despite an abundance similar to neighbouring observed measurements, so relationships in the data can be used for imputation. In the MNAR panel, low abundances fall below a detection limit and are preferentially missing, so low-value or detection-aware methods are more plausible. The diagram notes that an individual missing value does not reveal its cause and that both mechanisms can coexist.</desc>
 
   <defs>
     <style>
@@ -31,7 +31,7 @@
     </marker>
   </defs>
 
-  <rect width="1440" height="820" fill="#ffffff"/>
+  <rect x="50" width="1340" height="820" fill="#ffffff"/>
 
   <g class="sans">
     <text x="720" y="58" text-anchor="middle" class="main-title">Why is an intensity missing?</text>
@@ -118,7 +118,7 @@
     <!-- Footer -->
     <rect x="170" y="716" width="1100" height="70" rx="16" fill="#f4f6f8" stroke="#cbd4dc" stroke-width="2"/>
     <text x="202" y="746" class="footer-head">Important:</text>
-    <text x="315" y="746" class="footer">MAR and MNAR are working assumptions, not labels that can be proven from one NA.</text>
+    <text x="315" y="746" class="footer">An individual NA does not reveal why its value is missing.</text>
     <text x="202" y="773" class="footer">A dataset may contain both mechanisms; inspect missingness by condition and its relationship with intensity.</text>
   </g>
 </svg>

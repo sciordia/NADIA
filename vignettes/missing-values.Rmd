@@ -15,26 +15,129 @@ vignette: >
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
+options(width = 100)
 ```
+
+<style type="text/css">
+.wide-reference-table {
+  position: relative;
+}
+.wide-reference-table table {
+  width: 100%;
+  max-width: none;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  table-layout: fixed;
+  font-size: 0.93em;
+  line-height: 1.28;
+}
+.wide-reference-table th,
+.wide-reference-table td {
+  padding: 0.42em 0.62em !important;
+  vertical-align: top !important;
+  overflow-wrap: anywhere;
+}
+.imputation-methods-table col:nth-child(1) { width: 22% !important; }
+.imputation-methods-table col:nth-child(2) { width: 13% !important; }
+.imputation-methods-table col:nth-child(3) { width: 65% !important; }
+@media screen and (max-width: 991px) {
+  .wide-reference-table { overflow-x: auto; }
+  .wide-reference-table table {
+    width: 860px;
+    min-width: 860px;
+  }
+}
+@media screen and (min-width: 992px) {
+  .wide-reference-table {
+    width: 96%;
+    max-width: none;
+    margin-left: 2%;
+  }
+  #fig\:mar-mnar-diagram + img {
+    display: block;
+    position: relative;
+    left: 50%;
+    width: 105% !important;
+    max-width: none !important;
+    margin-left: 0;
+    margin-right: 0;
+    transform: translateX(-50%);
+  }
+  #fig\:combo-classification-diagram + img {
+    width: 106% !important;
+    max-width: none !important;
+    margin-left: -3%;
+  }
+}
+@media screen and (min-width: 1400px) {
+  .wide-reference-table {
+    width: 98%;
+    margin-left: 1%;
+  }
+}
+#fig\:mar-mnar-diagram + img.mar-mnar-clickable,
+#fig\:combo-classification-diagram + img.combo-classification-clickable {
+  cursor: zoom-in;
+}
+.figure-zoom-hint {
+  margin: -0.15em 0 1.2em;
+  text-align: center;
+  color: #5f6f7e;
+  font-size: 0.9em;
+  font-style: italic;
+}
+#mar-mnar-lightbox,
+#combo-classification-lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  padding: 24px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 25, 35, 0.88);
+  cursor: zoom-out;
+}
+#mar-mnar-lightbox.is-open,
+#combo-classification-lightbox.is-open { display: flex; }
+#mar-mnar-lightbox img,
+#combo-classification-lightbox img {
+  width: auto !important;
+  height: auto !important;
+  max-width: 96vw !important;
+  max-height: 92vh !important;
+  margin: 0 !important;
+  background: white;
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.35);
+  cursor: default;
+}
+#mar-mnar-lightbox button,
+#combo-classification-lightbox button {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  border: 0;
+  background: transparent;
+  color: white;
+  font-size: 36px;
+  line-height: 1;
+  cursor: pointer;
+}
+body.mar-mnar-lightbox-open,
+body.combo-classification-lightbox-open { overflow: hidden; }
+</style>
 
 # Introduction
 
-A blank in a proteomics matrix can mean two very different things, and the whole
-of this vignette follows from the difference.
+Missing values in a proteomics matrix are not interchangeable. A value may be
+absent because a protein was present but not quantified successfully, or because
+its abundance was too low to be detected. These mechanisms call for different
+assumptions and can coexist within the same experiment.
 
-Sometimes a protein is present and the instrument simply failed to measure it —
-a bad chromatographic moment, an interfered precursor, a missed match. The blank
-carries no information about the protein's abundance, and something close to a
-neighbouring value would be a fair guess. This is **missing at random** (MAR).
-
-Sometimes a protein is absent, or below the detection limit. The blank is
-*caused* by the abundance being low, so it is highly informative, and filling it
-with a neighbouring value destroys exactly the signal you were looking for. This
-is **missing not at random** (MNAR), and in a DIA experiment it is the common
-case.
-
-No single imputation method handles both well, which is why NADIA's default is a
-two-stage hybrid rather than one of the twenty individual methods.
+This vignette explains how to inspect that missingness, summarises the 20
+strategies available in NADIA and describes the behaviour of the hybrid and
+detection-aware options. It does not repeat the benchmarking metrics used to
+rank candidate methods; those are covered in `vignette("choosing-methods")`.
 
 # Installation
 
@@ -49,13 +152,117 @@ library(NADIA)
 data(nadia_dia)
 ```
 
-# Looking at the missingness
+# Why values are missing
 
-The example dataset was deliberately built to keep the missingness of the full
-experiment — about 8 % of intensities, roughly a quarter of proteins affected.
-That was not free: an earlier version selected the 2,000 best-quantified proteins
-and ended up with **no missing values at all**, a dataset on which every
-imputation method returns its input unchanged.
+Imputation replaces missing entries with estimates so that analyses requiring a
+complete matrix can be performed. The estimate should reflect a plausible reason
+for the value being absent. NADIA uses the following practical distinction:
+
+- **MAR (missing at random):** the protein is present, but its intensity was not
+  quantified successfully—for example because of poor chromatography, precursor
+  interference or a missed match. Under this assumption, the gap is not itself
+  evidence that the unknown intensity was low. Its value can therefore be
+  estimated from patterns in the available measurements, such as similar
+  protein profiles or related samples.
+- **MNAR (missing not at random):** the protein is absent or its abundance is
+  below the detection limit. Missingness depends on the unobserved abundance
+  being low and therefore carries biological or measurement information.
+  Replacing such a gap with a typical neighbouring value may erase that
+  evidence, so a low-value or detection-aware method is generally more
+  plausible.
+
+```{r mar-mnar-diagram, echo = FALSE, fig.align = "center", out.width = "100%", fig.cap = "Practical distinction between MAR and MNAR missing values in proteomics. MAR values are reconstructed from observed data structure, whereas MNAR values call for a low-value or detection-aware model.", fig.alt = "Two-panel diagram comparing MAR and MNAR missing values. MAR shows a missing replicate among similar observed intensities and recommends structure-based imputation. MNAR shows low values falling below a detection limit and recommends low-value or detection-aware imputation. A note states that an individual missing value does not reveal its cause and that both mechanisms can coexist."}
+knitr::include_graphics("figures/MAR_MNAR_Missingness.svg")
+```
+
+<div class="figure-zoom-hint">Click the figure to enlarge it; press Esc or click outside the image to close it.</div>
+
+<script>
+(function () {
+  var anchor = document.getElementById("fig:mar-mnar-diagram");
+  var source = anchor ? anchor.nextElementSibling : null;
+  if (!source || source.tagName !== "IMG") return;
+
+  source.classList.add("mar-mnar-clickable");
+  source.setAttribute("tabindex", "0");
+  source.setAttribute("title", "Click to enlarge the MAR and MNAR diagram");
+
+  var lightbox = document.createElement("div");
+  lightbox.id = "mar-mnar-lightbox";
+  lightbox.setAttribute("role", "dialog");
+  lightbox.setAttribute("aria-modal", "true");
+  lightbox.setAttribute("aria-label", "Enlarged MAR and MNAR missingness diagram");
+  lightbox.setAttribute("aria-hidden", "true");
+
+  var enlarged = source.cloneNode(true);
+  enlarged.classList.remove("mar-mnar-clickable");
+  enlarged.removeAttribute("tabindex");
+  enlarged.removeAttribute("title");
+  enlarged.removeAttribute("width");
+
+  var closeButton = document.createElement("button");
+  closeButton.type = "button";
+  closeButton.setAttribute("aria-label", "Close enlarged figure");
+  closeButton.textContent = "\u00d7";
+
+  lightbox.appendChild(enlarged);
+  lightbox.appendChild(closeButton);
+  document.body.appendChild(lightbox);
+
+  function openLightbox() {
+    lightbox.classList.add("is-open");
+    lightbox.setAttribute("aria-hidden", "false");
+    document.body.classList.add("mar-mnar-lightbox-open");
+    closeButton.focus();
+  }
+  function closeLightbox() {
+    lightbox.classList.remove("is-open");
+    lightbox.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("mar-mnar-lightbox-open");
+    source.focus();
+  }
+
+  source.addEventListener("click", openLightbox);
+  source.addEventListener("keydown", function (event) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openLightbox();
+    }
+  });
+  enlarged.addEventListener("click", function (event) {
+    event.stopPropagation();
+  });
+  closeButton.addEventListener("click", closeLightbox);
+  lightbox.addEventListener("click", closeLightbox);
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && lightbox.classList.contains("is-open")) {
+      closeLightbox();
+    }
+  });
+}());
+</script>
+
+An individual `NA` does not reveal why the value is missing. MAR and MNAR are
+possible explanations that must be evaluated using the experimental design, the
+overall distribution of missing values and their relationship with observed
+intensity. Both mechanisms may occur in the same dataset.
+
+## How NADIA represents missing intensities
+
+By the time the data enter the analysis, an unreported intensity is represented
+as `NA`. How that `NA` is created depends on the input format. In a long
+Spectronaut report, a protein that was not quantified in a particular run is
+usually absent from the report; when NADIA constructs the wide `protein_quant`
+table, the corresponding protein–run cell becomes `NA`. Some wide reports use
+zero instead to mark an unreported intensity. Before normalisation,
+`normalize_proteomics()` converts these zeros to `NA`, so downstream functions
+handle both situations consistently.
+
+# Diagnosing missingness in the example data
+
+The `nadia_dia` example dataset included with NADIA retains the missing-value
+pattern of the original experiment. Approximately 8% of its intensities are
+missing, and more than a quarter of its proteins contain at least one gap.
 
 ```{r pattern}
 quant <- as.matrix(nadia_dia$protein_quant[
@@ -65,21 +272,29 @@ round(100 * mean(is.na(quant)), 1)
 table(missing_per_protein = rowSums(is.na(quant)))
 ```
 
-The blanks arrive as `NA` already: a Spectronaut report is long, and a protein
-that was not quantified in a run simply has no row, so the pivot to wide format
-is what creates the gap. Some exports write a literal `0` instead, which means
-the same thing and would otherwise be read as a measured intensity of zero;
-`normalize_proteomics()` converts those before doing anything else, so you never
-have to.
+The distribution of `NA` values across proteins is informative. There are 70
+proteins with one gap, 67 with two and 99 with three, followed by 243 proteins
+with exactly four missing values. Four is also the number of replicates per
+condition. Most of those 243 proteins are absent from every replicate of one
+condition:
 
-The shape of that table is the diagnostic, and this one is unusually legible.
-Counts fall away from zero as you would expect — 70 proteins with one gap, 67
-with two, 99 with three — and then jump to **243 proteins missing exactly four
-values**. Four is the group size. That spike is not a coincidence and it is not
-random: it is proteins that vanish from one entire condition, which is the
-signature of missing *not* at random.
+```{r condition-dropout}
+condition <- rep(c("A", "B", "D"), each = 4)
+whole_condition_missing <- apply(
+    quant, 1,
+    function(x) any(tapply(is.na(x), condition, all)))
 
-The relationship with intensity settles it:
+c(exactly_four_missing = sum(rowSums(is.na(quant)) == 4),
+  whole_condition_missing = sum(rowSums(is.na(quant)) == 4 &
+                                whole_condition_missing))
+```
+
+Because each condition contains four replicates, a protein with four missing
+values may be absent from one complete condition. This pattern suggests that at
+least some gaps reflect condition-wise dropout rather than the scattered
+missingness usually treated as MAR in this workflow. As a complementary
+diagnostic, we next examine the distribution of the intensities that remain
+observed:
 
 ```{r intensity-vs-missing, fig.width = 6, fig.height = 4, fig.alt = "Mean log2 intensity against number of missing values"}
 n_missing  <- rowSums(is.na(quant))
@@ -91,19 +306,22 @@ boxplot(mean_log2 ~ n_missing,
         main = "Missingness is concentrated at low abundance")
 ```
 
-The downward trend is the whole argument. If missingness were random, this plot
-would be flat: proteins with gaps would be no dimmer than proteins without. It is
-not flat, so the gaps are not random, and an imputation method that assumes they
-are will be wrong in a predictable direction.
+Proteins with more missing values tend to have lower observed intensities. This
+pattern supports the presence of an abundance-dependent MNAR component, in
+which low-abundance proteins are more likely to fall below the detection limit.
+However, this overall trend cannot determine the mechanism responsible for each
+individual missing value. Taken together, the condition-wise dropout pattern
+and its relationship with intensity suggest that this dataset contains both
+scattered gaps and missing values caused by low abundance.
 
-# The same runs, a different search engine
+## Data processing shapes the missing-value pattern
 
-Everything above reads as a property of the experiment. Part of it is a property
-of the software. The package also ships the **same twelve injections searched
-with DIA-NN** instead of Spectronaut — same instrument, same digests, same raw
-files — so the two can be put side by side:
+NADIA includes DIA-NN and Spectronaut reports generated from the same twelve
+LC-MS injections. The instrument data, samples and raw files are therefore the
+same, allowing a descriptive comparison of the missing-value patterns produced
+by the two processing workflows.
 
-```{r engines}
+```{r engines, include = FALSE}
 diann <- preprocess_diann(
     system.file("extdata", "nadia_diann_report.tsv.gz", package = "NADIA"),
     condition_order = c("A", "B", "D"), verbose = FALSE)
@@ -111,246 +329,296 @@ diann <- preprocess_diann(
 qd <- as.matrix(diann$protein_quant[
     grep("^PG.Quantity_", colnames(diann$protein_quant))])
 
-rbind(spectronaut = c(missing  = round(100 * mean(is.na(quant)), 1),
-                      complete = round(100 * mean(rowSums(is.na(quant)) == 0), 1)),
-      diann       = c(round(100 * mean(is.na(qd)), 1),
-                      round(100 * mean(rowSums(is.na(qd)) == 0), 1)))
+shared_protein_groups <- length(intersect(
+    nadia_dia$protein_quant$PG.ProteinGroups,
+    diann$protein_quant$PG.ProteinGroups))
 ```
 
-Half again as many blanks, from the same measurements. That alone would be worth
-knowing. What matters more here is that the extra blanks are not spread evenly —
-they land exactly where MNAR lives:
+Each trimmed file contains 2,000 protein groups selected independently, and
+only `r shared_protein_groups` groups are shared. The comparison can therefore
+describe overall patterns, but it is not a protein-by-protein benchmark of the
+two search engines.
+
+```{r engines-summary}
+summarise_missingness <- function(q) {
+    n_missing <- rowSums(is.na(q))
+    grp <- rep(c("A", "B", "D"), each = 4)
+    mean_log2 <- rowMeans(log2(q), na.rm = TRUE)
+    median_complete <- median(mean_log2[n_missing == 0])
+    median_incomplete <- median(mean_log2[n_missing > 0], na.rm = TRUE)
+
+    c(
+        missing_intensities_pct = round(100 * mean(is.na(q)), 1),
+        condition_dropout_pct = round(100 * mean(apply(
+            q, 1, function(r) any(tapply(is.na(r), grp, all)))), 1),
+        median_complete_log2 = round(median_complete, 1),
+        median_incomplete_log2 = round(median_incomplete, 1),
+        complete_minus_incomplete_log2 = round(
+            median_complete - median_incomplete, 1)
+    )
+}
+
+rbind(
+    spectronaut = summarise_missingness(quant),
+    diann = summarise_missingness(qd)
+)
+```
+
+The distribution of missing values per protein provides additional context:
 
 ```{r engines-shape}
-shape <- function(q) table(factor(rowSums(is.na(q)), levels = 0:12))
-rbind(spectronaut = shape(quant), diann = shape(qd))
-```
-
-Read the two rows against the group size, which is four. Both spike at exactly
-four, the signature of a protein vanishing from one whole condition, and DIA-NN's
-spike is the taller one. Then look at the right-hand end: Spectronaut trails off
-to almost nothing past eight, while DIA-NN keeps a run of proteins missing eight,
-nine, ten and eleven values — proteins gone from *two* conditions. Those columns
-are not noise, they are biology the two engines disagree about.
-
-```{r engines-mnar}
-gone_from_a_condition <- function(q) {
-    grp <- rep(c("A", "B", "D"), each = 4)
-    mean(apply(q, 1, function(r) any(tapply(is.na(r), grp, all))))
+missing_per_protein <- function(q) {
+    table(factor(rowSums(is.na(q)), levels = 0:12))
 }
-
-intensity_drop <- function(q) {
-    n <- rowSums(is.na(q))
-    m <- rowMeans(log2(q), na.rm = TRUE)
-    median(m[n == 0]) - median(m[n > 0], na.rm = TRUE)
-}
-
-rbind(spectronaut = c(pct_gone   = round(100 * gone_from_a_condition(quant), 1),
-                      log2_drop  = round(intensity_drop(quant), 1)),
-      diann       = c(round(100 * gone_from_a_condition(qd), 1),
-                      round(intensity_drop(qd), 1)))
+rbind(
+    spectronaut = missing_per_protein(quant),
+    diann = missing_per_protein(qd)
+)
 ```
 
-One protein in five drops out of an entire condition with DIA-NN, against one in
-seven with Spectronaut; and the gappy proteins sit further below the complete
-ones — a steeper gradient, so a stronger dependence between abundance and
-absence. (The `log2_drop` is a difference within each engine, which is why it is
-comparable at all: the two report intensities on different scales.)
+The Spectronaut example contains 8.1% missing intensities, compared with 12.5%
+in the DIA-NN example. In both matrices, the distribution peaks at four missing
+values per protein—the number of replicates in one condition—indicating that
+condition-wise dropout is common. This affects 14.4% of proteins in Spectronaut
+and 20.4% in DIA-NN; DIA-NN also contains more proteins with eight or more
+missing values. Incomplete proteins have a lower median observed intensity than
+complete proteins in both matrices, with a difference of 1.9 log~2~ units in
+Spectronaut and 2.6 log~2~ units in DIA-NN. These within-matrix differences do
+not compare the absolute intensity scales of the search engines. Overall, the
+DIA-NN example shows more missingness, more condition-wise dropout and a
+stronger association between low abundance and missingness. This does not show
+that one search engine is better; it shows that imputation decisions should be
+based on the missing-value pattern of the matrix that will actually be
+analysed.
 
-The conclusion is not that one engine is better. It is that **the search engine
-is part of the missing-value problem, not upstream of it.** The same data can
-hand you a mild MAR-ish matrix or a hard MNAR one, and the imputation choice that
-follows should be made on the matrix you actually have — which is what the rest
-of this vignette, and `vignette("choosing-methods")`, are about.
+# Imputation strategies available in NADIA
 
-# The methods on offer
+NADIA offers 20 selectable imputation strategies. The table below groups them
+according to their main purpose and the type of missingness they are generally
+intended to address. This grouping provides practical guidance; it does not
+imply that the mechanism behind every missing value can be determined
+unambiguously.
 
-Twenty in total. They divide by the assumption they make:
+::: {.wide-reference-table .imputation-methods-table}
 
-```{r methods}
-mar  <- get(".IMP_METHODS_MAR",  envir = asNamespace("NADIA"))
-mnar <- get(".IMP_METHODS_MNAR", envir = asNamespace("NADIA"))
+| Group | imp_method | Principle |
+|---|---|---|
+| Structure-based, generally used for MAR | `bpca` | Bayesian principal-component imputation using `pcaMethods`. |
+|  | `knn` | Estimates a value from similar proteins using k-nearest neighbours. |
+|  | `mice` | Multiple imputation by chained equations; NADIA averages the completed matrices. |
+|  | `missForest` | Non-parametric random-forest imputation using relationships among variables. |
+|  | `Impseq` | Sequential model-based imputation from `rrcovNA`. |
+|  | `Impseqrob` | Robust sequential imputation that reduces sensitivity to outlying profiles. |
+|  | `MLE` | Maximum-likelihood imputation under a multivariate normal model. |
+|  | `nbavg` | Replaces a gap with the mean of the nearest observed positions in the same protein profile. |
+| Low-value, generally used for MNAR | `QRILC` | Quantile-regression imputation for left-censored data. |
+|  | `MinDet` | Uses a low, sample-specific quantile; the default is the first percentile. |
+|  | `MinProb` | Draws low values around a sample-specific low quantile. |
+|  | `PI` | Perseus-style sampling from a narrowed, down-shifted normal distribution. |
+|  | `min` | Replaces every gap with the global observed minimum. |
+|  | `halfmin` | Uses half the global minimum on the original scale, equivalent to one unit below the minimum on the log2 scale. |
+|  | `zero` | Replaces every gap with zero on the log2 scale. |
+|  | `with` | Replaces every gap with a user-supplied constant. |
+| Hybrid | `combo` | Classifies missing cells from condition-wise presence patterns, then applies separate MAR and MNAR methods. Defaults are `Impseqrob` and `min`. |
+|  | `softHybrid` | Blends estimates from MAR and MNAR methods continuously using protein missingness and mean intensity. |
+| Detection model | `limpa` | Estimates a detection-probability curve and returns abundance estimates with uncertainty for downstream analysis with `de_method = "limpa"`. |
+| No imputation | `none` | Leaves missing values unchanged. |
 
-setdiff(mar,  "none")   # assume the value is unrelated to the blank
-setdiff(mnar, "none")   # assume the blank means "low"
+:::
+
+Structure-based methods estimate scattered gaps from relationships among the
+observed proteins and samples. In contrast, low-value methods assume that
+missingness is associated with low abundance and impute values from the lower
+tail of the intensity distribution. `combo`, `softHybrid` and `limpa` address
+this distinction more explicitly, as described below. The `none` option leaves
+the missing values unchanged and therefore requires downstream methods that can
+analyse an incomplete matrix.
+
+`halfmin` operates on log~2~-transformed data. Halving the global minimum on the
+original intensity scale is equivalent to subtracting one from its log~2~ value,
+so the imputed value is `log2(minimum) - 1`. Both `min` and `halfmin`
+depend on the single lowest observed intensity in the matrix. Distribution-based
+methods such as `MinDet`, `QRILC` and `MinProb` instead characterise the
+low-intensity tail using more than this single value.
+
+# Why one method may not represent every gap
+
+If the imputation method does not match the likely cause of missingness, it may
+distort the biological signal. When a protein is not observed in any replicate
+of one condition, a MAR method may borrow information from the other conditions
+and impute values that are too similar to them. This can make a genuine
+presence–absence difference appear smaller. Conversely, when an isolated value
+is missing because of a technical measurement failure, an MNAR method may place
+it unnecessarily close to the detection limit and create an artificial
+difference between conditions.
+
+Because both patterns can coexist, applying the same method to every `NA` may
+not be appropriate. NADIA's hybrid strategies address this problem by applying
+different imputation assumptions to different gaps. However, a hybrid method is
+not automatically the best choice for every dataset: when one missingness
+mechanism predominates, a single method may be sufficient. Candidate methods
+can be compared using the procedure described in
+`vignette("choosing-methods")`.
+
+# The default hybrid: `combo`
+
+The `combo` option is NADIA's default because a single dataset may contain both
+isolated missing measurements and proteins that are not quantified in most or
+all replicates of a condition. For each protein, NADIA examines how its observed
+and missing values are distributed across the experimental conditions. Isolated
+gaps are assigned to the MAR branch, whereas patterns consistent with
+condition-wise dropout are assigned to the MNAR branch. By default, these
+branches use `Impseqrob` and `min`, respectively.
+
+Four arguments control the classification:
+
+- `prop_na_mnar = 0.51` defines the minimum proportion of missing values within
+  a condition for its gaps to be considered MNAR candidates.
+- `prop_present_mar = 0.5` requires at least half of the replicates in another
+  condition to contain an observed intensity for that protein. In this example,
+  this means at least two of the four replicates.
+- `min_present_mar = 1` requires at least one observed value in that other
+  condition, regardless of its number of replicates. The proportional and
+  absolute presence requirements must both be met.
+- `require_n_conditions = 1` defines how many other conditions must meet both
+  presence requirements. With the default value, one qualifying condition is
+  sufficient.
+
+A missing cell is assigned to the MNAR branch only when two criteria are met:
+its condition reaches the required proportion of missing values, and the
+required number of other conditions provide sufficient observed evidence for
+that protein. All other missing cells are assigned to the MAR branch. With four
+replicates, `prop_na_mnar = 0.51` requires at least three missing values in a
+condition; two missing values represent only 50% and do not meet the threshold.
+
+The following examples use conditions A and B, each with four replicates.
+`Observed` denotes a measured intensity. Classification is performed separately
+for the missing cells in each condition, so the protein is not assigned one
+fixed MAR or MNAR label.
+
+```{r combo-classification-diagram, echo = FALSE, fig.align = "center", out.width = "100%", fig.cap = "Examples of how the four combo arguments classify missing cells. A cell is assigned to the MNAR branch only when the missingness threshold and the evidence in other conditions are both satisfied; otherwise it enters the MAR branch or the protein may be removed by the preliminary combo filter.", fig.alt = "Four coloured examples of combo classification with four replicates per condition. The first is assigned to MNAR because one condition is 75 percent missing and another is fully observed. The second is assigned to MAR because 50 percent missing is below the 51 percent threshold. The third protein is removed because no other condition has at least 50 percent observed values. The fourth uses three conditions and shows that one qualifying supporting condition is sufficient."}
+knitr::include_graphics("figures/Combo_Classification_Examples.svg")
 ```
 
-MAR methods reconstruct a value from the structure of the data — nearest
-neighbours (`knn`), principal components (`bpca`), sequential regression
-(`Impseq`, `Impseqrob`), a random forest (`missForest`), chained equations
-(`mice`). They are the right tool for a scattered gap.
+<div class="figure-zoom-hint">Click the figure to enlarge it; press Esc or click outside the image to close it.</div>
 
-MNAR methods draw from the low end instead: the lowest intensity observed anywhere
-in the experiment (`min`), half that intensity (`halfmin`, the DIA-NN recipe), the
-first percentile of each sample (`MinDet`), a truncated distribution (`QRILC`,
-`MinProb`), a down-shifted normal (`PI`, the Perseus recipe). They are the right
-tool for a protein that dropped out.
+<script>
+(function () {
+  var anchor = document.getElementById("fig:combo-classification-diagram");
+  var source = anchor ? anchor.nextElementSibling : null;
+  if (!source || source.tagName !== "IMG") return;
 
-`halfmin` deserves a note, because it is where the log2 scale trips people up.
-Every method here operates on log2 values, so halving an intensity means
-subtracting 1, not dividing by 2 — `log2(m / 2)` is `log2(m) - 1`. Dividing the
-log2 value would land roughly eight times lower than intended, at the square root
-of the minimum intensity, and how much lower would depend on where zero happens to
-fall on the log scale. Note also that `min` and `halfmin` both rest on a single
-number out of every value in the matrix, so one aberrantly low measurement moves
-them; `MinDet`, `QRILC` and `MinProb` do not have that fragility.
+  source.classList.add("combo-classification-clickable");
+  source.setAttribute("tabindex", "0");
+  source.setAttribute("title", "Click to enlarge the combo classification examples");
 
-Applied to the wrong kind of blank, each fails in its own direction. A MAR method
-on a dropout invents a mid-range value and erases a real difference; an MNAR
-method on a random gap invents a low value and manufactures one.
+  var lightbox = document.createElement("div");
+  lightbox.id = "combo-classification-lightbox";
+  lightbox.setAttribute("role", "dialog");
+  lightbox.setAttribute("aria-modal", "true");
+  lightbox.setAttribute("aria-label", "Enlarged combo classification examples");
+  lightbox.setAttribute("aria-hidden", "true");
 
-# No single method serves both
+  var enlarged = source.cloneNode(true);
+  enlarged.classList.remove("combo-classification-clickable");
+  enlarged.removeAttribute("tabindex");
+  enlarged.removeAttribute("title");
+  enlarged.removeAttribute("width");
 
-That claim is worth testing rather than asserting, and the test is short. Take
-the proteins with no gaps at all, so the true values are known, and hide some of
-them in two different ways:
+  var closeButton = document.createElement("button");
+  closeButton.type = "button";
+  closeButton.setAttribute("aria-label", "Close enlarged figure");
+  closeButton.textContent = "\u00d7";
 
-- **MAR-like** — three values per protein, chosen at random.
-- **MNAR-like** — the three *lowest* values of each protein, which is what a
-  dropout looks like.
+  lightbox.appendChild(enlarged);
+  lightbox.appendChild(closeButton);
+  document.body.appendChild(lightbox);
 
-Then impute, and compare against the values that were hidden. The measure that
-matters is not the error but the **bias** — whether a method's guesses are
-systematically too high or too low:
+  function openLightbox() {
+    lightbox.classList.add("is-open");
+    lightbox.setAttribute("aria-hidden", "false");
+    document.body.classList.add("combo-classification-lightbox-open");
+    closeButton.focus();
+  }
+  function closeLightbox() {
+    lightbox.classList.remove("is-open");
+    lightbox.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("combo-classification-lightbox-open");
+    source.focus();
+  }
 
-```{r mar-vs-mnar, message = FALSE}
-se_c  <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
-full  <- SummarizedExperiment::assay(se_c, "cycloess")
-full  <- full[complete.cases(full), , drop = FALSE]
-
-set.seed(42)
-rows <- sample(nrow(full), round(0.25 * nrow(full)))
-
-hide <- function(kind) {
-    idx <- integer(0)
-    for (i in rows) {
-        j <- if (kind == "MNAR") order(full[i, ])[1:3] else sample(ncol(full), 3)
-        idx <- c(idx, (j - 1) * nrow(full) + i)
+  source.addEventListener("click", openLightbox);
+  source.addEventListener("keydown", function (event) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openLightbox();
     }
-    idx
-}
+  });
+  enlarged.addEventListener("click", function (event) {
+    event.stopPropagation();
+  });
+  closeButton.addEventListener("click", closeLightbox);
+  lightbox.addEventListener("click", closeLightbox);
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && lightbox.classList.contains("is-open")) {
+      closeLightbox();
+    }
+  });
+}());
+</script>
 
-refill <- function(mat, method) {
-    s <- SummarizedExperiment::SummarizedExperiment(
-        assays  = list(cycloess = mat),
-        colData = SummarizedExperiment::colData(se_c)[colnames(mat), , drop = FALSE])
-    r <- impute_proteomics(s, "cycloess", imp_method = method, verbose = FALSE)
-    SummarizedExperiment::assay(r$se, method)
-}
+In these examples, each condition has four replicates. Therefore,
+`prop_present_mar = 0.5` means that another condition must contain at least two
+observed values before it can support an MNAR classification. Once two values
+are observed, the requirement imposed by `min_present_mar = 1` is already
+satisfied, so this second parameter does not change the classification here.
 
-invisible(capture.output(
-  scores <- do.call(rbind, lapply(c("MAR", "MNAR"), function(kind) {
-    idx <- hide(kind)
-    holed <- full; holed[idx] <- NA
-    do.call(rbind, lapply(c("Impseqrob", "min"), function(m) {
-        est <- refill(holed, m)
-        data.frame(hidden = kind, method = m,
-                   bias = mean(est[idx] - full[idx]))
-    }))
-  }))))
+Before filling any missing values, `combo` also removes proteins that contain
+too little observed information to apply these rules. A protein is retained if
+it either contains a pattern classified as an MNAR candidate or has sufficient
+observed values in at least `require_n_conditions` conditions.
 
-reshape(scores, idvar = "method", timevar = "hidden", direction = "wide")
-```
+The following example reports how many proteins pass this filter and how many
+of the original missing cells are assigned to each branch:
 
-Read the two columns.
-
-`Impseqrob`, a MAR method, is **essentially unbiased on random gaps** — its guesses
-are off by about 0.002 on a log2 scale, which is nothing. Move the gaps to the
-bottom of each protein and the same method comes out **systematically too high**.
-It reconstructs a value from the protein's other measurements, and when those
-measurements are the ones that did *not* drop out, the answer is always too
-optimistic. That is how an on/off signal gets erased.
-
-`min` has the opposite problem, and a far larger one. It is off by about seven
-log2 units on random gaps — a factor of a hundred — because it answers "very low"
-to a question whose answer was "about average". It improves on the MNAR gaps, but
-it is never a safe default for a value that is merely unmeasured.
-
-So neither method is wrong; each is wrong *in the wrong place*. And since a real
-experiment contains both kinds of blank at once — thinly spread gaps and whole
-groups dropping out, as the table above showed — **no single imputation method can
-be the right choice for a whole matrix.**
-
-One honest caveat on this demonstration. Even the MNAR-like masking here hides
-values that were actually measured, so a MAR method can still interpolate them
-tolerably and its bias comes out modest. A genuine dropout is a value that was
-never observable at all, and no simulation built from complete data can reproduce
-that. The bias in the table is therefore a *lower bound* on the real thing.
-
-That limitation is structural, and it is the reason the default is what it is.
-
-# The default: `combo`, and why it is the default
-
-If no single method can serve a whole matrix, the way out is not to pick the
-least-bad one. It is to **stop treating the matrix as one thing**: decide, blank
-by blank, which kind of missingness you are looking at, and send each to the
-method built for it. That is `combo`, and it is why it rather than any individual
-method is the default.
-
-The classification is per protein and per group, governed by three arguments:
-
-- `prop_na_mnar` (0.51) — a group missing more than this share of its values has
-  probably dropped out, so its blanks go to the **MNAR** method.
-- `prop_present_mar` (0.5) and `min_present_mar` (1) — how much evidence a group
-  must retain for reconstruction to be worth attempting, sending its blanks to
-  the **MAR** method.
-
-A group that keeps most of its measurements has scattered gaps; a group that has
-lost most of them has dropped out. The threshold is a judgement, not a
-measurement, and 0.51 simply says "more than half".
-
-```{r combo}
+```{r combo, message = FALSE}
 res <- process_proteomics(nadia_dia, verbose = FALSE)
-SummarizedExperiment::assayNames(res$se_proc)
-```
-
-You can see the split it made — the two stages are reported separately:
-
-```{r combo-split, message = FALSE}
 imp <- impute_proteomics(res$se_proc, "cycloess", verbose = FALSE)
-c(MAR_values  = sum(imp$mar_mask,  na.rm = TRUE),
-  MNAR_values = sum(imp$mnar_mask, na.rm = TRUE))
+x_combo <- SummarizedExperiment::assay(res$se_proc, "cycloess")
+
+c(
+    proteins_before = nrow(nadia_dia$protein_quant),
+    proteins_after_combo_rules = nrow(res$se_proc),
+    MAR_missing_values = sum(imp$mar_mask & is.na(x_combo)),
+    MNAR_missing_values = sum(imp$mnar_mask & is.na(x_combo))
+)
 ```
 
-Both kinds are present, and dropouts outnumber scattered gaps by roughly four to
-one — which is what a DIA experiment should look like, and exactly the situation
-in which handing the whole matrix to a single MAR method would do the most damage.
-A dataset with only one kind of blank would not need `combo`; real data are not
-like that.
+The output shows that both branches are used. These assignments reflect the
+selected rules and do not establish the true mechanism of any individual `NA`.
+When a distribution-based MNAR method is selected, its low-intensity parameters
+are estimated from the original matrix, before MAR imputation, so reconstructed
+MAR values do not shift the estimated lower tail.
 
-The assay name records the decision rather than hiding it — `Impseqrob` for the
-MAR values, `min` for the MNAR ones — so a result carries its own provenance.
-Change either and the name follows:
+# `softHybrid`: a continuous combination
 
-`impute_proteomics()` returns a list, of which `$se` is the
-`SummarizedExperiment` with the new assay added:
+`softHybrid` was introduced by [Shi et al. (2026)](https://doi.org/10.64898/2026.01.13.699212)
+as a hybrid imputation method for single-cell proteomics. Unlike `combo`, which
+assigns each missing cell to either a MAR or an MNAR branch, `softHybrid`
+calculates both estimates and combines them continuously.
 
-```{r combo-variants}
-imp_qrilc <- impute_proteomics(res$se_proc,
-                               normalized_assay_name = "cycloess",
-                               mar_method = "knn", mnar_method = "QRILC",
-                               verbose = FALSE)
-setdiff(SummarizedExperiment::assayNames(imp_qrilc$se),
-        SummarizedExperiment::assayNames(res$se_proc))
-```
+For each protein, the method uses its proportion of missing values and its mean
+observed intensity to calculate a weight. Extensive missingness and low
+intensity increase the contribution of the MNAR estimate, whereas a
+well-observed, higher-intensity protein receives more influence from the MAR
+estimate. The final value for each gap is therefore a weighted average of the
+two estimates rather than the result of a binary classification. NADIA uses
+`Impseqrob` and `min` as the default MAR and MNAR methods, respectively.
 
-There is a subtlety in `combo` worth stating, because getting it wrong biases
-every result downstream. The MNAR parameters — the minimum, the quantiles of the
-low tail — are estimated on the **original** matrix, not on the one the MAR stage
-has already filled. Estimating them after the MAR stage would let reconstructed
-mid-range values raise the estimate of where the low end is, and every MNAR value
-would come out too high.
-
-# `softHybrid`: a weight instead of a rule
-
-`combo` makes a hard decision per group. `softHybrid` refuses to: it computes
-both imputations and blends them, weighted by how MNAR-like each value looks.
-
-Two sigmoids set the weight. One reads the missingness rate of the group, the
-other the intensity of the values present, since a low-intensity protein with
-gaps is more likely to be dropping out than a bright one with the same gaps. The
-intensity sigmoid is z-scored, so its steepness `b` means the same thing whatever
-the dynamic range of your data.
+The transition is controlled by two sigmoid functions. Parameter `a` determines
+how rapidly the weight changes with the missing-value proportion, `b` controls
+the transition along the standardised intensity axis and `lambda` balances the
+two signals. In most cases, the defaults provide the natural starting point:
 
 ```{r softhybrid}
 imp_soft <- impute_proteomics(
@@ -359,24 +627,36 @@ imp_soft <- impute_proteomics(
     imp_method  = "softHybrid",
     mar_method  = "Impseqrob",
     mnar_method = "min",
-    method_args = list(softHybrid = list(a = 8, b = 2, lambda = 0.5)),
     verbose     = FALSE)
 
 grep("softHybrid", SummarizedExperiment::assayNames(imp_soft$se), value = TRUE)
+imp_soft$imputation_summary
 ```
 
-Whether the softer boundary is worth it is an empirical question, and
-`vignette("choosing-methods")` is how to answer it on your own data.
+The summary reports the initial and final missing-value rates and the
+distribution of the MAR weights. Whether this continuous combination improves
+the analysis remains dataset-dependent and should be assessed as described in
+`vignette("choosing-methods")`.
 
-# `limpa`: not imputing at all
+# `limpa`: detection-aware estimates with uncertainty
 
-`limpa` belongs in a different category. Rather than filling a value and then
-pretending it was measured, it models the detection process and carries the
-resulting uncertainty forward as **precision weights**: a protein reconstructed
-from little evidence contributes less to the test than one measured cleanly.
+The `limpa` framework was described by [Li, Cobbold and Smyth
+(2025)](https://doi.org/10.1101/2025.04.28.651125). It differs from conventional
+methods that simply replace each missing value with a single completed-matrix
+estimate. First, `limpa` estimates a detection-probability curve that relates
+protein abundance to the probability of observing a signal. It then uses this
+curve to estimate the abundance of missing measurements together with their
+standard errors.
 
-That only works if the weights survive to the testing step, so they travel with
-the data:
+The abundance estimates and their uncertainty are converted into **precision
+weights** for differential analysis. Values reconstructed from limited evidence
+therefore contribute less to the statistical model than values supported by
+consistent measurements. This allows information to be recovered from missing
+values without treating every estimate as if it were measured with equal
+precision.
+
+The estimates and weights are stored together and must remain linked through the
+differential abundance step:
 
 ```{r limpa, eval = requireNamespace("limpa", quietly = TRUE)}
 res_limpa <- process_proteomics(nadia_dia,
@@ -388,65 +668,41 @@ class(S4Vectors::metadata(res_limpa$se_proc)$limpa_elist)
 table(res_limpa$DEPs_results$Change)
 ```
 
-Pairing `imp_method = "limpa"` with `de_method = "limpa"` is the point. Using the
-limpa imputation with an ordinary limma test throws the weights away, which
-forfeits the only reason to use it.
+`imp_method = "limpa"` should therefore be paired with
+`de_method = "limpa"`. Using its abundance estimates with an ordinary `limma`
+test would discard the uncertainty model.
 
-# Comparing two methods on the same data
+# Choosing among the strategies
 
-Method choice is not cosmetic. Two methods on the same normalised matrix:
+The missing-value pattern, biological design and intended differential model
+should guide the set of plausible strategies. When the true missing abundances
+are unknown, no diagnostic can establish a universally correct method. NADIA
+therefore provides artificial-masking metrics, ranking summaries and plots for
+comparing candidate methods, while sensitivity analysis shows whether the main
+biological conclusions depend on that choice.
 
-```{r compare, message = FALSE}
-imp_min <- impute_proteomics(res$se_proc, "cycloess", imp_method = "min",
-                             verbose = FALSE)
-imp_knn <- impute_proteomics(res$se_proc, "cycloess", imp_method = "knn",
-                             verbose = FALSE)
+Those evaluation procedures, their limitations and the interpretation of the
+rankings are described in `vignette("choosing-methods")`. Keeping them there
+separates two questions: this vignette explains **what the missing values may
+mean and how NADIA can handle them**; the companion vignette explains **how to
+compare the available choices on a particular dataset**.
 
-m_min <- SummarizedExperiment::assay(imp_min$se, "min")
-m_knn <- SummarizedExperiment::assay(imp_knn$se, "knn")
-was_na <- is.na(SummarizedExperiment::assay(res$se_proc, "cycloess"))
+# References and software
 
-data.frame(
-    method       = c("min (MNAR)", "knn (MAR)"),
-    mean_imputed = c(mean(m_min[was_na]), mean(m_knn[was_na])),
-    mean_observed = mean(m_min[!was_na]))
-```
+- Li M, Cobbold SA, Smyth GK (2025). [Quantification and differential analysis
+  of mass spectrometry proteomics data with probabilistic recovery of
+  information from missing values](https://doi.org/10.1101/2025.04.28.651125).
+  *bioRxiv*, 2025.04.28.651125. This work describes the statistical framework
+  implemented in `limpa`; the software is available from
+  [Bioconductor](https://bioconductor.org/packages/limpa) and
+  [GitHub](https://github.com/SmythLab/limpa).
 
-The MNAR method fills from the bottom of the distribution and the MAR method
-fills near the middle — several log2 units apart, on the same blanks. Everything
-downstream inherits that gap.
+- Shi Y, Davis S, Charles PD, Taylor S, Dombi E, Berridge G, Ebner D, Fischer R
+  (2026). [SoftHybrid: A Hybrid Imputation Algorithm Optimised for Single-Cell
+  Proteomics Data](https://doi.org/10.64898/2026.01.13.699212). *bioRxiv*,
+  2026.01.13.699212. This work describes the `softHybrid` imputation strategy.
 
-# A guard you should know about
-
-Some methods leave values behind — a protein too sparse for `knn` to find
-neighbours, a column a model would not converge on. Rather than let `NA`s
-propagate into limma, where they would silently reduce the residual degrees of
-freedom, the pipeline fills any residual with the column minimum:
-
-```{r guard}
-anyNA(SummarizedExperiment::assay(res$se_proc, "Impseqrob_min"))
-```
-
-The exception is `imp_method = "none"`, which is meant to leave the matrix alone.
-The guard is a safety net, not a strategy: a method that trips it frequently is
-telling you it is not suited to your data, and `imputation_metrics()` will say so
-more precisely.
-
-There is also a pre-filter, `max_na_prop`, which drops proteins emptier than a
-given fraction before imputation begins. It is **disabled by default**:
-
-```{r prefilter}
-res_all <- process_proteomics(nadia_dia, verbose = FALSE)                 # NULL
-res_cut <- process_proteomics(nadia_dia, max_na_prop = 0.8, verbose = FALSE)
-
-c(no_filter = nrow(res_all$se_proc), filtered = nrow(res_cut$se_proc))
-```
-
-Disabled is the right default for a package about missing values: the proteins it
-would remove are the on/off cases from the start of this vignette, present in one
-condition and absent from another, which are often the most interesting rows in
-the table. Set it when you would rather not report a fold change built on two
-surviving measurements out of twelve.
+# Session information
 
 ```{r session}
 sessionInfo()

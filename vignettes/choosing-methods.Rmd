@@ -69,19 +69,20 @@ options(width = 100)
     margin-left: 2%;
   }
   #fig\:mar-mnar-diagram + img {
-    width: 112% !important;
+    display: block;
+    position: relative;
+    left: 50%;
+    width: 105% !important;
     max-width: none !important;
-    margin-left: -6%;
+    margin-left: 0;
+    margin-right: 0;
+    transform: translateX(-50%);
   }
 }
 @media screen and (min-width: 1400px) {
   .wide-reference-table {
     width: 98%;
     margin-left: 1%;
-  }
-  #fig\:mar-mnar-diagram + img {
-    width: 124% !important;
-    margin-left: -12%;
   }
 }
 @media screen and (max-width: 991px) {
@@ -369,30 +370,24 @@ norm_winner
 
 ## Why values are missing
 
-Imputation replaces missing entries with estimates so that methods requiring a
-complete matrix can be used. The estimate should reflect a plausible reason for
-the value being absent. NADIA makes the following practical distinction, also
-used in `vignette("missing-values")`:
+Imputation replaces missing entries with estimates so that analyses requiring a
+complete matrix can be performed. The estimate should reflect a plausible reason
+for the value being absent. NADIA uses the following practical distinction:
 
-- **MAR (missing at random)**: the protein is present, but its intensity was not
-  successfully measured---for example because of a poor chromatographic moment,
-  an interfered precursor or a missed match. Formally, after conditioning on
-  information observed elsewhere in the data, the probability of missingness
-  no longer depends on the missing intensity itself. Relationships among
-  proteins, samples or observed covariates can therefore provide a plausible
-  estimate.
-- **MNAR (missing not at random)**: the protein is absent or its abundance is
-  below the detection limit. The blank is caused by the unobserved abundance
-  being low and therefore carries biological or measurement information. A
-  neighbouring, typical intensity may erase that evidence, so a low-value or
-  detection-aware method is generally more plausible.
+- **MAR (missing at random):** the protein is present, but its intensity was not
+  quantified successfully—for example because of poor chromatography, precursor
+  interference or a missed match. Under this assumption, the gap is not itself
+  evidence that the unknown intensity was low. Its value can therefore be
+  estimated from patterns in the available measurements, such as similar
+  protein profiles or related samples.
+- **MNAR (missing not at random):** the protein is absent or its abundance is
+  below the detection limit. Missingness depends on the unobserved abundance
+  being low and therefore carries biological or measurement information.
+  Replacing such a gap with a typical neighbouring value may erase that
+  evidence, so a low-value or detection-aware method is generally more
+  plausible.
 
-These labels describe assumptions, not facts that can be inferred with
-certainty from an `NA`. A real dataset can contain more than one mechanism. The
-missing-value patterns and intensity relationship should therefore be examined
-before choosing a method; see `vignette("missing-values")`.
-
-```{r mar-mnar-diagram, echo = FALSE, fig.align = "center", out.width = "100%", fig.cap = "Working distinction between MAR and MNAR missing values in proteomics. MAR values are reconstructed from observed data structure, whereas MNAR values call for a low-value or detection-aware model.", fig.alt = "Two-panel diagram comparing MAR and MNAR missing values. MAR shows a missing replicate among similar observed intensities and recommends structure-based imputation. MNAR shows low values falling below a detection limit and recommends low-value or detection-aware imputation. A note states that both mechanisms are working assumptions and can coexist."}
+```{r mar-mnar-diagram, echo = FALSE, fig.align = "center", out.width = "100%", fig.cap = "Practical distinction between MAR and MNAR missing values in proteomics. MAR values are reconstructed from observed data structure, whereas MNAR values call for a low-value or detection-aware model.", fig.alt = "Two-panel diagram comparing MAR and MNAR missing values. MAR shows a missing replicate among similar observed intensities and recommends structure-based imputation. MNAR shows low values falling below a detection limit and recommends low-value or detection-aware imputation. A note states that an individual missing value does not reveal its cause and that both mechanisms can coexist."}
 knitr::include_graphics("figures/MAR_MNAR_Missingness.svg")
 ```
 
@@ -462,6 +457,22 @@ knitr::include_graphics("figures/MAR_MNAR_Missingness.svg")
   });
 }());
 </script>
+
+An individual `NA` does not reveal why the value is missing. MAR and MNAR are
+possible explanations that must be evaluated using the experimental design, the
+overall distribution of missing values and their relationship with observed
+intensity. Both mechanisms may occur in the same dataset.
+
+### How NADIA represents missing intensities
+
+By the time the data enter the analysis, an unreported intensity is represented
+as `NA`. How that `NA` is created depends on the input format. In a long
+Spectronaut report, a protein that was not quantified in a particular run is
+usually absent from the report; when NADIA constructs the wide `protein_quant`
+table, the corresponding protein–run cell becomes `NA`. Some wide reports use
+zero instead to mark an unreported intensity. Before normalisation,
+`normalize_proteomics()` converts these zeros to `NA`, so downstream functions
+handle both situations consistently.
 
 ## Imputation methods available in NADIA
 
