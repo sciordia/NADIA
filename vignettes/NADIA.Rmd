@@ -292,6 +292,18 @@ D---with four replicates per condition. Condition D is deliberately retained
 because its absence of yeast proteins provides an informative biological
 missingness scenario.
 
+The 2,000 protein groups were selected at random from the full report using a
+fixed seed, rather than by retaining the proteins with the highest abundance or
+the most complete measurements. This is important because selecting only the
+best-quantified proteins would remove much of the missingness that NADIA is
+designed to examine. Random selection retains a missing-value structure close
+to that of the full experiment, including condition-specific non-detection
+patterns. Because selection was also independent of measured intensity, it does
+not deliberately enrich the example for high-abundance proteins. The observed
+abundance distribution should therefore be regarded as a representative
+approximation of the full experiment, although it was not explicitly forced to
+match it through stratified sampling.
+
 The reduced DIA dataset used in this vignette was derived from a Spectronaut
 quantification report and therefore contains 12 samples and 2,000 protein
 groups.
