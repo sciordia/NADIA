@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="790" viewBox="0 0 1500 790" role="img" aria-labelledby="title description">
+  <title id="title">How to choose batch_covariates for batch correction</title>
+  <desc id="description">Decision guide with three scenarios. Use batch_covariates to protect a known biological variable when the design is estimable. Do not fall back to NULL when biology and batch are confounded or replication is insufficient. NULL may be appropriate when there is no biological variable to protect or when all batch-associated variation is deliberately removed.</desc>
+
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#263746" flood-opacity="0.14"/>
+    </filter>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b8d73"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c26b32"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3978a5"/>
+    </marker>
+    <style>
+      .title { font: 700 35px Arial, Helvetica, sans-serif; fill: #1d3557; }
+      .subtitle { font: 400 20px Arial, Helvetica, sans-serif; fill: #52616e; }
+      .default-title { font: 700 23px Menlo, Consolas, monospace; fill: #6e4e13; }
+      .default-body { font: 400 20px Arial, Helvetica, sans-serif; fill: #5b5140; }
+      .card-title { font: 700 23px Arial, Helvetica, sans-serif; fill: #243746; }
+      .action { font: 700 17px Arial, Helvetica, sans-serif; letter-spacing: 0.7px; }
+      .body { font: 400 18px Arial, Helvetica, sans-serif; fill: #3f4d58; }
+      .code { font: 700 18px Menlo, Consolas, monospace; fill: #243746; }
+      .footer { font: 700 17px Arial, Helvetica, sans-serif; fill: #263746; }
+      .note { font: 400 18px Arial, Helvetica, sans-serif; fill: #52616e; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="790" fill="#ffffff"/>
+  <text x="750" y="52" text-anchor="middle" class="title">How should batch_covariates be chosen?</text>
+  <text x="750" y="86" text-anchor="middle" class="subtitle">The answer depends on the biological question and whether batch and biology can be estimated separately.</text>
+
+  <g filter="url(#shadow)">
+    <rect x="240" y="118" width="1020" height="86" rx="14" fill="#fff8e8" stroke="#d7ad59" stroke-width="2"/>
+  </g>
+  <text x="750" y="154" text-anchor="middle" class="default-title">Default: batch_covariates = NULL</text>
+  <text x="750" y="183" text-anchor="middle" class="default-body">No biological variable is protected automatically; NULL is a neutral default, not a general recommendation.</text>
+
+  <path d="M 750 205 C 750 228, 254 218, 254 251" fill="none" stroke="#3b8d73" stroke-width="4" marker-end="url(#arrow-green)"/>
+  <path d="M 750 205 L 750 251" fill="none" stroke="#c26b32" stroke-width="4" marker-end="url(#arrow-orange)"/>
+  <path d="M 750 205 C 750 228, 1246 218, 1246 251" fill="none" stroke="#3978a5" stroke-width="4" marker-end="url(#arrow-blue)"/>
+
+  <!-- Scenario 1 -->
+  <g filter="url(#shadow)">
+    <rect x="28" y="260" width="452" height="410" rx="15" fill="#f2faf7" stroke="#74b79f" stroke-width="2"/>
+    <rect x="28" y="260" width="452" height="10" rx="5" fill="#3b8d73"/>
+  </g>
+  <text x="254" y="312" text-anchor="middle" class="card-title">Known biology + estimable design</text>
+  <text x="254" y="348" text-anchor="middle" class="action" fill="#28745d">USE A PROTECTED COVARIATE</text>
+  <text x="57" y="392" class="body">• the condition is represented across batches</text>
+  <text x="57" y="424" class="body">• batch × condition groups have sufficient data</text>
+  <text x="57" y="456" class="body">• the biological contrast must be retained</text>
+  <rect x="57" y="493" width="394" height="57" rx="9" fill="#e0f1eb" stroke="#8bc4af"/>
+  <text x="254" y="529" text-anchor="middle" class="code">batch_covariates = "Condition"</text>
+  <line x1="57" y1="579" x2="451" y2="579" stroke="#b9d9cd" stroke-width="2"/>
+  <text x="254" y="614" text-anchor="middle" class="footer">Recommended when biological groups</text>
+  <text x="254" y="640" text-anchor="middle" class="footer">are defined and the design permits it.</text>
+
+  <!-- Scenario 2 -->
+  <g filter="url(#shadow)">
+    <rect x="524" y="260" width="452" height="410" rx="15" fill="#fff7f0" stroke="#dfa06f" stroke-width="2"/>
+    <rect x="524" y="260" width="452" height="10" rx="5" fill="#c26b32"/>
+  </g>
+  <text x="750" y="312" text-anchor="middle" class="card-title">Confounded or sparse design</text>
+  <text x="750" y="348" text-anchor="middle" class="action" fill="#a24f1e">DO NOT FALL BACK TO NULL</text>
+  <text x="553" y="392" class="body">• batch and biology may not be separable</text>
+  <text x="553" y="424" class="body">• the protected model may be singular</text>
+  <text x="553" y="456" class="body">• unprotected correction may erase biology</text>
+  <rect x="553" y="493" width="394" height="57" rx="9" fill="#fae7d8" stroke="#e4ad82"/>
+  <text x="750" y="518" text-anchor="middle" class="footer">Reassess the design, collect more data,</text>
+  <text x="750" y="541" text-anchor="middle" class="footer">or report the limitation.</text>
+  <line x1="553" y1="579" x2="947" y2="579" stroke="#e8c5aa" stroke-width="2"/>
+  <text x="750" y="614" text-anchor="middle" class="footer">Correction may not be statistically</text>
+  <text x="750" y="640" text-anchor="middle" class="footer">defensible in this design.</text>
+
+  <!-- Scenario 3 -->
+  <g filter="url(#shadow)">
+    <rect x="1020" y="260" width="452" height="410" rx="15" fill="#f2f7fb" stroke="#7da9c6" stroke-width="2"/>
+    <rect x="1020" y="260" width="452" height="10" rx="5" fill="#3978a5"/>
+  </g>
+  <text x="1246" y="312" text-anchor="middle" class="card-title">No biological variable to protect</text>
+  <text x="1246" y="348" text-anchor="middle" class="action" fill="#28658e">NULL MAY BE APPROPRIATE</text>
+  <text x="1049" y="392" class="body">• exploratory analysis without defined groups</text>
+  <text x="1049" y="424" class="body">• deliberate removal of all variation</text>
+  <text x="1069" y="450" class="body">associated with batch</text>
+  <text x="1049" y="482" class="body">• downstream results will be validated</text>
+  <rect x="1049" y="511" width="394" height="57" rx="9" fill="#e1edf5" stroke="#94b8cf"/>
+  <text x="1246" y="547" text-anchor="middle" class="code">batch_covariates = NULL</text>
+  <line x1="1049" y1="592" x2="1443" y2="592" stroke="#bfd3e0" stroke-width="2"/>
+  <text x="1246" y="625" text-anchor="middle" class="footer">NULL means that no biological effect</text>
+  <text x="1246" y="650" text-anchor="middle" class="footer">is explicitly protected.</text>
+
+  <rect x="145" y="710" width="1210" height="50" rx="11" fill="#f3f5f7" stroke="#c9d0d6"/>
+  <text x="750" y="741" text-anchor="middle" class="note">A balanced design reduces risk, but explicit protection remains preferable when the biological variable is known.</text>
+</svg>

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="930" viewBox="0 0 1500 930" role="img" aria-labelledby="title description">
+  <title id="title">How the three batch and covariate arguments act in the NADIA workflow</title>
+  <desc id="description">The batch_column argument removes a technical batch from the normalised matrix before imputation. The covariate_column argument adds nuisance variables to the limma differential abundance model without changing the quantitative matrix. The bio_replicate_column argument supplies a subject or pair identifier to duplicateCorrelation for paired or repeated-measures analyses.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#52616e"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#bd5b3f"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3577a8"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7657a6"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#263746" flood-opacity="0.13"/>
+    </filter>
+    <style>
+      .title { font: 700 36px Arial, Helvetica, sans-serif; fill: #1d3557; }
+      .subtitle { font: 400 21px Arial, Helvetica, sans-serif; fill: #52616e; }
+      .stage { font: 700 22px Arial, Helvetica, sans-serif; fill: #243746; }
+      .stage-small { font: 400 17px Arial, Helvetica, sans-serif; fill: #52616e; }
+      .card-title { font: 700 27px Menlo, Consolas, monospace; }
+      .card-purpose { font: 700 20px Arial, Helvetica, sans-serif; fill: #263746; }
+      .label { font: 700 16px Arial, Helvetica, sans-serif; letter-spacing: 1px; }
+      .body { font: 400 18px Arial, Helvetica, sans-serif; fill: #3f4d58; }
+      .body-strong { font: 700 18px Arial, Helvetica, sans-serif; fill: #263746; }
+      .footer-title { font: 700 20px Menlo, Consolas, monospace; fill: #7657a6; }
+      .footer-body { font: 400 18px Arial, Helvetica, sans-serif; fill: #3f4d58; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="930" fill="#ffffff"/>
+  <text x="750" y="55" text-anchor="middle" class="title">Where each argument acts in the NADIA workflow</text>
+  <text x="750" y="88" text-anchor="middle" class="subtitle">Removing a batch, adjusting a covariate and modelling paired samples are different operations</text>
+
+  <!-- Workflow -->
+  <g filter="url(#shadow)">
+    <rect x="55" y="140" width="280" height="105" rx="12" fill="#f5f7f8" stroke="#aebbc4" stroke-width="2"/>
+    <rect x="415" y="140" width="280" height="105" rx="12" fill="#fff4ef" stroke="#d8876d" stroke-width="2"/>
+    <rect x="775" y="140" width="240" height="105" rx="12" fill="#f5f7f8" stroke="#aebbc4" stroke-width="2"/>
+    <rect x="1095" y="140" width="350" height="105" rx="12" fill="#f1f6fa" stroke="#78a6c5" stroke-width="2"/>
+  </g>
+  <text x="195" y="184" text-anchor="middle" class="stage">Normalised matrix</text>
+  <text x="195" y="216" text-anchor="middle" class="stage-small">missing values retained</text>
+  <text x="555" y="184" text-anchor="middle" class="stage">BERT / ComBat</text>
+  <text x="555" y="216" text-anchor="middle" class="stage-small">batch correction</text>
+  <text x="895" y="184" text-anchor="middle" class="stage">Imputation</text>
+  <text x="895" y="216" text-anchor="middle" class="stage-small">fills selected gaps</text>
+  <text x="1270" y="178" text-anchor="middle" class="stage">limma model</text>
+  <text x="1270" y="207" text-anchor="middle" class="stage-small">condition + covariates</text>
+  <text x="1270" y="230" text-anchor="middle" class="stage-small">+ optional correlation block</text>
+  <line x1="335" y1="192" x2="405" y2="192" stroke="#52616e" stroke-width="4" marker-end="url(#arrow)"/>
+  <line x1="695" y1="192" x2="765" y2="192" stroke="#52616e" stroke-width="4" marker-end="url(#arrow)"/>
+  <line x1="1015" y1="192" x2="1085" y2="192" stroke="#52616e" stroke-width="4" marker-end="url(#arrow)"/>
+
+  <!-- Connection arrows -->
+  <path d="M 275 410 C 275 335, 555 345, 555 252" fill="none" stroke="#bd5b3f" stroke-width="4" marker-end="url(#arrow-orange)"/>
+  <path d="M 750 410 C 750 325, 1195 350, 1235 252" fill="none" stroke="#3577a8" stroke-width="4" marker-end="url(#arrow-blue)"/>
+  <path d="M 1225 410 C 1225 340, 1310 330, 1310 252" fill="none" stroke="#7657a6" stroke-width="4" marker-end="url(#arrow-purple)"/>
+
+  <!-- Card 1 -->
+  <g filter="url(#shadow)">
+    <rect x="35" y="410" width="455" height="365" rx="14" fill="#fff8f5" stroke="#d8876d" stroke-width="2"/>
+    <rect x="35" y="410" width="455" height="10" rx="5" fill="#bd5b3f"/>
+  </g>
+  <text x="62" y="462" class="card-title" fill="#9c402d">batch_column</text>
+  <text x="62" y="499" class="card-purpose">Removes a technical effect</text>
+  <text x="62" y="525" class="card-purpose">from the quantitative matrix</text>
+  <text x="62" y="563" class="label" fill="#9c402d">USE WHEN</text>
+  <text x="62" y="590" class="body">A known technical batch should not remain</text>
+  <text x="62" y="615" class="body">in the values used downstream.</text>
+  <text x="62" y="651" class="label" fill="#9c402d">EXAMPLES</text>
+  <text x="62" y="678" class="body">• digestion or preparation batch</text>
+  <text x="62" y="704" class="body">• TMT mix or labelling batch</text>
+  <text x="62" y="730" class="body">• acquisition batch or plate</text>
+  <text x="62" y="757" class="body-strong">Check balance and avoid confounding.</text>
+
+  <!-- Card 2 -->
+  <g filter="url(#shadow)">
+    <rect x="522" y="410" width="455" height="365" rx="14" fill="#f5f9fc" stroke="#78a6c5" stroke-width="2"/>
+    <rect x="522" y="410" width="455" height="10" rx="5" fill="#3577a8"/>
+  </g>
+  <text x="549" y="462" class="card-title" fill="#245c83">covariate_column</text>
+  <text x="549" y="499" class="card-purpose">Adjusts the limma test;</text>
+  <text x="549" y="525" class="card-purpose">the quantitative matrix is not changed</text>
+  <text x="549" y="563" class="label" fill="#245c83">USE WHEN</text>
+  <text x="549" y="590" class="body">A nuisance variable should be included in</text>
+  <text x="549" y="615" class="body">the differential abundance model.</text>
+  <text x="549" y="651" class="label" fill="#245c83">EXAMPLES</text>
+  <text x="549" y="678" class="body">• injection sequence or study centre</text>
+  <text x="549" y="704" class="body">• sex or another categorical covariate</text>
+  <text x="549" y="730" class="body">• one name or a vector of column names</text>
+  <text x="549" y="757" class="body-strong">Acts during differential testing.</text>
+
+  <!-- Card 3 -->
+  <g filter="url(#shadow)">
+    <rect x="1009" y="410" width="455" height="365" rx="14" fill="#f8f5fc" stroke="#9e88bd" stroke-width="2"/>
+    <rect x="1009" y="410" width="455" height="10" rx="5" fill="#7657a6"/>
+  </g>
+  <text x="1036" y="462" class="card-title" fill="#63448e">bio_replicate_column</text>
+  <text x="1036" y="499" class="card-purpose">Models correlation between</text>
+  <text x="1036" y="525" class="card-purpose">non-independent samples</text>
+  <text x="1036" y="563" class="label" fill="#63448e">USE WHEN</text>
+  <text x="1036" y="590" class="body">The design is paired, repeated-measures or</text>
+  <text x="1036" y="615" class="body">contains technical replicates.</text>
+  <text x="1036" y="651" class="label" fill="#63448e">EXAMPLES</text>
+  <text x="1036" y="678" class="body">• Patient, Subject or Donor</text>
+  <text x="1036" y="704" class="body">• matched-pair identifier</text>
+  <text x="1036" y="730" class="body">• one blocking column</text>
+  <text x="1036" y="757" class="body-strong">Uses limma::duplicateCorrelation().</text>
+
+  <!-- Footer note -->
+  <rect x="170" y="820" width="1160" height="76" rx="12" fill="#fbf9fd" stroke="#b8a8cf" stroke-width="2"/>
+  <text x="202" y="852" class="footer-title">batch_covariates</text>
+  <text x="425" y="852" class="footer-body">is different: it protects biological variables inside the BERT/ComBat correction model.</text>
+  <text x="202" y="880" class="footer-body">Use it only when the protected effect is estimable and every batch-by-covariate combination has adequate replication.</text>
+</svg>
