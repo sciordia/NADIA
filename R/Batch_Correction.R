@@ -27,7 +27,8 @@
 # References:
 #   PVCA: Li et al. (2009) Biostatistics 10(2):317-326
 #         Cuklina et al. (2021) Molecular & Cellular Proteomics 20 (proBatch)
-#   BERT: Habarta et al. (2025) Nature Communications 16:2044
+#   BERT: Schumann Y, Schlumbohm S, Neumann JE, Neumann P (2025)
+#         Nature Communications 16:7104, doi:10.1038/s41467-025-62237-4
 #
 # Implementation notes:
 #   - PVCA uses lme4 directly (not pvca package) to allow automatic detection
@@ -967,7 +968,7 @@ pvca_analysis <- function(se,
 #'   IMPORTANT: for ComBat/limma, include here the biological variable of
 #'   interest (e.g. the condition) in order to PRESERVE it; otherwise ComBat
 #'   removes all batch-associated variance and can erase biological signal when
-#'   condition and batch are confounded. They must be categorical covariates.
+#'   condition and batch are confounded.
 #' @param qualitycontrol Logical. Compute ASW (Average Silhouette Width)
 #'   quality metrics for raw vs corrected data (default FALSE).
 #' @param verbose Logical (default TRUE).
@@ -995,10 +996,11 @@ pvca_analysis <- function(se,
 #'
 #' # On a real experiment you would normally pass the biological variable of
 #' # interest in `covariates`, so that ComBat preserves it instead of removing
-#' # it along with the batch effect. It is left out here on purpose: with 12
-#' # samples in 2 batches and 3 conditions there are only 2 samples per cell,
-#' # and the model becomes singular. Protecting a covariate needs enough
-#' # replicates within every batch-by-condition combination.
+#' # it along with the batch effect. `covariates = "Condition"` works on this
+#' # example: the assay is already imputed, so each batch-by-condition cell has
+#' # its two values. Before imputation, with only two samples per cell, BERT
+#' # needs two non-missing values per cell and any protein with a gap there
+#' # stops being adjustable.
 #' @export
 batch_correct_proteomics <- function(
     se,

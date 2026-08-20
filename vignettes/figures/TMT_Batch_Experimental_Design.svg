@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="930" viewBox="0 0 1500 930" role="img" aria-labelledby="title description">
+  <title id="title">Three-proteome TMT spike-in design across two labelling mixes</title>
+  <desc id="description">Conditions A, B and D contain a constant 80 percent human background, increasing Escherichia coli and decreasing yeast proportions. Each condition has eight biological replicates. Replicates one to four are assigned to TMTpro mix 1 and replicates five to eight to TMTpro mix 2. Each mix therefore contains four replicates from every condition, plus two internal-standard channels.</desc>
+
+  <defs>
+    <filter id="shadow" x="-12%" y="-12%" width="124%" height="135%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#263746" flood-opacity="0.14"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#60717f"/>
+    </marker>
+    <style>
+      .title { font: 700 37px Arial, Helvetica, sans-serif; fill: #1d3557; }
+      .subtitle { font: 400 20px Arial, Helvetica, sans-serif; fill: #52616e; }
+      .section { font: 700 17px Arial, Helvetica, sans-serif; letter-spacing: 1px; fill: #536271; }
+      .condition { font: 700 28px Arial, Helvetica, sans-serif; fill: #1d3557; }
+      .composition { font: 400 18px Arial, Helvetica, sans-serif; fill: #3f4d58; }
+      .composition-strong { font: 700 18px Arial, Helvetica, sans-serif; fill: #263746; }
+      .mix-title { font: 700 27px Arial, Helvetica, sans-serif; fill: #1d3557; }
+      .mix-subtitle { font: 400 18px Arial, Helvetica, sans-serif; fill: #52616e; }
+      .row-label { font: 700 19px Arial, Helvetica, sans-serif; }
+      .chip { font: 700 17px Menlo, Consolas, monospace; fill: #243746; }
+      .note { font: 400 17px Arial, Helvetica, sans-serif; fill: #5b6873; }
+      .footer { font: 700 19px Arial, Helvetica, sans-serif; fill: #2f5f55; }
+      .legend { font: 400 17px Arial, Helvetica, sans-serif; fill: #3f4d58; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="930" fill="#ffffff"/>
+  <text x="750" y="54" text-anchor="middle" class="title">Three-proteome TMT design across two labelling mixes</text>
+  <text x="750" y="89" text-anchor="middle" class="subtitle">Three biological conditions · eight replicates per condition · balanced allocation across two TMTpro mixes</text>
+
+  <text x="72" y="133" class="section">BIOLOGICAL SPIKE-IN COMPOSITION</text>
+
+  <!-- Condition A -->
+  <g filter="url(#shadow)">
+    <rect x="55" y="155" width="430" height="245" rx="16" fill="#f8fafc" stroke="#a9bac9" stroke-width="2"/>
+  </g>
+  <text x="270" y="202" text-anchor="middle" class="condition">Condition A</text>
+  <rect x="90" y="232" width="288" height="52" rx="8" fill="#5b7fa3"/>
+  <rect x="378" y="232" width="18" height="52" fill="#2a9d8f"/>
+  <rect x="396" y="232" width="54" height="52" rx="0" fill="#e9a23b"/>
+  <text x="234" y="265" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#ffffff">Human 80%</text>
+  <text x="270" y="319" text-anchor="middle" class="composition"><tspan font-style="italic">E. coli</tspan> 5% · yeast 15%</text>
+  <text x="270" y="353" text-anchor="middle" class="composition-strong">Replicates A_1–A_8</text>
+  <text x="270" y="380" text-anchor="middle" class="note">low <tspan font-style="italic">E. coli</tspan> · highest yeast</text>
+
+  <!-- Condition B -->
+  <g filter="url(#shadow)">
+    <rect x="535" y="155" width="430" height="245" rx="16" fill="#f8fafc" stroke="#a9bac9" stroke-width="2"/>
+  </g>
+  <text x="750" y="202" text-anchor="middle" class="condition">Condition B</text>
+  <rect x="570" y="232" width="288" height="52" rx="8" fill="#5b7fa3"/>
+  <rect x="858" y="232" width="36" height="52" fill="#2a9d8f"/>
+  <rect x="894" y="232" width="36" height="52" fill="#e9a23b"/>
+  <text x="714" y="265" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#ffffff">Human 80%</text>
+  <text x="750" y="319" text-anchor="middle" class="composition"><tspan font-style="italic">E. coli</tspan> 10% · yeast 10%</text>
+  <text x="750" y="353" text-anchor="middle" class="composition-strong">Replicates B_1–B_8</text>
+  <text x="750" y="380" text-anchor="middle" class="note">intermediate reciprocal spike-in</text>
+
+  <!-- Condition D -->
+  <g filter="url(#shadow)">
+    <rect x="1015" y="155" width="430" height="245" rx="16" fill="#fff8f8" stroke="#d78b96" stroke-width="2"/>
+  </g>
+  <text x="1230" y="202" text-anchor="middle" class="condition">Condition D</text>
+  <rect x="1050" y="232" width="288" height="52" rx="8" fill="#5b7fa3"/>
+  <rect x="1338" y="232" width="72" height="52" fill="#2a9d8f"/>
+  <text x="1194" y="265" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#ffffff">Human 80%</text>
+  <text x="1230" y="319" text-anchor="middle" class="composition"><tspan font-style="italic">E. coli</tspan> 20% · yeast 0%</text>
+  <text x="1230" y="353" text-anchor="middle" class="composition-strong">Replicates D_1–D_8</text>
+  <text x="1230" y="380" text-anchor="middle" class="note">highest <tspan font-style="italic">E. coli</tspan> · no yeast</text>
+
+  <!-- Species legend -->
+  <g transform="translate(438 420)">
+    <rect x="0" y="0" width="20" height="20" rx="4" fill="#5b7fa3"/>
+    <text x="30" y="17" class="legend">human</text>
+    <rect x="172" y="0" width="20" height="20" rx="4" fill="#2a9d8f"/>
+    <text x="202" y="17" class="legend"><tspan font-style="italic">E. coli</tspan></text>
+    <rect x="356" y="0" width="20" height="20" rx="4" fill="#e9a23b"/>
+    <text x="386" y="17" class="legend">yeast</text>
+  </g>
+
+  <text x="750" y="474" text-anchor="middle" class="composition-strong">Eight replicates from each condition are split evenly between the two mixes</text>
+  <path d="M 750 485 L 750 505 L 390 505 L 390 528" fill="none" stroke="#60717f" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M 750 505 L 1110 505 L 1110 528" fill="none" stroke="#60717f" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <!-- Mix 1 -->
+  <g filter="url(#shadow)">
+    <rect x="55" y="535" width="675" height="305" rx="17" fill="#f5f9fc" stroke="#78a6c5" stroke-width="2"/>
+    <rect x="55" y="535" width="675" height="10" rx="5" fill="#3577a8"/>
+  </g>
+  <text x="392" y="584" text-anchor="middle" class="mix-title">TMTpro mix 1</text>
+  <text x="392" y="613" text-anchor="middle" class="mix-subtitle">replicates 1–4 · 12 biological samples</text>
+
+  <text x="93" y="660" class="row-label" fill="#486d96">A</text>
+  <g fill="#e8f0f7" stroke="#8eabc4"><rect x="130" y="635" width="92" height="38" rx="8"/><rect x="232" y="635" width="92" height="38" rx="8"/><rect x="334" y="635" width="92" height="38" rx="8"/><rect x="436" y="635" width="92" height="38" rx="8"/></g>
+  <text x="176" y="660" text-anchor="middle" class="chip">A_1</text><text x="278" y="660" text-anchor="middle" class="chip">A_2</text><text x="380" y="660" text-anchor="middle" class="chip">A_3</text><text x="482" y="660" text-anchor="middle" class="chip">A_4</text>
+
+  <text x="93" y="710" class="row-label" fill="#24786d">B</text>
+  <g fill="#e5f4f1" stroke="#82bdb5"><rect x="130" y="685" width="92" height="38" rx="8"/><rect x="232" y="685" width="92" height="38" rx="8"/><rect x="334" y="685" width="92" height="38" rx="8"/><rect x="436" y="685" width="92" height="38" rx="8"/></g>
+  <text x="176" y="710" text-anchor="middle" class="chip">B_1</text><text x="278" y="710" text-anchor="middle" class="chip">B_2</text><text x="380" y="710" text-anchor="middle" class="chip">B_3</text><text x="482" y="710" text-anchor="middle" class="chip">B_4</text>
+
+  <text x="93" y="760" class="row-label" fill="#a43f52">D</text>
+  <g fill="#fae9ec" stroke="#d59ba6"><rect x="130" y="735" width="92" height="38" rx="8"/><rect x="232" y="735" width="92" height="38" rx="8"/><rect x="334" y="735" width="92" height="38" rx="8"/><rect x="436" y="735" width="92" height="38" rx="8"/></g>
+  <text x="176" y="760" text-anchor="middle" class="chip">D_1</text><text x="278" y="760" text-anchor="middle" class="chip">D_2</text><text x="380" y="760" text-anchor="middle" class="chip">D_3</text><text x="482" y="760" text-anchor="middle" class="chip">D_4</text>
+
+  <text x="556" y="685" class="row-label" fill="#66717b">IS</text>
+  <g fill="#f0f1f2" stroke="#b8bec3"><rect x="590" y="659" width="104" height="38" rx="8"/><rect x="590" y="709" width="104" height="38" rx="8"/></g>
+  <text x="642" y="684" text-anchor="middle" class="chip">IS_1</text><text x="642" y="734" text-anchor="middle" class="chip">IS_2</text>
+  <text x="392" y="812" text-anchor="middle" class="note">Internal standards are not treated as biological conditions.</text>
+
+  <!-- Mix 2 -->
+  <g filter="url(#shadow)">
+    <rect x="770" y="535" width="675" height="305" rx="17" fill="#f8f6fb" stroke="#9f8abe" stroke-width="2"/>
+    <rect x="770" y="535" width="675" height="10" rx="5" fill="#7657a6"/>
+  </g>
+  <text x="1108" y="584" text-anchor="middle" class="mix-title">TMTpro mix 2</text>
+  <text x="1108" y="613" text-anchor="middle" class="mix-subtitle">replicates 5–8 · 12 biological samples</text>
+
+  <text x="808" y="660" class="row-label" fill="#486d96">A</text>
+  <g fill="#e8f0f7" stroke="#8eabc4"><rect x="845" y="635" width="92" height="38" rx="8"/><rect x="947" y="635" width="92" height="38" rx="8"/><rect x="1049" y="635" width="92" height="38" rx="8"/><rect x="1151" y="635" width="92" height="38" rx="8"/></g>
+  <text x="891" y="660" text-anchor="middle" class="chip">A_5</text><text x="993" y="660" text-anchor="middle" class="chip">A_6</text><text x="1095" y="660" text-anchor="middle" class="chip">A_7</text><text x="1197" y="660" text-anchor="middle" class="chip">A_8</text>
+
+  <text x="808" y="710" class="row-label" fill="#24786d">B</text>
+  <g fill="#e5f4f1" stroke="#82bdb5"><rect x="845" y="685" width="92" height="38" rx="8"/><rect x="947" y="685" width="92" height="38" rx="8"/><rect x="1049" y="685" width="92" height="38" rx="8"/><rect x="1151" y="685" width="92" height="38" rx="8"/></g>
+  <text x="891" y="710" text-anchor="middle" class="chip">B_5</text><text x="993" y="710" text-anchor="middle" class="chip">B_6</text><text x="1095" y="710" text-anchor="middle" class="chip">B_7</text><text x="1197" y="710" text-anchor="middle" class="chip">B_8</text>
+
+  <text x="808" y="760" class="row-label" fill="#a43f52">D</text>
+  <g fill="#fae9ec" stroke="#d59ba6"><rect x="845" y="735" width="92" height="38" rx="8"/><rect x="947" y="735" width="92" height="38" rx="8"/><rect x="1049" y="735" width="92" height="38" rx="8"/><rect x="1151" y="735" width="92" height="38" rx="8"/></g>
+  <text x="891" y="760" text-anchor="middle" class="chip">D_5</text><text x="993" y="760" text-anchor="middle" class="chip">D_6</text><text x="1095" y="760" text-anchor="middle" class="chip">D_7</text><text x="1197" y="760" text-anchor="middle" class="chip">D_8</text>
+
+  <text x="1271" y="685" class="row-label" fill="#66717b">IS</text>
+  <g fill="#f0f1f2" stroke="#b8bec3"><rect x="1305" y="659" width="104" height="38" rx="8"/><rect x="1305" y="709" width="104" height="38" rx="8"/></g>
+  <text x="1357" y="684" text-anchor="middle" class="chip">IS_3</text><text x="1357" y="734" text-anchor="middle" class="chip">IS_4</text>
+  <text x="1108" y="812" text-anchor="middle" class="note">Internal standards are not treated as biological conditions.</text>
+
+  <rect x="210" y="870" width="1080" height="46" rx="12" fill="#edf7f3" stroke="#91bfae"/>
+  <text x="750" y="899" text-anchor="middle" class="footer">Balanced design: each mix contains four biological replicates from A, B and D.</text>
+</svg>

@@ -43,7 +43,7 @@ unchanged and act as continuous covariates.
 IMPORTANT: for ComBat/limma, include here the biological variable of
 interest (e.g. the condition) in order to PRESERVE it; otherwise ComBat
 removes all batch-associated variance and can erase biological signal when
-condition and batch are confounded. They must be categorical covariates.}
+condition and batch are confounded.}
 
 \item{qualitycontrol}{Logical. Compute ASW (Average Silhouette Width)
 quality metrics for raw vs corrected data (default FALSE).}
@@ -80,8 +80,9 @@ SummarizedExperiment::assayNames(se)
 
 # On a real experiment you would normally pass the biological variable of
 # interest in `covariates`, so that ComBat preserves it instead of removing
-# it along with the batch effect. It is left out here on purpose: with 12
-# samples in 2 batches and 3 conditions there are only 2 samples per cell,
-# and the model becomes singular. Protecting a covariate needs enough
-# replicates within every batch-by-condition combination.
+# it along with the batch effect. `covariates = "Condition"` works on this
+# example: the assay is already imputed, so each batch-by-condition cell has
+# its two values. Before imputation, with only two samples per cell, BERT
+# needs two non-missing values per cell and any protein with a gap there
+# stops being adjustable.
 }
