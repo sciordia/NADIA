@@ -919,7 +919,7 @@ is available. When the experiment contains a spike-in,
 To import your own data, adjust figures or export the results, see the vignettes
 linked in the introduction.
 
-The session information used to generate this vignette is shown below:
+# Session information
 
 ```{r session}
 sessionInfo()
