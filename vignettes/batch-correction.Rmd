@@ -730,15 +730,20 @@ tmt_bc <- process_proteomics(
     verbose = FALSE)
 ```
 
-No `batch_covariates` are used here, and the reason is a limitation rather than a
-preference: on this dataset the protected model cannot be fitted. BERT aborts for
-every ComBat mode, and the `limma` algorithm fails earlier still.
+The correction above protects nothing, which invites the question of what
+`batch_covariates` would add. Condition can be protected here, and in most
+experiments it should be: it is what stops ComBat from removing
+condition-associated variation together with the mix effect, and that variation
+is at risk whenever condition and batch are even partly correlated. This design
+is the case in which it matters least. Every condition is represented by four
+samples in each mix, so condition and mix are close to orthogonal and there is
+little left for the protection to rescue.
 
-```{r tmt-protected-attempt, eval = FALSE}
-# Not evaluated: this call fails on this dataset.
-#   ComBat, modes 1-4 -> "NA/NaN/Inf in foreign function call (arg 1)"
-#   limma             -> "design must be a numeric matrix"
-process_proteomics(
+That is an expectation of the design, not a result, so it is worth measuring
+rather than asserting:
+
+```{r tmt-correct-protected, eval = run_bc, message = FALSE, warning = FALSE, results = "hide"}
+tmt_bc_prot <- process_proteomics(
     tmt, covariate_df = tmt_cov,
     batch_correct = TRUE, batch_column = "Mix",
     batch_covariates = "Condition",
@@ -746,21 +751,10 @@ process_proteomics(
     verbose = FALSE)
 ```
 
-This is not the insufficient replication described for the simulated example.
-Every combination of mix and condition contains four samples, no protein group is
-unfittable within either grouping, and the normalised assay contains a single
-missing value across 2,000 protein groups and 24 samples; removing that protein
-does not change the outcome. The failure occurs inside BERT's handling of
-covariates.
-
-The guidance given earlier still stands: when a biological variable is known and
-the design permits it, that variable should be protected. This dataset is an
-example of the remaining case, in which the protected model cannot be fitted at
-all. Because condition is represented equally in both mixes, comparatively little
-condition-associated variation is at risk from an unprotected correction here,
-but that balance mitigates the consequences rather than justifying the choice.
-It is also why the design tables of step 1 and the checks that follow the
-correction are necessary rather than optional.
+Both corrected assays are compared against the spike-in expectations below. The
+design tables of step 1 remain the first thing to look at: they are what tells
+you in advance whether protection is needed, whether it can be estimated, and
+how much a correction without it puts at risk.
 
 Repeating PVCA after correction verifies whether the mix-associated component was
 removed:
@@ -810,8 +804,9 @@ directional_performance <- function(res, comparison) {
 }
 
 round(100 * cbind(
-    uncorrected = directional_performance(tmt_res, "D-A"),
-    corrected   = directional_performance(tmt_bc,  "D-A")), 1)
+    uncorrected = directional_performance(tmt_res,     "D-A"),
+    corrected   = directional_performance(tmt_bc,      "D-A"),
+    protected   = directional_performance(tmt_bc_prot, "D-A")), 1)
 ```
 
 Correction increases recovery in the expected direction from 78.8% to 97.4% for
@@ -822,6 +817,17 @@ constant background has deteriorated. This trade-off would be missed if only the
 number of recovered spike-in proteins were reported. It is also measured at the
 default fold-change threshold of zero; the section *Significance is not effect
 size* below shows how much of it depends on that choice.
+
+Protecting the condition changes almost nothing: 97.8% against 97.4% for
+*E. coli*, 96.1% against 95.6% for yeast, and 36.6% against 38.2% for the human
+background. The three figures move by around a percentage point, in both
+directions, and the corrected assay carries the same number of missing values
+either way. This is the expected result for a design in which every condition
+appears equally in both mixes, and it is the reason the balance was worth
+checking in step 1 rather than assumed. It does not generalise: where condition
+is unevenly distributed across batches, an unprotected ComBat removes part of the
+biological difference along with the batch effect, and the protected model is
+then the one to use.
 
 ## Visual assessment with PCA
 
@@ -940,20 +946,28 @@ score <- function(res, thr) {
 
 sweep <- do.call(rbind, lapply(c(0, 0.2, 0.3, 0.5, 1), function(thr)
     data.frame(logFC_threshold = thr,
-               assay           = c("uncorrected", "corrected"),
-               rbind(score(tmt_res, thr), score(tmt_bc, thr)))))
+               assay           = c("uncorrected", "corrected", "protected"),
+               rbind(score(tmt_res, thr), score(tmt_bc, thr),
+                     score(tmt_bc_prot, thr)))))
 rownames(sweep) <- NULL
 sweep
 ```
 
-At a threshold of zero the uncorrected analysis appears to be the better of the
-two, but this is low statistical power presented as specificity: the mix effect
+At a threshold of zero the uncorrected analysis appears to be the best of the
+three, but this is low statistical power presented as specificity: the mix effect
 inflates the residual variance and conceals the background differences along with
 much of the spike-in signal. From 0.2 upwards the ordering reverses. At 0.3 the
 corrected results recover 450 of the expected changes against 385 uncorrected,
 with 33 false positives against 10, and reach the highest MCC of the comparison.
 On this dataset the batch correction did what it was asked to do; the zero
 threshold simply did not measure it.
+
+The protected and unprotected corrections track each other throughout, separated
+by a few thousandths of MCC and swapping places from one threshold to the next.
+Protection is doing no harm and no measurable good, which is what an orthogonal
+design predicts, and it is the reason to protect by default anyway: the cost is
+negligible, whereas the cost of omitting it in an unbalanced design is
+irreversible loss of biological signal.
 
 The sweep also has an upper limit that is characteristic of isobaric labelling.
 TMT quantification is subject to **ratio compression**: precursors co-isolated
