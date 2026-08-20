@@ -35,8 +35,11 @@ added to the SE (default "BERT").}
 3 = non-parametric + mean+variance, 4 = non-parametric + mean-only.}
 
 \item{covariates}{Character vector of column names from colData(se) to
-use as categorical covariates for batch correction (default NULL).
-These are mapped to BERT's Cov_1, Cov_2, ... format internally.
+protect during batch correction (default NULL). These are mapped to BERT's
+Cov_1, Cov_2, ... format internally. BERT uses those columns directly as
+the design matrix and encodes nothing itself, so categorical columns are
+converted to indicator variables here; numeric columns are passed through
+unchanged and act as continuous covariates.
 IMPORTANT: for ComBat/limma, include here the biological variable of
 interest (e.g. the condition) in order to PRESERVE it; otherwise ComBat
 removes all batch-associated variance and can erase biological signal when

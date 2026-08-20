@@ -208,6 +208,18 @@ without any change to the results the pipeline produces.
 
 ## Bug fixes
 
+* **`batch_covariates` now works with categorical metadata.** Protecting a
+  biological variable during batch correction aborted for every non-numeric
+  column, which is the usual case: a condition is stored as text. BERT performs
+  no encoding of its own -- it collects the `Cov_*` columns and passes them
+  straight to `sva::ComBat(mod = )` and `limma::removeBatchEffect(design = )` --
+  and NADIA handed it the column unchanged. ComBat coerced the text to double,
+  produced `NA`s and failed with `NA/NaN/Inf in foreign function call`, while
+  limma rejected it with `design must be a numeric matrix`. Categorical
+  covariates are now encoded as treatment-contrast indicators before the call.
+  Numeric covariates are still passed through untouched, so a continuous
+  covariate keeps its meaning and results that already worked are unchanged.
+
 * `process_proteomics()` no longer emits a `max()` warning for every protein
   quantified in no sample by the search engine. The unique-peptide count is the
   row maximum of the per-sample peptide columns, and a row of all `NA` made

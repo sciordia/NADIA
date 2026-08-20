@@ -81,8 +81,10 @@ normalization (default: FALSE). Requires covariate_df with batch_column.}
 
 \item{batch_ComBat_mode}{Integer 1-4 for ComBat parametric/mean-only settings (default: 1)}
 
-\item{batch_covariates}{Character vector of colData column names to use as
-categorical covariates for BERT batch correction (default: NULL)}
+\item{batch_covariates}{Character vector of colData column names to protect
+during BERT batch correction (default: NULL). Categorical columns are
+encoded as indicator variables automatically; numeric columns are passed
+through unchanged and therefore act as continuous covariates.}
 
 \item{batch_qualitycontrol}{Logical. Compute ASW quality metrics (default: FALSE)}
 

@@ -777,6 +777,65 @@ pvca_analysis <- function(se,
   invisible(TRUE)
 }
 
+#' Encode protected covariates as a numeric design for BERT
+#'
+#' BERT performs no encoding of its own: `BERT::BERT()` collects the `Cov_*`
+#' columns with `mod <- data.frame(data[, grepl("Cov", names(data))])` and hands
+#' them straight to `sva::ComBat(mod = )` and `limma::removeBatchEffect(design =
+#' )`. Its documentation therefore requires integer columns. A character or
+#' factor column reaches ComBat as text, which is coerced to double and becomes
+#' NA ("NA/NaN/Inf in foreign function call"), and reaches limma as a
+#' non-numeric design ("design must be a numeric matrix").
+#'
+#' Numeric columns are passed through unchanged, so a genuinely continuous
+#' covariate keeps its meaning. Categorical columns become k-1 treatment-contrast
+#' indicators, without an intercept: ComBat builds its own batch design, which
+#' already spans the grand mean, and adding an intercept here would make the
+#' combined design rank deficient. For a two-level covariate this reproduces the
+#' single 0/1 column used in BERT's own examples.
+#'
+#' @param df data.frame of covariate columns (rows = samples).
+#' @return Numeric data.frame with the same rows and one or more columns.
+#' @keywords internal
+.bc_encode_covariates <- function(df) {
+  encoded <- list()
+
+  for (nm in colnames(df)) {
+    x <- df[[nm]]
+
+    if (is.numeric(x)) {
+      if (anyNA(x))
+        stop("Covariate '", nm, "' contains NA values.")
+      encoded[[nm]] <- data.frame(x)
+      names(encoded[[nm]]) <- nm
+      next
+    }
+
+    f <- factor(x)
+    if (anyNA(f))
+      stop("Covariate '", nm, "' contains NA values.")
+    if (nlevels(f) < 2L)
+      stop("Covariate '", nm, "' has a single level ('", levels(f)[1],
+           "'), so it carries no information to protect.")
+
+    # ~ f gives intercept + k-1 indicators; drop the intercept (see above).
+    mm <- stats::model.matrix(~ f)[, -1, drop = FALSE]
+    colnames(mm) <- paste(nm, levels(f)[-1], sep = "_")
+    encoded[[nm]] <- as.data.frame(mm)
+  }
+
+  out <- do.call(cbind, unname(encoded))
+
+  # A constant column would leave the design singular without adding anything.
+  keep <- vapply(out, function(z) length(unique(z)) > 1L, logical(1))
+  if (!any(keep))
+    stop("None of the covariates varies across samples; nothing to protect.")
+  out <- out[, keep, drop = FALSE]
+
+  rownames(out) <- rownames(df)
+  out
+}
+
 #' Identify features ComBat cannot fit
 #'
 #' Flags rows that, in any batch, have fewer than 2 finite observations or zero
@@ -900,8 +959,11 @@ pvca_analysis <- function(se,
 #'   1 = parametric + mean+variance, 2 = parametric + mean-only,
 #'   3 = non-parametric + mean+variance, 4 = non-parametric + mean-only.
 #' @param covariates Character vector of column names from colData(se) to
-#'   use as categorical covariates for batch correction (default NULL).
-#'   These are mapped to BERT's Cov_1, Cov_2, ... format internally.
+#'   protect during batch correction (default NULL). These are mapped to BERT's
+#'   Cov_1, Cov_2, ... format internally. BERT uses those columns directly as
+#'   the design matrix and encodes nothing itself, so categorical columns are
+#'   converted to indicator variables here; numeric columns are passed through
+#'   unchanged and act as continuous covariates.
 #'   IMPORTANT: for ComBat/limma, include here the biological variable of
 #'   interest (e.g. the condition) in order to PRESERVE it; otherwise ComBat
 #'   removes all batch-associated variance and can erase biological signal when
@@ -1002,7 +1064,13 @@ batch_correct_proteomics <- function(
       stop("Covariate column(s) not found in colData: ",
            paste(missing_covs, collapse = ", "))
     cov_df <- cd[, covariates, drop = FALSE]
-    colnames(cov_df) <- paste0("Cov_", seq_along(covariates))
+    rownames(cov_df) <- colnames(mat)
+    # BERT uses the Cov_* columns directly as the design matrix and encodes
+    # nothing itself, so categorical covariates must arrive numeric.
+    cov_df <- .bc_encode_covariates(cov_df)
+    # Number over the encoded columns: one categorical covariate can yield
+    # several indicators, so this is not length(covariates).
+    colnames(cov_df) <- paste0("Cov_", seq_len(ncol(cov_df)))
     rownames(cov_df) <- colnames(mat)  # for the by-name realignment in .bc_run_bert
   } else if (algorithm %in% c("ComBat", "limma")) {
     warning("batch_correct_proteomics: 'covariates = NULL' with algorithm='",
