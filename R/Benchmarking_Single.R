@@ -41,7 +41,12 @@
   invisible(TRUE)
 }
 
-#' Validate required columns in expected_values
+#' Validate expected_values
+#'
+#' `expected_values` is the ground truth of the benchmark: it decides which
+#' species are positives and which direction counts as a correct detection.
+#' A malformed row does not produce an error further down, it produces a
+#' plausible-looking benchmark, so every failure mode below is rejected here.
 #'
 #' @param ev Data frame with expected values
 #' @return Invisible TRUE if valid, stops with error otherwise
@@ -53,6 +58,43 @@
     stop("Required columns missing from expected_values: ",
          paste(missing, collapse = ", "))
   }
+  if (nrow(ev) == 0) stop("expected_values has no rows.")
+
+  # Comparison and Species identify the row; a blank one silently matches
+  # nothing and removes a species from the truth table.
+  for (nm in c("Comparison", "Species")) {
+    x <- as.character(ev[[nm]])
+    bad <- is.na(x) | !nzchar(trimws(x))
+    if (any(bad))
+      stop("expected_values$", nm, " has empty or NA values in row(s): ",
+           paste(which(bad), collapse = ", "))
+  }
+
+  lfc <- ev$expected_logFC
+  if (!is.numeric(lfc))
+    stop("expected_values$expected_logFC must be numeric, not ", class(lfc)[1],
+         ". A log2 fold change read as text makes every direction check fail.")
+  if (any(!is.finite(lfc)))
+    stop("expected_values$expected_logFC has NA or infinite values in row(s): ",
+         paste(which(!is.finite(lfc)), collapse = ", "))
+
+  # A species with no expected change is background, and background is declared
+  # by leaving it out. Declaring it with 0 makes it a positive whose only
+  # correct direction is a logFC of exactly zero, so every protein of that
+  # species becomes an FN.
+  if (any(lfc == 0))
+    stop("expected_values$expected_logFC is 0 in row(s): ",
+         paste(which(lfc == 0), collapse = ", "),
+         ".\n  A species expected not to change is background: omit it from ",
+         "expected_values instead of declaring it with 0.")
+
+  # Two rows for the same cell: the second silently overwrites the first when
+  # the expected direction is looked up, which can swap TP and FN wholesale.
+  key <- paste(ev$Comparison, ev$Species, sep = " | ")
+  if (anyDuplicated(key))
+    stop("expected_values has duplicate Comparison + Species rows: ",
+         paste(unique(key[duplicated(key)]), collapse = "; "))
+
   invisible(TRUE)
 }
 
@@ -253,8 +295,32 @@
          "  expected_values: ", paste(ev_comps, collapse = ", "))
   }
 
+  # Scoring a subset of the declared comparisons is legitimate, so this is only
+  # a warning -- but a silent drop is not, because the metrics would then cover
+  # less than the caller asked for.
+  dropped_comps <- setdiff(ev_comps, common_comps)
+  if (length(dropped_comps) > 0)
+    warning("Comparison(s) declared in expected_values but absent from ",
+            "de_res, and therefore not scored: ",
+            paste(dropped_comps, collapse = ", "))
+
   de_res <- de_res[de_res$Comparison %in% common_comps, , drop = FALSE]
   expected_values <- expected_values[expected_values$Comparison %in% common_comps, , drop = FALSE]
+
+  # A species declared in expected_values but absent from the data -- a typo in
+  # the organism name is the usual cause -- is an error, not a warning. Its
+  # proteins keep truth = 0, so every correct detection of that species is
+  # counted as a false positive and the specificity collapses, with nothing in
+  # the output to say that the truth table lost a species.
+  missing_species <- setdiff(unique(as.character(expected_values$Species)),
+                             unique(as.character(de_res$Species)))
+  if (length(missing_species) > 0)
+    stop("Species declared in expected_values but not present in de_res: ",
+         paste(missing_species, collapse = ", "),
+         ".\n  Species found in the data: ",
+         paste(sort(unique(as.character(de_res$Species))), collapse = ", "),
+         ".\n  A species that is declared but never matched stays in the ",
+         "background, so its correct detections are counted as false positives.")
 
   list(
     de_res = de_res,
@@ -281,12 +347,20 @@
 #' `truth` is never modified by the prediction, so .compute_auc/.compute_pauc
 #' receive the biological ground truth (uncontaminated) for pROC.
 #'
+#' Two diagnostic columns are recorded alongside the classification and take no
+#' part in any metric. `is_significant` is the significance rule actually used
+#' here (p-value AND fold-change threshold), stored so that tables and plots
+#' cannot drift from the classification by recomputing it. `direction_error`
+#' separates the two kinds of FN: a change that was missed altogether, and a
+#' change that was called significant with the sign inverted.
+#'
 #' @param de_res_comp DE results for one comparison
 #' @param ev_comp Expected values for one comparison
 #' @param alpha Significance threshold
 #' @param lfc_thr Log fold-change threshold
 #' @param p_col P-value column name
-#' @return Data frame with added columns: truth, predicted, classification
+#' @return Data frame with added columns: truth, predicted, classification,
+#'   is_significant, direction_error
 #' @keywords internal
 .classify_proteins <- function(de_res_comp, ev_comp, alpha, lfc_thr, p_col) {
   # Species with expected changes (positives)
@@ -300,7 +374,12 @@
   # Assign predicted
   pvals <- suppressWarnings(as.numeric(de_res_comp[[p_col]]))
   lfc <- as.numeric(de_res_comp$logFC)
-  is_significant <- !is.na(pvals) & pvals <= alpha & abs(lfc) >= lfc_thr
+  # `!is.na(lfc)` keeps the vector free of NA so it can be stored as a column
+  # and used to subset. It does not change any prediction: an NA logFC gave NA
+  # here before, and an NA subscript was skipped by the assignments below,
+  # leaving predicted = 0 -- exactly what FALSE gives.
+  is_significant <- !is.na(pvals) & pvals <= alpha &
+                    !is.na(lfc) & abs(lfc) >= lfc_thr
 
   # For positive species: must have correct direction
   correct_direction <- logical(nrow(de_res_comp))
@@ -330,6 +409,14 @@
   de_res_comp$classification[de_res_comp$truth == 0 & de_res_comp$predicted == 1] <- "FP"
   de_res_comp$classification[de_res_comp$truth == 1 & de_res_comp$predicted == 0] <- "FN"
   de_res_comp$classification[de_res_comp$truth == 0 & de_res_comp$predicted == 0] <- "TN"
+
+  # Diagnostic columns: informative only, no metric reads them. `is_significant`
+  # is what the pipeline actually called significant (whatever the direction),
+  # which is what "significant proteins" means in a table or a plot.
+  # `direction_error` marks the FN that were found but mis-characterised.
+  de_res_comp$is_significant  <- is_significant
+  de_res_comp$direction_error <- de_res_comp$truth == 1L & is_significant &
+                                 de_res_comp$predicted == 0L
 
   de_res_comp
 }
@@ -1350,8 +1437,14 @@ benchmark_metrics_bars_gg <- function(
 #' Stacked bar chart of significant proteins by species,
 #' faceted by direction (UP/DOWN).
 #'
+#' Counts every protein the pipeline called significant, whatever the direction.
+#' A spike-in found significant with the sign inverted is an FN, so it carries
+#' `predicted = 0`, but it is still a significant protein and belongs in the
+#' facet its observed `logFC` points to -- which is precisely the facet that
+#' reveals the problem.
+#'
 #' @param classified_df Classified data frame
-#' @param ev Expected values data frame
+#' @param ev Ignored, kept for backwards compatibility with earlier calls
 #' @param species_colors Named vector of colors per species (optional)
 #' @param title Plot title
 #'
@@ -1371,12 +1464,18 @@ benchmark_metrics_bars_gg <- function(
 #' @export
 benchmark_signif_bars_gg <- function(
     classified_df,
-    ev,
+    ev = NULL,
     species_colors = NULL,
     title = "Significant Proteins by Species and Direction"
 ) {
-  # Filter significant proteins
-  sig_df <- classified_df[classified_df$predicted == 1, , drop = FALSE]
+  if (!"is_significant" %in% names(classified_df))
+    stop("classified_df has no 'is_significant' column. It must come from ",
+         "benchmarking_proteomics() or .classify_all_comparisons().")
+
+  # Filter significant proteins: significance alone, not the direction-aware
+  # prediction. Filtering on predicted == 1 silently dropped the spike-ins that
+  # came out significant with the wrong sign.
+  sig_df <- classified_df[classified_df$is_significant, , drop = FALSE]
 
   if (nrow(sig_df) == 0) {
     warning("No significant proteins to plot")
@@ -2056,22 +2155,25 @@ benchmark_volcano_hc_list <- function(
 #' proteins broken down by species and direction (up/down), plus derived
 #' percentages and ratios.
 #'
+#' Significance is read from the `is_significant` column rather than recomputed,
+#' so this table can never disagree with the classification it summarizes. It
+#' used to apply only `p <= alpha`, ignoring `lfc_thr` entirely, which made the
+#' counts here larger than the ones behind the metrics whenever a fold-change
+#' threshold was in force.
+#'
 #' @param classified_df Data frame from .classify_all_comparisons() with
 #'   columns: Comparison, Species, logFC, truth, predicted, classification,
-#'   and the p-value column
-#' @param alpha Significance threshold
-#' @param p_col P-value column name
+#'   is_significant and direction_error
 #' @return Data frame with per-comparison summary
 #' @keywords internal
-.summarize_significant_proteins <- function(classified_df, alpha, p_col) {
+.summarize_significant_proteins <- function(classified_df) {
   comps <- unique(classified_df$Comparison)
   species_all <- sort(unique(classified_df$Species))
 
   rows <- lapply(comps, function(comp) {
     df_comp <- classified_df[classified_df$Comparison == comp, , drop = FALSE]
-    pvals <- suppressWarnings(as.numeric(df_comp[[p_col]]))
     lfc <- as.numeric(df_comp$logFC)
-    is_signif <- !is.na(pvals) & pvals <= alpha
+    is_signif <- df_comp$is_significant
 
     row <- data.frame(Comparison = comp, stringsAsFactors = FALSE)
     row$n_nonsignif <- sum(!is_signif, na.rm = TRUE)
@@ -2321,7 +2423,7 @@ benchmarking_proteomics <- function(
   confusion_overall_df    <- .confusion_overall(confusion_by_species_df)
 
   # === STEP 4b: Significant proteins summary ===
-  signif_summary_df <- .summarize_significant_proteins(classified_df, alpha, p_col)
+  signif_summary_df <- .summarize_significant_proteins(classified_df)
   if (verbose) {
     message("\n--- Summary of significant proteins ---")
     for (i in seq_len(nrow(signif_summary_df))) {

@@ -345,3 +345,158 @@ test_that("a sample sheet is rejected when it does not describe the report", {
         preprocess_lfq(lfq_f, annot_path = "no_such_sheet.tsv", verbose = FALSE),
         "Annotation file not found")
 })
+
+
+# --- Benchmark classification: the five rules, one by one --------------------
+#
+# The invariant "no prediction moves a protein between the biological classes"
+# is covered end to end in test-end-to-end.R. What was missing was a direct
+# check of each individual rule, which is what actually decides whether
+# Specificity and Sensitivity mean what their names say. These run on five
+# synthetic rows, with no Bioconductor dependency and no pipeline.
+
+# One row per cell of the classification table.
+.nadia_bench_toy <- function(lfc_thr = 0) {
+    de <- data.frame(
+        Protein.IDs = c("human_sig", "human_ns", "spike_ok", "spike_ns",
+                        "spike_wrong"),
+        Species     = c("HUMAN", "HUMAN", "ECOLI", "ECOLI", "ECOLI"),
+        logFC       = c(0.80, 0.05, 1.20, 0.10, -1.30),
+        adj.P.Val   = c(0.001, 0.900, 0.001, 0.700, 0.001),
+        Comparison  = "B-A",
+        stringsAsFactors = FALSE)
+    ev <- data.frame(Comparison = "B-A", Species = "ECOLI", expected_logFC = 1)
+    out <- NADIA:::.classify_proteins(de, ev, alpha = 0.05, lfc_thr = lfc_thr,
+                                      p_col = "adj.P.Val")
+    rownames(out) <- out$Protein.IDs
+    out
+}
+
+test_that("each of the five classification rules lands in the right cell", {
+    cls <- .nadia_bench_toy()
+
+    # Background that moved: a wrong claim about a protein the experiment says
+    # does not change. This is the whole content of the specificity.
+    expect_identical(cls["human_sig", "classification"], "FP")
+    expect_identical(cls["human_ns",  "classification"], "TN")
+
+    # A spike-in that should have been called and was not.
+    expect_identical(cls["spike_ok",  "classification"], "TP")
+    expect_identical(cls["spike_ns",  "classification"], "FN")
+
+    # Significant with the sign inverted: still a detection failure, never a
+    # false positive. Filing it under FP would put a spike-in protein into the
+    # count of background proteins wrongly flagged.
+    expect_identical(cls["spike_wrong", "classification"], "FN")
+})
+
+test_that("truth is the biological identity and the prediction never moves it", {
+    cls <- .nadia_bench_toy()
+    expect_identical(cls$truth, c(0L, 0L, 1L, 1L, 1L))
+    expect_true(all(cls$classification[cls$truth == 1L] %in% c("TP", "FN")))
+    expect_true(all(cls$classification[cls$truth == 0L] %in% c("FP", "TN")))
+})
+
+test_that("is_significant records significance alone, direction aside", {
+    # Defect: the "Significant Proteins" plot filtered on predicted == 1, so a
+    # spike-in significant with the wrong sign (predicted = 0) vanished from
+    # the very facet that would have revealed it. Significance is now stored.
+    cls <- .nadia_bench_toy()
+    expect_identical(cls$is_significant, c(TRUE, FALSE, TRUE, FALSE, TRUE))
+    expect_false(anyNA(cls$is_significant))
+
+    # It is not a copy of predicted: they differ exactly on the wrong-sign row.
+    expect_identical(which(cls$is_significant != (cls$predicted == 1L)),
+                     which(rownames(cls) == "spike_wrong"))
+})
+
+test_that("direction_error separates the two kinds of FN", {
+    cls <- .nadia_bench_toy()
+    expect_identical(cls$direction_error, c(FALSE, FALSE, FALSE, FALSE, TRUE))
+
+    # Every flagged row is an FN with truth = 1: it is a refinement of that
+    # cell, not a sixth category.
+    expect_true(all(cls$classification[cls$direction_error] == "FN"))
+    expect_true(all(cls$truth[cls$direction_error] == 1L))
+})
+
+test_that("is_significant applies lfc_thr, not just the p-value", {
+    # Defect: .summarize_significant_proteins() ignored lfc_thr and counted on
+    # p <= alpha alone, so its table reported more significant proteins than
+    # the classification behind the metrics.
+    cls <- .nadia_bench_toy(lfc_thr = 1)
+
+    # human_sig is significant at p but its logFC (0.80) is below 1.
+    expect_false(cls["human_sig", "is_significant"])
+    expect_identical(cls["human_sig", "classification"], "TN")
+
+    # spike_ok (1.20) and spike_wrong (-1.30) clear the threshold.
+    expect_true(cls["spike_ok",    "is_significant"])
+    expect_true(cls["spike_wrong", "is_significant"])
+})
+
+test_that("an NA logFC is not significant and does not propagate", {
+    # is_significant is stored and used to subset, so an NA there would produce
+    # phantom rows. An unquantified fold change is simply not a detection.
+    de <- data.frame(Protein.IDs = c("a", "b"), Species = c("HUMAN", "ECOLI"),
+                     logFC = c(NA_real_, 1.2), adj.P.Val = c(0.001, 0.001),
+                     Comparison = "B-A", stringsAsFactors = FALSE)
+    ev <- data.frame(Comparison = "B-A", Species = "ECOLI", expected_logFC = 1)
+    cls <- NADIA:::.classify_proteins(de, ev, 0.05, 0, "adj.P.Val")
+
+    expect_false(anyNA(cls$is_significant))
+    expect_identical(cls$is_significant, c(FALSE, TRUE))
+    expect_identical(cls$classification, c("TN", "TP"))
+})
+
+
+# --- expected_values is the ground truth, so it is validated -----------------
+
+test_that("a malformed expected_values is rejected, not silently absorbed", {
+    ok <- data.frame(Comparison = c("B-A", "B-A"), Species = c("ECOLI", "YEAST"),
+                     expected_logFC = c(1, -0.58))
+    expect_true(NADIA:::.validate_expected_values(ok))
+
+    # A species expected not to change is background: it is declared by being
+    # left out. Declaring it with 0 makes it a positive whose only correct
+    # direction is a logFC of exactly zero, so all its proteins become FN.
+    bad <- ok; bad$expected_logFC[1] <- 0
+    expect_error(NADIA:::.validate_expected_values(bad), "is 0 in row")
+
+    # The second row silently won when the expected direction was looked up,
+    # which can swap TP and FN wholesale.
+    expect_error(
+        NADIA:::.validate_expected_values(rbind(ok, ok[1, ])), "duplicate")
+
+    for (v in list(NA_real_, Inf, -Inf)) {
+        bad <- ok; bad$expected_logFC[1] <- v
+        expect_error(NADIA:::.validate_expected_values(bad), "NA or infinite")
+    }
+
+    bad <- ok; bad$expected_logFC <- as.character(bad$expected_logFC)
+    expect_error(NADIA:::.validate_expected_values(bad), "must be numeric")
+
+    bad <- ok; bad$Species[1] <- ""
+    expect_error(NADIA:::.validate_expected_values(bad), "empty or NA")
+    bad <- ok; bad$Comparison[1] <- NA
+    expect_error(NADIA:::.validate_expected_values(bad), "empty or NA")
+})
+
+test_that("a species declared but absent from the data is an error", {
+    # Defect: a typo in an organism name ("ECOL1" for "ECOLI") produced no error
+    # and no warning. Its 1014 proteins kept truth = 0, so every correct
+    # detection of that species was counted as a false positive and the
+    # specificity collapsed, with nothing in the output to say so.
+    de <- data.frame(Protein.IDs = c("a", "b"), Species = c("HUMAN", "ECOLI"),
+                     logFC = c(0.1, 1.2), P.Value = c(0.9, 0.001),
+                     adj.P.Val = c(0.9, 0.001), Comparison = "B-A",
+                     Gene.Names = c("A", "B"), stringsAsFactors = FALSE)
+    ev <- data.frame(Comparison = "B-A", Species = "ECOL1", expected_logFC = 1)
+    expect_error(NADIA:::.prepare_benchmark_data(de, ev),
+                 "not present in de_res")
+
+    # A comparison that is missing only warns: scoring a subset is legitimate.
+    ev2 <- data.frame(Comparison = c("B-A", "Z-A"), Species = "ECOLI",
+                      expected_logFC = 1)
+    expect_warning(NADIA:::.prepare_benchmark_data(de, ev2), "absent from")
+})

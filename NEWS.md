@@ -15,6 +15,26 @@ without any change to the results the pipeline produces.
   interactive and static visualization.
 * Example dataset `nadia_dia` and trimmed reports in `inst/extdata/`, with their
   provenance documented in `inst/scripts/`.
+* **`expected_values` is validated as the ground truth it is.** A malformed
+  benchmark specification did not produce an error further down, it produced a
+  plausible-looking benchmark. `benchmarking_proteomics()` and the four other
+  entry points now reject a non-numeric, `NA`, infinite or **zero**
+  `expected_logFC` (a species expected not to change is background, and
+  background is declared by being left out), blank or `NA` identifiers,
+  duplicate `Comparison + Species` rows, and -- the quietest of them -- a
+  **species that never matches the data**. A typo in an organism name used to
+  leave those proteins in the background, so every correct detection of that
+  species was counted as a false positive and the specificity collapsed with
+  nothing in the output to say so. A declared comparison that is absent only
+  warns: scoring a subset is legitimate.
+
+* **Two diagnostic columns in `classified_df`**, also written to
+  `benchmark_classified.tsv`. `is_significant` is the significance rule the
+  classification actually applied, stored rather than recomputed so that no
+  table or plot can drift from it. `direction_error` separates the two kinds of
+  FN: a change missed altogether, and a change called significant with the sign
+  inverted. Neither takes any part in a metric, and TP/FP/TN/FN are unchanged.
+
 * **`preprocess_diann()`, the fourth input format.** DIA-NN protein-group
   matrices (`report.pg_matrix.tsv`) are wide — one row per protein group, one
   column per run — so they need their own reader rather than the Spectronaut
@@ -207,6 +227,25 @@ without any change to the results the pipeline produces.
   `.nm_hopkins()` takes the seed as an argument.
 
 ## Bug fixes
+
+* **The "Significant Proteins" plot left out the proteins it was best placed to
+  expose.** `benchmark_signif_bars_gg()` filtered on `predicted == 1`, which is
+  significance *and* the expected direction. A spike-in found significant with
+  the sign inverted is an FN and so carries `predicted = 0`, so it disappeared
+  from a chart whose title promises every significant protein. On the example
+  dataset nine yeast proteins were missing, and they were missing from the UP
+  facet -- the plot showed no yeast protein rising in any comparison when nine
+  did. The filter now reads the new `is_significant` column.
+
+* **The significant-protein summary ignored `lfc_thr`.**
+  `.summarize_significant_proteins()` counted on `p <= alpha` alone, while the
+  classification behind every metric also required `abs(logFC) >= lfc_thr`, so
+  the table and the metrics in the same output disagreed as soon as a
+  fold-change threshold was in force: 1922 significant proteins reported against
+  1857 classified on the example dataset at `lfc_thr = 0.3`. It now reads
+  `is_significant` instead of recomputing the rule, which makes the two
+  structurally unable to diverge. With `lfc_thr = 0`, the default, the table is
+  unchanged.
 
 * **`batch_covariates` now works with categorical metadata.** Protecting a
   biological variable during batch correction aborted for every non-numeric

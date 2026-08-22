@@ -4,16 +4,12 @@
 \alias{.summarize_significant_proteins}
 \title{Summarize significant proteins per comparison and species}
 \usage{
-.summarize_significant_proteins(classified_df, alpha, p_col)
+.summarize_significant_proteins(classified_df)
 }
 \arguments{
 \item{classified_df}{Data frame from .classify_all_comparisons() with
 columns: Comparison, Species, logFC, truth, predicted, classification,
-and the p-value column}
-
-\item{alpha}{Significance threshold}
-
-\item{p_col}{P-value column name}
+is_significant and direction_error}
 }
 \value{
 Data frame with per-comparison summary
@@ -22,5 +18,12 @@ Data frame with per-comparison summary
 Generates a summary table with counts of significant and non-significant
 proteins broken down by species and direction (up/down), plus derived
 percentages and ratios.
+}
+\details{
+Significance is read from the \code{is_significant} column rather than recomputed,
+so this table can never disagree with the classification it summarizes. It
+used to apply only \code{p <= alpha}, ignoring \code{lfc_thr} entirely, which made the
+counts here larger than the ones behind the metrics whenever a fold-change
+threshold was in force.
 }
 \keyword{internal}

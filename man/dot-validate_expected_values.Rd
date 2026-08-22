@@ -2,7 +2,7 @@
 % Please edit documentation in R/Benchmarking_Single.R
 \name{.validate_expected_values}
 \alias{.validate_expected_values}
-\title{Validate required columns in expected_values}
+\title{Validate expected_values}
 \usage{
 .validate_expected_values(ev)
 }
@@ -13,6 +13,9 @@
 Invisible TRUE if valid, stops with error otherwise
 }
 \description{
-Validate required columns in expected_values
+\code{expected_values} is the ground truth of the benchmark: it decides which
+species are positives and which direction counts as a correct detection.
+A malformed row does not produce an error further down, it produces a
+plausible-looking benchmark, so every failure mode below is rejected here.
 }
 \keyword{internal}
