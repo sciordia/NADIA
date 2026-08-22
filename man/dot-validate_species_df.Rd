@@ -2,7 +2,7 @@
 % Please edit documentation in R/Benchmarking_Single.R
 \name{.validate_species_df}
 \alias{.validate_species_df}
-\title{Validate required columns in species mapping}
+\title{Validate and de-duplicate the species mapping}
 \usage{
 .validate_species_df(species_df)
 }
@@ -10,9 +10,14 @@
 \item{species_df}{Data frame with Protein.IDs and Species columns}
 }
 \value{
-Invisible TRUE if valid, stops with error otherwise
+The mapping reduced to the two columns, one row per protein
 }
 \description{
-Validate required columns in species mapping
+\code{species_df} is joined to the DE results on \code{Protein.IDs}, so a repeated
+identifier multiplies the rows of every comparison it appears in and inflates
+the counts the metrics are built from. The mapping is therefore reduced to one
+row per protein before the join: exact repeats are dropped, and an identifier
+claimed by two different species is an error, because there is no way to know
+which side of the truth table the protein belongs to.
 }
 \keyword{internal}

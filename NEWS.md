@@ -15,6 +15,16 @@ without any change to the results the pipeline produces.
   interactive and static visualization.
 * Example dataset `nadia_dia` and trimmed reports in `inst/extdata/`, with their
   provenance documented in `inst/scripts/`.
+* **`species_df` must map each protein exactly once.** The mapping is joined to
+  the DE results on `Protein.IDs` with no uniqueness check, so a repeated
+  identifier multiplied that protein's row in every comparison and inflated the
+  counts every metric is built from -- one repeated protein took `classified_df`
+  from 3994 to 3996 rows and TP from 469 to 470 on the example dataset, with no
+  error and no warning. Exact repeats are now collapsed with a message, a
+  protein claimed by two different species is an error (there is no way to know
+  which side of the truth table it belongs to), and the join is asserted not to
+  change the number of rows.
+
 * **`expected_values` is validated as the ground truth it is.** A malformed
   benchmark specification did not produce an error further down, it produced a
   plausible-looking benchmark. `benchmarking_proteomics()` and the four other
@@ -22,11 +32,17 @@ without any change to the results the pipeline produces.
   `expected_logFC` (a species expected not to change is background, and
   background is declared by being left out), blank or `NA` identifiers,
   duplicate `Comparison + Species` rows, and -- the quietest of them -- a
-  **species that never matches the data**. A typo in an organism name used to
-  leave those proteins in the background, so every correct detection of that
-  species was counted as a false positive and the specificity collapsed with
-  nothing in the output to say so. A declared comparison that is absent only
-  warns: scoring a subset is legitimate.
+  **declared `Comparison` + `Species` pair with no proteins in the data**. A typo
+  in an organism name used to leave those proteins in the background, so every
+  correct detection of that species was counted as a false positive and the
+  specificity collapsed with nothing in the output to say so. The check is per
+  pair rather than global: a species present elsewhere in the results but absent
+  from one of the comparisons that declares it leaves that comparison scored
+  against a truth it does not contain, and if it was the only species declared
+  there the comparison has no positives at all -- reporting `Sensitivity = NA`
+  and `AUC = NA`, but `MCC = 0` and `nMCC = 0.5`, numbers rather than NAs, which
+  then average silently into a multi-method ranking. A declared comparison that
+  is absent altogether only warns: scoring a subset is legitimate.
 
 * **Two diagnostic columns in `classified_df`**, also written to
   `benchmark_classified.tsv`. `is_significant` is the significance rule the

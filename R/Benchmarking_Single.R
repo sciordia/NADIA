@@ -98,10 +98,17 @@
   invisible(TRUE)
 }
 
-#' Validate required columns in species mapping
+#' Validate and de-duplicate the species mapping
+#'
+#' `species_df` is joined to the DE results on `Protein.IDs`, so a repeated
+#' identifier multiplies the rows of every comparison it appears in and inflates
+#' the counts the metrics are built from. The mapping is therefore reduced to one
+#' row per protein before the join: exact repeats are dropped, and an identifier
+#' claimed by two different species is an error, because there is no way to know
+#' which side of the truth table the protein belongs to.
 #'
 #' @param species_df Data frame with Protein.IDs and Species columns
-#' @return Invisible TRUE if valid, stops with error otherwise
+#' @return The mapping reduced to the two columns, one row per protein
 #' @keywords internal
 .validate_species_df <- function(species_df) {
   required <- c("Protein.IDs", "Species")
@@ -109,7 +116,38 @@
   if (length(missing) > 0)
     stop("Required columns missing from species_df: ",
          paste(missing, collapse = ", "))
-  invisible(TRUE)
+
+  map <- unique(data.frame(
+    Protein.IDs = as.character(species_df$Protein.IDs),
+    Species     = as.character(species_df$Species),
+    stringsAsFactors = FALSE))
+
+  # After unique(), a protein left with more than one row has conflicting
+  # species. Concatenating two mappings often produces exact repeats, which are
+  # harmless once collapsed; a genuine conflict is not.
+  conflicting <- unique(map$Protein.IDs[duplicated(map$Protein.IDs)])
+  if (length(conflicting) > 0) {
+    shown <- utils::head(conflicting, 5L)
+    detail <- vapply(shown, function(id) {
+      paste0(id, " -> ",
+             paste(sort(map$Species[map$Protein.IDs == id]), collapse = " / "))
+    }, character(1))
+    stop("species_df maps ", length(conflicting),
+         " protein(s) to more than one species: ",
+         paste(detail, collapse = "; "),
+         if (length(conflicting) > length(shown))
+           paste0("; and ", length(conflicting) - length(shown), " more") else "",
+         ".\n  A protein belongs to one side of the truth table or the other, ",
+         "so the mapping must be unambiguous.")
+  }
+
+  n_dropped <- nrow(species_df) - nrow(map)
+  if (n_dropped > 0)
+    message("  [species_df] ", n_dropped,
+            " duplicate row(s) collapsed; the join would have multiplied ",
+            "rows and inflated the counts.")
+
+  map
 }
 
 #' Auto-detect p-value column
@@ -240,11 +278,17 @@
   # Merge species if provided
 
   if (!is.null(species_df)) {
-    .validate_species_df(species_df)
+    # Returns one row per protein: the join must not change nrow(de_res).
+    species_map <- .validate_species_df(species_df)
     # Remove existing Species to avoid duplicates
     de_res$Species <- NULL
-    de_res <- merge(de_res, species_df[, c("Protein.IDs", "Species")],
-                    by = "Protein.IDs", all.x = TRUE, sort = FALSE)
+    n_before <- nrow(de_res)
+    de_res <- merge(de_res, species_map, by = "Protein.IDs",
+                    all.x = TRUE, sort = FALSE)
+    if (nrow(de_res) != n_before)
+      stop("Joining species_df changed the number of rows in de_res (",
+           n_before, " -> ", nrow(de_res),
+           "). This should not happen; please report it.")
   }
 
   # Verify Species exists (from merge or preexisting)
@@ -307,20 +351,43 @@
   de_res <- de_res[de_res$Comparison %in% common_comps, , drop = FALSE]
   expected_values <- expected_values[expected_values$Comparison %in% common_comps, , drop = FALSE]
 
-  # A species declared in expected_values but absent from the data -- a typo in
-  # the organism name is the usual cause -- is an error, not a warning. Its
-  # proteins keep truth = 0, so every correct detection of that species is
-  # counted as a false positive and the specificity collapses, with nothing in
-  # the output to say that the truth table lost a species.
-  missing_species <- setdiff(unique(as.character(expected_values$Species)),
-                             unique(as.character(de_res$Species)))
-  if (length(missing_species) > 0)
-    stop("Species declared in expected_values but not present in de_res: ",
-         paste(missing_species, collapse = ", "),
-         ".\n  Species found in the data: ",
-         paste(sort(unique(as.character(de_res$Species))), collapse = ", "),
-         ".\n  A species that is declared but never matched stays in the ",
-         "background, so its correct detections are counted as false positives.")
+  # Every declared Comparison + Species pair must actually have proteins. The
+  # check is per pair, not global: a species present somewhere in de_res but
+  # absent from one of the comparisons that declares it leaves that comparison
+  # scored against a truth it does not contain. Its proteins keep truth = 0, so
+  # correct detections of that species become false positives; and if it was
+  # the only species declared there, the comparison has no positives at all and
+  # reports Sensitivity = NA, AUC = NA but MCC = 0 and nMCC = 0.5 -- numbers,
+  # not NAs, which then average silently into a multi-method ranking.
+  ev_pairs <- unique(data.frame(
+    Comparison = as.character(expected_values$Comparison),
+    Species    = as.character(expected_values$Species),
+    stringsAsFactors = FALSE))
+  present <- paste(as.character(de_res$Comparison),
+                   as.character(de_res$Species), sep = "\r")
+  absent <- ev_pairs[!paste(ev_pairs$Comparison, ev_pairs$Species,
+                            sep = "\r") %in% present, , drop = FALSE]
+
+  if (nrow(absent) > 0) {
+    species_seen <- unique(as.character(de_res$Species))
+    # A species that appears in no comparison at all is almost always a typo in
+    # the organism name, so say so rather than listing every pair.
+    never <- setdiff(absent$Species, species_seen)
+    detail <- if (length(never) > 0) {
+      paste0("Species never found in de_res (check the spelling): ",
+             paste(sort(never), collapse = ", "),
+             ".\n  Species found in the data: ",
+             paste(sort(species_seen), collapse = ", "), ".")
+    } else {
+      paste0("The species exist in de_res but not in these comparisons: ",
+             paste(sprintf("%s / %s", absent$Comparison, absent$Species),
+                   collapse = "; "), ".")
+    }
+    stop("expected_values declares Comparison + Species combinations that have ",
+         "no proteins in de_res.\n  ", detail,
+         "\n  A declared species with no proteins stays in the background, so ",
+         "its correct detections are counted as false positives.")
+  }
 
   list(
     de_res = de_res,

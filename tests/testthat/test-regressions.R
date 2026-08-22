@@ -493,10 +493,69 @@ test_that("a species declared but absent from the data is an error", {
                      Gene.Names = c("A", "B"), stringsAsFactors = FALSE)
     ev <- data.frame(Comparison = "B-A", Species = "ECOL1", expected_logFC = 1)
     expect_error(NADIA:::.prepare_benchmark_data(de, ev),
-                 "not present in de_res")
+                 "check the spelling")
 
     # A comparison that is missing only warns: scoring a subset is legitimate.
     ev2 <- data.frame(Comparison = c("B-A", "Z-A"), Species = "ECOLI",
                       expected_logFC = 1)
     expect_warning(NADIA:::.prepare_benchmark_data(de, ev2), "absent from")
+})
+
+test_that("a species is required in every comparison that declares it", {
+    # Defect: the check was global, so a species present somewhere in de_res
+    # but absent from one of the comparisons that declares it slipped through.
+    # That comparison was then scored against a truth it did not contain: if it
+    # was the only declared species there, the comparison had no positives at
+    # all and reported Sensitivity = NA and AUC = NA but MCC = 0 and
+    # nMCC = 0.5 -- numbers, not NAs, which average into a method ranking.
+    de <- data.frame(
+        Protein.IDs = c("h1", "e1", "h2"),
+        Species     = c("HUMAN", "ECOLI", "HUMAN"),
+        logFC       = c(0.1, 1.2, 0.2),
+        P.Value     = c(0.9, 0.001, 0.9),
+        adj.P.Val   = c(0.9, 0.001, 0.9),
+        Comparison  = c("B-A", "B-A", "D-A"),
+        Gene.Names  = c("A", "B", "C"),
+        stringsAsFactors = FALSE)
+
+    # ECOLI exists in de_res, but only in B-A.
+    ev <- data.frame(Comparison = c("B-A", "D-A"), Species = "ECOLI",
+                     expected_logFC = c(1, 2))
+    expect_error(NADIA:::.prepare_benchmark_data(de, ev), "D-A / ECOLI")
+
+    # Declaring it only where it exists is fine.
+    ok <- data.frame(Comparison = "B-A", Species = "ECOLI", expected_logFC = 1)
+    expect_silent(NADIA:::.prepare_benchmark_data(de, ok))
+})
+
+
+# --- species_df must map each protein exactly once --------------------------
+
+test_that("a repeated protein in species_df does not multiply de_res rows", {
+    # Defect: species_df was merged on Protein.IDs with no uniqueness check, so
+    # a repeated identifier duplicated that protein's row in every comparison
+    # and inflated TP/FP/TN/FN. On the example dataset one repeated E. coli
+    # protein took classified_df from 3994 to 3996 rows and TP from 469 to 470.
+    map <- data.frame(Protein.IDs = c("p1", "p2"), Species = c("ECOLI", "HUMAN"),
+                      stringsAsFactors = FALSE)
+
+    # An exact repeat is harmless once collapsed: two sources concatenated.
+    expect_message(out <- NADIA:::.validate_species_df(rbind(map, map[1, ])),
+                   "duplicate row")
+    expect_identical(out, map)
+    expect_identical(nrow(out), 2L)
+
+    # A clean mapping passes untouched and silently.
+    expect_silent(clean <- NADIA:::.validate_species_df(map))
+    expect_identical(clean, map)
+})
+
+test_that("a protein mapped to two species is rejected", {
+    # There is no way to know which side of the truth table it belongs to, so
+    # this cannot be resolved by de-duplicating.
+    map <- data.frame(Protein.IDs = c("p1", "p1"), Species = c("ECOLI", "YEAST"),
+                      stringsAsFactors = FALSE)
+    expect_error(NADIA:::.validate_species_df(map),
+                 "more than one species")
+    expect_error(NADIA:::.validate_species_df(map), "ECOLI / YEAST")
 })
