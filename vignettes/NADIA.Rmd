@@ -63,7 +63,23 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
     margin-left: -12%;
   }
 }
+@media screen and (min-width: 768px) {
+  .volcano-ba-figure img {
+    display: block;
+    width: 110% !important;
+    height: auto !important;
+    max-width: none !important;
+    margin-left: -5%;
+  }
+}
+.volcano-ba-figure {
+  margin-top: 1.8em;
+  margin-bottom: 1.8em;
+}
 #fig\:three-proteome-design + img.three-proteome-clickable {
+  cursor: zoom-in;
+}
+.volcano-ba-figure img.volcano-ba-clickable {
   cursor: zoom-in;
 }
 .figure-zoom-hint {
@@ -73,7 +89,8 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
   font-size: 0.9em;
   font-style: italic;
 }
-#three-proteome-lightbox {
+#three-proteome-lightbox,
+#volcano-ba-lightbox {
   display: none;
   position: fixed;
   inset: 0;
@@ -84,10 +101,12 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
   background: rgba(15, 25, 35, 0.88);
   cursor: zoom-out;
 }
-#three-proteome-lightbox.is-open {
+#three-proteome-lightbox.is-open,
+#volcano-ba-lightbox.is-open {
   display: flex;
 }
-#three-proteome-lightbox img {
+#three-proteome-lightbox img,
+#volcano-ba-lightbox img {
   width: auto !important;
   height: auto !important;
   max-width: 96vw !important;
@@ -98,7 +117,8 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
   box-shadow: 0 6px 30px rgba(0, 0, 0, 0.35);
   cursor: default;
 }
-#three-proteome-lightbox button {
+#three-proteome-lightbox button,
+#volcano-ba-lightbox button {
   position: absolute;
   top: 12px;
   right: 18px;
@@ -108,6 +128,9 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
   font-size: 36px;
   line-height: 1;
   cursor: pointer;
+}
+body.volcano-ba-lightbox-open {
+  overflow: hidden;
 }
 .default-call {
   margin: 1em 0 1.25em;
@@ -848,9 +871,80 @@ The following static image provides a preview of that interactive volcano plot
 for the `B-A` comparison. It shows the results obtained from the matrix
 normalised with `cycloess` and imputed with the default `Impseqrob_min` strategy:
 
-```{r volcano-ba-static, echo = FALSE, fig.align = "center", out.width = "95%", fig.cap = "Static preview of the interactive volcano plot for the B-A comparison using the cycloess-normalised and Impseqrob_min-imputed matrix.", fig.alt = "Volcano plot for the B-A comparison. The horizontal axis shows log2 fold change and the vertical axis shows minus log10 p-value; significant up-regulated proteins are blue, significant down-regulated proteins are red, and non-significant proteins are grey."}
-knitr::include_graphics("figures/Volcano_B-A_impseqrob-min.png")
+<div class="volcano-ba-figure">
+
+```{r volcano-ba-static, echo = FALSE, fig.align = "center", out.width = "100%", fig.cap = "Static SVG preview of the interactive volcano plot for the B-A comparison using the cycloess-normalised and Impseqrob_min-imputed matrix.", fig.alt = "Volcano plot for the B-A comparison. The horizontal axis shows log2 fold change and the vertical axis shows minus log10 p-value; significant up-regulated proteins are blue, significant down-regulated proteins are red, and non-significant proteins are grey."}
+knitr::include_graphics("figures/Volcano_B-A_impseqrob-min.svg")
 ```
+
+</div>
+
+<div class="figure-zoom-hint">Click the figure to enlarge it; press Esc or click outside the image to close it.</div>
+
+<script>
+(function () {
+  var source = document.querySelector(".volcano-ba-figure img");
+  if (!source) return;
+
+  source.classList.add("volcano-ba-clickable");
+  source.setAttribute("tabindex", "0");
+  source.setAttribute("title", "Click to enlarge the B-A volcano plot");
+
+  var lightbox = document.createElement("div");
+  lightbox.id = "volcano-ba-lightbox";
+  lightbox.setAttribute("role", "dialog");
+  lightbox.setAttribute("aria-modal", "true");
+  lightbox.setAttribute("aria-label", "Enlarged B-A volcano plot");
+  lightbox.setAttribute("aria-hidden", "true");
+
+  var enlarged = source.cloneNode(true);
+  enlarged.classList.remove("volcano-ba-clickable");
+  enlarged.removeAttribute("tabindex");
+  enlarged.removeAttribute("title");
+  enlarged.removeAttribute("width");
+
+  var closeButton = document.createElement("button");
+  closeButton.type = "button";
+  closeButton.setAttribute("aria-label", "Close enlarged figure");
+  closeButton.textContent = "\u00d7";
+
+  lightbox.appendChild(enlarged);
+  lightbox.appendChild(closeButton);
+  document.body.appendChild(lightbox);
+
+  function openLightbox() {
+    lightbox.classList.add("is-open");
+    lightbox.setAttribute("aria-hidden", "false");
+    document.body.classList.add("volcano-ba-lightbox-open");
+    closeButton.focus();
+  }
+
+  function closeLightbox() {
+    lightbox.classList.remove("is-open");
+    lightbox.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("volcano-ba-lightbox-open");
+    source.focus();
+  }
+
+  source.addEventListener("click", openLightbox);
+  source.addEventListener("keydown", function (event) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openLightbox();
+    }
+  });
+  enlarged.addEventListener("click", function (event) {
+    event.stopPropagation();
+  });
+  closeButton.addEventListener("click", closeLightbox);
+  lightbox.addEventListener("click", closeLightbox);
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && lightbox.classList.contains("is-open")) {
+      closeLightbox();
+    }
+  });
+}());
+</script>
 
 The interactive figures themselves are not rendered in this vignette, to keep
 the document small.
