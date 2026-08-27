@@ -19,27 +19,32 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
 
 <style type="text/css">
 .species-preview,
-.function-parameters {
+.function-parameters,
+.code-details {
   margin: 1em 0 1.4em;
   border: 1px solid #c8d3dc;
   border-radius: 5px;
   background: #f7f9fb;
 }
 .species-preview summary,
-.function-parameters summary {
+.function-parameters summary,
+.code-details summary {
   padding: 0.75em 1em;
   color: #1d3557;
   font-weight: 600;
   cursor: pointer;
 }
 .species-preview[open] summary,
-.function-parameters[open] summary {
+.function-parameters[open] summary,
+.code-details[open] summary {
   border-bottom: 1px solid #c8d3dc;
 }
 .species-preview pre,
 .species-preview table,
 .function-parameters pre,
-.function-parameters table {
+.function-parameters table,
+.code-details pre,
+.code-details table {
   margin: 1em;
 }
 .function-parameters .parameter-content {
@@ -223,7 +228,13 @@ sample contains a constant 80% *Homo sapiens* (HeLa) background, while
 *Escherichia coli* and *Saccharomyces cerevisiae* proteins make up the remaining
 20% in reciprocal proportions. Across the complete experimental design, the
 *E. coli* fraction increases and the yeast fraction decreases from condition A
-to condition D. Four pseudo-biological replicates were measured per condition.
+to condition D. The four condition mixtures were prepared from the same HeLa
+stock and then divided into four aliquots, each of which was carried independently
+through the complete sample-preparation workflow and LC--ESI--MS/MS analysis.
+These are
+therefore termed **pseudo-biological replicates**: they are not independent
+biological specimens, but they capture more experimental variation than repeated
+injections of the same prepared sample.
 
 ```{r benchmark-three-proteome-design, echo = FALSE, fig.align = "center", out.width = "100%", fig.cap = "Complete three-proteome spike-in design underlying the benchmark dataset. HeLa remains constant at 80%, while E. coli increases and yeast decreases across conditions. The dataset distributed with NADIA retains conditions A, B, and D and 2,000 protein groups.", fig.alt = "Three-proteome spike-in experimental design with conditions A to D and four replicates per condition. HeLa proteins remain at 80 percent, Escherichia coli proteins increase from 5 to 20 percent, and yeast proteins decrease from 15 percent to zero. NADIA retains conditions A, B, and D for the example benchmark."}
 knitr::include_graphics("figures/Three_Proteome_Experimental_Design.svg")
@@ -343,7 +354,10 @@ NADIA accepts either a base R `data.frame` or a `tibble`. The first option below
 is executed in this vignette; the commented alternative creates the same
 `expected` object with `tibble::tribble()`.
 
-```{r expected}
+<details class="code-details">
+<summary>Show the code used to define the expected fold changes</summary>
+
+```{r expected, results = "hide"}
 # Option 1: base R data.frame
 expected <- data.frame(
     Comparison     = rep(c("B-A", "D-A", "D-B"), each = 2),
@@ -361,6 +375,15 @@ expected <- data.frame(
 #     "D-B",       "YEAST",         -2.72
 # )
 
+expected
+```
+
+</details>
+
+The resulting table contains one expected change for each spike-in species and
+comparison:
+
+```{r expected-table, echo = FALSE}
 expected
 ```
 
@@ -589,16 +612,29 @@ irrespective of direction. `direction_error` identifies the subset of FNs that
 passed those thresholds but had the opposite sign. The following code retrieves
 these cases; there are nine in this analysis:
 
-```{r classification}
+<details class="code-details">
+<summary>Show the code used to identify significant spike-ins with the wrong direction</summary>
+
+```{r classification-calculate, results = "hide"}
 wrong_sign <- subset(bench$classified_df, direction_error)
 wrong_sign <- merge(wrong_sign, expected,
                     by = c("Comparison", "Species"))
 
 nrow(wrong_sign)
 table(wrong_sign$Comparison, wrong_sign$Species)
-head(wrong_sign[, c("Protein.IDs", "Comparison", "Species", "logFC",
-                    "expected_logFC", "adj.P.Val", "is_significant",
-                    "direction_error", "classification")], 4)
+wrong_sign[, c("Protein.IDs", "Comparison", "Species", "logFC",
+               "expected_logFC", "adj.P.Val", "is_significant",
+               "direction_error", "classification")]
+```
+
+</details>
+
+```{r classification-results, echo = FALSE}
+nrow(wrong_sign)
+table(wrong_sign$Comparison, wrong_sign$Species)
+wrong_sign[, c("Protein.IDs", "Comparison", "Species", "logFC",
+               "expected_logFC", "adj.P.Val", "is_significant",
+               "direction_error", "classification")]
 ```
 
 All nine are yeast proteins that rose significantly even though the spike-in
@@ -878,7 +914,10 @@ called positive. The following table links the two empirically by reporting the
 observed operating point at the threshold used in this vignette. TPR is the
 proportion of spike-in proteins called positive at the same threshold.
 
-```{r operating-point}
+<details class="code-details">
+<summary>Show the code used to calculate the observed operating points</summary>
+
+```{r operating-point-calculate, results = "hide"}
 op <- do.call(rbind, lapply(unique(bench$classified_df$Comparison), function(comp) {
     d <- subset(bench$classified_df, Comparison == comp)
     called_positive <- !is.na(d$adj.P.Val) & d$adj.P.Val <= 0.05
@@ -887,6 +926,15 @@ op <- do.call(rbind, lapply(unique(bench$classified_df$Comparison), function(com
         FPR_at_adjP005 = sum(called_positive & d$truth == 0) / sum(d$truth == 0),
         TPR_at_adjP005 = sum(called_positive & d$truth == 1) / sum(d$truth == 1))
 }))
+
+knitr::kable(op, digits = 4,
+             col.names = c("Comparison", "FPR", "TPR"),
+             caption = "Observed ROC operating points at adj.P.Val <= 0.05.")
+```
+
+</details>
+
+```{r operating-point-table, echo = FALSE}
 knitr::kable(op, digits = 4,
              col.names = c("Comparison", "FPR", "TPR"),
              caption = "Observed ROC operating points at adj.P.Val <= 0.05.")
@@ -926,7 +974,10 @@ the Spectronaut results.
 range. This provides one global measure of how well each engine ranks spike-in
 proteins ahead of background proteins across all possible thresholds.
 
-```{r engines-bench, message = FALSE, warning = FALSE}
+<details class="code-details">
+<summary>Show the code used to benchmark the search engines</summary>
+
+```{r engines-bench, message = FALSE, warning = FALSE, results = "hide"}
 diann <- preprocess_diann(
     system.file("extdata", "nadia_diann_report.tsv.gz", package = "NADIA"),
     condition_order = c("A", "B", "D"), verbose = FALSE)
@@ -949,6 +1000,13 @@ engine_auc <- rbind(
 engine_auc$N <- rowSums(engine_auc[, c("TP", "FP", "TN", "FN")])
 engine_auc <- engine_auc[, c("Engine", "Comparison", "N", "AUC")]
 
+knitr::kable(engine_auc, digits = 3,
+             caption = "Full ROC AUC by search engine and comparison.")
+```
+
+</details>
+
+```{r engines-auc-table, echo = FALSE}
 knitr::kable(engine_auc, digits = 3,
              caption = "Full ROC AUC by search engine and comparison.")
 ```
@@ -1187,6 +1245,9 @@ comparing `cycloess_combo` with `cycloess_min` isolates the imputation strategy.
 Each pipeline is processed and scored separately; only the OpDEA and confusion
 tables needed below are then combined and passed to `benchmarking_multiple()`.
 
+<details class="code-details">
+<summary>Show the code used to run and combine the three pipelines</summary>
+
 ```{r multiple, message = FALSE, warning = FALSE, eval = have_proc}
 pipelines <- list(
     cycloess_combo = list(norm_method = "cycloess", imp_method = "combo"),
@@ -1216,6 +1277,8 @@ multi_bench <- benchmarking_multiple(
     plots = "ranking_bars_mean",
     verbose = FALSE)
 ```
+
+</details>
 
 ## Comparing TP, FP, TN and FN
 
@@ -1337,6 +1400,9 @@ confounding the comparison. The output of
 [`MSstats::groupComparison()`](https://bioconductor.org/packages/release/bioc/manuals/MSstats/man/MSstats.pdf)
 can be adapted as follows:
 
+<details class="code-details">
+<summary>Show the code used to adapt an MSstats result</summary>
+
 ```{r adapt-msstats, eval = FALSE}
 # msstats_result is the list returned by MSstats::groupComparison()
 msstats_source <- msstats_result$ComparisonResult
@@ -1350,10 +1416,15 @@ msstats_de <- data.frame(
     stringsAsFactors = FALSE)
 ```
 
+</details>
+
 Check the comparison labels and fold-change direction before scoring: for
 example, `B-A` must represent the same contrast in `msstats_de` and `expected`.
 After adaptation, both NADIA and external results can be exported under one
 parent directory.
+
+<details class="code-details">
+<summary>Show the directory-based benchmarking workflow</summary>
 
 ```{r multiple-from-files, eval = FALSE}
 results_root <- "benchmark_results"
@@ -1384,6 +1455,8 @@ multi_from_files <- benchmarking_multiple(
     output_dir = file.path(results_root, "multiple_summary"),
     verbose = FALSE)
 ```
+
+</details>
 
 At minimum, every method folder must contain
 `benchmark_opdea_metrics.tsv`. The additional files written automatically by
