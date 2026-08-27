@@ -76,6 +76,30 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL,
   height: auto;
   cursor: zoom-in;
 }
+.lightbox-figure.pca-covariates-figure {
+  width: 110%;
+  margin-left: -5%;
+}
+.lightbox-figure.tmt-benchmark-table {
+  width: 110%;
+  margin-left: -5%;
+}
+.tmt-pca-figure {
+  width: 110%;
+  margin-left: -5%;
+}
+.tmt-pca-figure img {
+  width: 100%;
+  height: auto;
+}
+@media (max-width: 767px) {
+  .lightbox-figure.pca-covariates-figure,
+  .lightbox-figure.tmt-benchmark-table,
+  .tmt-pca-figure {
+    width: 100%;
+    margin-left: 0;
+  }
+}
 #diagram-lightbox {
   display: none;
   position: fixed;
@@ -655,9 +679,9 @@ eliminate, the need to check design balance and verify the results.
 PVCA summarises the contributions numerically, whereas PCA shows how the samples
 are arranged. `pca_covariates_plot()` displays the same projection coloured by
 each selected covariate, making it easier to identify factors associated with
-sample separation:
+sample separation. Click the figure to enlarge it:
 
-```{r pca-cov, eval = run_bc, message = FALSE, fig.width = 7, fig.height = 6, fig.cap = "PCA of the simulated example after correction, coloured in turn by each biological or technical variable.", fig.alt = "PCA coloured by condition, digestion, injection and subject"}
+```{r pca-cov, eval = run_bc, message = FALSE, fig.show = "hide"}
 pca_grid <- pca_covariates_plot(
     res_bc$se_proc,
     assay_name = "BERT",
@@ -668,6 +692,41 @@ pca_grid <- pca_covariates_plot(
 pca_grid$grid +
     ggplot2::theme(panel.spacing = grid::unit(1.2, "lines"))
 ```
+
+::: {.pca-covariates-figure .lightbox-figure}
+```{r pca-cov-styled, eval = run_bc, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 7, fig.height = 6.2, fig.cap = "PCA of the simulated example after correction, coloured in turn by each biological or technical variable.", fig.alt = "PCA coloured by condition, digestion, injection and subject using distinct colours and shapes"}
+pca_colors <- c(
+    A  = "#0072B2", B  = "#D55E00", D  = "#009E73",
+    d1 = "#CC79A7", d2 = "#E69F00",
+    i1 = "#56B4E9", i2 = "#333333",
+    s1 = "#8C564B", s2 = "#6A3D9A", s3 = "#E41A1C", s4 = "#607D8B")
+
+pca_shapes <- c(
+    A = 16, B = 17, D = 15,
+    d1 = 16, d2 = 17,
+    i1 = 16, i2 = 17,
+    s1 = 16, s2 = 17, s3 = 15, s4 = 18)
+
+pca_grid$grid +
+    ggplot2::aes(shape = Value) +
+    ggplot2::scale_color_manual(
+        values = pca_colors,
+        breaks = names(pca_colors),
+        name = NULL) +
+    ggplot2::scale_shape_manual(
+        values = pca_shapes,
+        breaks = names(pca_shapes),
+        guide = "none") +
+    ggplot2::guides(
+        color = ggplot2::guide_legend(
+            nrow = 2, byrow = TRUE,
+            override.aes = list(size = 3, alpha = 1))) +
+    ggplot2::theme(
+        panel.spacing = grid::unit(1.2, "lines"),
+        legend.position = "bottom",
+        legend.box = "horizontal")
+```
+:::
 
 After a successful correction, samples should retain their biological grouping
 while no longer separating systematically by the corrected technical factor. If
@@ -875,6 +934,7 @@ because the directional benchmark above found very similar biological
 performance for the protected and unprotected corrections in this balanced
 design:
 
+::: {.tmt-pca-figure}
 ```{r tmt-pca-before, eval = run_bc, message = FALSE, fig.width = 8.5, fig.height = 4, fig.cap = "TMT experiment before correction. The same PCA is coloured by biological condition and TMT mix.", fig.alt = "PCA of the TMT experiment before correction, coloured by condition and by TMT mix. The samples separate by mix along the first component."}
 tmt_pca_before <- pca_covariates_plot(
     tmt_res$se_proc,
@@ -886,12 +946,14 @@ tmt_pca_before <- pca_covariates_plot(
 tmt_pca_before +
     ggplot2::theme(panel.spacing.x = grid::unit(2, "lines"))
 ```
+:::
 
 Before correction, PC1 explains 66.4% of the variance and clearly separates the
 two mixes. Within each biological condition, the samples form two groups along
 PC1 according to their mix, whereas condition is more clearly represented along
 PC2. The main source of separation is therefore technical rather than biological.
 
+::: {.tmt-pca-figure}
 ```{r tmt-pca-after, eval = run_bc, message = FALSE, fig.width = 8.5, fig.height = 4, fig.cap = "TMT experiment after correction. Mix-related separation is no longer visible and condition becomes the main source of structure.", fig.alt = "PCA of the TMT experiment after correction, coloured by condition and by TMT mix. The mix panel has no structure left and the conditions separate along the first component."}
 tmt_pca_after <- pca_covariates_plot(
     tmt_bc$se_proc,
@@ -903,6 +965,7 @@ tmt_pca_after <- pca_covariates_plot(
 tmt_pca_after +
     ggplot2::theme(panel.spacing.x = grid::unit(2, "lines"))
 ```
+:::
 
 After correction, samples from the two mixes overlap within the condition-related
 clusters. PC1 remains the dominant axis but now separates the biological

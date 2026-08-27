@@ -1,21 +1,11 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1500" height="790" viewBox="0 0 1500 790" role="img" aria-labelledby="title description">
   <title id="title">How to choose batch_covariates for batch correction</title>
   <desc id="description">Decision guide with three scenarios. Use batch_covariates to protect a known biological variable when the design is estimable. Do not fall back to NULL when biology and batch are confounded or replication is insufficient. NULL may be appropriate when there is no biological variable to protect or when all batch-associated variation is deliberately removed.</desc>
-
   <defs>
     <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
       <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#263746" flood-opacity="0.14"/>
     </filter>
-    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b8d73"/>
-    </marker>
-    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c26b32"/>
-    </marker>
-    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3978a5"/>
-    </marker>
     <style>
       .title { font: 700 35px Arial, Helvetica, sans-serif; fill: #1d3557; }
       .subtitle { font: 400 20px Arial, Helvetica, sans-serif; fill: #52616e; }
@@ -29,71 +19,66 @@
       .note { font: 400 18px Arial, Helvetica, sans-serif; fill: #52616e; }
     </style>
   </defs>
-
   <rect width="1500" height="790" fill="#ffffff"/>
-  <text x="750" y="52" text-anchor="middle" class="title">How should batch_covariates be chosen?</text>
-  <text x="750" y="86" text-anchor="middle" class="subtitle">The answer depends on the biological question and whether batch and biology can be estimated separately.</text>
-
+  <text x="750" y="52" text-anchor="middle" class="title" style="white-space: pre;">How should batch_covariates be chosen?</text>
+  <text x="750" y="86" text-anchor="middle" class="subtitle" style="white-space: pre;">The answer depends on the biological question and whether batch and biology can be estimated separately.</text>
   <g filter="url(#shadow)">
     <rect x="240" y="118" width="1020" height="86" rx="14" fill="#fff8e8" stroke="#d7ad59" stroke-width="2"/>
   </g>
-  <text x="750" y="154" text-anchor="middle" class="default-title">Default: batch_covariates = NULL</text>
-  <text x="750" y="183" text-anchor="middle" class="default-body">No biological variable is protected automatically; NULL is a neutral default, not a general recommendation.</text>
-
-  <path d="M 750 205 C 750 228, 254 218, 254 251" fill="none" stroke="#3b8d73" stroke-width="4" marker-end="url(#arrow-green)"/>
-  <path d="M 750 205 L 750 251" fill="none" stroke="#c26b32" stroke-width="4" marker-end="url(#arrow-orange)"/>
-  <path d="M 750 205 C 750 228, 1246 218, 1246 251" fill="none" stroke="#3978a5" stroke-width="4" marker-end="url(#arrow-blue)"/>
-
-  <!-- Scenario 1 -->
+  <text x="750" y="154" text-anchor="middle" class="default-title" style="white-space: pre;">Default: batch_covariates = NULL</text>
+  <text x="750" y="183" text-anchor="middle" class="default-body" style="white-space: pre;">No biological variable is protected automatically; NULL is a neutral default, not a general recommendation.</text>
+  <path d="M 750 205 C 750 228, 254 218, 254 223" fill="none" stroke-width="4" style=""/>
+  <path d="M 752 205 C 751.817 206.295 750.94 207.85 749.723 208.7 C 748.631 209.463 746.969 210.209 745.053 210.837 C 741.308 212.065 735.808 213.174 728.97 214.151 C 715.344 216.098 695.879 217.62 672.602 218.809 C 626.068 221.186 564.025 222.249 502.016 222.749 C 440.007 223.249 378.002 223.187 331.505 223.312 C 308.258 223.374 288.899 223.484 275.349 223.734 C 268.579 223.859 261.791 224.051 258.185 224.256 C 254.625 224.459 254.684 230.888 254.684 230.888 C 254.757 230.881 251.653 231.078 251.726 231.071 C 251.726 231.071 250.728 224.687 253.524 222.245 C 257.184 219.048 268.482 219.859 275.275 219.734 C 288.85 219.484 308.241 219.374 331.494 219.312 C 377.998 219.187 439.992 219.249 501.983 218.75 C 563.974 218.25 625.931 217.188 672.397 214.815 C 695.62 213.629 714.904 212.12 728.404 210.192 C 735.129 209.231 740.285 208.192 743.806 207.037 C 745.523 206.474 746.646 205.97 747.431 205.422 C 748.091 204.961 748.182 205.143 747.999 205 L 752 205 Z" style="fill: rgb(59, 141, 115);"/>
+  <polygon points="237.154 230.812 253.154 258.812 269.154 230.812" fill="#3b8d73"/>
+  <line x1="750" y1="205" x2="750" y2="223" stroke="#c26b32" stroke-width="4"/>
+  <polygon points="734,223 750,251 766,223" fill="#c26b32"/>
+  <path d="M 750 205 C 750 228, 1246 218, 1246 223" fill="none" stroke-width="4" style=""/>
+  <path d="M 748.357 206.14 C 748.357 206.14 748.323 206.628 748.716 207.194 C 749.072 207.707 749.688 208.288 750.277 208.7 C 751.369 209.463 753.031 210.209 754.947 210.837 C 758.692 212.065 764.192 213.174 771.03 214.151 C 784.656 216.098 804.121 217.62 827.398 218.809 C 873.932 221.186 935.975 222.249 997.984 222.749 C 1059.993 223.249 1121.998 223.187 1168.495 223.312 C 1191.742 223.374 1211.101 223.484 1224.651 223.734 C 1231.421 223.859 1236.71 224.018 1240.316 224.223 C 1242.107 224.325 1243.217 224.231 1244.102 224.352 C 1244.52 224.409 1244.424 229.155 1244.565 229.197 C 1244.593 229.205 1247.005 229.063 1246.921 229.011 C 1246.694 228.87 1247.167 229.687 1246.95 229.105 L 1247.186 229.594 C 1246.969 228.933 1246.963 222.107 1246.84 221.745 C 1246.757 221.501 1246.44 220.604 1245.489 220.533 C 1244.491 220.459 1242.386 220.336 1240.544 220.231 C 1236.884 220.022 1231.518 219.861 1224.725 219.736 C 1211.15 219.486 1191.759 219.376 1168.506 219.314 C 1122.002 219.189 1060.008 219.251 998.017 218.752 C 936.026 218.252 874.069 217.19 827.603 214.817 C 804.38 213.631 785.096 212.122 771.596 210.194 C 764.871 209.233 759.715 208.194 756.194 207.039 C 754.477 206.476 753.354 205.972 752.569 205.424 C 751.909 204.963 751.146 203.363 751.146 203.363 C 751.39 203.606 748.234 205.899 748.357 206.143 L 748.357 206.14 Z" style="fill: rgb(57, 120, 165);"/>
+  <polygon points="1229.57 228.192 1245.57 256.192 1261.57 228.192" fill="#3978a5"/>
   <g filter="url(#shadow)">
     <rect x="28" y="260" width="452" height="410" rx="15" fill="#f2faf7" stroke="#74b79f" stroke-width="2"/>
     <rect x="28" y="260" width="452" height="10" rx="5" fill="#3b8d73"/>
   </g>
-  <text x="254" y="312" text-anchor="middle" class="card-title">Known biology + estimable design</text>
-  <text x="254" y="348" text-anchor="middle" class="action" fill="#28745d">USE A PROTECTED COVARIATE</text>
-  <text x="57" y="392" class="body">• the condition is represented across batches</text>
-  <text x="57" y="424" class="body">• batch × condition groups have sufficient data</text>
-  <text x="57" y="456" class="body">• the biological contrast must be retained</text>
+  <text x="254" y="312" text-anchor="middle" class="card-title" style="white-space: pre;">Known biology + estimable design</text>
+  <text x="254" y="348" text-anchor="middle" class="action" fill="#28745d" style="white-space: pre;">USE A PROTECTED COVARIATE</text>
+  <text x="57" y="392" class="body" style="white-space: pre;">• the condition is represented across batches</text>
+  <text x="57" y="424" class="body" style="white-space: pre;">• batch × condition groups have sufficient data</text>
+  <text x="57" y="456" class="body" style="white-space: pre;">• the biological contrast must be retained</text>
   <rect x="57" y="493" width="394" height="57" rx="9" fill="#e0f1eb" stroke="#8bc4af"/>
-  <text x="254" y="529" text-anchor="middle" class="code">batch_covariates = "Condition"</text>
+  <text x="254" y="529" text-anchor="middle" class="code" style="white-space: pre;">batch_covariates = "Condition"</text>
   <line x1="57" y1="579" x2="451" y2="579" stroke="#b9d9cd" stroke-width="2"/>
-  <text x="254" y="614" text-anchor="middle" class="footer">Recommended when biological groups</text>
-  <text x="254" y="640" text-anchor="middle" class="footer">are defined and the design permits it.</text>
-
-  <!-- Scenario 2 -->
+  <text x="254" y="614" text-anchor="middle" class="footer" style="white-space: pre;">Recommended when biological groups</text>
+  <text x="254" y="640" text-anchor="middle" class="footer" style="white-space: pre;">are defined and the design permits it.</text>
   <g filter="url(#shadow)">
     <rect x="524" y="260" width="452" height="410" rx="15" fill="#fff7f0" stroke="#dfa06f" stroke-width="2"/>
     <rect x="524" y="260" width="452" height="10" rx="5" fill="#c26b32"/>
   </g>
-  <text x="750" y="312" text-anchor="middle" class="card-title">Confounded or sparse design</text>
-  <text x="750" y="348" text-anchor="middle" class="action" fill="#a24f1e">DO NOT FALL BACK TO NULL</text>
-  <text x="553" y="392" class="body">• batch and biology may not be separable</text>
-  <text x="553" y="424" class="body">• the protected model may be singular</text>
-  <text x="553" y="456" class="body">• unprotected correction may erase biology</text>
+  <text x="750" y="312" text-anchor="middle" class="card-title" style="white-space: pre;">Confounded or sparse design</text>
+  <text x="750" y="348" text-anchor="middle" class="action" fill="#a24f1e" style="white-space: pre;">DO NOT FALL BACK TO NULL</text>
+  <text x="553" y="392" class="body" style="white-space: pre;">• batch and biology may not be separable</text>
+  <text x="553" y="424" class="body" style="white-space: pre;">• the protected model may be singular</text>
+  <text x="553" y="456" class="body" style="white-space: pre;">• unprotected correction may erase biology</text>
   <rect x="553" y="493" width="394" height="57" rx="9" fill="#fae7d8" stroke="#e4ad82"/>
-  <text x="750" y="518" text-anchor="middle" class="footer">Reassess the design, collect more data,</text>
-  <text x="750" y="541" text-anchor="middle" class="footer">or report the limitation.</text>
+  <text x="750" y="518" text-anchor="middle" class="footer" style="white-space: pre;">Reassess the design, collect more data,</text>
+  <text x="750" y="541" text-anchor="middle" class="footer" style="white-space: pre;">or report the limitation.</text>
   <line x1="553" y1="579" x2="947" y2="579" stroke="#e8c5aa" stroke-width="2"/>
-  <text x="750" y="614" text-anchor="middle" class="footer">Correction may not be statistically</text>
-  <text x="750" y="640" text-anchor="middle" class="footer">defensible in this design.</text>
-
-  <!-- Scenario 3 -->
+  <text x="750" y="614" text-anchor="middle" class="footer" style="white-space: pre;">Correction may not be statistically</text>
+  <text x="750" y="640" text-anchor="middle" class="footer" style="white-space: pre;">defensible in this design.</text>
   <g filter="url(#shadow)">
     <rect x="1020" y="260" width="452" height="410" rx="15" fill="#f2f7fb" stroke="#7da9c6" stroke-width="2"/>
     <rect x="1020" y="260" width="452" height="10" rx="5" fill="#3978a5"/>
   </g>
-  <text x="1246" y="312" text-anchor="middle" class="card-title">No biological variable to protect</text>
-  <text x="1246" y="348" text-anchor="middle" class="action" fill="#28658e">NULL MAY BE APPROPRIATE</text>
-  <text x="1049" y="392" class="body">• exploratory analysis without defined groups</text>
-  <text x="1049" y="424" class="body">• deliberate removal of all variation</text>
-  <text x="1069" y="450" class="body">associated with batch</text>
-  <text x="1049" y="482" class="body">• downstream results will be validated</text>
+  <text x="1246" y="312" text-anchor="middle" class="card-title" style="white-space: pre;">No biological variable to protect</text>
+  <text x="1246" y="348" text-anchor="middle" class="action" fill="#28658e" style="white-space: pre;">NULL MAY BE APPROPRIATE</text>
+  <text x="1049" y="392" class="body" style="white-space: pre;">• exploratory analysis without defined groups</text>
+  <text x="1049" y="424" class="body" style="white-space: pre;">• deliberate removal of all variation</text>
+  <text x="1069" y="450" class="body" style="white-space: pre;">associated with batch</text>
+  <text x="1049" y="482" class="body" style="white-space: pre;">• downstream results will be validated</text>
   <rect x="1049" y="511" width="394" height="57" rx="9" fill="#e1edf5" stroke="#94b8cf"/>
-  <text x="1246" y="547" text-anchor="middle" class="code">batch_covariates = NULL</text>
+  <text x="1246" y="547" text-anchor="middle" class="code" style="white-space: pre;">batch_covariates = NULL</text>
   <line x1="1049" y1="592" x2="1443" y2="592" stroke="#bfd3e0" stroke-width="2"/>
-  <text x="1246" y="625" text-anchor="middle" class="footer">NULL means that no biological effect</text>
-  <text x="1246" y="650" text-anchor="middle" class="footer">is explicitly protected.</text>
-
+  <text x="1246" y="625" text-anchor="middle" class="footer" style="white-space: pre;">NULL means that no biological effect</text>
+  <text x="1246" y="650" text-anchor="middle" class="footer" style="white-space: pre;">is explicitly protected.</text>
   <rect x="145" y="710" width="1210" height="50" rx="11" fill="#f3f5f7" stroke="#c9d0d6"/>
-  <text x="750" y="741" text-anchor="middle" class="note">A balanced design reduces risk, but explicit protection remains preferable when the biological variable is known.</text>
+  <text x="750" y="741" text-anchor="middle" class="note" style="white-space: pre;">A balanced design reduces risk, but explicit protection remains preferable when the biological variable is known.</text>
 </svg>
