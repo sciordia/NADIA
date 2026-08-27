@@ -247,13 +247,13 @@ protein-abundance matrix is expressed on the log2 scale.
 | `log2Norm` | Applies the same log2 transformation. It is retained as a named benchmark method for compatibility. |
 | `GlobalMedian` | Divides each sample by its total intensity and rescales the totals to their median before log2 transformation. |
 | `GlobalMean` | Divides each sample by its total intensity and rescales the totals to their mean before log2 transformation. |
-| `eqmedians` | Log2-transforms the data and shifts every sample so that all sample medians are equal. |
+| `eqmedians` | Log2-transforms the data and shifts every sample so that all sample medians are equal. This approach is based on the equal-median normalisation used by MSstats. |
 | `medianNorm` | Divides raw intensities by the sample median, rescales to the mean of the sample medians and then applies log2. |
 | `meanNorm` | Divides raw intensities by the sample mean, rescales to the mean of the sample means and then applies log2. |
 | `vsn` | Uses variance-stabilising normalisation from the `vsn` package to reduce the dependence between variance and mean intensity. |
 | `quantile` | Maps the empirical distribution of every sample to a common quantile distribution using `limma`. |
 | `quantile.robust` | Uses the median, rather than the mean, across sample quantiles to construct a reference distribution that is less sensitive to extreme samples. |
-| `Rlr` | Fits a robust linear regression between each sample and the protein-wise median profile, then removes the fitted offset and scale. |
+| `Rlr` | Fits a robust linear regression between each sample and the protein-wise median profile, then removes the fitted offset and scale. This approach is based on the global robust linear regression normalisation implemented in NormalyzerDE. |
 | `MAD` | Aligns both the median and the median absolute deviation of every sample to the corresponding global values. |
 | `cycloess` | Applies cyclic loess normalisation with `limma`, correcting intensity-dependent differences between samples. |
 
@@ -497,7 +497,7 @@ unambiguously.
 |  | `MinProb` | Draws low values around a sample-specific low quantile. |
 |  | `PI` | Perseus-style sampling from a narrowed, down-shifted normal distribution. |
 |  | `min` | Replaces every gap with the global observed minimum. |
-|  | `halfmin` | Uses half the global minimum on the original scale, equivalent to one unit below the minimum on the log2 scale. |
+|  | `halfmin` | Uses half the global minimum on the original scale, equivalent to one unit below the minimum on the log2 scale; this convention is used by DIA-NN. |
 |  | `zero` | Replaces every gap with zero on the log2 scale. |
 |  | `with` | Replaces every gap with a user-supplied constant. |
 | Hybrid | `combo` | Classifies missing cells from condition-wise presence patterns, then applies separate MAR and MNAR methods. Defaults are `Impseqrob` and `min`. |
@@ -577,10 +577,11 @@ method with the lowest `Rank_Mean` therefore has the best overall performance
 for the simulated gaps.
 
 Occasionally, a metric cannot be calculated for a particular method. In that
-case, NADIA calculates `Rank_Mean` from the ranks that are available; the method
-is not automatically assigned the best or worst rank for the missing metric.
-The user should therefore inspect any `NA` before selecting the winner rather
-than relying only on `Rank_Mean`.
+case, NADIA calculates `Rank_Mean` from the available ranks without assigning
+the best or worst rank to the missing metric. Therefore, before selecting a
+method solely on the basis of `Rank_Mean`, check whether any of its metric values
+are `NA`. A favourable mean rank based on fewer metrics may not be directly
+comparable with one calculated from the complete set of metrics.
 
 `ACC_OI` compares the true and imputed values only at the cells that NADIA hid
 for the simulation. This prevents the many unchanged cells from making the
