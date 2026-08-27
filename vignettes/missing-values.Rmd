@@ -381,8 +381,9 @@ in the DIA-NN example. In both matrices, the distribution peaks at four missing
 values per protein—the number of replicates in one condition—indicating that
 condition-wise dropout is common. This affects 14.4% of proteins in Spectronaut
 and 20.4% in DIA-NN; DIA-NN also contains more proteins with eight or more
-missing values. Incomplete proteins have a lower median observed intensity than
-complete proteins in both matrices, with a difference of 1.9 log~2~ units in
+missing values. Incomplete proteins (`n_missing > 0`) have a lower median
+observed intensity than complete proteins (`n_missing = 0`) in both matrices,
+with a difference of 1.9 log~2~ units in
 Spectronaut and 2.6 log~2~ units in DIA-NN. These within-matrix differences do
 not compare the absolute intensity scales of the search engines. Overall, the
 DIA-NN example shows more missingness, more condition-wise dropout and a
@@ -416,7 +417,7 @@ unambiguously.
 |  | `MinProb` | Draws low values around a sample-specific low quantile. |
 |  | `PI` | Perseus-style sampling from a narrowed, down-shifted normal distribution. |
 |  | `min` | Replaces every gap with the global observed minimum. |
-|  | `halfmin` | Uses half the global minimum on the original scale, equivalent to one unit below the minimum on the log2 scale. |
+|  | `halfmin` | Uses half the global minimum on the original scale, equivalent to one unit below the minimum on the log2 scale; this convention is used by DIA-NN. |
 |  | `zero` | Replaces every gap with zero on the log2 scale. |
 |  | `with` | Replaces every gap with a user-supplied constant. |
 | Hybrid | `combo` | Classifies missing cells from condition-wise presence patterns, then applies separate MAR and MNAR methods. Defaults are `Impseqrob` and `min`. |
@@ -648,12 +649,12 @@ protein abundance to the probability of observing a signal. It then uses this
 curve to estimate the abundance of missing measurements together with their
 standard errors.
 
-The abundance estimates and their uncertainty are converted into **precision
-weights** for differential analysis. Values reconstructed from limited evidence
-therefore contribute less to the statistical model than values supported by
-consistent measurements. This allows information to be recovered from missing
-values without treating every estimate as if it were measured with equal
-precision.
+Here, *precision* means statistical reliability. `limpa` converts each
+abundance estimate and its uncertainty into a **precision weight** for differential
+analysis: an estimate based on limited evidence receives less weight than an
+observed, reproducible measurement. Missing values can therefore still
+contribute information, while uncertain estimates have less influence on the
+fitted model.
 
 The estimates and weights are stored together and must remain linked through the
 differential abundance step:
