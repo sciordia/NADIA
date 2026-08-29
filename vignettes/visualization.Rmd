@@ -1,5 +1,5 @@
 ---
-title: "Visualization: tuning the figures"
+title: "Visualisation: exploring and presenting results"
 author: "Sergio Ciordia"
 package: NADIA
 output:
@@ -8,257 +8,1223 @@ output:
     toc_float: true
     number_sections: true
 vignette: >
-  %\VignetteIndexEntry{Visualization: tuning the figures}
+  %\VignetteIndexEntry{Visualisation: exploring and presenting results}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r setup, include = FALSE}
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  crop = NULL,
+  message = FALSE,
+  warning = FALSE
+)
+
+options(width = 100)
+
+have_heatmap <- all(vapply(
+  c("ComplexHeatmap", "tidyHeatmap", "circlize"),
+  requireNamespace,
+  logical(1),
+  quietly = TRUE
+))
+
+have_pattern_profiler <- all(vapply(
+  c("Mfuzz", "Biobase", "e1071"),
+  requireNamespace,
+  logical(1),
+  quietly = TRUE
+))
+
+# highcharter 0.9.5 declares every Highcharts module for every widget. Some of
+# those modules contain literal HTML closing tags, which can be exposed as text
+# when Pandoc embeds the dependencies in a self-contained BiocStyle vignette.
+# The examples below need only the core and highcharts-more modules. Exporting
+# remains available in ordinary NADIA use and is documented later in the text.
+prepare_vignette_highchart <- function(widget) {
+  widget <- highcharter::hc_exporting(widget, enabled = FALSE)
+
+  highcharts_dir <- system.file(
+    "htmlwidgets/lib/highcharts",
+    package = "highcharter"
+  )
+
+  slim_dependency <- htmltools::htmlDependency(
+    name = "highcharts",
+    version = "9.3.1.9000",
+    src = c(file = highcharts_dir),
+    script = c("highcharts.js", "highcharts-more.js", "custom/reset.js"),
+    all_files = FALSE
+  )
+
+  widget$dependencies <- c(widget$dependencies, list(slim_dependency))
+  widget
+}
 ```
+
+<style type="text/css">
+.visualisation-choice-table {
+  width: calc(100% - 4.5em);
+  box-sizing: border-box;
+  margin: 1em 0 1.5em;
+}
+.visualisation-choice-table table {
+  width: 100% !important;
+  max-width: none;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  table-layout: fixed;
+  font-size: 0.95em;
+  line-height: 1.3;
+}
+.visualisation-choice-table th,
+.visualisation-choice-table td {
+  padding: 0.5em 0.7em !important;
+  vertical-align: top !important;
+}
+.visualisation-choice-table th:nth-child(1),
+.visualisation-choice-table td:nth-child(1) {
+  width: 29%;
+}
+.visualisation-choice-table th:nth-child(2),
+.visualisation-choice-table td:nth-child(2) {
+  width: 17%;
+}
+.visualisation-choice-table th:nth-child(3),
+.visualisation-choice-table td:nth-child(3) {
+  width: 18%;
+}
+.visualisation-choice-table th:nth-child(4),
+.visualisation-choice-table td:nth-child(4) {
+  width: 36%;
+}
+.visualisation-warning {
+  width: calc(100% - 4.5em);
+  box-sizing: border-box;
+  margin: 1.15em 0 1.5em;
+  padding: 0.9em 1.1em;
+  border: 1px solid #e4c78e;
+  border-left: 5px solid #c98718;
+  border-radius: 5px;
+  background: #fffaf0;
+  box-shadow: 0 1px 2px rgba(112, 78, 20, 0.08);
+}
+.visualisation-warning p {
+  margin: 0 0 0.75em;
+  padding: 0 !important;
+  text-align: justify;
+}
+.visualisation-warning p:last-child {
+  margin-bottom: 0;
+}
+.visualisation-warning strong:first-child {
+  color: #7a5310;
+}
+.interactive-chart-compact {
+  width: 90%;
+  margin: 1em auto 1.6em;
+}
+.interactive-chart-compact .html-widget {
+  width: 100% !important;
+}
+.boxplot-chart .html-widget {
+  height: 560px !important;
+}
+.boxplot-chart {
+  margin-bottom: 2.5em;
+}
+.wide-data-table {
+  width: calc(100% - 4.5em);
+  box-sizing: border-box;
+  margin: 1em 0 1.5em;
+}
+.wide-data-table table {
+  width: 100% !important;
+  max-width: none;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  table-layout: fixed;
+}
+.wide-data-table th,
+.wide-data-table td {
+  padding: 0.5em 0.7em !important;
+  vertical-align: top !important;
+}
+.pca-outline-table th:nth-child(1),
+.pca-outline-table td:nth-child(1) {
+  width: 18%;
+}
+.pca-outline-table th:nth-child(2),
+.pca-outline-table td:nth-child(2) {
+  width: 38%;
+}
+.pca-outline-table th:nth-child(3),
+.pca-outline-table td:nth-child(3) {
+  width: 44%;
+}
+.heatmap-subset-table th:nth-child(1),
+.heatmap-subset-table td:nth-child(1) {
+  width: 34%;
+}
+.heatmap-subset-table th:nth-child(2),
+.heatmap-subset-table td:nth-child(2),
+.heatmap-subset-table th:nth-child(3),
+.heatmap-subset-table td:nth-child(3) {
+  width: 12%;
+}
+.heatmap-subset-table th:nth-child(4),
+.heatmap-subset-table td:nth-child(4) {
+  width: 42%;
+}
+.palette-reference-table {
+  margin: 1em 0 1.5em;
+}
+.palette-reference-table table {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+@media screen and (max-width: 767px) {
+  .visualisation-choice-table {
+    overflow-x: auto;
+  }
+  .wide-data-table {
+    overflow-x: auto;
+  }
+  .visualisation-choice-table table {
+    min-width: 760px;
+  }
+  .wide-data-table table {
+    min-width: 680px;
+  }
+  .visualisation-choice-table,
+  .visualisation-warning,
+  .wide-data-table,
+  .interactive-chart-compact {
+    width: 100%;
+  }
+}
+</style>
 
 # Introduction
 
-The visualisation modules are independent of the pipeline: they take data frames,
-not the objects that produced them, so any of them can be pointed at results
-computed elsewhere. This vignette covers the arguments that matter and the two or
-three places where a default deserves a second thought.
+A useful proteomics figure should answer a specific question. A volcano plot
+summarises differential abundance, a boxplot compares sample distributions, a
+principal component analysis (PCA) reveals the main sources of variation, and a
+heatmap displays coordinated protein profiles across individual samples.
+Pattern Profiler adds a different view by grouping proteins with similar
+relative trajectories across ordered conditions. These views are complementary;
+none is a substitute for the others or for the underlying statistical model.
 
-The split is deliberate. **Highcharts** for the figures you explore — volcano,
-boxplot, PCA — where hovering a point to read its identity is the whole value.
-**ggplot2 and ComplexHeatmap** for the figures you publish, where a static file
-at a fixed size is what a journal wants.
+This vignette presents a complete visualisation workflow for NADIA results. It
+shows how to choose and prepare each plot, how to interpret the example output,
+which customisation options most often matter, and how to export the result.
+The interactive functions use **highcharter**, whereas the publication-oriented
+heatmap uses **tidyHeatmap** and **ComplexHeatmap**.
 
-# Installation
+# Setup and example data
 
-```{r install, eval = FALSE}
+This section creates one reproducible analysis that will be reused throughout
+the vignette. Keeping the data and thresholds constant makes it possible to
+compare what each visualisation adds to the interpretation.
+
+## Installation
+
+NADIA can be installed with `BiocManager`. The heatmap and Pattern Profiler
+packages are optional dependencies and are installed separately when those
+visualisations are required.
+
+```{r installation, eval=FALSE}
 if (!requireNamespace("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-BiocManager::install("NADIA")
+  install.packages("BiocManager")
+
+BiocManager::install(c("NADIA", "ComplexHeatmap", "Mfuzz", "Biobase"))
+install.packages(c("tidyHeatmap", "circlize", "e1071"))
 ```
 
-```{r library, message = FALSE}
+## Processing the example dataset
+
+The `nadia_dia` dataset contains three conditions (`A`, `B`, and `D`) with four
+replicates per condition. `process_proteomics()` returns the processed
+experiment and the long-format tables expected by the plotting and clustering
+functions.
+
+```{r load-data}
 library(NADIA)
 data(nadia_dia)
-```
 
-```{r run, message = FALSE}
 res <- process_proteomics(nadia_dia, verbose = FALSE)
 ```
 
-**One figure per module is rendered live** below — a volcano, a boxplot and a
-PCA. Hover a point to read its identity, drag to zoom, click a legend entry to
-hide a series. The variations on each are shown as code without being run: the
-Highcharts library costs about 2 MB once, and each rendered figure carries its
-own data, which for 2,000 proteins is another 500 KB or so. Three is what fits
-comfortably; the rest would take this document past the size a package should
-ship.
+The sample design should always be checked before a plot is interpreted.
 
-The `*_highchart_list()` functions return a **named list**, one element per
-comparison or assay, so the examples subset it — `[["B-A"]]`, `[["any"]]` — to
-render a single figure. Printing the list itself renders nothing useful.
+```{r example-design}
+sample_design <- unique(
+  res$PCA_Input[c("SampleID", "Condition", "Replicate")]
+)
 
-## A note on Highcharts licensing
+design_summary <- as.data.frame(table(sample_design$Condition))
+names(design_summary) <- c("Condition", "Samples")
 
-NADIA uses **highcharter** (MIT) to build its interactive figures. highcharter is
-an R interface to the **Highcharts** JavaScript library, which is distributed
-under its own separate terms: free for personal and non-commercial use, but
-requiring a paid licence for commercial and governmental use.
-
-NADIA does not bundle Highcharts — it is shipped by highcharter — and NADIA's own
-GPL-3 licence neither grants nor implies a licence for it. Users are responsible
-for ensuring that their use of Highcharts complies with the applicable
-[Highcharts licence](https://www.highcharts.com/license). Highsoft offers a
-discount to highcharter users.
-
-This is worth reading before you build a figure for a grant report or a
-commercial deliverable. The static figures in the second half of this vignette —
-ggplot2 and ComplexHeatmap — carry no such restriction, and every analysis in
-NADIA can be completed without producing a single interactive figure.
-
-# The three inputs
-
-Each interactive module consumes one of the three tables the pipeline returns,
-and none of them needs the `SummarizedExperiment`:
-
-```{r inputs}
-str(res$DEPs_results,  max.level = 1, give.attr = FALSE, list.len = 4)
-str(res$BoxPlot_Input, max.level = 1, give.attr = FALSE, list.len = 4)
-str(res$PCA_Input,     max.level = 1, give.attr = FALSE, list.len = 4)
+knitr::kable(
+  design_summary,
+  row.names = FALSE,
+  caption = "Number of samples in each condition of the example experiment."
+)
 ```
+
+The Highcharts functions operate on ordinary data frames, including the
+long-format output produced by Pattern Profiler. The clustering analysis itself
+uses the processed `SummarizedExperiment` together with `DEPs_results` to select
+and aggregate protein profiles. Compatible plotting tables can therefore be
+imported from another workflow, whereas a new Pattern Profiler run also needs
+the corresponding processed experiment.
+
+```{r visualisation-inputs}
+input_summary <- data.frame(
+  Object = c("DEPs_results", "BoxPlot_Input", "PCA_Input", "se_proc"),
+  Rows = c(
+    nrow(res$DEPs_results),
+    nrow(res$BoxPlot_Input),
+    nrow(res$PCA_Input),
+    nrow(res$se_proc)
+  ),
+  Columns = c(
+    ncol(res$DEPs_results),
+    ncol(res$BoxPlot_Input),
+    ncol(res$PCA_Input),
+    ncol(res$se_proc)
+  ),
+  Used_by = c(
+    "Volcano plots and Pattern Profiler",
+    "Boxplots",
+    "PCA and heatmaps",
+    "Pattern Profiler"
+  )
+)
+
+knitr::kable(
+  input_summary,
+  row.names = FALSE,
+  caption = "Objects returned by process_proteomics() for visualisation."
+)
+```
+
+# Choosing the appropriate visualisation
+
+Each plot starts from a different analytical question. The following table is a
+compact guide to choosing a view before changing colours or other presentation
+details.
+
+::: {.visualisation-choice-table}
+
+| Question | Recommended view | Main unit shown | Important limitation |
+|:--|:--|:--|:--|
+| Which proteins differ between two conditions? | Volcano plot | One protein per comparison | The plot displays model results; it does not refit the model |
+| Are sample-level intensity distributions comparable? | Boxplot | One distribution per sample | Similar distributions do not prove that unwanted variation has been removed |
+| What are the dominant directions of sample variation? | PCA | One point per sample | Separation depends on the proteins and scaling used |
+| Which proteins share a relative abundance pattern? | Heatmap | One row per protein | Row-scaled colours cannot compare absolute abundance between proteins |
+| Which proteins follow similar trajectories across ordered conditions? | Pattern Profiler | One standardised profile per protein | Clusters depend on condition order, the chosen number of clusters, and membership threshold |
+
+:::
+
+Several Highcharts functions return **named lists**: volcano plots are named by
+comparison, boxplots by assay, PCA plots by subset, and Pattern Profiler profile
+plots by cluster. Select one element to display a chart; printing the list
+itself is not useful. The Pattern Profiler centroid function instead returns one
+chart containing all selected clusters.
+
+```{r named-lists, eval=FALSE}
+volcanoes <- volcano_highchart_list(res$DEPs_results)
+names(volcanoes)
+volcanoes[["B-A"]]
+
+boxplots <- boxplot_highchart_list(res$BoxPlot_Input)
+names(boxplots)
+boxplots[["Impseqrob_min"]]
+
+pcas <- pca_highchart_list(res$PCA_Input, modes = c("all", "any"))
+names(pcas)
+pcas[["all"]]
+```
+
+## Interactive and static output
+
+Interactive charts are particularly useful during exploration: points can be
+identified from tooltips, axes can be zoomed, and groups can be hidden from the
+legend. A static heatmap is preferable when dimensions, typography, and vector
+output must remain fixed for a manuscript.
+
+One volcano plot, one boxplot, one PCA plot, and two compact Pattern Profiler
+charts are rendered below. Additional variants are shown as code without
+execution to keep the installed vignette at a reasonable size. The download
+module is omitted from these five embedded widgets; charts created in a regular
+R session retain their export menu.
+
+## Highcharts licence
+
+::: {.visualisation-warning}
+**Important licensing note.** NADIA uses the MIT-licensed R package
+**highcharter** as an interface to the Highcharts JavaScript library.
+Highcharts is distributed under separate terms, and the licence of highcharter
+or NADIA does not grant a Highcharts licence.
+
+At the time this vignette was revised, Highcharts permitted qualifying personal
+and educational use under its non-commercial terms, while organisational,
+production, and commercial uses could require a commercial licence. Users
+should check the current [Highcharts licence](https://shop.highcharts.com/license-eula)
+for their intended use. The static heatmap workflow does not use Highcharts.
+:::
 
 # Volcano plots
 
-```{r volcano}
-v <- volcano_highchart_list(res$DEPs_results,
-                            alpha   = 0.05,
-                            lfc_thr = 1,
-                            palette = "RColorBrewer::Set1")
-v[["B-A"]]
+A volcano plot combines effect size and statistical evidence for one comparison.
+It is most useful for identifying proteins that are both sufficiently different
+in abundance and supported by the differential-abundance model.
+
+## Summarising the selected comparison
+
+Before drawing the figure, it is helpful to count the proteins assigned to each
+category. The table below applies the same thresholds as the plot: adjusted
+*p*-value below 0.05 and absolute log2 fold change of at least 1.
+
+```{r volcano-summary}
+de_ba <- res$DEPs_results[
+  res$DEPs_results$Comparison == "B-A",
+  ,
+  drop = FALSE
+]
+
+volcano_class <- ifelse(
+  !is.na(de_ba$adj.P.Val) & de_ba$adj.P.Val < 0.05 & de_ba$logFC >= 1,
+  "Up",
+  ifelse(
+    !is.na(de_ba$adj.P.Val) & de_ba$adj.P.Val < 0.05 & de_ba$logFC <= -1,
+    "Down",
+    "Not significant"
+  )
+)
+
+volcano_counts <- as.data.frame(table(
+  factor(volcano_class, levels = c("Up", "Down", "Not significant"))
+))
+names(volcano_counts) <- c("Classification", "Proteins")
+
+n_up <- volcano_counts$Proteins[volcano_counts$Classification == "Up"]
+n_down <- volcano_counts$Proteins[volcano_counts$Classification == "Down"]
+n_not_significant <- volcano_counts$Proteins[
+  volcano_counts$Classification == "Not significant"
+]
+
+knitr::kable(
+  volcano_counts,
+  row.names = FALSE,
+  caption = "Protein classification for B-A at adjusted p < 0.05 and |log2FC| >= 1."
+)
 ```
 
-`lfc_thr` here is a **drawing** threshold — where the vertical guides go and how
-points are coloured. It is independent of the `logFC_threshold` used when the
-model was fitted, which is what decided the `Change` column. Setting it to 1 in
-the plot does not re-test anything, and a point drawn outside the guides is not
-thereby significant.
+Under these criteria, the example contains `r n_up` up-regulated proteins,
+`r n_down` down-regulated proteins, and `r n_not_significant` proteins that do
+not pass both thresholds. This numerical summary prevents the apparent density
+of points from being mistaken for a count.
 
-Two arguments label points. `show_top_genes` takes the *n* most significant:
+## Creating and reading the plot
 
-```{r volcano-top, eval = FALSE}
-volcano_highchart_list(res$DEPs_results, show_top_genes = 10)[["B-A"]]
+`volcano_highchart_list()` creates one chart for every requested comparison.
+Here, the six most statistically significant proteins that also pass both
+thresholds are labelled automatically.
+
+::: {.interactive-chart-compact}
+
+```{r volcano-plot}
+volcanoes <- volcano_highchart_list(
+  res$DEPs_results,
+  comparisons = "B-A",
+  alpha = 0.05,
+  lfc_thr = 1,
+  p_col = "adj.P.Val",
+  show_top_genes = 6,
+  title = "Differential abundance: {comparison}"
+)
+
+prepare_vignette_highchart(volcanoes[["B-A"]])
 ```
 
-`highlight_genes` takes a list you choose, which is usually what a figure for a
-paper needs — the proteins the paper is about, whether or not they top the table:
+:::
 
-```{r volcano-highlight, eval = FALSE}
-volcano_highchart_list(res$DEPs_results,
-                       highlight_genes = c("ALB", "NUDT4B", "EPPK1"))[["B-A"]]
+The x-axis is the log2 fold change. Positive values indicate greater abundance
+in `B` relative to `A`, whereas negative values indicate greater abundance in
+`A`. The y-axis is `-log10(adj.P.Val)`, so stronger statistical evidence appears
+higher in the chart. A protein is coloured as up- or down-regulated only when it
+passes both the horizontal significance threshold and the vertical effect-size
+threshold.
+
+The `lfc_thr` argument controls the guides and classification **in the figure**.
+It does not rerun differential-abundance analysis or alter `res$DEPs_results`.
+For the plot and the result table to communicate the same decision rule, use the
+same `alpha` and fold-change threshold in both stages and record those values.
+
+By default, `p_col = "adj.P.Val"` controls both the y-axis and classification.
+Raw `P.Value` can be displayed for diagnostic work, but adjusted values are the
+appropriate default when many proteins are tested simultaneously.
+
+## Labelling selected proteins and multiple comparisons
+
+Automatic labels are convenient for exploration, while a manually selected set
+is usually clearer in a report. `highlight_genes` matches the `Gene.Names`
+column and may highlight a protein whether or not it passes the thresholds.
+
+```{r volcano-options, eval=FALSE}
+# Label proteins selected for their biological relevance.
+volcano_highchart_list(
+  res$DEPs_results,
+  comparisons = "B-A",
+  alpha = 0.05,
+  lfc_thr = 1,
+  highlight_genes = c("lamB", "yciU", "gltA")
+)[["B-A"]]
+
+# Build several charts with identical settings.
+volcanoes_all <- volcano_highchart_list(
+  res$DEPs_results,
+  comparisons = c("B-A", "D-A", "D-B"),
+  alpha = 0.05,
+  lfc_thr = 1,
+  title = "Differential abundance: {comparison}"
+)
+
+names(volcanoes_all)
 ```
 
-`p_col` switches the y axis between `adj.P.Val` (the default, and the honest
-choice) and `P.Value`.
+# Boxplots of sample distributions
 
-# Boxplots
+Sample-level boxplots provide a compact quality-control view of the intensity
+distribution. They are useful before and after processing because shifts in
+location, spread, or shape can reveal samples that deserve closer inspection.
 
-The input holds one row per protein, sample and assay, so a single call can show
-the effect of a processing step:
+## Comparing assays numerically
 
-```{r boxplot-assays}
-unique(res$BoxPlot_Input$Assay)
+The example output contains the initial log2 intensities and the final processed
+assay. The following summary calculates the median for every sample and then
+reports the range of those sample medians within each assay.
+
+```{r boxplot-summary}
+sample_medians <- aggregate(
+  Intensity ~ Assay + Column + Condition,
+  data = res$BoxPlot_Input,
+  FUN = median,
+  na.rm = TRUE
+)
+
+median_ranges <- do.call(
+  rbind,
+  lapply(split(sample_medians$Intensity, sample_medians$Assay), function(x) {
+    data.frame(
+      Minimum = min(x),
+      Maximum = max(x),
+      Range = max(x) - min(x)
+    )
+  })
+)
+
+median_ranges$Assay <- rownames(median_ranges)
+rownames(median_ranges) <- NULL
+median_ranges <- median_ranges[c("Assay", "Minimum", "Maximum", "Range")]
+median_ranges[-1] <- lapply(median_ranges[-1], round, digits = 3)
+
+knitr::kable(
+  median_ranges,
+  row.names = FALSE,
+  caption = "Range of sample medians before and after processing."
+)
 ```
 
-```{r boxplot}
-boxplot_highchart_list(res$BoxPlot_Input,
-                       assays     = c("log2", "Impseqrob_min"),
-                       color_by   = "Condition",
-                       horizontal = TRUE)[["Impseqrob_min"]]
+In this dataset, the range of sample medians decreases after processing. This is
+consistent with improved alignment of the sample distributions, but it is not
+proof that every technical effect has been removed. Distributional similarity
+should be considered together with the experimental design, PCA, and the
+normalisation diagnostics described in `vignette("choosing-methods")`.
+
+## Creating and reading the boxplot
+
+The chart below shows the final assay. Each box spans the first to the third
+quartile, the central line is the median, and the whiskers extend to the most
+extreme values within 1.5 interquartile ranges. Hovering over a box reports these
+statistics and the number of finite protein intensities in that sample.
+
+::: {.interactive-chart-compact .boxplot-chart}
+
+```{r boxplot-plot}
+set.seed(42)
+
+boxplots <- boxplot_highchart_list(
+  res$BoxPlot_Input,
+  assays = "Impseqrob_min",
+  color_by = "Condition",
+  group_order = c("A", "B", "D"),
+  horizontal = FALSE,
+  show_outliers = TRUE,
+  title = "Processed intensity distributions",
+  subtitle = "Assay: {assay}",
+  height = 560
+)
+
+prepare_vignette_highchart(boxplots[["Impseqrob_min"]])
 ```
 
-Comparing `log2` against the processed assay is the standard check that
-normalisation did what it claims: the medians should line up afterwards without
-the distributions collapsing onto each other.
+:::
 
-`group_order` fixes the order of the boxes, which otherwise follows the factor
-levels; `show_outliers = FALSE` drops the individual outlier points, worth doing
-when there are thousands of them and the browser starts to labour.
+The medians are closely aligned, while each sample retains a broad intensity
+range. Alignment is expected after the processing used in this example;
+complete collapse of the boxes, however, would be suspicious because biological
+and sampling variation should remain.
 
-# PCA
+The points beyond the whiskers are displayed with `show_outliers = TRUE`. They
+highlight the tails of each sample distribution but are not automatically
+erroneous measurements. In much larger experiments, set
+`show_outliers = FALSE` when the additional points obscure the boxes or make
+the interactive widget unnecessarily heavy.
 
-```{r pca}
-pca_highchart_list(res$PCA_Input,
-                   modes        = c("all", "any"),
-                   ellipse_type = "confidence",
-                   addEllipses  = TRUE)[["any"]]
+```{r boxplot-options, eval=FALSE}
+# Display both stages as separate list elements.
+boxplots_both <- boxplot_highchart_list(
+  res$BoxPlot_Input,
+  assays = c("log2", "Impseqrob_min"),
+  group_order = c("A", "B", "D"),
+  show_outliers = TRUE,
+  outlier_size = 2,
+  box_width = 16
+)
+
+boxplots_both[["log2"]]
+boxplots_both[["Impseqrob_min"]]
 ```
 
-Three arguments deserve attention.
+# Principal component analysis
 
-**`modes`** — note the plural — selects which proteins enter the projection.
-`"all"` uses every protein; `"any"` restricts to those significant in at least
-one comparison; and **the name of a comparison**, such as `"B-A"`, restricts to
-the proteins significant in that one. Note that the third form is a comparison
-name, not a keyword: there is no `"specific"` mode here, unlike the heatmap and
-the Pattern Profiler, where `filter_mode = "specific"` is spelled that way.
+PCA reduces thousands of protein measurements to a small number of directions
+that capture the largest variation among samples. It is a diagnostic view of
+similarity, separation, and possible outliers; it is not a significance test.
 
-The first two answer different questions: `"all"` asks whether the samples
-separate at all, `"any"` asks how well they separate *given* the proteins the
-analysis already selected. The second will always look better, and that is not
-evidence of anything.
+## Comparing protein subsets
 
-**`ellipse_type`** is the one to think about:
+The protein subset is part of the PCA question. NADIA supports all proteins,
+proteins significant in any comparison, or proteins significant in one named
+comparison. The table below compares the first two choices using the same
+centering and scaling settings.
 
-| Value | What it draws | What it means |
-|---|---|---|
-| `"convex"` (default) | the convex hull of the group | exactly where the samples are, no more |
-| `"confidence"` | a `t`-based confidence ellipse | an inference about the population |
+```{r pca-summary}
+pca_scores_all <- build_pca_scores(
+  res$PCA_Input,
+  mode = "all",
+  center = TRUE,
+  scale. = TRUE
+)
 
-A hull is a description and cannot be wrong. A confidence ellipse is a claim, and
-with four replicates per group it is a claim resting on three degrees of freedom
-— it will be large, and its size should not be read as a measurement.
+pca_scores_any <- build_pca_scores(
+  res$PCA_Input,
+  mode = "any",
+  center = TRUE,
+  scale. = TRUE
+)
 
-**`filter_samples_to_comparison`** drops samples not involved in a comparison. For
-`"B-A"` it plots only the B and A samples, which is often what you meant when the
-experiment has more than two groups.
+pca_summary <- data.frame(
+  Subset = c("All proteins", "Significant in any comparison"),
+  Proteins = c(
+    length(unique(res$PCA_Input$FeatureID)),
+    length(unique(res$PCA_Input$FeatureID[res$PCA_Input$sig_any %in% TRUE]))
+  ),
+  PC1 = c(unique(pca_scores_all$PC1_Perc), unique(pca_scores_any$PC1_Perc)),
+  PC2 = c(unique(pca_scores_all$PC2_Perc), unique(pca_scores_any$PC2_Perc))
+)
 
-```{r pca-filtered, eval = FALSE}
-pca_highchart_list(res$PCA_Input, modes = "B-A",
-                   filter_samples_to_comparison = TRUE)[["B-A"]]
+names(pca_summary)[3:4] <- c("PC1 variance (%)", "PC2 variance (%)")
+
+knitr::kable(
+  pca_summary,
+  row.names = FALSE,
+  digits = 2,
+  caption = "Protein subsets and variance represented by the first two principal components."
+)
 ```
 
-`scale. = TRUE` (the default) gives every protein equal weight. Turn it off and
-the projection is dominated by the most abundant proteins, since their variance
-in log2 space is largest in absolute terms.
+With all proteins, PC1 explains `r unique(pca_scores_all$PC1_Perc)`% of the
+variance. Restricting the analysis to proteins already selected by differential
+abundance raises this to `r unique(pca_scores_any$PC1_Perc)`%. The stronger
+separation in the selected subset is expected because the same data were used to
+select proteins that differ between conditions. It should not be presented as
+independent validation of those differences.
+
+## Creating and reading the PCA plot
+
+The baseline plot should generally use all proteins. Sample labels are enabled
+here because the experiment contains only 12 samples. The 95% confidence
+ellipses provide a normal-theory summary of the location and covariance of each
+condition.
+
+::: {.interactive-chart-compact}
+
+```{r pca-plot}
+condition_colours <- c(
+  A = "#0072B2",
+  B = "#D55E00",
+  D = "#009E73"
+)
+
+pcas <- pca_highchart_list(
+  res$PCA_Input,
+  modes = "all",
+  color_by = "Condition",
+  group_order = c("A", "B", "D"),
+  palette = condition_colours,
+  addEllipses = TRUE,
+  ellipse_type = "confidence",
+  ellipse_level = 0.95,
+  show_labels = TRUE,
+  point_size = 5,
+  center = TRUE,
+  scale. = TRUE
+)
+
+prepare_vignette_highchart(pcas[["all"]])
+```
+
+:::
+
+Points close together have similar multivariate protein profiles under the
+chosen preprocessing and scaling. Separation along PC1 or PC2 indicates a major
+source of variation, but the plot alone does not establish whether that source
+is biological, technical, or confounded with the experimental design. An
+isolated replicate should therefore be traced back to its sample-level quality
+metrics rather than removed from the plot by inspection alone.
+
+The ellipses are descriptive overlays, not significance tests or decision
+boundaries. With only four replicates per condition, their covariance estimates
+are uncertain; they should be used for visual orientation rather than as proof
+of group separation.
+
+`scale. = TRUE` gives each protein unit variance before PCA and prevents
+high-variance proteins from dominating solely because of their scale. With
+`scale. = FALSE`, proteins with greater between-sample variance contribute more
+strongly. The choice should be recorded because it can materially change the
+projection.
+
+## Subset modes, ellipses, and sample filtering
+
+`pca_highchart_list()` uses a comparison name directly as a mode. For example,
+`modes = "B-A"` selects proteins significant in that comparison. When
+`filter_samples_to_comparison = TRUE`, samples from condition `D` are also
+excluded; when it is `FALSE`, all samples are projected using the proteins
+selected from `B-A`.
+
+```{r pca-options, eval=FALSE}
+pca_ba <- pca_highchart_list(
+  res$PCA_Input,
+  modes = "B-A",
+  alpha = 0.05,
+  filter_samples_to_comparison = TRUE,
+  group_order = c("A", "B"),
+  palette = condition_colours[c("A", "B")],
+  addEllipses = FALSE,
+  show_labels = TRUE
+)
+
+pca_ba[["B-A"]]
+```
+
+Two group outlines are available:
+
+::: {.wide-data-table .pca-outline-table}
+
+| `ellipse_type` | Geometry | Appropriate interpretation |
+|:--|:--|:--|
+| `"convex"` | Smallest convex polygon containing the observed samples | Describes the observed extent of a group |
+| `"confidence"` | Covariance ellipse scaled by a chi-squared quantile | Normal-theory summary whose shape is unstable in small groups |
+
+:::
+
+At least three samples are needed to draw either outline. With four replicates
+per condition, as in this example, the covariance estimate behind a confidence
+ellipse is especially uncertain. The outline should support visual orientation,
+not serve as evidence of significant group separation.
 
 # Heatmaps
 
-The heatmap is static, built on ComplexHeatmap through tidyHeatmap, and takes the
-same long table as the PCA:
+A heatmap shows the relative abundance profile of many proteins across samples.
+It is particularly effective for assessing whether selected proteins form
+coherent patterns and whether replicates display similar profiles. Unlike
+Pattern Profiler, it preserves the individual sample columns and does not assign
+proteins to profile clusters.
 
-```{r heatmap, fig.width = 7, fig.height = 5.5, fig.alt = "Heatmap of proteins significant in B-A"}
+## Selecting proteins for the heatmap
+
+Showing every quantified protein is possible but rarely legible. NADIA provides
+three filtering modes, and `feature_ids` can be used when a focused, explicitly
+defined panel is needed.
+
+::: {.wide-data-table .heatmap-subset-table}
+
+```{r heatmap-subsets}
+n_all <- length(unique(res$PCA_Input$FeatureID))
+n_any <- length(unique(
+  res$PCA_Input$FeatureID[res$PCA_Input$sig_any %in% TRUE]
+))
+n_ba <- length(unique(
+  res$PCA_Input$FeatureID[
+    !is.na(res$PCA_Input[["adjP_B-A"]]) &
+      res$PCA_Input[["adjP_B-A"]] < 0.05
+  ]
+))
+
+heatmap_subsets <- data.frame(
+  Request = c(
+    'mode = "all"',
+    'mode = "any"',
+    'mode = "target", comparison = "B-A"'
+  ),
+  Proteins = c(n_all, n_any, n_ba),
+  Samples = c(12, 12, 8),
+  Interpretation = c(
+    "All quantified proteins",
+    "Significant in at least one comparison",
+    "Significant in B-A; only A and B samples"
+  )
+)
+
+knitr::kable(
+  heatmap_subsets,
+  row.names = FALSE,
+  caption = "Available protein-filtering modes for the example heatmap."
+)
+```
+
+:::
+
+Unlike a comparison-specific PCA, `mode = "target"` in
+`proteomics_heatmap()` automatically restricts the samples to the conditions in
+the comparison. The `B-A` heatmap therefore contains eight samples rather than
+all twelve.
+
+## Creating and reading a focused heatmap
+
+The complete `B-A` set contains `r n_ba` proteins, which is too dense for row
+labels in a vignette. The following example displays the 30 proteins with the
+smallest adjusted *p*-values among those passing the 0.05 threshold.
+
+```{r select-heatmap-proteins}
+de_ba_ordered <- de_ba[
+  !is.na(de_ba$adj.P.Val) & de_ba$adj.P.Val < 0.05,
+  ,
+  drop = FALSE
+]
+de_ba_ordered <- de_ba_ordered[order(de_ba_ordered$adj.P.Val), , drop = FALSE]
+ba_top_ids <- head(unique(de_ba_ordered$Protein.IDs), 30)
+```
+
+```{r heatmap-plot, eval=have_heatmap, fig.width=8, fig.height=7, fig.align="center", fig.cap="Row-scaled abundance profiles for the 30 proteins with the smallest adjusted p-values in the B-A comparison.", fig.alt="Row-scaled heatmap of the 30 most statistically significant proteins in the B-A comparison"}
 proteomics_heatmap(
-    res$PCA_Input,
-    mode            = "target",
-    comparison      = "B-A",
-    scale_data      = "row",
-    sample_order    = "condition",
-    condition_order = c("A", "B", "D"),
-    cluster_rows    = TRUE,
-    show_row_names  = FALSE,
-    heatmap_title   = "Significant in B-A")
+  res$PCA_Input,
+  mode = "target",
+  comparison = "B-A",
+  feature_ids = ba_top_ids,
+  scale_data = "row",
+  sample_order = "condition",
+  condition_order = c("A", "B"),
+  cluster_rows = TRUE,
+  show_row_names = TRUE,
+  palette_value = "brewer:RdBu",
+  reverse_palette = TRUE,
+  heatmap_title = "Top B-A protein profiles"
+)
 ```
 
-`scale_data = "row"` z-scores each protein, which is almost always what you want:
-without it the picture is a map of abundance, and the few most abundant proteins
-set the colour scale for everything else.
+Each row is transformed to a z-score because `scale_data = "row"`. Warm and
+cool colours therefore represent values above and below that protein's own mean;
+they do **not** indicate that one protein is more abundant than another. Row
+clustering groups proteins with similar relative profiles, while the explicit
+condition order keeps the sample columns arranged as `A` followed by `B`.
 
-`sample_order` is either `"clustering"` (the default, which lets the samples
-arrange themselves and so doubles as a check that replicates group together) or
-`"condition"`, which imposes your order and makes the figure comparable across
-panels.
+Use `scale_data = "none"` when absolute log2 intensity differences between
+proteins are the subject of the figure. In that case, a small number of
+high-abundance proteins may dominate the colour range. Column scaling answers a
+different question and is rarely the default for protein-profile heatmaps.
 
-```{r heatmap-list, eval = FALSE}
-# One heatmap per mode, all with the same settings
-proteomics_heatmap_list(res$PCA_Input, modes = c("all", "any"),
-                        scale_data = "row")
+## Annotations and repeated heatmaps
+
+Categorical protein annotations can be supplied as a data frame containing a
+`FeatureID` column. Rows may be split by one annotation and ordered by another.
+The following complete example is not rendered because the preceding figure
+already shows the same proteins.
+
+```{r heatmap-annotations, eval=FALSE}
+direction <- ifelse(
+  de_ba$logFC[match(ba_top_ids, de_ba$Protein.IDs)] > 0,
+  "Higher in B",
+  "Higher in A"
+)
+
+protein_annotation <- data.frame(
+  FeatureID = ba_top_ids,
+  Direction = direction
+)
+
+proteomics_heatmap(
+  res$PCA_Input,
+  mode = "target",
+  comparison = "B-A",
+  feature_ids = ba_top_ids,
+  row_annotation = protein_annotation,
+  row_annotation_cols = "Direction",
+  row_annotation_palette = list(
+    Direction = c("Higher in B" = "#D55E00", "Higher in A" = "#0072B2")
+  ),
+  split_rows_by = "Direction",
+  scale_data = "row",
+  sample_order = "condition",
+  condition_order = c("A", "B")
+)
+
+# Build a named list containing several heatmaps.
+heatmaps <- proteomics_heatmap_list(
+  res$PCA_Input,
+  modes = c("any", "B-A", "D-A"),
+  scale_data = "row",
+  sample_order = "condition",
+  condition_order = c("A", "B", "D")
+)
+
+names(heatmaps)
 ```
 
-# Palettes
+# Protein pattern clusters (optional)
 
-Every module accepts `palette`, and it is resolved by `paletteer`, so it takes
-the `package::palette` form — a bare `"Set1"` is not enough, because paletteer
-needs to know which package that name belongs to. The alternative is `colors`,
-which takes the hex values directly.
+Pattern Profiler groups proteins that follow similar relative trajectories
+across ordered conditions. It complements a heatmap by turning recurring
+profile shapes into explicit clusters and by assigning each protein a fuzzy
+membership between 0 and 1. This approach is most informative with at least
+three ordered conditions, such as time points, doses, or disease stages.
 
-```{r palettes, eval = FALSE}
-volcano_highchart_list(res$DEPs_results,
-                       palette = "ggsci::nrc_npg")[["B-A"]]
+This section requires the optional **Mfuzz**, **Biobase**, and **e1071**
+packages. It focuses on visualising an existing clustering result; see
+`vignette("pattern-profiler")` for cluster-number selection, membership
+diagnostics, and data storage.
 
-volcano_highchart_list(res$DEPs_results,
-                       colors = list(Up = "#D55E00", Down = "#0072B2",
-                                     `No Change` = "#BBBBBB"))[["B-A"]]
+## Building and summarising the example clusters
+
+For a concise and reproducible visual example, the analysis below fixes the
+number of clusters at two. In a new study, the candidate solutions should first
+be compared with `auto_select_c = TRUE` and interpreted using the diagnostics
+described in the dedicated Pattern Profiler vignette.
+
+```{r pattern-profiler-run, eval=have_pattern_profiler, results="hide"}
+pp_vis <- pattern_profiler_analysis(
+  se_proc = res$se_proc,
+  DEPs_results = res$DEPs_results,
+  assay_name = "Impseqrob_min",
+  filter_mode = "any",
+  alpha = 0.05,
+  condition_order = c("A", "B", "D"),
+  aggregate = "median",
+  auto_select_c = FALSE,
+  c = 2,
+  min_membership = 0.25,
+  seed = 42,
+  verbose = FALSE
+)
 ```
 
-The explicit form is worth using for anything that will be published: it is the
-only one that guarantees the same protein keeps the same colour across figures
-made at different times, and the three shown here are colour-blind safe.
+A stricter membership threshold is useful for displaying the clearest examples
+of each pattern. The table reports how many proteins remain at 0.70 and the
+median standardised profile represented by each cluster.
 
-# Exporting
+```{r pattern-profiler-summary, eval=have_pattern_profiler}
+display_membership <- 0.70
+pp_display <- pp_vis$long_output[
+  pp_vis$long_output$Membership >= display_membership,
+  ,
+  drop = FALSE
+]
 
-Static plots go through their own machinery:
+pattern_summary <- do.call(
+  rbind,
+  lapply(split(pp_display, pp_display$Cluster), function(x) {
+    data.frame(
+      Cluster = paste("Cluster", unique(x$Cluster)),
+      Proteins = length(unique(x$FeatureID)),
+      `Median membership` = median(x$Membership),
+      A = median(x$A),
+      B = median(x$B),
+      D = median(x$D),
+      check.names = FALSE
+    )
+  })
+)
 
-```{r export, eval = FALSE}
-proteomics_heatmap(res$PCA_Input, mode = "any",
-                   export_path = tempdir(),
-                   export_file = "heatmap.png",
-                   plot_width = 10, plot_height = 8, export_dpi = 300)
+pattern_summary[c("Median membership", "A", "B", "D")] <- lapply(
+  pattern_summary[c("Median membership", "A", "B", "D")],
+  round,
+  digits = 3
+)
+
+knitr::kable(
+  pattern_summary,
+  row.names = FALSE,
+  caption = paste0(
+    "High-membership proteins and median z-score profiles at membership >= ",
+    display_membership, "."
+  )
+)
 ```
 
-Interactive ones carry export buttons — PNG, SVG, PDF — in the chart itself, and
-`vignette("results-and-export")` covers saving a whole widget to a self-contained
-HTML file.
+The two clusters describe opposing relative trajectories. One pattern remains
+comparatively high in `A` and `B` before decreasing in `D`, whereas the other
+rises across the ordered conditions. Because the condition values are
+within-protein z-scores, they describe profile shape rather than absolute
+protein abundance.
 
-```{r session}
+## Comparing cluster centroids
+
+`cluster_centroids_highchart()` places the representative trajectory of every
+cluster in one chart. The median is used here because it is less sensitive than
+the mean to proteins near a cluster boundary.
+
+::: {.interactive-chart-compact}
+
+```{r pattern-centroids, eval=have_pattern_profiler}
+centroid_plot <- cluster_centroids_highchart(
+  pp_vis$long_output,
+  conditions = pp_vis$conditions,
+  min_membership = display_membership,
+  centroid_summary = "median",
+  title = "Pattern Profiler cluster centroids",
+  height = 440
+)
+
+prepare_vignette_highchart(centroid_plot)
+```
+
+:::
+
+The separation between the centroid lines shows when the dominant patterns
+diverge. Hovering over a marker reports the condition and median z-score. The
+centroids summarise many proteins and should therefore be read together with
+the cluster sizes and memberships in the preceding table.
+
+## Inspecting representative protein profiles
+
+A cluster-level chart reveals whether individual profiles are concentrated
+around their centroid or whether the summary hides substantial heterogeneity.
+To keep the interactive vignette responsive, the next chart displays 100
+proteins sampled evenly across the membership range retained for cluster 1.
+
+::: {.interactive-chart-compact}
+
+```{r pattern-profiles, eval=have_pattern_profiler}
+cluster_one <- pp_display[pp_display$Cluster == 1, , drop = FALSE]
+cluster_one <- cluster_one[order(cluster_one$Membership, decreasing = TRUE), ]
+representative_positions <- unique(round(seq(
+  from = 1,
+  to = nrow(cluster_one),
+  length.out = min(100, nrow(cluster_one))
+)))
+representative_ids <- cluster_one$FeatureID[representative_positions]
+representative_profiles <- cluster_one[
+  cluster_one$FeatureID %in% representative_ids,
+  ,
+  drop = FALSE
+]
+
+profile_plot <- cluster_profile_highchart(
+  representative_profiles,
+  cluster = 1,
+  conditions = pp_vis$conditions,
+  min_membership = display_membership,
+  centroid_summary = "median",
+  line_opacity = 0.35,
+  title = "Cluster 1: 100 representative protein profiles",
+  height = 440
+)
+
+prepare_vignette_highchart(profile_plot)
+```
+
+:::
+
+The thin lines are individual standardised protein profiles and the thicker
+line is their median. A narrow band around the centroid indicates a coherent
+pattern; marked deviations identify proteins whose assignment deserves closer
+inspection. Showing only high-membership representatives makes the dominant
+shape clear, but it does not describe the full uncertainty of the fuzzy
+clustering.
+
+The complete interactive list can be generated when detailed exploration is
+more important than vignette size. With hundreds of series, these charts are
+best inspected in an R session rather than embedded in the installed vignette.
+
+```{r pattern-profiles-all, eval=FALSE}
+all_profile_plots <- cluster_profile_highchart_list(
+  pp_vis$long_output,
+  conditions = pp_vis$conditions,
+  min_membership = 0.70,
+  centroid_summary = "median"
+)
+
+all_profile_plots[["Cluster_1"]]
+```
+
+# Colours and consistent presentation
+
+Colour should encode the same meaning across related figures. Reusing a fixed
+condition palette makes samples easier to follow and prevents colours from being
+reassigned when a subset omits one condition. Pattern Profiler cluster numbers
+are arbitrary labels, but a fixed cluster palette should still be reused between
+the centroid and individual-profile charts from the same analysis.
+
+```{r colour-examples, eval=FALSE}
+condition_colours <- c(
+  A = "#0072B2",
+  B = "#D55E00",
+  D = "#009E73"
+)
+
+pca_highchart_list(
+  res$PCA_Input,
+  modes = "all",
+  group_order = c("A", "B", "D"),
+  palette = condition_colours
+)[["all"]]
+
+boxplot_highchart_list(
+  res$BoxPlot_Input,
+  assays = "Impseqrob_min",
+  group_order = c("A", "B", "D"),
+  palette = unname(condition_colours)
+)[["Impseqrob_min"]]
+```
+
+Palette names are resolved through either `paletteer` or `RColorBrewer`,
+depending on their format. An explicit vector is the safest choice for a series
+of publication figures because the mapping is visible in the script.
+
+::: {.palette-reference-table}
+
+| Function | Palette argument | Example |
+|:--|:--|:--|
+| `volcano_highchart_list()` | `palette` or `colors = list(up, down, ns)` | `palette = "ggsci::default_jco"` |
+| `boxplot_highchart_list()` | Paletteer name, `"brewer:Name"`, or colour vector | `palette = "brewer:Dark2"` |
+| `pca_highchart_list()` | Paletteer name, `"brewer:Name"`, or preferably a named vector | `palette = condition_colours` |
+| Pattern Profiler Highcharts | Paletteer name, `"brewer:Name"`, or colour vector | `palette = c("#E63946", "#457B9D")` |
+| `proteomics_heatmap()` | Separate value and annotation palettes | `palette_value = "brewer:RdBu"` |
+
+:::
+
+For volcano plots, the explicit colour-list names are lower case:
+
+```{r volcano-colours, eval=FALSE}
+volcano_highchart_list(
+  res$DEPs_results,
+  comparisons = "B-A",
+  colors = list(
+    up = "#D55E00",
+    down = "#0072B2",
+    ns = "#BDBDBD"
+  )
+)[["B-A"]]
+```
+
+# Exporting figures and data
+
+Export should preserve both the visual result and the data used to create it.
+Interactive widgets can be shared as HTML, while heatmaps can be written as
+raster or vector graphics together with their displayed matrix.
+
+## Interactive charts
+
+Every NADIA Highchart includes a download menu for PNG, SVG, and PDF output.
+The menu is disabled only in the five embedded examples above to keep this
+self-contained vignette compact and robust. For a fully interactive copy, save
+the original chart or selected list element as an HTML widget.
+
+```{r export-interactive, eval=FALSE}
+htmlwidgets::saveWidget(
+  volcanoes[["B-A"]],
+  file = file.path(tempdir(), "volcano_B-A.html"),
+  selfcontained = TRUE
+)
+
+htmlwidgets::saveWidget(
+  centroid_plot,
+  file = file.path(tempdir(), "pattern_centroids.html"),
+  selfcontained = TRUE
+)
+```
+
+A self-contained widget is convenient for sharing, but it remains subject to
+the Highcharts licence described above. The file also contains the plotted data,
+so it should not be used to distribute confidential results without review.
+
+## Static heatmaps
+
+For `proteomics_heatmap()`, `export_path` writes the displayed matrix and
+metadata to a TSV file, whereas `export_file` writes the figure. The plot format
+is inferred from the extension (`.png`, `.svg`, or `.pdf`).
+
+```{r export-heatmap, eval=FALSE}
+proteomics_heatmap(
+  res$PCA_Input,
+  mode = "target",
+  comparison = "B-A",
+  feature_ids = ba_top_ids,
+  scale_data = "row",
+  sample_order = "condition",
+  condition_order = c("A", "B"),
+  export_path = file.path(tempdir(), "heatmap_B-A_data.tsv"),
+  export_file = file.path(tempdir(), "heatmap_B-A.png"),
+  plot_width = 8,
+  plot_height = 7,
+  export_dpi = 300
+)
+```
+
+When `proteomics_heatmap_list()` is used, the mode is appended to each export
+name. For example, a base name of `heatmap.png` produces files such as
+`heatmap_any.png` and `heatmap_B-A.png`.
+
+The companion vignette `vignette("results-and-export")` describes additional
+ways to save complete NADIA analyses, result tables, and interactive objects.
+
+# Practical recommendations
+
+The most defensible visualisation workflow begins with the analytical question
+and ends with a reproducible export. The following practices help keep figures
+clear and their interpretation proportionate to the evidence:
+
+- inspect the sample design and the number of observations before plotting;
+- state the adjusted *p*-value and fold-change thresholds used in volcano plots;
+- compare boxplots before and after processing, without treating similar boxes
+  as proof that all technical variation has disappeared;
+- begin PCA with all proteins, then label analyses of selected proteins as
+  supervised or selection-dependent views;
+- use row-scaled heatmaps for relative profiles and unscaled heatmaps for
+  absolute log2 abundance;
+- use Pattern Profiler when conditions have a meaningful order, evaluate the
+  number of clusters and membership threshold, and interpret its z-scores as
+  relative trajectories rather than absolute abundance;
+- reuse explicit colours and sample orders across related figures;
+- avoid dense labels when tooltips or a focused protein panel communicate the
+  result more clearly; and
+- save the plotted data and the analysis parameters together with the figure.
+
+No single figure validates an analysis. Agreement among the experimental
+design, quality-control summaries, model results, and several complementary
+visualisations provides a much stronger basis for interpretation.
+
+# Session information
+
+The package versions used to build this vignette are recorded below to support
+reproducibility.
+
+```{r session-information}
 sessionInfo()
 ```

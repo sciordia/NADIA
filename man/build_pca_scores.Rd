@@ -52,3 +52,13 @@ Subset, Condition, Replicate
 \description{
 Build a PCA scores data frame from data in long format
 }
+\examples{
+data(nadia_dia)
+res <- process_proteomics(nadia_dia, verbose = FALSE)
+
+# Scores and the variance explained by the first two components
+scores <- build_pca_scores(res$PCA_Input, mode = "all")
+head(scores)
+unique(scores[c("PC1_Perc", "PC2_Perc")])
+
+}

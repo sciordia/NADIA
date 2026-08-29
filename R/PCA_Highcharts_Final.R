@@ -30,6 +30,17 @@
 #'
 #' @return Data frame with columns: SampleID, PC1, PC2, PC1_Perc, PC2_Perc,
 #'   Subset, Condition, Replicate
+#'
+#' @examples
+#' data(nadia_dia)
+#' res <- process_proteomics(nadia_dia, verbose = FALSE)
+#'
+#' # Scores and the variance explained by the first two components
+#' scores <- build_pca_scores(res$PCA_Input, mode = "all")
+#' head(scores)
+#' unique(scores[c("PC1_Perc", "PC2_Perc")])
+#'
+#' @export
 build_pca_scores <- function(pca_input,
                              mode = c("all", "any", "specific"),
                              alpha = 0.05,
