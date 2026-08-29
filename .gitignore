@@ -71,3 +71,4 @@ results/
 # files that no longer exist, and Bioconductor asks that the default branch hold
 # only package code. They are preserved on the 'dev' branch.
 [0-9]*_*.R
+Rplots.pdf
