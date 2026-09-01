@@ -565,6 +565,85 @@ nadia_pattern_profiler <- function(db) {
   db$pattern_profiler
 }
 
+
+#' Differential abundance with clusters, from a `.nadia` file
+#'
+#' The file's own answer to [deps_with_clusters()]. The join lives in the file
+#' as the view `v_deps_pattern_profiler`, so this reads a table rather than
+#' building one, and a client that is not R gets the same table from the same
+#' SQL. The filters are the ones [deps_with_clusters()] applies, and the two
+#' functions return identical results for the same arguments.
+#'
+#' The table is read on demand rather than by [read_nadia()], because it is as
+#' long as the number of proteins times comparisons times clusters and there is
+#' no reason to carry it around unasked.
+#'
+#' @param db A `nadia_db` from [read_nadia()], or the path to a `.nadia` file.
+#' @param assignment `"primary"` (default) for one row per protein and
+#'   comparison, carrying the cluster of highest membership; `"all"` for one row
+#'   per protein, comparison and cluster.
+#' @param min_membership Optional extra membership threshold. It can only be
+#'   stricter than the one the analysis ran with.
+#' @param comparison Optional character vector of comparisons to keep.
+#' @param significant_only Keep only the rows classified `Up` or `Down`.
+#'
+#' @return A data frame with the columns of `DEPs_results` followed by
+#'   `Cluster`, `Membership` and `ClusterRank`, or `NULL` if the file holds no
+#'   differential-abundance results. A file with results but no clustering
+#'   returns the same shape with the three cluster columns `NA`.
+#'
+#' @seealso [deps_with_clusters()], [nadia_add_pattern_profiler()]
+#'
+#' @examples
+#' if (requireNamespace("duckdb", quietly = TRUE)) {
+#'     data(nadia_dia)
+#'     res <- process_proteomics(nadia_dia, verbose = FALSE)
+#'
+#'     f <- file.path(tempdir(), "functional.nadia")
+#'     write_nadia(f, nadia_dia, res, verbose = FALSE)
+#'
+#'     head(nadia_deps_with_clusters(f))
+#'
+#'     unlink(f)
+#' }
+#' @export
+nadia_deps_with_clusters <- function(db,
+                                     assignment       = c("primary", "all"),
+                                     min_membership   = NULL,
+                                     comparison       = NULL,
+                                     significant_only = FALSE) {
+  .db_require()
+  assignment <- match.arg(assignment)
+
+  file <- if (inherits(db, "nadia_db")) db$file else db
+  if (!file.exists(file)) stop("'", file, "' does not exist.", call. = FALSE)
+
+  con <- nadia_connect(file)
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+
+  schema <- DBI::dbGetQuery(con, "SELECT * FROM nadia_schema")
+  x <- .db_read_view(con, "v_deps_pattern_profiler", schema,
+                     .NADIA_DEPS_CLUSTERS)
+
+  if (is.null(x)) {
+    # No clustering in the file, or one added by a NADIA that predates the
+    # view. Either way the results are still the enrichment background, so the
+    # table is returned with the same columns and no clusters in them.
+    x <- .db_read_view(con, "v_deps_results", schema, "DEPs_results")
+    if (is.null(x)) return(NULL)
+    warning("'", basename(file), "' holds no Pattern Profiler view: the ",
+            "cluster columns are all NA. Add a clustering with ",
+            "nadia_add_pattern_profiler().", call. = FALSE)
+    x$Cluster     <- NA_integer_
+    x$Membership  <- NA_real_
+    x$ClusterRank <- NA_integer_
+  }
+
+  de_cols <- setdiff(names(x), c("Cluster", "Membership", "ClusterRank"))
+  .deps_clusters_filter(x, de_cols, assignment, min_membership, comparison,
+                        significant_only)
+}
+
 #' Turn the stored parameters of one step back into a list
 #'
 #' @param pars A `parameters` table.

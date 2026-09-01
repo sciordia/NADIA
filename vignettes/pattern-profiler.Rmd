@@ -776,6 +776,12 @@ The matching row counts confirm that the complete long-format clustering table
 was recovered. Alternatively, `pattern_profiler = pp` can be supplied directly
 to `write_nadia()` when the project and clustering are saved at the same time.
 
+To combine the clusters with the differential-abundance statistics in a single
+table, for example as input to a functional or enrichment analysis, use
+`deps_with_clusters()` on the two results in memory, or
+`nadia_deps_with_clusters()` on a stored project. Both are described in
+`vignette("results-and-export", package = "NADIA")`.
+
 # Practical recommendations
 
 Pattern Profiler is most useful as an exploratory layer after a well-controlled

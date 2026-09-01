@@ -34,6 +34,12 @@
 # The version of the schema, not of the package. It goes into `nadia_meta` and
 # the reader refuses a file it does not know how to read, rather than silently
 # misinterpreting it. Bump it whenever a table or a view changes shape.
+#
+# Adding a table or a view is not a change of shape and does not bump it. Every
+# read is guarded by existence -- dbExistsTable() when the views are built,
+# .db_read_view() when they are read -- so a new NADIA reads an old file that
+# lacks the addition, and an old NADIA reads a new file by ignoring it. Bumping
+# would break the second of those and buy nothing.
 .NADIA_SCHEMA_VERSION <- 1L
 
 # Written files declare compatibility with this DuckDB release, so that any
@@ -51,7 +57,13 @@
 # cannot restore an ordered factor or tell an integer from a double.
 .NADIA_CANONICAL <- c("metadata", "protein_id", "protein_quant",
                       "DEPs_results", "BoxPlot_Input", "PCA_Input",
-                      "pattern_profiler")
+                      "pattern_profiler", "DEPs_clusters")
+
+# The schema name of the derived DE-plus-clusters table. It is the one entry in
+# `nadia_schema` that describes a view rather than a stored table: the view
+# `v_deps_pattern_profiler` has no original to be compared against, but its
+# columns still have to come back as the classes they had in `DEPs_results`.
+.NADIA_DEPS_CLUSTERS <- "DEPs_clusters"
 
 
 # =============================================================================
@@ -205,6 +217,41 @@
     ordered = vapply(df, function(x) is.ordered(x), logical(1)),
     stringsAsFactors = FALSE, row.names = NULL
   )
+}
+
+#' The schema of the derived DE-plus-clusters table
+#'
+#' `v_deps_pattern_profiler` is a view, not a stored table, so there is nothing
+#' to describe with `.db_describe()`. Its columns are those of `DEPs_results`
+#' followed by three of its own, and its schema is derived from the one already
+#' recorded rather than from a materialised data frame -- which is what lets
+#' `nadia_add_pattern_profiler()` register it without holding the results.
+#'
+#' Without this entry `.db_restore_types()` would drop the three added columns
+#' on reading, since it keeps only the columns the schema lists.
+#'
+#' @param schema The `nadia_schema` table, as stored or as being built.
+#' @return Rows for `nadia_schema`, or `NULL` if `DEPs_results` is not in it.
+#' @keywords internal
+#' @noRd
+.db_deps_clusters_schema <- function(schema) {
+  if (is.null(schema) || nrow(schema) == 0) return(NULL)
+  de <- schema[schema$table_name == "DEPs_results", , drop = FALSE]
+  if (nrow(de) == 0) return(NULL)
+
+  de <- de[order(de$position), , drop = FALSE]
+  de$table_name <- .NADIA_DEPS_CLUSTERS
+
+  extra <- data.frame(
+    table_name  = .NADIA_DEPS_CLUSTERS,
+    position    = nrow(de) + seq_len(3),
+    column_name = c("Cluster", "Membership", "ClusterRank"),
+    r_class     = c("integer", "numeric", "integer"),
+    lvls        = NA_character_,
+    ordered     = FALSE,
+    stringsAsFactors = FALSE, row.names = NULL)
+
+  rbind(de, extra)
 }
 
 
@@ -477,14 +524,23 @@
   out
 }
 
-#' Build the two Pattern Profiler tables
+#' Build the Pattern Profiler tables
 #'
 #' The z-score profile depends only on the protein, so in `long_output` it is
 #' repeated once per cluster the protein belongs to. Splitting membership from
 #' profile removes that duplication.
 #'
+#' `pp_assignment` is the third table and the one `long_output` cannot supply:
+#' `min_membership` is applied when the long table is built, so a protein whose
+#' highest membership falls below the threshold has no row at all. That is a
+#' real possibility -- the highest membership of a protein is only guaranteed to
+#' be at least `1 / optimal_c` -- and it would leave a protein that was in fact
+#' clustered indistinguishable from one that never entered the clustering. The
+#' hard assignment is stored unfiltered, one row per clustered protein.
+#'
 #' @param pp Result of `pattern_profiler_analysis()`.
-#' @return A list with `pp_membership` and `pp_profile`.
+#' @return A list with `pp_membership`, `pp_profile` and, when the clustering
+#'   object is present, `pp_assignment`.
 #' @keywords internal
 #' @noRd
 .db_pattern_profiler <- function(pp) {
@@ -506,7 +562,25 @@
                stringsAsFactors = FALSE)
   }))
   rownames(prof) <- NULL
-  list(pp_membership = mem, pp_profile = prof)
+
+  out <- list(pp_membership = mem, pp_profile = prof)
+
+  # The argmax is recomputed from the membership matrix rather than taken from
+  # `cl$cluster`, which is what pattern_profiler_analysis() itself does for the
+  # cluster counts. `ties.method = "first"` matches the tie-break the
+  # v_deps_pattern_profiler view uses, so the two agree on every protein.
+  m <- pp$cl$membership
+  if (!is.null(m) && nrow(m) > 0) {
+    hard <- max.col(m, ties.method = "first")
+    out$pp_assignment <- data.frame(
+      protein_id = as.character(rownames(m)),
+      Cluster    = as.integer(hard),
+      Membership = as.numeric(m[cbind(seq_len(nrow(m)), hard)]),
+      position   = seq_len(nrow(m)),
+      stringsAsFactors = FALSE)
+  }
+
+  out
 }
 
 #' Collect the parameters of every step into one long table
@@ -810,6 +884,12 @@ write_nadia <- function(file,
     .db_describe(result$BoxPlot_Input,        "BoxPlot_Input"),
     .db_describe(result$PCA_Input,            "PCA_Input"),
     .db_describe(pattern_profiler$long_output, "pattern_profiler")))
+
+  # The derived view is described only when both of its sources are there.
+  if (!is.null(result) && !is.null(pattern_profiler)) {
+    schema <- rbind(schema, .db_deps_clusters_schema(schema))
+  }
+
   tables$nadia_schema <- if (is.null(schema)) {
     data.frame(table_name = character(0), position = integer(0),
                column_name = character(0), r_class = character(0),
@@ -915,10 +995,23 @@ nadia_add_pattern_profiler <- function(file, pattern_profiler,
     DBI::dbWriteTable(con, nm, tabs[[nm]], overwrite = TRUE)
     if (verbose) message(sprintf("- %-24s %8d rows", nm, nrow(tabs[[nm]])))
   }
+  # A replacement run without a clustering object must not leave the previous
+  # hard assignment behind, pointing at clusters that no longer exist.
+  if (is.null(tabs$pp_assignment)) {
+    DBI::dbExecute(con, "DROP TABLE IF EXISTS pp_assignment")
+  }
 
   sch <- .db_describe(pattern_profiler$long_output, "pattern_profiler")
   DBI::dbExecute(con, "DELETE FROM nadia_schema WHERE table_name = 'pattern_profiler'")
   DBI::dbAppendTable(con, "nadia_schema", sch)
+
+  # The derived view needs its own schema entry, and this is the other way in:
+  # a file written without a Pattern Profiler gets the view here.
+  DBI::dbExecute(con, paste0("DELETE FROM nadia_schema WHERE table_name = ",
+                             .db_lit(.NADIA_DEPS_CLUSTERS)))
+  dc <- .db_deps_clusters_schema(
+    DBI::dbGetQuery(con, "SELECT * FROM nadia_schema"))
+  if (!is.null(dc)) DBI::dbAppendTable(con, "nadia_schema", dc)
 
   pars <- .db_parameters(list(), NULL, pattern_profiler)
   if (nrow(pars) > 0) {
@@ -1099,6 +1192,27 @@ nadia_add_pattern_profiler <- function(file, pattern_profiler,
   build_protein_view("v_protein_id",    "protein_id",    quantity = FALSE)
   build_protein_view("v_protein_quant", "protein_quant", quantity = TRUE)
 
+  # --- v_pattern_profiler ----------------------------------------------------
+  # Before the processing gate below, not after it: the clustering can be added
+  # to a file that holds only the preprocessing, and the view has to be built
+  # for it too. Where it once sat, the tables were written and the metadata said
+  # the clustering was there, but no view was ever created and reading it back
+  # returned NULL with nothing to say why.
+  if (DBI::dbExistsTable(con, "pp_membership")) {
+    conds <- DBI::dbGetQuery(con,
+      "SELECT \"Condition\" AS c FROM pp_profile GROUP BY \"Condition\", position ORDER BY position")$c
+    piv <- vapply(conds, function(cd) paste0(
+      "MAX(CASE WHEN \"Condition\" = ", .db_lit(cd), " THEN \"ZScore\" END) AS ",
+      .db_id(cd)), character(1))
+    make_view("v_pattern_profiler", paste0(
+      "SELECT m.protein_id AS \"FeatureID\", m.\"Cluster\", m.\"Membership\", ",
+      paste(paste0("z.", .db_id(conds)), collapse = ", "),
+      " FROM pp_membership m LEFT JOIN (SELECT protein_id, ",
+      paste(piv, collapse = ", "),
+      " FROM pp_profile GROUP BY protein_id) z ON z.protein_id = m.protein_id",
+      " ORDER BY m.position"))
+  }
+
   # --- Everything below needs the processing step ----------------------------
   if (!identical(meta[["has_processing"]], "TRUE")) return(invisible(NULL))
 
@@ -1160,10 +1274,54 @@ nadia_add_pattern_profiler <- function(file, pattern_profiler,
         paste0("d.", .db_id(cl))
       }
     }, character(1))
+    de_from <- paste0(" FROM de_results d",
+                      " LEFT JOIN proteins p ON p.protein_id = d.protein_id")
+
     make_view("v_deps_results", paste0(
-      "SELECT ", paste(sel, collapse = ", "),
-      " FROM de_results d LEFT JOIN proteins p ON p.protein_id = d.protein_id",
+      "SELECT ", paste(sel, collapse = ", "), de_from,
       " ORDER BY d.rowid"))
+
+    # --- v_deps_pattern_profiler ---------------------------------------------
+    # The differential-abundance results with the cluster each protein belongs
+    # to: the table a functional-enrichment step needs, since it has to know
+    # both which proteins moved and which pattern they follow.
+    #
+    # The join is a LEFT JOIN from de_results and stays one, so the complete set
+    # of proteins that were tested survives it. That set is the background of
+    # any enrichment, and a protein with no cluster -- never selected for the
+    # clustering, or dropped by it -- is part of that background rather than a
+    # row to discard.
+    #
+    # `ClusterRank` numbers a protein's clusters by decreasing membership, so
+    # rank 1 is its dominant pattern. ROW_NUMBER() rather than a comparison
+    # against MAX(Membership), because two clusters can tie and a boolean would
+    # then mark both: with a rank the tie is broken on the cluster number and
+    # rank 1 stays single, which is what makes "one row per protein and
+    # comparison" a guarantee rather than a hope.
+    if (DBI::dbExistsTable(con, "pp_membership")) {
+      ranked <- paste0(
+        "SELECT protein_id, \"Cluster\", \"Membership\",",
+        " ROW_NUMBER() OVER (PARTITION BY protein_id",
+        " ORDER BY \"Membership\" DESC, \"Cluster\") AS \"ClusterRank\"",
+        " FROM pp_membership")
+
+      # min_membership is applied when long_output is built, so a protein whose
+      # highest membership fell below it has no row in pp_membership at all.
+      # pp_assignment carries the unfiltered hard assignment and puts those
+      # proteins back, at rank 1. The two branches are mutually exclusive.
+      if (DBI::dbExistsTable(con, "pp_assignment")) {
+        ranked <- paste0(ranked,
+          " UNION ALL SELECT a.protein_id, a.\"Cluster\", a.\"Membership\", 1",
+          " FROM pp_assignment a WHERE NOT EXISTS (SELECT 1 FROM pp_membership m",
+          " WHERE m.protein_id = a.protein_id)")
+      }
+
+      make_view("v_deps_pattern_profiler", paste0(
+        "WITH pp AS (", ranked, ") SELECT ", paste(sel, collapse = ", "),
+        ", c.\"Cluster\", c.\"Membership\", c.\"ClusterRank\"", de_from,
+        " LEFT JOIN pp c ON c.protein_id = d.protein_id",
+        " ORDER BY d.rowid, c.\"ClusterRank\""))
+    }
   }
 
   # --- v_boxplot_input -------------------------------------------------------
@@ -1225,22 +1383,6 @@ nadia_add_pattern_profiler <- function(file, pattern_profiler,
     }
     make_view("v_matrix_norm", piv_named(assay_src(imp_from)))
     make_view("v_matrix_imputed", piv_named(imputed_src))
-  }
-
-  # --- v_pattern_profiler ----------------------------------------------------
-  if (DBI::dbExistsTable(con, "pp_membership")) {
-    conds <- DBI::dbGetQuery(con,
-      "SELECT \"Condition\" AS c FROM pp_profile GROUP BY \"Condition\", position ORDER BY position")$c
-    piv <- vapply(conds, function(cd) paste0(
-      "MAX(CASE WHEN \"Condition\" = ", .db_lit(cd), " THEN \"ZScore\" END) AS ",
-      .db_id(cd)), character(1))
-    make_view("v_pattern_profiler", paste0(
-      "SELECT m.protein_id AS \"FeatureID\", m.\"Cluster\", m.\"Membership\", ",
-      paste(paste0("z.", .db_id(conds)), collapse = ", "),
-      " FROM pp_membership m LEFT JOIN (SELECT protein_id, ",
-      paste(piv, collapse = ", "),
-      " FROM pp_profile GROUP BY protein_id) z ON z.protein_id = m.protein_id",
-      " ORDER BY m.position"))
   }
 
   invisible(NULL)

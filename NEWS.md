@@ -8,7 +8,7 @@ without any change to the results the pipeline produces.
 
 * Package structure: `DESCRIPTION`, `NAMESPACE` and help pages generated with
   roxygen2. The way to load the code is now `library(NADIA)`.
-* 114 exported functions covering the whole pipeline: preprocessing of
+* 117 exported functions covering the whole pipeline: preprocessing of
   Spectronaut, DIA-NN and Proteome Discoverer reports (both TMT and label-free),
   normalization (13 methods), batch correction, imputation (20 methods),
   differential expression with limma or limpa, metrics and benchmarking, and
@@ -103,6 +103,40 @@ without any change to the results the pipeline produces.
   opens the file for SQL, `nadia_tables()` lists it without loading it, and
   `nadia_export_parquet()` is the way out to an open format. Needs `duckdb` and
   `DBI`, both in `Suggests`.
+* **`deps_with_clusters()` and `nadia_deps_with_clusters()`: the input a
+  functional analysis needs.** Differential abundance says which proteins moved
+  and Pattern Profiler says which pattern they follow; an enrichment needs both
+  in one table, and joining them by hand is easy to get wrong — `DEPs_results`
+  is long by comparison, `long_output` is long by cluster, and merging them
+  without saying what to do about that produces a silent cartesian product.
+  The two functions return the columns of `DEPs_results` followed by `Cluster`,
+  `Membership` and `ClusterRank`, either from the two results in memory or from
+  a `.nadia` file, where the join is the view `v_deps_pattern_profiler`. They
+  return identical tables, which the tests assert rather than assume.
+
+  The join is a left join from the results and stays one: every protein that
+  was tested survives it, with or without a cluster. That set is the background
+  an enrichment is measured against, and quietly dropping part of it changes
+  every result computed from it. `assignment = "primary"` gives one row per
+  protein and comparison, carrying the dominant cluster; `assignment = "all"`
+  keeps every membership above the threshold, which is what a soft clustering
+  actually says.
+
+  Feeding that needed one addition to the file. `min_membership` is applied when
+  `long_output` is built, so a protein whose highest membership falls below it
+  has no row at all — and the highest membership of a protein is only
+  guaranteed to be at least `1 / optimal_c`, so with enough clusters this
+  happens. Stored that way, a protein that *was* clustered is indistinguishable
+  from one that never entered the clustering. The new `pp_assignment` table
+  holds the unfiltered hard assignment, one row per clustered protein, and
+  `"primary"` now returns a cluster for every one of them. On the example
+  dataset it costs 794 rows.
+
+  The addition is backward compatible in both directions: a file written
+  earlier has neither the table nor the view and reads without them, and a file
+  written now is read by an earlier NADIA that ignores them. The schema version
+  is unchanged, deliberately — adding an object is not changing the shape of
+  one.
 * Nine vignettes covering the pipeline end to end: `NADIA` (start here), plus
   `input-formats`, `missing-values`, `choosing-methods`, `benchmarking`,
   `batch-correction`, `pattern-profiler`, `visualization` and
@@ -243,6 +277,15 @@ without any change to the results the pipeline produces.
   `.nm_hopkins()` takes the seed as an argument.
 
 ## Bug fixes
+
+* **A Pattern Profiler added to a preprocessing-only `.nadia` file was written
+  but never readable.** `.db_create_views()` returned early when the file held
+  no processing step, and the block that builds `v_pattern_profiler` sat after
+  that return. So `nadia_add_pattern_profiler()` on a file written with
+  `write_nadia(f, preprocessing)` alone wrote `pp_membership` and `pp_profile`,
+  set `has_pattern_profiler` to `TRUE`, and created no view: the metadata said
+  the clustering was there and `nadia_pattern_profiler()` returned `NULL`, with
+  nothing to say why. The view is now built before the gate.
 
 * **The "Significant Proteins" plot left out the proteins it was best placed to
   expose.** `benchmark_signif_bars_gg()` filtered on `predicted == 1`, which is
