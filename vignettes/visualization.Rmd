@@ -65,40 +65,35 @@ prepare_vignette_highchart <- function(widget) {
 ```
 
 <style type="text/css">
-.visualisation-choice-table {
-  width: calc(100% - 4.5em);
-  box-sizing: border-box;
-  margin: 1em 0 1.5em;
+.code-details,
+.function-parameters {
+  margin: 1em 0 1.4em;
+  border: 1px solid #c8d3dc;
+  border-radius: 5px;
+  background: #f7f9fb;
 }
-.visualisation-choice-table table {
-  width: 100% !important;
-  max-width: none;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  table-layout: fixed;
-  font-size: 0.95em;
-  line-height: 1.3;
+.code-details summary,
+.function-parameters summary {
+  padding: 0.75em 1em;
+  color: #1d3557;
+  font-weight: 600;
+  cursor: pointer;
 }
-.visualisation-choice-table th,
-.visualisation-choice-table td {
-  padding: 0.5em 0.7em !important;
-  vertical-align: top !important;
+.code-details[open] summary,
+.function-parameters[open] summary {
+  border-bottom: 1px solid #c8d3dc;
 }
-.visualisation-choice-table th:nth-child(1),
-.visualisation-choice-table td:nth-child(1) {
-  width: 29%;
+.code-details pre,
+.code-details table,
+.function-parameters pre,
+.function-parameters table {
+  margin: 1em;
 }
-.visualisation-choice-table th:nth-child(2),
-.visualisation-choice-table td:nth-child(2) {
-  width: 17%;
+.function-parameters .parameter-content {
+  padding: 0.2em 1em 0.7em;
 }
-.visualisation-choice-table th:nth-child(3),
-.visualisation-choice-table td:nth-child(3) {
-  width: 18%;
-}
-.visualisation-choice-table th:nth-child(4),
-.visualisation-choice-table td:nth-child(4) {
-  width: 36%;
+.function-parameters .parameter-content ul {
+  margin-bottom: 0.7em;
 }
 .visualisation-warning {
   width: calc(100% - 4.5em);
@@ -122,6 +117,62 @@ prepare_vignette_highchart <- function(widget) {
 .visualisation-warning strong:first-child {
   color: #7a5310;
 }
+.visualization-workflow-figure {
+  margin: 1.5em 0 2em;
+}
+.visualization-workflow-figure img {
+  display: block;
+  height: auto !important;
+}
+.visualization-workflow-figure img.visualization-workflow-clickable {
+  cursor: zoom-in;
+}
+.visualization-workflow-zoom-hint {
+  margin: -0.15em 0 1.2em;
+  text-align: center;
+  color: #5f6f7e;
+  font-size: 0.9em;
+  font-style: italic;
+}
+#visualization-workflow-lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  padding: 24px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 25, 35, 0.88);
+  cursor: zoom-out;
+}
+#visualization-workflow-lightbox.is-open {
+  display: flex;
+}
+#visualization-workflow-lightbox img {
+  width: auto !important;
+  height: auto !important;
+  max-width: 96vw !important;
+  max-height: 92vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: white;
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.35);
+  cursor: default;
+}
+#visualization-workflow-lightbox button {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  border: 0;
+  background: transparent;
+  color: white;
+  font-size: 36px;
+  line-height: 1;
+  cursor: pointer;
+}
+body.visualization-workflow-lightbox-open {
+  overflow: hidden;
+}
 .interactive-chart-compact {
   width: 90%;
   margin: 1em auto 1.6em;
@@ -129,11 +180,33 @@ prepare_vignette_highchart <- function(widget) {
 .interactive-chart-compact .html-widget {
   width: 100% !important;
 }
+.pattern-profiler-chart {
+  margin-top: 1.6em;
+  margin-bottom: 1.6em;
+}
+.pattern-profiler-chart .html-widget {
+  height: 440px !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+.volcano-chart {
+  margin-top: 1.6em;
+}
+.volcano-chart .html-widget {
+  margin-top: 1.6em;
+}
+.pca-chart {
+  margin-top: 1.6em;
+}
+.pca-chart .html-widget {
+  margin-top: 1.6em;
+}
 .boxplot-chart .html-widget {
   height: 560px !important;
+  margin-top: 1.6em;
 }
 .boxplot-chart {
-  margin-bottom: 2.5em;
+  margin-bottom: 1.6em;
 }
 .wide-data-table {
   width: calc(100% - 4.5em);
@@ -147,22 +220,33 @@ prepare_vignette_highchart <- function(widget) {
   margin-right: 0 !important;
   table-layout: fixed;
 }
+table.wide-data-table {
+  max-width: none;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  table-layout: fixed;
+}
 .wide-data-table th,
 .wide-data-table td {
   padding: 0.5em 0.7em !important;
   vertical-align: top !important;
 }
-.pca-outline-table th:nth-child(1),
-.pca-outline-table td:nth-child(1) {
-  width: 18%;
+.pca-outline-table {
+  width: calc(100% - 8em);
 }
-.pca-outline-table th:nth-child(2),
-.pca-outline-table td:nth-child(2) {
-  width: 38%;
+table.pca-outline-table {
+  width: calc(100% - 8em) !important;
 }
-.pca-outline-table th:nth-child(3),
-.pca-outline-table td:nth-child(3) {
-  width: 44%;
+.pca-outline-intro {
+  margin-top: 1.6em;
+}
+.heatmap-annotation-figure {
+  margin-top: 1.6em;
+  margin-bottom: 1.6em;
+}
+.pca-outline-table th,
+.pca-outline-table td {
+  box-sizing: border-box;
 }
 .heatmap-subset-table th:nth-child(1),
 .heatmap-subset-table td:nth-child(1) {
@@ -185,20 +269,25 @@ prepare_vignette_highchart <- function(widget) {
   margin-left: 0 !important;
   margin-right: auto !important;
 }
-@media screen and (max-width: 767px) {
-  .visualisation-choice-table {
-    overflow-x: auto;
+@media screen and (min-width: 768px) {
+  .visualization-workflow-figure img {
+    width: 110% !important;
+    max-width: none !important;
+    margin-left: -8%;
   }
+}
+@media screen and (max-width: 767px) {
   .wide-data-table {
     overflow-x: auto;
-  }
-  .visualisation-choice-table table {
-    min-width: 760px;
   }
   .wide-data-table table {
     min-width: 680px;
   }
-  .visualisation-choice-table,
+  .visualization-workflow-figure img {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0;
+  }
   .visualisation-warning,
   .wide-data-table,
   .interactive-chart-compact {
@@ -274,12 +363,15 @@ knitr::kable(
 )
 ```
 
-The Highcharts functions operate on ordinary data frames, including the
-long-format output produced by Pattern Profiler. The clustering analysis itself
-uses the processed `SummarizedExperiment` together with `DEPs_results` to select
-and aggregate protein profiles. Compatible plotting tables can therefore be
-imported from another workflow, whereas a new Pattern Profiler run also needs
-the corresponding processed experiment.
+Most plotting functions in this vignette receive ordinary data frames, such as
+`DEPs_results`, `BoxPlot_Input`, or `PCA_Input`. Compatible tables produced by
+another workflow can therefore be plotted without recreating the original
+`SummarizedExperiment`.
+
+Pattern Profiler separates clustering from visualisation.
+`pattern_profiler_analysis()` uses `se_proc` and `DEPs_results` to produce
+`long_output`; the plotting functions use this data frame directly, so saved
+clustering results can be visualised without rerunning the analysis.
 
 ```{r visualisation-inputs}
 input_summary <- data.frame(
@@ -313,27 +405,99 @@ knitr::kable(
 
 # Choosing the appropriate visualisation
 
-Each plot starts from a different analytical question. The following table is a
-compact guide to choosing a view before changing colours or other presentation
-details.
+Different visualisations answer different analytical questions and require
+different input objects. The diagram below provides a practical guide to
+choosing the appropriate plot. For each option, it shows the question being
+addressed, the required NADIA input, the plotting function and its output, and
+what each graphical element represents.
 
-::: {.visualisation-choice-table}
+::: {.visualization-workflow-figure}
 
-| Question | Recommended view | Main unit shown | Important limitation |
-|:--|:--|:--|:--|
-| Which proteins differ between two conditions? | Volcano plot | One protein per comparison | The plot displays model results; it does not refit the model |
-| Are sample-level intensity distributions comparable? | Boxplot | One distribution per sample | Similar distributions do not prove that unwanted variation has been removed |
-| What are the dominant directions of sample variation? | PCA | One point per sample | Separation depends on the proteins and scaling used |
-| Which proteins share a relative abundance pattern? | Heatmap | One row per protein | Row-scaled colours cannot compare absolute abundance between proteins |
-| Which proteins follow similar trajectories across ordered conditions? | Pattern Profiler | One standardised profile per protein | Clusters depend on condition order, the chosen number of clusters, and membership threshold |
+```{r visualization-workflow, echo=FALSE, fig.align="center", out.width="100%", fig.cap="From analytical question to visual output in NADIA. Each row links a recommended view to its input, plotting function or returned object, and graphical unit.", fig.alt="Five-row workflow for choosing a NADIA visualisation. Volcano plots use DEPs_results and show one protein per comparison. Boxplots use BoxPlot_Input and show one distribution per sample. PCA uses PCA_Input and shows one point per sample. Heatmaps use PCA_Input and show proteins by samples. Pattern Profiler uses se_proc and DEPs_results to produce long_output and displays protein trajectories and cluster centroids."}
+knitr::include_graphics("figures/visualization-workflow.svg")
+```
 
 :::
 
-Several Highcharts functions return **named lists**: volcano plots are named by
-comparison, boxplots by assay, PCA plots by subset, and Pattern Profiler profile
-plots by cluster. Select one element to display a chart; printing the list
-itself is not useful. The Pattern Profiler centroid function instead returns one
-chart containing all selected clusters.
+<div class="visualization-workflow-zoom-hint">Click the figure to enlarge it; press Esc or click outside the image to close it.</div>
+
+<script>
+(function () {
+  var source = document.querySelector(".visualization-workflow-figure img");
+  if (!source || document.getElementById("visualization-workflow-lightbox")) return;
+
+  source.classList.add("visualization-workflow-clickable");
+  source.setAttribute("tabindex", "0");
+  source.setAttribute("title", "Click to enlarge the visualisation workflow");
+
+  var lightbox = document.createElement("div");
+  lightbox.id = "visualization-workflow-lightbox";
+  lightbox.setAttribute("role", "dialog");
+  lightbox.setAttribute("aria-modal", "true");
+  lightbox.setAttribute("aria-label", "Enlarged NADIA visualisation workflow");
+  lightbox.setAttribute("aria-hidden", "true");
+
+  var enlarged = source.cloneNode(true);
+  enlarged.classList.remove("visualization-workflow-clickable");
+  enlarged.removeAttribute("tabindex");
+  enlarged.removeAttribute("title");
+  enlarged.removeAttribute("width");
+
+  var closeButton = document.createElement("button");
+  closeButton.type = "button";
+  closeButton.setAttribute("aria-label", "Close enlarged figure");
+  closeButton.textContent = "\u00d7";
+
+  lightbox.appendChild(enlarged);
+  lightbox.appendChild(closeButton);
+  document.body.appendChild(lightbox);
+
+  function openLightbox() {
+    lightbox.classList.add("is-open");
+    lightbox.setAttribute("aria-hidden", "false");
+    document.body.classList.add("visualization-workflow-lightbox-open");
+    closeButton.focus();
+  }
+
+  function closeLightbox() {
+    lightbox.classList.remove("is-open");
+    lightbox.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("visualization-workflow-lightbox-open");
+    source.focus();
+  }
+
+  source.addEventListener("click", openLightbox);
+  source.addEventListener("keydown", function (event) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openLightbox();
+    }
+  });
+  enlarged.addEventListener("click", function (event) {
+    event.stopPropagation();
+  });
+  closeButton.addEventListener("click", closeLightbox);
+  lightbox.addEventListener("click", closeLightbox);
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && lightbox.classList.contains("is-open")) {
+      closeLightbox();
+    }
+  });
+}());
+</script>
+
+These views are complementary rather than interchangeable. Volcano plots show
+the results of fitted differential-abundance comparisons, whereas boxplots and
+PCA describe samples. Heatmaps display protein patterns across samples, and
+Pattern Profiler groups standardised trajectories across ordered conditions.
+Their interpretation therefore depends on the preprocessing, protein
+selection, scaling, thresholds, and sample design used to create them.
+
+Most interactive plotting functions return a **named list of charts**. Each
+name identifies a comparison for volcano plots, an assay for boxplots, a subset
+for PCA, or a cluster for Pattern Profiler profiles. Select a name to display
+the corresponding chart, as shown below. `cluster_centroids_highchart()` is the
+exception: it returns one chart containing all selected cluster centroids.
 
 ```{r named-lists, eval=FALSE}
 volcanoes <- volcano_highchart_list(res$DEPs_results)
@@ -383,13 +547,57 @@ A volcano plot combines effect size and statistical evidence for one comparison.
 It is most useful for identifying proteins that are both sufficiently different
 in abundance and supported by the differential-abundance model.
 
+The function can use sensible defaults, but its main arguments allow the input,
+comparisons, decision thresholds, labels, and appearance to be adapted to the
+analysis. The expandable guide below summarises the controls used most often;
+the complete reference is available in `?volcano_highchart_list`.
+
+<details class="function-parameters">
+<summary>Show the main parameters of volcano_highchart_list()</summary>
+<div class="parameter-content">
+
+<p><strong>Input and plot selection</strong></p>
+<ul>
+  <li><code>de_res</code>: differential-abundance results containing the protein identifiers, gene names, log2 fold changes, p-values, and comparison labels.</li>
+  <li><code>comparisons</code>: optional comparison names to plot; <code>NULL</code> uses every comparison in <code>de_res</code>.</li>
+  <li><code>ain</code>: optional assay names used to filter a table containing results from several assays.</li>
+</ul>
+
+<p><strong>Thresholds and points</strong></p>
+<ul>
+  <li><code>alpha</code>: significance threshold applied to the p-values selected by <code>p_col</code>; the default is 0.05.</li>
+  <li><code>lfc_thr</code>: minimum absolute log2 fold change used for classification and the vertical guides; the default is 0.</li>
+  <li><code>p_col</code>: p-value column used on the y-axis and for classification; the default is <code>adj.P.Val</code>, but another column such as <code>P.Value</code> can be selected.</li>
+  <li><code>point_size</code>: size of the plotted protein points; the default is 4.</li>
+</ul>
+
+<p><strong>Labels and appearance</strong></p>
+<ul>
+  <li><code>show_top_genes</code>: number of significant genes labelled automatically, ranked by the selected p-value; the default is 0.</li>
+  <li><code>highlight_genes</code>: gene names to highlight manually, including proteins that do not pass the thresholds.</li>
+  <li><code>colors</code>: custom colours for up-regulated, down-regulated, and non-significant proteins.</li>
+  <li><code>palette</code>: a three-colour <strong>paletteer</strong> palette; when supplied, it takes precedence over <code>colors</code>.</li>
+  <li><code>title</code>: optional chart title; <code>{comparison}</code> inserts the current comparison name.</li>
+</ul>
+
+<p><strong>Return value</strong></p>
+<ul>
+  <li>A named list containing one interactive Highcharts object for each selected comparison.</li>
+</ul>
+
+</div>
+</details>
+
 ## Summarising the selected comparison
 
 Before drawing the figure, it is helpful to count the proteins assigned to each
 category. The table below applies the same thresholds as the plot: adjusted
 *p*-value below 0.05 and absolute log2 fold change of at least 1.
 
-```{r volcano-summary}
+<details class="code-details">
+<summary>Show the code used to classify proteins and calculate the counts</summary>
+
+```{r volcano-summary, results="hide"}
 de_ba <- res$DEPs_results[
   res$DEPs_results$Comparison == "B-A",
   ,
@@ -424,10 +632,20 @@ knitr::kable(
 )
 ```
 
+</details>
+
+```{r volcano-summary-table, echo=FALSE}
+knitr::kable(
+  volcano_counts,
+  row.names = FALSE,
+  caption = "Protein classification for B-A at adjusted p < 0.05 and |log2FC| >= 1."
+)
+```
+
 Under these criteria, the example contains `r n_up` up-regulated proteins,
 `r n_down` down-regulated proteins, and `r n_not_significant` proteins that do
-not pass both thresholds. This numerical summary prevents the apparent density
-of points from being mistaken for a count.
+not pass both thresholds. The table provides exact counts, which are difficult
+to estimate from the volcano plot because many points overlap.
 
 ## Creating and reading the plot
 
@@ -435,7 +653,7 @@ of points from being mistaken for a count.
 Here, the six most statistically significant proteins that also pass both
 thresholds are labelled automatically.
 
-::: {.interactive-chart-compact}
+::: {.interactive-chart-compact .volcano-chart}
 
 ```{r volcano-plot}
 volcanoes <- volcano_highchart_list(
@@ -477,13 +695,15 @@ column and may highlight a protein whether or not it passes the thresholds.
 
 ```{r volcano-options, eval=FALSE}
 # Label proteins selected for their biological relevance.
-volcano_highchart_list(
+highlighted_volcanoes <- volcano_highchart_list(
   res$DEPs_results,
   comparisons = "B-A",
   alpha = 0.05,
   lfc_thr = 1,
   highlight_genes = c("lamB", "yciU", "gltA")
-)[["B-A"]]
+)
+
+highlighted_volcanoes[["B-A"]]
 
 # Build several charts with identical settings.
 volcanoes_all <- volcano_highchart_list(
@@ -495,6 +715,10 @@ volcanoes_all <- volcano_highchart_list(
 )
 
 names(volcanoes_all)
+
+volcanoes_all[["B-A"]]
+volcanoes_all[["D-A"]]
+volcanoes_all[["D-B"]]
 ```
 
 # Boxplots of sample distributions
@@ -503,13 +727,55 @@ Sample-level boxplots provide a compact quality-control view of the intensity
 distribution. They are useful before and after processing because shifts in
 location, spread, or shape can reveal samples that deserve closer inspection.
 
+`boxplot_highchart_list()` controls which assays are displayed and how their
+sample distributions are grouped and presented. The expandable guide below
+summarises the arguments most relevant to interpretation and display; the
+complete reference is available in `?boxplot_highchart_list`.
+
+<details class="function-parameters">
+<summary>Show the main parameters of boxplot_highchart_list()</summary>
+<div class="parameter-content">
+
+<p><strong>Input and assay selection</strong></p>
+<ul>
+  <li><code>data</code>: long-format intensity table containing the sample, assay, intensity, and condition columns.</li>
+  <li><code>assays</code>: assays to plot; <code>NULL</code> creates a boxplot for every assay in <code>data</code>.</li>
+</ul>
+
+<p><strong>Grouping and layout</strong></p>
+<ul>
+  <li><code>color_by</code>: sample-level column used to colour the boxes; the default is <code>Condition</code>.</li>
+  <li><code>group_order</code>: optional order of the groups or conditions in the chart and legend.</li>
+  <li><code>palette</code>: colour vector or named palette used for the groups.</li>
+  <li><code>horizontal</code>: switches between horizontal and vertical boxes; the default is <code>TRUE</code>.</li>
+  <li><code>box_width</code> and <code>height</code>: control the box width and overall chart height.</li>
+</ul>
+
+<p><strong>Outliers and titles</strong></p>
+<ul>
+  <li><code>show_outliers</code>: displays observations beyond the whiskers; the default is <code>TRUE</code>.</li>
+  <li><code>outlier_jitter</code> and <code>outlier_size</code>: control the horizontal spread and size of outlier points.</li>
+  <li><code>title</code> and <code>subtitle</code>: optional text in which <code>{assay}</code> is replaced by the current assay name.</li>
+</ul>
+
+<p><strong>Return value</strong></p>
+<ul>
+  <li>A named list containing one interactive Highcharts boxplot for each selected assay.</li>
+</ul>
+
+</div>
+</details>
+
 ## Comparing assays numerically
 
 The example output contains the initial log2 intensities and the final processed
 assay. The following summary calculates the median for every sample and then
 reports the range of those sample medians within each assay.
 
-```{r boxplot-summary}
+<details class="code-details">
+<summary>Show the code used to calculate the sample-median ranges</summary>
+
+```{r boxplot-summary, results="hide"}
 sample_medians <- aggregate(
   Intensity ~ Assay + Column + Condition,
   data = res$BoxPlot_Input,
@@ -540,6 +806,16 @@ knitr::kable(
 )
 ```
 
+</details>
+
+```{r boxplot-summary-table, echo=FALSE}
+knitr::kable(
+  median_ranges,
+  row.names = FALSE,
+  caption = "Range of sample medians before and after processing."
+)
+```
+
 In this dataset, the range of sample medians decreases after processing. This is
 consistent with improved alignment of the sample distributions, but it is not
 proof that every technical effect has been removed. Distributional similarity
@@ -548,10 +824,12 @@ normalisation diagnostics described in `vignette("choosing-methods")`.
 
 ## Creating and reading the boxplot
 
-The chart below shows the final assay. Each box spans the first to the third
-quartile, the central line is the median, and the whiskers extend to the most
-extreme values within 1.5 interquartile ranges. Hovering over a box reports these
-statistics and the number of finite protein intensities in that sample.
+`boxplot_highchart_list()` creates one chart for every requested assay. Here,
+the list contains only the final processed assay. Each box spans the first to
+the third quartile, the central line is the median, and the whiskers extend to
+the most extreme values within 1.5 interquartile ranges. Hovering over a box
+reports these statistics and the number of finite protein intensities in that
+sample.
 
 ::: {.interactive-chart-compact .boxplot-chart}
 
@@ -607,14 +885,58 @@ PCA reduces thousands of protein measurements to a small number of directions
 that capture the largest variation among samples. It is a diagnostic view of
 similarity, separation, and possible outliers; it is not a significance test.
 
+`pca_highchart_list()` combines protein-subset selection, PCA calculation, and
+graphical presentation. The expandable guide below summarises the parameters
+that most strongly affect the resulting projection; the complete reference is
+available in `?pca_highchart_list`.
+
+<details class="function-parameters">
+<summary>Show the main parameters of pca_highchart_list()</summary>
+<div class="parameter-content">
+
+<p><strong>Input and protein subsets</strong></p>
+<ul>
+  <li><code>pca_input</code>: long-format protein-intensity table produced for PCA.</li>
+  <li><code>modes</code>: subsets to plot: <code>all</code>, <code>any</code>, and/or named comparisons such as <code>B-A</code>.</li>
+  <li><code>alpha</code>: adjusted p-value threshold used to select proteins for a named-comparison mode; the default is 0.05.</li>
+  <li><code>filter_samples_to_comparison</code>: for a named comparison, optionally retains only samples from the two conditions involved.</li>
+</ul>
+
+<p><strong>PCA calculation</strong></p>
+<ul>
+  <li><code>center</code>: centres each protein before PCA; the default is <code>TRUE</code>.</li>
+  <li><code>scale.</code>: scales each protein to unit variance before PCA; the default is <code>TRUE</code>.</li>
+</ul>
+
+<p><strong>Groups, points, and outlines</strong></p>
+<ul>
+  <li><code>color_by</code>, <code>group_order</code>, and <code>palette</code>: define the grouping variable, group order, and colours.</li>
+  <li><code>point_size</code> and <code>show_labels</code>: control the sample points and optional <code>SampleID</code> labels.</li>
+  <li><code>addEllipses</code>: adds a group outline when at least three samples are available.</li>
+  <li><code>ellipse_type</code>: uses either an observed <code>convex</code> hull or a normal-theory <code>confidence</code> ellipse.</li>
+  <li><code>ellipse_level</code>: confidence level used when <code>ellipse_type = "confidence"</code>; the default is 0.95.</li>
+</ul>
+
+<p><strong>Return value</strong></p>
+<ul>
+  <li>A named list containing one interactive Highcharts PCA plot for each requested mode.</li>
+</ul>
+
+</div>
+</details>
+
 ## Comparing protein subsets
 
-The protein subset is part of the PCA question. NADIA supports all proteins,
-proteins significant in any comparison, or proteins significant in one named
-comparison. The table below compares the first two choices using the same
-centering and scaling settings.
+The proteins included in a PCA influence the pattern of sample variation and
+separation that can be observed. NADIA supports all proteins, proteins
+significant in any comparison, or proteins significant in one named comparison.
+The table below compares the first two choices using the same centering and
+scaling settings.
 
-```{r pca-summary}
+<details class="code-details">
+<summary>Show the code used to compare the PCA protein subsets</summary>
+
+```{r pca-summary, results="hide"}
 pca_scores_all <- build_pca_scores(
   res$PCA_Input,
   mode = "all",
@@ -649,6 +971,17 @@ knitr::kable(
 )
 ```
 
+</details>
+
+```{r pca-summary-table, echo=FALSE}
+knitr::kable(
+  pca_summary,
+  row.names = FALSE,
+  digits = 2,
+  caption = "Protein subsets and variance represented by the first two principal components."
+)
+```
+
 With all proteins, PC1 explains `r unique(pca_scores_all$PC1_Perc)`% of the
 variance. Restricting the analysis to proteins already selected by differential
 abundance raises this to `r unique(pca_scores_any$PC1_Perc)`%. The stronger
@@ -658,12 +991,15 @@ independent validation of those differences.
 
 ## Creating and reading the PCA plot
 
-The baseline plot should generally use all proteins. Sample labels are enabled
-here because the experiment contains only 12 samples. The 95% confidence
-ellipses provide a normal-theory summary of the location and covariance of each
-condition.
+`pca_highchart_list()` can generate several PCA plots in a single call. The
+resulting plots are stored in a named list, with one element for each protein
+subset requested through `modes`. In this example, `modes = "all"` includes every
+protein and therefore produces a single baseline PCA plot. Sample names are
+displayed because the dataset contains only 12 samples. The 95% confidence
+ellipses summarise where the samples from each condition are concentrated and
+how they are distributed in the PCA space.
 
-::: {.interactive-chart-compact}
+::: {.interactive-chart-compact .pca-chart}
 
 ```{r pca-plot}
 condition_colours <- c(
@@ -692,31 +1028,29 @@ prepare_vignette_highchart(pcas[["all"]])
 
 :::
 
-Points close together have similar multivariate protein profiles under the
-chosen preprocessing and scaling. Separation along PC1 or PC2 indicates a major
-source of variation, but the plot alone does not establish whether that source
-is biological, technical, or confounded with the experimental design. An
-isolated replicate should therefore be traced back to its sample-level quality
-metrics rather than removed from the plot by inspection alone.
+Nearby points represent samples with similar multivariate protein profiles.
+Separation highlights major variation, but its biological or technical origin
+should be checked against the study design and sample-level quality metrics.
 
-The ellipses are descriptive overlays, not significance tests or decision
-boundaries. With only four replicates per condition, their covariance estimates
-are uncertain; they should be used for visual orientation rather than as proof
-of group separation.
+The 95% ellipses use each condition's mean and covariance matrix together with
+a two-dimensional chi-squared contour to summarise group centre, spread, and
+orientation. They support visual comparison, while formal separation can be
+assessed with an appropriate statistical test.
 
-`scale. = TRUE` gives each protein unit variance before PCA and prevents
-high-variance proteins from dominating solely because of their scale. With
-`scale. = FALSE`, proteins with greater between-sample variance contribute more
-strongly. The choice should be recorded because it can materially change the
-projection.
+With `scale. = TRUE`, proteins are standardised to unit variance and contribute
+more comparably to the PCA. With `scale. = FALSE`, more variable proteins have
+greater influence. Because scaling can change sample positions and apparent
+group separation, the selected setting should be reported.
 
 ## Subset modes, ellipses, and sample filtering
 
-`pca_highchart_list()` uses a comparison name directly as a mode. For example,
-`modes = "B-A"` selects proteins significant in that comparison. When
-`filter_samples_to_comparison = TRUE`, samples from condition `D` are also
-excluded; when it is `FALSE`, all samples are projected using the proteins
-selected from `B-A`.
+To focus the PCA on proteins that are significant in a particular comparison,
+pass its name to `modes`. For example, `modes = "B-A"` selects the proteins that
+differ significantly between conditions `B` and `A`. The
+`filter_samples_to_comparison` argument then determines which samples are shown:
+`TRUE` keeps only samples from `A` and `B`, whereas `FALSE` plots all samples,
+including those from condition `D`, using the same set of proteins selected from
+the `B-A` comparison.
 
 ```{r pca-options, eval=FALSE}
 pca_ba <- pca_highchart_list(
@@ -733,21 +1067,46 @@ pca_ba <- pca_highchart_list(
 pca_ba[["B-A"]]
 ```
 
-Two group outlines are available:
+<div class="pca-outline-intro">
+<p><code>ellipse_type</code> controls how each condition is outlined in the PCA
+plot. The table below compares the geometry and appropriate interpretation of
+the two available options, helping you choose between a convex hull and a
+confidence ellipse.</p>
+</div>
 
-::: {.wide-data-table .pca-outline-table}
+<table class="table table-condensed wide-data-table pca-outline-table">
+<colgroup>
+<col style="width: 17%;">
+<col style="width: 35%;">
+<col style="width: 48%;">
+</colgroup>
+<thead>
+<tr>
+<th>Ellipse type</th>
+<th>Geometry</th>
+<th>Appropriate interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"convex"</code></td>
+<td>Smallest convex polygon containing the observed samples</td>
+<td>Describes the observed extent of a group</td>
+</tr>
+<tr>
+<td><code>"confidence"</code></td>
+<td>Covariance ellipse scaled by a chi-squared quantile</td>
+<td>Summarises the centre, spread, and orientation of each group under a multivariate-normal model</td>
+</tr>
+</tbody>
+</table>
 
-| `ellipse_type` | Geometry | Appropriate interpretation |
-|:--|:--|:--|
-| `"convex"` | Smallest convex polygon containing the observed samples | Describes the observed extent of a group |
-| `"confidence"` | Covariance ellipse scaled by a chi-squared quantile | Normal-theory summary whose shape is unstable in small groups |
-
-:::
-
-At least three samples are needed to draw either outline. With four replicates
-per condition, as in this example, the covariance estimate behind a confidence
-ellipse is especially uncertain. The outline should support visual orientation,
-not serve as evidence of significant group separation.
+At least three samples are required to draw either outline. With
+`ellipse_type = "confidence"` and `ellipse_level = 0.95`, the ellipse combines
+each group's mean and covariance matrix with a two-dimensional chi-squared
+contour. It therefore provides a consistent summary of group centre, spread,
+and orientation, while the displayed points show the individual samples on
+which the outline is based.
 
 # Heatmaps
 
@@ -757,15 +1116,59 @@ coherent patterns and whether replicates display similar profiles. Unlike
 Pattern Profiler, it preserves the individual sample columns and does not assign
 proteins to profile clusters.
 
+`proteomics_heatmap()` controls protein selection, scaling, ordering,
+clustering, annotation, and colour mapping. The expandable guide below focuses
+on the parameters that determine what the heatmap represents and how it should
+be interpreted; the complete reference is available in
+`?proteomics_heatmap`.
+
+<details class="function-parameters">
+<summary>Show the main parameters of proteomics_heatmap()</summary>
+<div class="parameter-content">
+
+<p><strong>Input and protein selection</strong></p>
+<ul>
+  <li><code>data</code>: long-format protein-intensity table used to construct the heatmap matrix.</li>
+  <li><code>mode</code>: selects <code>all</code> proteins, proteins significant in <code>any</code> comparison, or proteins from one <code>target</code> comparison.</li>
+  <li><code>alpha</code> and <code>comparison</code>: define the significance threshold and named comparison used by <code>mode = "target"</code>.</li>
+  <li><code>feature_ids</code>: explicit proteins to display; when supplied, this selection takes precedence over mode-based filtering.</li>
+</ul>
+
+<p><strong>Scaling, ordering, and clustering</strong></p>
+<ul>
+  <li><code>scale_data</code>: applies row, column, or no scaling; the default is <code>row</code>.</li>
+  <li><code>sample_order</code> and <code>condition_order</code>: arrange samples by clustering, by condition, or in a custom order.</li>
+  <li><code>cluster_rows</code> and <code>cluster_columns</code>: control hierarchical clustering of proteins and samples.</li>
+  <li><code>show_row_names</code> and <code>show_column_names</code>: control the protein and sample labels.</li>
+</ul>
+
+<p><strong>Annotations and appearance</strong></p>
+<ul>
+  <li><code>row_annotation</code> and <code>row_annotation_cols</code>: add selected categorical annotations to proteins.</li>
+  <li><code>row_order_by</code> and <code>split_rows_by</code>: order or divide proteins using clustering or annotation columns.</li>
+  <li><code>palette_value</code> and <code>reverse_palette</code>: choose and optionally reverse the abundance colour scale.</li>
+  <li><code>palette_annotation</code> and <code>show_annotation</code>: control the condition annotation colours and visibility.</li>
+  <li><code>heatmap_title</code>: optional title displayed above the heatmap.</li>
+</ul>
+
+<p><strong>Return value</strong></p>
+<ul>
+  <li><code>proteomics_heatmap()</code> returns one tidyHeatmap/ComplexHeatmap object; <code>proteomics_heatmap_list()</code> returns a named list for several modes.</li>
+</ul>
+
+</div>
+</details>
+
 ## Selecting proteins for the heatmap
 
 Showing every quantified protein is possible but rarely legible. NADIA provides
 three filtering modes, and `feature_ids` can be used when a focused, explicitly
 defined panel is needed.
 
-::: {.wide-data-table .heatmap-subset-table}
+<details class="code-details">
+<summary>Show the code used to compare the heatmap protein subsets</summary>
 
-```{r heatmap-subsets}
+```{r heatmap-subsets, results="hide"}
 n_all <- length(unique(res$PCA_Input$FeatureID))
 n_any <- length(unique(
   res$PCA_Input$FeatureID[res$PCA_Input$sig_any %in% TRUE]
@@ -799,6 +1202,18 @@ knitr::kable(
 )
 ```
 
+</details>
+
+::: {.wide-data-table .heatmap-subset-table}
+
+```{r heatmap-subsets-table, echo=FALSE}
+knitr::kable(
+  heatmap_subsets,
+  row.names = FALSE,
+  caption = "Available protein-filtering modes for the example heatmap."
+)
+```
+
 :::
 
 Unlike a comparison-specific PCA, `mode = "target"` in
@@ -809,7 +1224,7 @@ all twelve.
 ## Creating and reading a focused heatmap
 
 The complete `B-A` set contains `r n_ba` proteins, which is too dense for row
-labels in a vignette. The following example displays the 30 proteins with the
+labels in a vignette. The following code selects the 30 proteins with the
 smallest adjusted *p*-values among those passing the 0.05 threshold.
 
 ```{r select-heatmap-proteins}
@@ -822,6 +1237,11 @@ de_ba_ordered <- de_ba_ordered[order(de_ba_ordered$adj.P.Val), , drop = FALSE]
 ba_top_ids <- head(unique(de_ba_ordered$Protein.IDs), 30)
 ```
 
+`proteomics_heatmap()` creates one heatmap for the requested protein and sample
+subset. The selected IDs are supplied through `feature_ids`, while
+`mode = "target"` retains the samples from conditions `A` and `B` in the `B-A`
+comparison.
+
 ```{r heatmap-plot, eval=have_heatmap, fig.width=8, fig.height=7, fig.align="center", fig.cap="Row-scaled abundance profiles for the 30 proteins with the smallest adjusted p-values in the B-A comparison.", fig.alt="Row-scaled heatmap of the 30 most statistically significant proteins in the B-A comparison"}
 proteomics_heatmap(
   res$PCA_Input,
@@ -829,9 +1249,10 @@ proteomics_heatmap(
   comparison = "B-A",
   feature_ids = ba_top_ids,
   scale_data = "row",
-  sample_order = "condition",
+  sample_order = "clustering",
   condition_order = c("A", "B"),
   cluster_rows = TRUE,
+  cluster_columns = TRUE,
   show_row_names = TRUE,
   palette_value = "brewer:RdBu",
   reverse_palette = TRUE,
@@ -842,8 +1263,10 @@ proteomics_heatmap(
 Each row is transformed to a z-score because `scale_data = "row"`. Warm and
 cool colours therefore represent values above and below that protein's own mean;
 they do **not** indicate that one protein is more abundant than another. Row
-clustering groups proteins with similar relative profiles, while the explicit
-condition order keeps the sample columns arranged as `A` followed by `B`.
+clustering groups proteins with similar relative profiles, while column
+clustering places samples with similar profiles next to one another. The
+condition annotation can then be used to assess whether the resulting sample
+clusters are consistent with conditions `A` and `B`.
 
 Use `scale_data = "none"` when absolute log2 intensity differences between
 proteins are the subject of the figure. In that case, a small number of
@@ -854,26 +1277,39 @@ different question and is rarely the default for protein-profile heatmaps.
 
 Categorical protein annotations can be supplied as a data frame containing a
 `FeatureID` column. Rows may be split by one annotation and ordered by another.
-The following complete example is not rendered because the preceding figure
-already shows the same proteins.
+Because the 30 proteins used above all have positive `logFC` values, they would
+produce only one annotation category. For a clearer demonstration, the example
+below selects the 15 most significant proteins with higher abundance in `B` and
+the 15 most significant proteins with higher abundance in `A`. The resulting
+annotation and row split are displayed beneath the code.
 
-```{r heatmap-annotations, eval=FALSE}
+```{r heatmap-annotations, eval=have_heatmap, results="hide"}
+ba_higher_b_ids <- head(unique(
+  de_ba_ordered$Protein.IDs[de_ba_ordered$logFC > 0]
+), 15)
+
+ba_higher_a_ids <- head(unique(
+  de_ba_ordered$Protein.IDs[de_ba_ordered$logFC < 0]
+), 15)
+
+ba_annotation_ids <- c(ba_higher_b_ids, ba_higher_a_ids)
+
 direction <- ifelse(
-  de_ba$logFC[match(ba_top_ids, de_ba$Protein.IDs)] > 0,
+  de_ba$logFC[match(ba_annotation_ids, de_ba$Protein.IDs)] > 0,
   "Higher in B",
   "Higher in A"
 )
 
 protein_annotation <- data.frame(
-  FeatureID = ba_top_ids,
+  FeatureID = ba_annotation_ids,
   Direction = direction
 )
 
-proteomics_heatmap(
+annotated_heatmap <- proteomics_heatmap(
   res$PCA_Input,
   mode = "target",
   comparison = "B-A",
-  feature_ids = ba_top_ids,
+  feature_ids = ba_annotation_ids,
   row_annotation = protein_annotation,
   row_annotation_cols = "Direction",
   row_annotation_palette = list(
@@ -884,7 +1320,26 @@ proteomics_heatmap(
   sample_order = "condition",
   condition_order = c("A", "B")
 )
+```
 
+::: {.heatmap-annotation-figure}
+
+```{r heatmap-annotations-plot, echo=FALSE, eval=have_heatmap, fig.width=8, fig.height=7, fig.align="center", fig.cap="Heatmap of 15 significant proteins with higher abundance in A and 15 with higher abundance in B, annotated and split by direction.", fig.alt="Row-scaled heatmap showing 15 significant proteins with higher abundance in condition A and 15 with higher abundance in condition B"}
+annotated_heatmap
+```
+
+:::
+
+The `Direction` annotation is derived from the sign of `logFC`: positive values
+are labelled **Higher in B**, whereas negative values are labelled **Higher in
+A**. The coloured row annotation identifies these categories, and
+`split_rows_by = "Direction"` separates them into two heatmap sections. Within
+each section, the row-scaled colours still represent values above or below each
+protein's own mean. This balanced selection is used only to illustrate the
+annotation and should not be interpreted as the observed proportion of
+up- and down-regulated proteins in the complete comparison.
+
+```{r heatmap-list-example, eval=FALSE}
 # Build a named list containing several heatmaps.
 heatmaps <- proteomics_heatmap_list(
   res$PCA_Input,
@@ -894,10 +1349,16 @@ heatmaps <- proteomics_heatmap_list(
   condition_order = c("A", "B", "D")
 )
 
-names(heatmaps)
+# Display the heatmaps individually.
+heatmaps[["any"]]
+heatmaps[["B-A"]]
+heatmaps[["D-A"]]
 ```
 
-# Protein pattern clusters (optional)
+`proteomics_heatmap_list()` returns a named list, so indexing it by mode displays
+each heatmap separately.
+
+# Protein pattern clusters
 
 Pattern Profiler groups proteins that follow similar relative trajectories
 across ordered conditions. It complements a heatmap by turning recurring
@@ -909,6 +1370,51 @@ This section requires the optional **Mfuzz**, **Biobase**, and **e1071**
 packages. It focuses on visualising an existing clustering result; see
 `vignette("pattern-profiler")` for cluster-number selection, membership
 diagnostics, and data storage.
+
+Pattern Profiler separates clustering from visualisation. The expandable guide
+below summarises the main controls that determine which proteins are clustered
+and how the centroid and protein-profile charts are constructed; the dedicated
+Pattern Profiler vignette provides the complete analysis reference.
+
+<details class="function-parameters">
+<summary>Show the main Pattern Profiler analysis and plotting parameters</summary>
+<div class="parameter-content">
+
+<p><strong>Analysis input and protein selection</strong></p>
+<ul>
+  <li><code>se_proc</code> and <code>DEPs_results</code>: processed experiment and differential-abundance results used to calculate the clusters.</li>
+  <li><code>assay_name</code>: assay extracted from <code>se_proc</code> and matched in <code>DEPs_results</code>.</li>
+  <li><code>filter_mode</code>: uses proteins significant in <code>any</code> comparison, <code>all</code> proteins, or proteins from one <code>specific</code> comparison.</li>
+  <li><code>alpha</code> and <code>comparison</code>: significance threshold and comparison used during protein filtering.</li>
+  <li><code>condition_order</code>: order of conditions along every protein trajectory.</li>
+  <li><code>aggregate</code>: combines sample replicates with the median or mean before clustering.</li>
+</ul>
+
+<p><strong>Cluster selection and reproducibility</strong></p>
+<ul>
+  <li><code>auto_select_c</code>, <code>c_range</code>, and <code>selection_method</code>: evaluate and select a cluster number automatically.</li>
+  <li><code>c</code>: fixed number of clusters used when <code>auto_select_c = FALSE</code>.</li>
+  <li><code>min_membership</code>: minimum fuzzy membership retained in <code>long_output</code>.</li>
+  <li><code>seed</code> and <code>seeds</code>: make the final clustering and automatic cluster-number evaluation reproducible.</li>
+</ul>
+
+<p><strong>Centroid and profile charts</strong></p>
+<ul>
+  <li><code>data</code>: the long-format <code>long_output</code> table returned by <code>pattern_profiler_analysis()</code>.</li>
+  <li><code>conditions</code>, <code>clusters</code>, and <code>min_membership</code>: control the x-axis order and the clusters or proteins displayed.</li>
+  <li><code>centroid_summary</code>: represents each cluster with the mean or median trajectory.</li>
+  <li><code>cluster</code> and <code>show_centroid</code>: select one profile cluster and optionally overlay its centroid.</li>
+  <li><code>line_width</code>, <code>line_opacity</code>, <code>centroid_width</code>, and <code>show_markers</code>: control the visibility of profile and centroid lines.</li>
+  <li><code>palette</code>, <code>cluster_color</code>, and <code>height</code>: control chart colours and dimensions.</li>
+</ul>
+
+<p><strong>Return values</strong></p>
+<ul>
+  <li><code>pattern_profiler_analysis()</code> returns the clustering results and <code>long_output</code>; the centroid and single-profile functions each return one chart, while <code>cluster_profile_highchart_list()</code> returns a named list by cluster.</li>
+</ul>
+
+</div>
+</details>
 
 ## Building and summarising the example clusters
 
@@ -938,7 +1444,10 @@ A stricter membership threshold is useful for displaying the clearest examples
 of each pattern. The table reports how many proteins remain at 0.70 and the
 median standardised profile represented by each cluster.
 
-```{r pattern-profiler-summary, eval=have_pattern_profiler}
+<details class="code-details">
+<summary>Show the code used to summarise the Pattern Profiler clusters</summary>
+
+```{r pattern-profiler-summary, eval=have_pattern_profiler, results="hide"}
 display_membership <- 0.70
 pp_display <- pp_vis$long_output[
   pp_vis$long_output$Membership >= display_membership,
@@ -977,6 +1486,19 @@ knitr::kable(
 )
 ```
 
+</details>
+
+```{r pattern-profiler-summary-table, echo=FALSE, eval=have_pattern_profiler}
+knitr::kable(
+  pattern_summary,
+  row.names = FALSE,
+  caption = paste0(
+    "High-membership proteins and median z-score profiles at membership >= ",
+    display_membership, "."
+  )
+)
+```
+
 The two clusters describe opposing relative trajectories. One pattern remains
 comparatively high in `A` and `B` before decreasing in `D`, whereas the other
 rises across the ordered conditions. Because the condition values are
@@ -985,11 +1507,11 @@ protein abundance.
 
 ## Comparing cluster centroids
 
-`cluster_centroids_highchart()` places the representative trajectory of every
-cluster in one chart. The median is used here because it is less sensitive than
-the mean to proteins near a cluster boundary.
+`cluster_centroids_highchart()` creates one interactive chart containing the
+representative trajectories of all selected clusters. The median is used here
+because it is less sensitive than the mean to proteins near a cluster boundary.
 
-::: {.interactive-chart-compact}
+::: {.interactive-chart-compact .pattern-profiler-chart}
 
 ```{r pattern-centroids, eval=have_pattern_profiler}
 centroid_plot <- cluster_centroids_highchart(
@@ -1013,12 +1535,14 @@ the cluster sizes and memberships in the preceding table.
 
 ## Inspecting representative protein profiles
 
-A cluster-level chart reveals whether individual profiles are concentrated
-around their centroid or whether the summary hides substantial heterogeneity.
-To keep the interactive vignette responsive, the next chart displays 100
-proteins sampled evenly across the membership range retained for cluster 1.
+`cluster_profile_highchart()` creates one interactive chart for a selected
+cluster, allowing individual protein profiles to be compared with their
+centroid. This reveals whether the profiles are concentrated around the summary
+or show substantial heterogeneity. To keep the interactive vignette responsive,
+the next chart displays 100 proteins sampled evenly across the membership range
+retained for cluster 1.
 
-::: {.interactive-chart-compact}
+::: {.interactive-chart-compact .pattern-profiler-chart}
 
 ```{r pattern-profiles, eval=have_pattern_profiler}
 cluster_one <- pp_display[pp_display$Cluster == 1, , drop = FALSE]
@@ -1075,25 +1599,41 @@ all_profile_plots[["Cluster_1"]]
 
 # Colours and consistent presentation
 
-Colour should encode the same meaning across related figures. Reusing a fixed
-condition palette makes samples easier to follow and prevents colours from being
-reassigned when a subset omits one condition. Pattern Profiler cluster numbers
-are arbitrary labels, but a fixed cluster palette should still be reused between
-the centroid and individual-profile charts from the same analysis.
+NADIA plots can be coloured with either an explicit vector of colour codes or a
+named palette. Available themes can be explored in the
+[`paletteer` catalogue](https://emilhvitfeldt.github.io/paletteer/) and the
+[ColorBrewer catalogue used by `RColorBrewer`](https://colorbrewer2.org/).
+
+An explicit vector gives complete control over each colour and makes the mapping
+visible in the analysis script. This is particularly useful when the same
+conditions, clusters, or significance categories must retain identical colours
+across several publication figures. A named palette is more concise and makes
+it easy to compare alternative themes: `paletteer` provides a common interface
+to a large collection of palettes from many R packages, whereas `RColorBrewer`
+offers a smaller set of qualitative, sequential, and diverging palettes designed
+for different types of data.
+
+The following examples use explicit colours. Comments identify the mapping
+required by each type of plot.
 
 ```{r colour-examples, eval=FALSE}
+# Pattern Profiler: one colour for each cluster.
+cluster_colours <- c("#E63946", "#457B9D")
+
+cluster_centroids_highchart(
+  pp_vis$long_output,
+  conditions = pp_vis$conditions,
+  min_membership = display_membership,
+  centroid_summary = "median",
+  palette = cluster_colours
+)
+
+# Boxplot: colours follow the condition order.
 condition_colours <- c(
   A = "#0072B2",
   B = "#D55E00",
   D = "#009E73"
 )
-
-pca_highchart_list(
-  res$PCA_Input,
-  modes = "all",
-  group_order = c("A", "B", "D"),
-  palette = condition_colours
-)[["all"]]
 
 boxplot_highchart_list(
   res$BoxPlot_Input,
@@ -1101,36 +1641,49 @@ boxplot_highchart_list(
   group_order = c("A", "B", "D"),
   palette = unname(condition_colours)
 )[["Impseqrob_min"]]
+
+# Volcano plot: colours are named by significance category.
+volcano_colours <- list(
+  up = "#D55E00",
+  down = "#0072B2",
+  ns = "#BDBDBD"
+)
+
+volcano_highchart_list(
+  res$DEPs_results,
+  comparisons = "B-A",
+  colors = volcano_colours
+)[["B-A"]]
 ```
 
-Palette names are resolved through either `paletteer` or `RColorBrewer`,
-depending on their format. An explicit vector is the safest choice for a series
-of publication figures because the mapping is visible in the script.
+When a named palette is preferred, `paletteer` themes use the
+`"package::palette"` format and `RColorBrewer` themes use
+`"brewer:PaletteName"`. The accepted formats vary slightly between plotting
+functions, as summarised below.
 
 ::: {.palette-reference-table}
 
 | Function | Palette argument | Example |
 |:--|:--|:--|
-| `volcano_highchart_list()` | `palette` or `colors = list(up, down, ns)` | `palette = "ggsci::default_jco"` |
-| `boxplot_highchart_list()` | Paletteer name, `"brewer:Name"`, or colour vector | `palette = "brewer:Dark2"` |
-| `pca_highchart_list()` | Paletteer name, `"brewer:Name"`, or preferably a named vector | `palette = condition_colours` |
-| Pattern Profiler Highcharts | Paletteer name, `"brewer:Name"`, or colour vector | `palette = c("#E63946", "#457B9D")` |
-| `proteomics_heatmap()` | Separate value and annotation palettes | `palette_value = "brewer:RdBu"` |
+| `volcano_highchart_list()` | `paletteer` name or `colors = list(up, down, ns)` | `palette = "ggsci::default_jco"` |
+| `boxplot_highchart_list()` | `paletteer` name, `"brewer:Name"`, or colour vector | `palette = "brewer:Dark2"` |
+| `pca_highchart_list()` | `paletteer` name, `"brewer:Name"`, or preferably a named vector | `palette = condition_colours` |
+| Pattern Profiler Highcharts | `ggsci` palette through `paletteer`, `"brewer:Name"`, or colour vector | `palette = "ggsci::default_jco"` |
+| `proteomics_heatmap()` | Separate `paletteer` or `RColorBrewer` palettes for values and annotations | `palette_value = "brewer:RdBu"` |
 
 :::
 
-For volcano plots, the explicit colour-list names are lower case:
+For example, the following call uses a named `paletteer` theme instead of
+specifying the three volcano-plot colours individually.
 
-```{r volcano-colours, eval=FALSE}
-volcano_highchart_list(
+```{r paletteer-example, eval=FALSE}
+volcano_jco <- volcano_highchart_list(
   res$DEPs_results,
   comparisons = "B-A",
-  colors = list(
-    up = "#D55E00",
-    down = "#0072B2",
-    ns = "#BDBDBD"
-  )
-)[["B-A"]]
+  palette = "ggsci::default_jco"
+)
+
+volcano_jco[["B-A"]]
 ```
 
 # Exporting figures and data
