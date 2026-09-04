@@ -964,7 +964,9 @@ downstream differential-expression analysis. To measure its influence, the same
 twelve injections were processed with Spectronaut and DIA-NN and evaluated
 against the same `expected` spike-in ratios. Keeping the experimental truth and
 the downstream benchmark fixed makes differences between their results directly
-attributable to the search-engine pipelines.
+attributable to the search-engine pipelines. This comparison also provides a
+practical example of why both views are needed: the ranking suggested by the
+full ROC range can reverse when the low-FPR region is examined.
 
 The DIA-NN organism annotation is extracted from `Protein.Names`, after which
 `benchmarking_proteomics()` can evaluate its results in exactly the same way as

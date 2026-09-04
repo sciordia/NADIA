@@ -57,6 +57,107 @@ have_pattern_profiler <- all(vapply(
 .code-details table {
   margin: 1em;
 }
+.format-comparison-table {
+  width: 100%;
+  margin: 1em 0 1.5em 0;
+}
+.format-comparison-table table {
+  width: 100% !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  table-layout: fixed;
+}
+.format-comparison-table th:nth-child(1),
+.format-comparison-table td:nth-child(1) {
+  width: 28% !important;
+}
+.format-comparison-table th:nth-child(2),
+.format-comparison-table td:nth-child(2) {
+  width: 32% !important;
+}
+.format-comparison-table th:nth-child(3),
+.format-comparison-table td:nth-child(3) {
+  width: 40% !important;
+}
+@media screen and (min-width: 768px) {
+  .format-comparison-table th,
+  .format-comparison-table td {
+    white-space: nowrap;
+  }
+}
+@media screen and (max-width: 767px) {
+  .format-comparison-table {
+    width: 100%;
+    margin-left: 0;
+  }
+  .format-comparison-table table {
+    table-layout: auto;
+  }
+}
+.export-manifest-table {
+  width: 80%;
+  margin: 1em 0 1.5em 0;
+}
+.export-manifest-table table {
+  width: 100% !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  table-layout: fixed;
+}
+.export-manifest-table th:nth-child(1),
+.export-manifest-table td:nth-child(1) {
+  width: 48% !important;
+}
+.export-manifest-table th:nth-child(2),
+.export-manifest-table td:nth-child(2) {
+  width: 38% !important;
+}
+.export-manifest-table th:nth-child(3),
+.export-manifest-table td:nth-child(3) {
+  width: 14% !important;
+}
+@media screen and (max-width: 767px) {
+  .export-manifest-table {
+    width: 100%;
+  }
+  .export-manifest-table table {
+    table-layout: auto;
+  }
+}
+.archive-output-table table,
+.reproducibility-table table {
+  margin-left: 65px !important;
+  margin-right: auto !important;
+}
+@media screen and (max-width: 991px) {
+  .archive-output-table table,
+  .reproducibility-table table {
+    margin-left: 0 !important;
+  }
+}
+.cluster-results-table table {
+  width: 580px !important;
+  max-width: none !important;
+  table-layout: auto;
+}
+.cluster-results-table th,
+.cluster-results-table td {
+  white-space: nowrap;
+}
+.cluster-results-table th:nth-child(5),
+.cluster-results-table td:nth-child(5) {
+  min-width: 6.5em;
+}
+.interactive-tables-figure img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  margin-left: 0;
+  margin-right: 0;
+}
 .export-warning {
   box-sizing: border-box;
   margin: 1.15em 0 1.5em;
@@ -71,8 +172,84 @@ have_pattern_profiler <- all(vapply(
   margin: 0;
   padding: 0 !important;
 }
+.export-warning p + p {
+  margin-top: 0.65em;
+}
 .export-warning strong:first-child {
   color: #7a5310;
+}
+.output-format-figure {
+  margin: 1.6em 0;
+}
+.output-format-figure img,
+.interactive-tables-figure img {
+  cursor: zoom-in;
+}
+@media screen and (min-width: 768px) {
+  .output-format-figure img {
+    display: block;
+    width: 110% !important;
+    height: auto !important;
+    max-width: none !important;
+    margin-left: -5%;
+  }
+  .interactive-tables-figure img {
+    width: 90% !important;
+    height: auto !important;
+    max-width: none !important;
+    margin-left: 5%;
+    margin-right: 5%;
+  }
+}
+.output-format-zoom-hint {
+  margin: -0.15em 0 1.2em;
+  text-align: center;
+  color: #5f6f7e;
+  font-size: 0.9em;
+  font-style: italic;
+}
+#output-format-lightbox,
+#interactive-tables-lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  padding: 24px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 25, 35, 0.88);
+  cursor: zoom-out;
+}
+#output-format-lightbox.is-open,
+#interactive-tables-lightbox.is-open {
+  display: flex;
+}
+#output-format-lightbox img,
+#interactive-tables-lightbox img {
+  width: auto !important;
+  height: auto !important;
+  max-width: 96vw !important;
+  max-height: 92vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: white;
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.35);
+  cursor: default;
+}
+#output-format-lightbox button,
+#interactive-tables-lightbox button {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  border: 0;
+  background: transparent;
+  color: white;
+  font-size: 36px;
+  line-height: 1;
+  cursor: pointer;
+}
+body.output-format-lightbox-open {
+  overflow: hidden;
 }
 </style>
 
@@ -121,36 +298,17 @@ res <- process_proteomics(
   nadia_dia,
   verbose = FALSE
 )
-
-export_dir  <- file.path(tempdir(), "nadia_vignette_tables")
-nadia_file  <- file.path(tempdir(), "nadia_vignette_analysis.nadia")
-parquet_dir <- file.path(tempdir(), "nadia_vignette_parquet")
-widget_dir  <- file.path(tempdir(), "nadia_vignette_widget")
-```
-
-A Pattern Profiler run is added as well. It is optional throughout this
-vignette, but it is what allows the archive to hold the expression patterns
-alongside the statistics, and it is used again in the section on functional
-input.
-
-```{r run-pattern-profiler, eval = have_pattern_profiler, results = "hide"}
-pp <- pattern_profiler_analysis(
-  res$se_proc,
-  res$DEPs_results,
-  assay_name = "Impseqrob_min",
-  seed       = 123,
-  verbose    = FALSE
-)
-```
-
-```{r pattern-profiler-fallback, include = FALSE}
-if (!have_pattern_profiler) pp <- NULL
 ```
 
 The returned object contains the processed experiment, differential-abundance
 results, plotting tables, comparison names, and the parameters used in the run.
+The following code summarises the size and purpose of the main components used
+throughout this vignette.
 
-```{r result-components}
+<details class="code-details">
+<summary>Show the code used to summarise the returned components</summary>
+
+```{r result-components, results = "hide"}
 component_summary <- data.frame(
   Component = c(
     "se_proc",
@@ -160,13 +318,21 @@ component_summary <- data.frame(
     "comparisons",
     "parameters"
   ),
-  Size = c(
-    paste(dim(res$se_proc), collapse = " x "),
-    paste(dim(res$DEPs_results), collapse = " x "),
-    paste(dim(res$BoxPlot_Input), collapse = " x "),
-    paste(dim(res$PCA_Input), collapse = " x "),
-    paste(length(res$comparisons), "comparisons"),
-    paste(length(res$parameters), "entries")
+  Rows = c(
+    nrow(res$se_proc),
+    nrow(res$DEPs_results),
+    nrow(res$BoxPlot_Input),
+    nrow(res$PCA_Input),
+    length(res$comparisons),
+    length(res$parameters)
+  ),
+  Columns = c(
+    ncol(res$se_proc),
+    ncol(res$DEPs_results),
+    ncol(res$BoxPlot_Input),
+    ncol(res$PCA_Input),
+    "\u2014",
+    "\u2014"
   ),
   Purpose = c(
     "Processed assays and sample metadata",
@@ -182,67 +348,211 @@ component_summary <- data.frame(
 knitr::kable(
   component_summary,
   caption = "Main components returned by process_proteomics().",
-  align = c("l", "l", "l")
+  align = c("l", "r", "r", "l")
 )
 ```
 
-The dimensions show why a single export format is not ideal for every task. A
-small parameter list is convenient inside R, whereas long plotting tables are
-often easier to exchange as files.
+</details>
+
+```{r result-components-table, echo = FALSE}
+knitr::kable(
+  component_summary,
+  caption = "Main components returned by process_proteomics().",
+  align = c("l", "r", "r", "l")
+)
+```
+
+The values are calculated directly with `nrow()` and `ncol()`, but the row count
+reflects the structure of each object rather than the number of unique proteins.
+`DEPs_results` contains 1,997 proteins across three comparisons (5,991 rows),
+`BoxPlot_Input` contains the same proteins across 12 samples and two assays
+(47,928 rows), and `PCA_Input` contains one row per protein and sample (23,964
+rows). In the three data frames, `Columns` counts the available variables; in
+`se_proc`, its 1,997 rows and 12 columns correspond directly to proteins and
+samples, respectively. The final two components are not tabular: `comparisons`
+contains three contrast names and `parameters` contains 38 recorded analysis
+entries, so `Columns` is not applicable to them.
 
 # Choose an output for the task
 
 The most appropriate output depends on who will use it and whether they need
-selected results or the complete analysis. The following table summarises the
+selected results or the complete analysis. The following diagram compares the
 four main options used in this vignette.
 
-```{r export-route-table}
-export_routes <- data.frame(
-  Output = c(
-    "TSV files",
-    "Parquet files",
-    "One .nadia archive",
-    "Interactive HTML"
+::: {.output-format-figure}
+
+```{r output-format-diagram, echo = FALSE, out.width = "100%", fig.align = "center", fig.cap = "Four complementary formats for exporting, preserving, or presenting NADIA results.", fig.alt = "A NADIA analysis branches into TSV files, Parquet files, a .nadia archive, and interactive HTML. Each output is described by its best use, main advantage, and main consideration."}
+knitr::include_graphics("figures/results-export-formats.svg")
+```
+
+:::
+
+<div class="output-format-zoom-hint">Click the figure to enlarge it; press Esc or click outside the image to close it.</div>
+
+<script>
+(function () {
+  var source = document.querySelector(".output-format-figure img");
+  if (!source || document.getElementById("output-format-lightbox")) return;
+
+  source.setAttribute("tabindex", "0");
+  source.setAttribute("title", "Click to enlarge the output-format diagram");
+
+  var lightbox = document.createElement("div");
+  lightbox.id = "output-format-lightbox";
+  lightbox.setAttribute("role", "dialog");
+  lightbox.setAttribute("aria-modal", "true");
+  lightbox.setAttribute("aria-label", "Enlarged NADIA output-format diagram");
+  lightbox.setAttribute("aria-hidden", "true");
+
+  var enlarged = source.cloneNode(true);
+  enlarged.removeAttribute("tabindex");
+  enlarged.removeAttribute("title");
+  enlarged.removeAttribute("width");
+
+  var closeButton = document.createElement("button");
+  closeButton.type = "button";
+  closeButton.setAttribute("aria-label", "Close enlarged figure");
+  closeButton.textContent = "\u00d7";
+
+  lightbox.appendChild(enlarged);
+  lightbox.appendChild(closeButton);
+  document.body.appendChild(lightbox);
+
+  function openLightbox() {
+    lightbox.classList.add("is-open");
+    lightbox.setAttribute("aria-hidden", "false");
+    document.body.classList.add("output-format-lightbox-open");
+    closeButton.focus();
+  }
+
+  function closeLightbox() {
+    lightbox.classList.remove("is-open");
+    lightbox.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("output-format-lightbox-open");
+    source.focus();
+  }
+
+  source.addEventListener("click", openLightbox);
+  source.addEventListener("keydown", function (event) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openLightbox();
+    }
+  });
+  closeButton.addEventListener("click", closeLightbox);
+  lightbox.addEventListener("click", function (event) {
+    if (event.target === lightbox) closeLightbox();
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && lightbox.classList.contains("is-open")) {
+      closeLightbox();
+    }
+  });
+}());
+</script>
+
+The four formats address different priorities. TSV files favour immediate,
+human-readable inspection, whereas Parquet preserves column types for efficient
+programmatic exchange. A `.nadia` archive is the most complete option for
+restoring the analysis and its provenance, while interactive HTML is designed
+for exploration and presentation without R code. These outputs are
+complementary: a practical workflow can retain the `.nadia` archive as the
+master record, export TSV or Parquet tables for downstream use, and share HTML
+with collaborators for interactive review.
+
+# Export tabular results
+
+Having introduced the file formats supported by NADIA, we now examine them in
+turn, beginning with TSV and Parquet. Both can store the same result tables; the
+choice affects only how they are stored and read. This section first compares
+the two formats and then shows how to export either one, or both, directly from
+`process_proteomics()`.
+
+## Choose between TSV and Parquet
+
+TSV and Parquet store the same tabular information in different ways. TSV is
+tab-separated plain text that can be opened directly in a text editor or
+spreadsheet, making it convenient for manual inspection and exchange. However,
+column types must be inferred when it is read, and large files can require
+considerable disk space.
+
+Parquet is a compressed, binary columnar format widely used in data analytics.
+Storing values by column allows software to read only the data it needs, making
+access faster and files smaller. Because Parquet is not human-readable, it
+requires compatible software: in R, `arrow::read_parquet()` can load it into
+memory, while DuckDB can query it directly.
+
+The following table compares the main characteristics of the TSV and Parquet
+formats.
+
+<details class="code-details">
+<summary>Show the code used to compare TSV and Parquet</summary>
+
+```{r format-comparison-code, results = "hide"}
+format_guide <- data.frame(
+  Property = c(
+    "File structure",
+    "Readable as plain text",
+    "Direct manual inspection",
+    "Column types",
+    "Storage requirement",
+    "Repeated programmatic access",
+    "Typical use"
   ),
-  Best_for = c(
-    "Inspection in text editors, spreadsheets, and general-purpose software",
-    "Typed exchange of large tables and matrices",
-    "Preserving and restoring a complete NADIA analysis",
-    "Exploring or presenting results without writing R code"
+  TSV = c(
+    "Tab-delimited text",
+    "Yes",
+    "Text editor or spreadsheet",
+    "Inferred when imported",
+    "Larger for substantial tables",
+    "Requires parsing the text",
+    "Review, exchange, and small analyses"
   ),
-  Main_advantage = c(
-    "Human-readable and widely supported",
-    "Preserves column types and is efficient to read",
-    "Keeps data, parameters, provenance, and optional clustering together",
-    "Provides sorting, filtering, search, and interactive graphics"
-  ),
-  Main_consideration = c(
-    "Several related files must be kept together",
-    "Requires software with Parquet support",
-    "Requires NADIA or DuckDB-compatible tools to inspect its contents",
-    "May require an accompanying dependency folder unless saved as one file"
+  Parquet = c(
+    "Compressed columnar binary",
+    "No",
+    "Requires Parquet-aware software",
+    "Stored in the file schema",
+    "Usually smaller",
+    "Fast, including selected-column reads",
+    "Data analytics and automated workflows"
   ),
   check.names = FALSE
 )
 
 knitr::kable(
-  export_routes,
-  col.names = c("Output", "Best use", "Main advantage", "Main consideration"),
-  caption = "Choosing an output according to its intended use.",
-  align = c("l", "l", "l", "l")
+  format_guide,
+  caption = "Practical differences between TSV and Parquet exports.",
+  align = c("l", "l", "l")
 )
 ```
 
-These options are complementary. For example, a `.nadia` archive can preserve
-the full analysis while a TSV summary and an HTML table are supplied to
-collaborators for immediate review.
+</details>
 
-# Export tabular results
+<div class="format-comparison-table">
 
-`process_proteomics()` can write the processed matrices and plotting inputs as
-part of the analysis call. File export is activated only when `export_dir` is
-provided, which prevents an ordinary in-memory analysis from creating files
-unexpectedly.
+```{r format-comparison-table, echo = FALSE}
+knitr::kable(
+  format_guide,
+  caption = "Practical differences between TSV and Parquet exports.",
+  align = c("l", "l", "l")
+)
+```
+
+</div>
+
+In summary, TSV is best for simple inspection and exchange, whereas Parquet is
+better suited to large datasets and repeated computational analysis because it
+is smaller, faster to read, and preserves column types. Use both when manual
+readability and efficient processing are equally important.
+
+## Create a set of TSV and/or Parquet files
+
+`process_proteomics()` can write processed matrices and plotting inputs while
+it runs. Export is activated only when `export_dir` is supplied; with its
+default value of `NULL`, all results remain in memory and no directory or file
+is created. The value of `export_format` then selects TSV, Parquet, or a matched
+copy in both formats.
 
 <details class="function-parameters">
 <summary>Main export arguments of <code>process_proteomics()</code></summary>
@@ -250,7 +560,8 @@ unexpectedly.
 
 - `export_dir` gives the destination directory. Its default value, `NULL`,
   disables every file export.
-- `export_format` accepts `"tsv"`, `"parquet"`, or `"both"`. Parquet export
+- `export_format` accepts `"tsv"`, `"parquet"`, or `"both"`. The last option
+  writes the same selected tables in both representations. Parquet export
   through `process_proteomics()` requires the `arrow` package.
 - `export_normalized` and `export_imputed` control the processed intensity
   matrices.
@@ -260,12 +571,56 @@ unexpectedly.
 </div>
 </details>
 
-## Create a set of TSV files
+The following alternatives differ only in `export_dir` and `export_format`.
+Run the one that matches the intended downstream use; repeating the full
+analysis three times is not necessary.
 
-The next call writes all default outputs to a temporary directory. In a real
-analysis, replace `export_dir` with a permanent project directory.
+```{r export-formats, eval = FALSE}
+# Export one TSV file for every enabled output.
+process_proteomics(
+  nadia_dia,
+  export_dir = "results/tsv",
+  export_format = "tsv",
+  verbose = FALSE
+)
 
-```{r export-tsv}
+# Export the same outputs only as compressed Parquet files.
+process_proteomics(
+  nadia_dia,
+  export_dir = "results/parquet",
+  export_format = "parquet",
+  verbose = FALSE
+)
+
+# Export matched TSV and Parquet copies of every enabled output.
+process_proteomics(
+  nadia_dia,
+  export_dir = "results/tsv_and_parquet",
+  export_format = "both",
+  verbose = FALSE
+)
+```
+
+With the default export switches, NADIA writes five datasets: the normalised
+intensity matrix (`export_normalized`), the final imputed matrix
+(`export_imputed`), the differential-abundance results used by the volcano
+plots (`export_volcano`), the long-format intensities used by the boxplots
+(`export_boxplot`), and the imputed intensities with significance annotations
+used by PCA and heatmaps (`export_pca`). The matrix files contain one protein
+per row and one sample per intensity column, whereas the plotting inputs use
+long or results-oriented layouts suited to their downstream functions. File
+names include the normalisation and imputation methods so that outputs from
+different runs can be distinguished.
+
+The next call writes all five default outputs as TSV files to a temporary
+directory and displays the types of files generated. In a real analysis,
+replace `export_dir` with a permanent project directory.
+
+<details class="code-details">
+<summary>Show the code used to create the export manifest</summary>
+
+```{r export-tsv-code, results = "hide"}
+export_dir <- file.path(tempdir(), "nadia_vignette_tables")
 unlink(export_dir, recursive = TRUE)
 
 invisible(process_proteomics(
@@ -309,20 +664,37 @@ knitr::kable(
 )
 ```
 
+</details>
+
+<div class="export-manifest-table">
+
+```{r export-tsv-table, echo = FALSE}
+knitr::kable(
+  export_manifest,
+  caption = "Files created by the default TSV export.",
+  align = c("l", "l", "r")
+)
+```
+
+</div>
+
 The filenames record the normalisation and imputation methods, reducing the
 risk of mixing tables from different runs. The plotting inputs are intentionally
 long: each row represents an observation required by its corresponding plot,
 whereas the two matrix files keep one protein per row.
 
-Individual switches can be disabled when only a subset is needed. This example
-exports the final imputed matrix and the differential-abundance table, but omits
-the normalised matrix and the boxplot and PCA inputs.
+Exports can also be assembled *à la carte* with the five switches shown above.
+Each `export_*` argument is `TRUE` by default; set it to `FALSE` to omit that
+dataset. The value of `export_format` is applied to every dataset that remains
+enabled. The following example requests matching TSV and Parquet copies of only
+the final imputed matrix and the differential-abundance results; the normalised
+matrix and the boxplot and PCA inputs are omitted.
 
 ```{r selective-export, eval = FALSE}
 process_proteomics(
   nadia_dia,
   export_dir = "results/selected_tables",
-  export_format = "tsv",
+  export_format = "both",
   export_normalized = FALSE,
   export_imputed = TRUE,
   export_volcano = TRUE,
@@ -332,52 +704,6 @@ process_proteomics(
 )
 ```
 
-## Choose between TSV and Parquet
-
-TSV is convenient when people need to open or inspect a table directly.
-Parquet is preferable when preserving column types and reading large datasets
-efficiently are more important than human readability.
-
-```{r format-comparison}
-format_guide <- data.frame(
-  Property = c(
-    "Readable as plain text",
-    "Preserves column types",
-    "Convenient for spreadsheets",
-    "Efficient for repeated programmatic access"
-  ),
-  TSV = c("Yes", "No; types are inferred when imported", "Yes", "Moderate"),
-  Parquet = c("No", "Yes", "Requires Parquet support", "Yes"),
-  check.names = FALSE
-)
-
-knitr::kable(
-  format_guide,
-  caption = "Practical differences between TSV and Parquet exports.",
-  align = c("l", "l", "l")
-)
-```
-
-Use `export_format = "both"` when the same results must support manual review
-and an automated downstream workflow.
-
-```{r export-both, eval = FALSE}
-process_proteomics(
-  nadia_dia,
-  export_dir = "results/tsv_and_parquet",
-  export_format = "both",
-  verbose = FALSE
-)
-```
-
-<div class="export-warning">
-<p><strong>Metrics exports.</strong> The metric functions
-<code>normalization_metrics()</code>, <code>imputation_metrics()</code>, and
-<code>benchmarking_multiple()</code> also use an output directory to activate
-file creation. Their export flags control what is written once a directory is
-supplied; with <code>output_dir = NULL</code>, the results remain in memory.</p>
-</div>
-
 # Archive a complete analysis
 
 Separate tables are useful for exchange, but they do not by themselves retain
@@ -385,7 +711,7 @@ the complete relationship between preprocessing, processing, parameters, and
 provenance. `write_nadia()` stores these elements in a single DuckDB database
 using the `.nadia` extension.
 
-## Write and read a `.nadia` file
+## Write and read a .nadia file
 
 The required input is the preprocessing object. The processing result and a
 Pattern Profiler result can be included when available.
@@ -405,15 +731,21 @@ Pattern Profiler result can be included when available.
 </div>
 </details>
 
-```{r write-nadia, eval = requireNamespace("duckdb", quietly = TRUE)}
+The following example creates a `.nadia` archive from the bundled dataset and
+summarises selected file characteristics and metadata in the table below.
+
+<details class="code-details">
+<summary>Show the code used to create and summarise the .nadia archive</summary>
+
+```{r write-nadia-code, eval = requireNamespace("duckdb", quietly = TRUE), results = "hide"}
+nadia_file <- file.path(tempdir(), "nadia_vignette_analysis.nadia")
 unlink(c(nadia_file, paste0(nadia_file, ".wal")))
 
 write_nadia(
   nadia_file,
-  preprocessing    = nadia_dia,
-  result           = res,
-  pattern_profiler = pp,
-  verbose          = FALSE
+  preprocessing = nadia_dia,
+  result        = res,
+  verbose       = FALSE
 )
 
 db <- read_nadia(nadia_file)
@@ -445,19 +777,42 @@ knitr::kable(
 )
 ```
 
-The archive contains the full processing run used here, together with the
-Pattern Profiler result. Clustering can be supplied to `write_nadia()`, as
-above, or added to an existing archive later with
-`nadia_add_pattern_profiler()`.
+</details>
+
+```{r write-nadia-table, echo = FALSE, eval = requireNamespace("duckdb", quietly = TRUE)}
+knitr::kable(
+  archive_summary,
+  caption = "Summary of the example .nadia archive.",
+  align = c("l", "l")
+)
+```
+
+This initial archive contains the complete preprocessing and processing run;
+`Pattern Profiler stored` is therefore `FALSE`. Section 5.5 adds the optional
+clustering result to the same archive. If clustering has already been completed,
+it can instead be supplied directly to `write_nadia()` through
+`pattern_profiler`.
 
 ## Restore and verify the result
 
-`read_nadia()` exposes the archive metadata and canonical tables.
-`nadia_result()` reconstructs the `proteomics_result` expected by NADIA plotting
-and reporting functions, while `nadia_preprocessing()` restores the original
-preprocessing object.
+NADIA provides three functions for restoring a `.nadia` archive and converting
+its contents back into the tables and objects generated during the original
+analysis:
 
-```{r verify-roundtrip, eval = requireNamespace("duckdb", quietly = TRUE)}
+- `read_nadia()` opens the archive and exposes its metadata, canonical tables,
+  and stored views through a `nadia_db` object.
+- `nadia_result()` reconstructs the `proteomics_result` returned by
+  `process_proteomics()`, ready for NADIA plotting and reporting functions.
+- `nadia_preprocessing()` restores the original `proteomics_data` object so that
+  the processing workflow can be run again.
+
+The following code verifies that the tables and objects restored from the
+`.nadia` archive are identical to those generated during the original analysis.
+
+<details class="code-details">
+<summary>Show the code used to verify the restored results</summary>
+
+```{r verify-roundtrip-code, eval = requireNamespace("duckdb", quietly = TRUE), results = "hide"}
 restored <- nadia_result(db)
 
 roundtrip_check <- data.frame(
@@ -484,28 +839,42 @@ knitr::kable(
 )
 ```
 
+</details>
+
+```{r verify-roundtrip-table, echo = FALSE, eval = requireNamespace("duckdb", quietly = TRUE)}
+knitr::kable(
+  roundtrip_check,
+  caption = "Round-trip verification after restoring the archive.",
+  align = c("l", "c")
+)
+```
+
 All three checks return `TRUE`, confirming that the tables, their column types,
 and the final assay are reproduced exactly in this example.
 
 ## Inspect stored tables and provenance
 
-The archive avoids unnecessary duplication. Values that can be reconstructed
-exactly, such as the log2 assay and `PCA_Input`, are exposed through SQL views
-rather than stored as additional copies. For imputation methods that leave
-observed values unchanged, only the replaced cells and their MAR or MNAR branch
-need to be stored.
+The `.nadia` file avoids unnecessary duplication. Values that can be
+reconstructed exactly, such as the log2 assay and `PCA_Input`, are exposed
+through SQL views rather than stored as additional copies. For imputation
+methods that leave observed values unchanged, only the replaced cells and their
+MAR or MNAR branch need to be stored.
 
-```{r nadia-views, eval = requireNamespace("duckdb", quietly = TRUE)}
+The following table lists the SQL views from which NADIA can reconstruct the
+original content of the analysis.
+
+<details class="code-details">
+<summary>Show the code used to inspect the SQL views</summary>
+
+```{r nadia-views-code, eval = requireNamespace("duckdb", quietly = TRUE), results = "hide"}
 archive_views <- subset(nadia_tables(nadia_file), type == "view")
 
 view_description <- c(
   v_boxplot_input = "Boxplot input",
   v_deps_results = "Differential-abundance results",
-  v_deps_pattern_profiler = "Differential abundance joined to the clusters",
   v_matrix_imputed = "Final imputed matrix",
   v_matrix_norm = "Normalised matrix",
   v_metadata = "Sample metadata",
-  v_pattern_profiler = "Cluster memberships and standardised profiles",
   v_pca_input = "PCA input",
   v_protein_id = "Protein identification table",
   v_protein_quant = "Protein quantification table"
@@ -522,11 +891,26 @@ knitr::kable(
 )
 ```
 
+</details>
+
+```{r nadia-views-table, echo = FALSE, eval = requireNamespace("duckdb", quietly = TRUE)}
+knitr::kable(
+  archive_views[, c("name", "rows", "Contents")],
+  col.names = c("View", "Rows", "Reconstructed contents"),
+  caption = "Canonical views available in the example archive.",
+  align = c("l", "r", "l"),
+  row.names = FALSE
+)
+```
+
 The views provide the same analysis tables that users normally access in R.
 The archive also records package versions, function calls, source-file
 information, and analysis parameters.
 
-```{r nadia-provenance, eval = requireNamespace("duckdb", quietly = TRUE)}
+<details class="code-details">
+<summary>Show the code used to inspect the stored parameters</summary>
+
+```{r nadia-provenance-code, eval = requireNamespace("duckdb", quietly = TRUE), results = "hide"}
 provenance_parameters <- subset(
   db$parameters,
   name %in% c(
@@ -544,26 +928,33 @@ knitr::kable(
 )
 ```
 
-These values identify the main analysis choices rather than merely describing
-the exported table. The recorded call retains more complex arguments that
-cannot always be represented by a single scalar value.
+</details>
 
-<details class="code-details">
-<summary>Show the recorded function calls</summary>
-
-```{r nadia-calls, eval = requireNamespace("duckdb", quietly = TRUE)}
-db$calls
+```{r nadia-provenance-table, echo = FALSE, eval = requireNamespace("duckdb", quietly = TRUE)}
+knitr::kable(
+  provenance_parameters[, c("step", "name", "value")],
+  col.names = c("Stage", "Parameter", "Recorded value"),
+  caption = "Selected parameters stored in the .nadia archive.",
+  align = c("l", "l", "l"),
+  row.names = FALSE
+)
 ```
 
-</details>
+These values identify the main analysis choices rather than merely describing
+the exported table.
 
 ## Query or extract the archive
 
-`nadia_connect()` opens a DBI connection for targeted SQL queries. The example
-below counts the three differential-abundance categories in each comparison
-without reconstructing the complete result in R.
+Because a `.nadia` file is itself a DuckDB database, `nadia_connect()` can open
+a DBI connection for targeted SQL queries. DuckDB executes these queries
+directly, without reconstructing the complete analysis in R. The following
+example counts proteins in the three differential-abundance categories for
+each comparison.
 
-```{r nadia-sql, eval = requireNamespace("duckdb", quietly = TRUE)}
+<details class="code-details">
+<summary>Show the code used to query protein counts with SQL</summary>
+
+```{r nadia-sql-code, eval = requireNamespace("duckdb", quietly = TRUE), results = "hide"}
 con <- nadia_connect(nadia_file)
 
 sql_summary <- DBI::dbGetQuery(
@@ -585,14 +976,35 @@ knitr::kable(
 )
 ```
 
-The counts summarise each comparison while retaining the adjusted-P-value and
-fold-change classification used by the original analysis.
+</details>
 
-For exchange with software that does not read `.nadia` files,
-`nadia_export_parquet()` extracts every canonical view as a Parquet file. This
-export is performed by DuckDB directly and therefore does not require `arrow`.
+<div class="archive-output-table">
 
-```{r nadia-to-parquet, eval = requireNamespace("duckdb", quietly = TRUE)}
+```{r nadia-sql-table, echo = FALSE, eval = requireNamespace("duckdb", quietly = TRUE)}
+knitr::kable(
+  sql_summary,
+  caption = "Protein counts queried directly from the .nadia archive.",
+  align = c("l", "l", "r")
+)
+```
+
+</div>
+
+These SQL queries reproduce the counts of statistically significant proteins
+in each comparison using the stored `Change` classifications, which reflect
+the adjusted-p-value and fold-change criteria defined in the original analysis.
+
+To work with software that cannot read `.nadia` files, NADIA provides
+`nadia_export_parquet()` to export each canonical view directly as a Parquet
+file. This export is performed by DuckDB directly and therefore does not
+require `arrow`. The following table lists all Parquet tables extracted from
+the example `.nadia` file.
+
+<details class="code-details">
+<summary>Show the code used to export the canonical views to Parquet</summary>
+
+```{r nadia-to-parquet-code, eval = requireNamespace("duckdb", quietly = TRUE), results = "hide"}
+parquet_dir <- file.path(tempdir(), "nadia_vignette_parquet")
 unlink(parquet_dir, recursive = TRUE)
 invisible(nadia_export_parquet(db, parquet_dir, verbose = FALSE))
 
@@ -608,6 +1020,20 @@ knitr::kable(
 )
 ```
 
+</details>
+
+<div class="archive-output-table">
+
+```{r nadia-to-parquet-table, echo = FALSE, eval = requireNamespace("duckdb", quietly = TRUE)}
+knitr::kable(
+  parquet_manifest,
+  caption = "Parquet tables extracted from the .nadia archive.",
+  align = "l"
+)
+```
+
+</div>
+
 <div class="export-warning">
 <p><strong>Working location.</strong> Do not keep an open <code>.nadia</code>
 database inside a folder that is being synchronised by iCloud Drive, Dropbox,
@@ -617,31 +1043,71 @@ copy the completed file to the synchronised location.</p>
 
 ## Combine differential abundance with clustering
 
-A functional or enrichment analysis needs two things at once: the statistics
-that say which proteins changed, and the cluster that says which expression
-pattern they follow. `deps_with_clusters()` builds that table in memory, and
-`nadia_deps_with_clusters()` reads the equivalent table from an archive. Both
-return the columns of `DEPs_results` followed by `Cluster`, `Membership`, and
-`ClusterRank`.
+An existing `.nadia` file can optionally be extended with the results of a
+Pattern Profiler analysis. The following code generates the clustering result
+`pp` from the processed data and adds it to the file with
+`nadia_add_pattern_profiler()`.
+
+<details class="code-details">
+<summary>Show the code used to run and store Pattern Profiler</summary>
+
+```{r run-pattern-profiler, eval = have_pattern_profiler && requireNamespace("duckdb", quietly = TRUE), results = "hide"}
+# Generate expression-pattern clusters.
+pp <- pattern_profiler_analysis(
+  res$se_proc,
+  res$DEPs_results,
+  assay_name = "Impseqrob_min",
+  seed       = 123,
+  verbose    = FALSE
+)
+
+# Add the clustering results to the existing .nadia file.
+nadia_add_pattern_profiler(
+  nadia_file,
+  pattern_profiler = pp,
+  verbose = FALSE
+)
+```
+
+</details>
+
+For downstream functional or enrichment analyses, NADIA can retrieve
+differential-abundance statistics together with expression-pattern assignments
+from the `.nadia` file.
+`deps_with_clusters()` combines these results in memory, whereas
+`nadia_deps_with_clusters()` reads the equivalent table from a `.nadia`
+archive. Both return the columns of `DEPs_results` followed by `Cluster`,
+`Membership`, and `ClusterRank`; rank 1 identifies the dominant cluster of a
+protein.
 
 <details class="function-parameters">
 <summary>Main arguments of <code>deps_with_clusters()</code></summary>
 <div class="parameter-content">
 
+- `DEPs_results` supplies the differential-abundance statistics, and
+  `pattern_profiler` supplies the clustering result (`pp`).
 - `assignment` selects the shape of the result. `"primary"`, the default,
   keeps the cluster of highest membership and returns one row per protein and
-  comparison. `"all"` keeps every cluster a protein belongs to.
-- `min_membership` applies an additional membership threshold. It can only be
-  stricter than the one used during the analysis, because weaker associations
-  were discarded when the clustering result was built.
+  comparison. `"all"` keeps every soft-cluster association retained in
+  `long_output`; a clustered protein without a retained association still
+  receives its dominant assignment.
+- `min_membership` applies an additional threshold to the returned assignments.
+  It can make the selection stricter, but it cannot recover secondary
+  memberships omitted when `long_output` was created.
 - `comparison` restricts the result to selected comparisons.
-- `significant_only` keeps only the proteins classified as `Up` or `Down`,
+- `significant_only` keeps only rows classified as `Up` or `Down`,
   using the classification made during the analysis.
 
 </div>
 </details>
 
-```{r functional-input, eval = have_pattern_profiler}
+The following table shows six clustered proteins, combining their
+differential-abundance statistics with their dominant cluster and membership.
+
+<details class="code-details">
+<summary>Show the code used to combine differential-abundance results with dominant clusters</summary>
+
+```{r functional-input, eval = have_pattern_profiler && requireNamespace("duckdb", quietly = TRUE), results = "hide"}
 functional_input <- deps_with_clusters(
   res$DEPs_results,
   pp,
@@ -661,12 +1127,36 @@ knitr::kable(
 )
 ```
 
-Soft clustering allows a protein to belong to several clusters at once, so the
-two values of `assignment` produce tables of different lengths. The row counts
-below show the difference, and confirm that the complete set of tested proteins
-is retained in both cases.
+</details>
 
-```{r assignment-modes, eval = have_pattern_profiler}
+<div class="archive-output-table cluster-results-table">
+
+```{r functional-input-table, echo = FALSE, eval = have_pattern_profiler && requireNamespace("duckdb", quietly = TRUE)}
+knitr::kable(
+  head(functional_input[
+    !is.na(functional_input$Cluster),
+    c("Protein.IDs", "Comparison", "logFC", "adj.P.Val", "Change",
+      "Cluster", "Membership")
+  ], 6),
+  caption = "Differential-abundance results with the dominant cluster of each protein.",
+  align = c("l", "l", "r", "r", "l", "r", "r"),
+  row.names = FALSE,
+  digits = 4
+)
+```
+
+</div>
+
+Each row retains the original statistical results; `Cluster` identifies the
+dominant expression pattern, and `Membership` measures how strongly the protein
+belongs to it. Because soft clustering can associate a protein with several
+patterns, the next table compares the row counts for `assignment = "primary"`
+and `assignment = "all"`.
+
+<details class="code-details">
+<summary>Show the code used to compare cluster assignment modes</summary>
+
+```{r assignment-modes, eval = have_pattern_profiler && requireNamespace("duckdb", quietly = TRUE), results = "hide"}
 soft <- deps_with_clusters(res$DEPs_results, pp, assignment = "all")
 
 assignment_summary <- data.frame(
@@ -678,8 +1168,8 @@ assignment_summary <- data.frame(
   Rows = c(nrow(res$DEPs_results), nrow(functional_input), nrow(soft)),
   Proteins_without_cluster = c(
     NA_integer_,
-    sum(is.na(functional_input$Cluster)),
-    sum(is.na(soft$Cluster))
+    length(unique(functional_input$Protein.IDs[is.na(functional_input$Cluster)])),
+    length(unique(soft$Protein.IDs[is.na(soft$Cluster)]))
   ),
   check.names = FALSE
 )
@@ -692,17 +1182,36 @@ knitr::kable(
 )
 ```
 
-The join is a left join from the differential-abundance results, so every
-protein that was tested is retained even when it has no cluster. This matters
-for enrichment analysis: the complete set of tested proteins defines the
-background against which any over-representation is measured, and removing part
-of it changes every result computed from it. A protein receives `NA` when it was
-not selected for clustering, or when the clustering did not retain it.
+</details>
 
-Inside the archive the same table is the view `v_deps_pattern_profiler`, so it
-is also available to SQL clients and is included in the Parquet export.
+<div class="archive-output-table">
 
-```{r functional-input-sql, eval = have_pattern_profiler && requireNamespace("duckdb", quietly = TRUE)}
+```{r assignment-modes-table, echo = FALSE, eval = have_pattern_profiler && requireNamespace("duckdb", quietly = TRUE)}
+knitr::kable(
+  assignment_summary,
+  col.names = c("Table", "Rows", "Proteins without a cluster"),
+  caption = "Effect of the assignment mode on the number of rows.",
+  align = c("l", "r", "r")
+)
+```
+
+</div>
+
+`"primary"` keeps one row per protein and comparison, whereas `"all"` adds
+rows for the retained secondary cluster assignments. With these default
+filters, both modes keep proteins without a cluster (`NA`), preserving the
+full set of tested proteins as a potential background for enrichment analysis.
+
+The `.nadia` file also exposes the combined results through the SQL view
+`v_deps_pattern_profiler`, which is included in subsequent Parquet exports.
+The following query counts proteins by dominant cluster and differential-abundance
+category for comparison `B-A`; `ClusterRank = 1` ensures that each protein is
+counted only in its dominant cluster.
+
+<details class="code-details">
+<summary>Show the code used to query differential-abundance categories by cluster</summary>
+
+```{r functional-input-sql, eval = have_pattern_profiler && requireNamespace("duckdb", quietly = TRUE), results = "hide"}
 con <- nadia_connect(nadia_file)
 
 cluster_counts <- DBI::dbGetQuery(
@@ -726,128 +1235,135 @@ knitr::kable(
 )
 ```
 
-The same table read back through R gives an identical result.
+</details>
 
-```{r functional-input-roundtrip, eval = have_pattern_profiler && requireNamespace("duckdb", quietly = TRUE)}
-identical(nadia_deps_with_clusters(nadia_file), functional_input)
+The following table summarises the number of proteins in each
+differential-abundance category within each dominant cluster.
+
+<div class="archive-output-table">
+
+```{r functional-input-sql-table, echo = FALSE, eval = have_pattern_profiler && requireNamespace("duckdb", quietly = TRUE)}
+knitr::kable(
+  cluster_counts,
+  caption = "Differential-abundance categories per cluster in comparison B-A.",
+  align = c("r", "l", "r")
+)
 ```
 
-Reduced to its `FeatureID` and `Cluster` columns, this table is also accepted
-directly as the `row_annotation` argument of `proteomics_heatmap()`, which
-annotates each row of a heatmap with the cluster it belongs to.
+</div>
+
+These counts show how differential-abundance categories are distributed across
+expression patterns. Storing both results in one `.nadia` file makes them
+available together through R or SQL for downstream analyses.
 
 # Explore results with interactive tables
 
-NADIA provides interactive tables for differential-abundance results, protein
-annotations, quantification values, and sample metadata. Use a
-`*_reactable()` function when only the table is required, or a `*_widget()`
-function when a complete page with additional controls and Excel export is
-needed.
+NADIA provides Reactable-based interactive tables for reviewing analysis
+results, with sorting, search, filters, and Excel export. Four distinct tables
+cover sample metadata, annotations for identified proteins, quantification
+values, and differential-abundance results. Use a `*_reactable()` function when
+only the table is required, or a `*_widget()` function when a complete page with
+additional controls and Excel export is needed.
 
-```{r interactive-table-guide}
-interactive_tables <- data.frame(
-  Purpose = c(
-    "Differential-abundance results",
-    "Protein identification and annotation",
-    "Raw and processed quantification",
-    "Sample metadata and identification counts"
-  ),
-  Function = c(
-    "results_list_reactable() / results_list_widget()",
-    "protein_list_reactable() / protein_list_widget()",
-    "quant_list_widget()",
-    "summary_list_widget()"
-  ),
-  Required_input = c(
-    "DEPs_results",
-    "protein_id",
-    "protein_quant and a processed matrix",
-    "metadata"
-  ),
-  Display_unit = c(
-    "One protein per comparison",
-    "One protein with sample-level identification metrics",
-    "One protein with raw and processed sample values",
-    "One sample"
-  ),
-  check.names = FALSE
-)
+The diagram below links each interactive view to its input, row structure, and
+available functions.
 
-knitr::kable(
-  interactive_tables,
-  col.names = c("Table contents", "Function", "Required input", "Displayed unit"),
-  caption = "Interactive tables available for the main NADIA outputs.",
-  align = c("l", "l", "l", "l")
-)
+<div class="interactive-tables-figure">
+
+```{r interactive-tables-diagram, echo = FALSE, out.width = "100%", fig.align = "left", fig.cap = "Four complementary interactive tables for reviewing a NADIA analysis.", fig.alt = "From top left to bottom right: sample summary, protein identification, protein quantification, and differential abundance. Each panel shows a schematic table layout, input objects, row units, and the available NADIA functions."}
+knitr::include_graphics("figures/interactive-tables-overview.svg")
 ```
 
-## Differential-abundance results
+</div>
 
-`results_list_widget()` creates a complete results page with sorting, search,
-filters, and Excel export. Supplying `protein_quant` adds protein descriptions
-and the number of quantified peptides to the statistical results.
+<div class="output-format-zoom-hint">Click the figure to enlarge it; press Esc or click outside the image to close it.</div>
 
-```{r results-widget, eval = FALSE}
-results_page <- results_list_widget(
-  res$DEPs_results,
-  protein_quant = nadia_dia$protein_quant,
-  comparisons = "B-A",
-  alpha = 0.05,
-  page_size = 15
-)
+<script>
+(function () {
+  var source = document.querySelector(".interactive-tables-figure img");
+  if (!source || document.getElementById("interactive-tables-lightbox")) return;
 
-results_page
-```
+  source.setAttribute("tabindex", "0");
+  source.setAttribute("role", "button");
+  source.setAttribute("aria-label", "Enlarge the interactive-tables diagram");
+  source.setAttribute("title", "Click to enlarge the interactive-tables diagram");
 
-The complete interactive table may contain thousands of rows. A compact static
-summary helps establish what the user will find when the page is opened.
+  var lightbox = document.createElement("div");
+  lightbox.id = "interactive-tables-lightbox";
+  lightbox.setAttribute("role", "dialog");
+  lightbox.setAttribute("aria-modal", "true");
+  lightbox.setAttribute("aria-label", "Enlarged NADIA interactive-tables diagram");
+  lightbox.setAttribute("aria-hidden", "true");
 
-```{r results-summary-table}
-change_counts <- as.data.frame(
-  with(res$DEPs_results, table(Comparison, Change)),
-  stringsAsFactors = FALSE
-)
-names(change_counts) <- c("Comparison", "Classification", "Proteins")
-change_counts <- change_counts[
-  order(
-    change_counts$Comparison,
-    factor(
-      change_counts$Classification,
-      levels = c("Up", "Down", "No Change")
-    )
-  ),
-]
-row.names(change_counts) <- NULL
+  var enlarged = source.cloneNode(true);
+  ["tabindex", "role", "aria-label", "title", "width"].forEach(function (name) {
+    enlarged.removeAttribute(name);
+  });
 
-knitr::kable(
-  change_counts,
-  caption = "Number of proteins in each differential-abundance category.",
-  align = c("l", "l", "r")
-)
-```
+  var closeButton = document.createElement("button");
+  closeButton.type = "button";
+  closeButton.setAttribute("aria-label", "Close enlarged figure");
+  closeButton.textContent = "\u00d7";
 
-For example, comparison `B-A` contains both up- and down-regulated proteins,
-while the remaining proteins are labelled `No Change` under the selected
-adjusted-P-value and fold-change thresholds. The widget allows any of these
-groups to be isolated without modifying the underlying result.
+  lightbox.appendChild(enlarged);
+  lightbox.appendChild(closeButton);
+  document.body.appendChild(lightbox);
 
-## Protein, quantification, and sample tables
+  function openLightbox() {
+    lightbox.classList.add("is-open");
+    lightbox.setAttribute("aria-hidden", "false");
+    document.body.classList.add("output-format-lightbox-open");
+    closeButton.focus();
+  }
 
-The remaining widgets focus on the inputs and processed measurements rather
-than differential-abundance statistics. Their examples are grouped below to
-keep the main workflow concise.
+  function closeLightbox() {
+    lightbox.classList.remove("is-open");
+    lightbox.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("output-format-lightbox-open");
+    source.focus();
+  }
+
+  source.addEventListener("click", openLightbox);
+  source.addEventListener("keydown", function (event) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openLightbox();
+    }
+  });
+  closeButton.addEventListener("click", closeLightbox);
+  lightbox.addEventListener("click", function (event) {
+    if (event.target === lightbox) closeLightbox();
+  });
+  document.addEventListener("keydown", function (event) {
+    if (!lightbox.classList.contains("is-open")) return;
+    if (event.key === "Escape") closeLightbox();
+    if (event.key === "Tab") {
+      event.preventDefault();
+      closeButton.focus();
+    }
+  });
+}());
+</script>
+
+The following code creates and displays the four interactive pages in the same
+order as the diagram, using the example dataset and processing results.
 
 <details class="code-details">
-<summary>Show code for the protein, quantification, and sample tables</summary>
+<summary>Show the code used to create the four interactive tables</summary>
 
-```{r other-widgets, eval = FALSE}
-# Protein annotations and sample-level identification metrics.
+```{r interactive-widget-examples, eval = FALSE}
+# 1. Sample metadata.
+sample_page <- summary_list_widget(nadia_dia$metadata)
+sample_page
+
+# 2. Annotations for identified proteins.
 protein_page <- protein_list_widget(
   nadia_dia$protein_id,
   metadata = nadia_dia$metadata
 )
+protein_page
 
-# Add the final processed matrix to the raw quantification table.
+# 3. Quantification values: add the final processed matrix.
 imputed_matrix <- SummarizedExperiment::assay(
   res$se_proc,
   "Impseqrob_min"
@@ -863,48 +1379,45 @@ quantification_page <- quant_list_widget(
   matrix_data = matrix_data,
   metadata = nadia_dia$metadata
 )
+quantification_page
 
-# One row per sample, with the metadata fields that are available.
-sample_page <- summary_list_widget(nadia_dia$metadata)
+# 4. Differential-abundance results for comparison B-A.
+results_page <- results_list_widget(
+  res$DEPs_results,
+  protein_quant = nadia_dia$protein_quant,
+  comparisons = "B-A",
+  alpha = 0.05,
+  page_size = 15
+)
+results_page
 ```
 
 </details>
 
-`quant_list_widget()` matches the processed matrix to the quantification table
-through `ProteinGroups`; a matrix without this identifier cannot be joined
-reliably. `summary_list_widget()` adapts to the available metadata, so fields
-that are absent from a particular input format are omitted rather than treated
-as an error.
+- `summary_list_widget()` adapts to the available sample metadata, omitting
+  fields absent from the input format.
+- `protein_list_widget()` displays protein annotations and sample-level
+  identification metrics.
+- `quant_list_widget()` joins the processed matrix to the quantification table
+  through `ProteinGroups`, which must be present in the matrix.
+- `results_list_widget()` provides sorting, search, filters, and Excel export;
+  supplying `protein_quant` adds protein descriptions and quantified-peptide
+  counts to the statistical results.
 
-## Export a table to Excel without internet access
-
-Each complete `*_widget()` page includes an **Export to Excel** button. The
-workbook is generated in the browser with formatted headers, suitable column
-widths, and numeric cells stored as numbers.
-
-```{r offline-assets}
-offline_assets <- data.frame(
-  Library = c("ExcelJS", "PapaParse"),
-  Role = c(
-    "Creates the formatted .xlsx workbook",
-    "Parses tabular text during browser-side export"
-  ),
-  Included_with_NADIA = c("Yes", "Yes"),
-  check.names = FALSE
-)
-
-knitr::kable(
-  offline_assets,
-  col.names = c("Library", "Role", "Included with NADIA"),
-  caption = "JavaScript libraries used by the offline Excel export.",
-  align = c("l", "l", "c")
-)
-```
-
-Both libraries and their licence files are shipped with NADIA rather than
+<div class="export-warning">
+<p><strong>Offline Excel export.</strong> Each complete <code>*_widget()</code>
+page includes an <strong>Export to Excel</strong> button. The workbook is
+generated in the browser with formatted headers, suitable column widths, and
+numeric cells stored as numbers.</p>
+<p>This export requires two JavaScript libraries: <strong>ExcelJS</strong>,
+which creates the formatted <code>.xlsx</code> workbook, and
+<strong>PapaParse</strong>, which parses tabular text during browser-side
+export.</p>
+<p>Both libraries and their licence files are shipped with NADIA rather than
 downloaded from a content-delivery network. The Excel button therefore remains
 available when the saved page is opened offline, provided its local dependency
-folder accompanies the HTML file.
+folder accompanies the HTML file.</p>
+</div>
 
 # Save interactive HTML
 
@@ -919,40 +1432,34 @@ Objects returned by `results_list_widget()`, `protein_list_widget()`,
 `htmltools::save_html()` saves the page and copies its JavaScript and CSS
 dependencies into a neighbouring `lib` directory.
 
-```{r save-widget-page}
-unlink(widget_dir, recursive = TRUE)
-dir.create(widget_dir, recursive = TRUE)
+The following example creates and saves an interactive results page for
+comparison `B-A`. Replace `widget_dir` with a permanent project directory to
+keep the exported page.
+
+<details class="code-details">
+<summary>Show the code used to save the interactive results page</summary>
+
+```{r save-widget-page-code, results = "hide"}
+widget_dir <- file.path(tempdir(), "nadia_vignette_widget")
+dir.create(widget_dir, recursive = TRUE, showWarnings = FALSE)
 
 results_page <- results_list_widget(
   res$DEPs_results,
   protein_quant = nadia_dia$protein_quant,
-  comparisons = "B-A",
-  page_size = 15,
-  height = 600
+  comparisons = "B-A"
 )
 
-page_file <- file.path(widget_dir, "results_B-A.html")
-htmltools::save_html(results_page, page_file)
-
-saved_page <- data.frame(
-  Item = c("HTML page", "Dependency directory"),
-  Created = c(
-    file.exists(page_file),
-    dir.exists(file.path(widget_dir, "lib"))
-  ),
-  check.names = FALSE
-)
-
-knitr::kable(
-  saved_page,
-  caption = "Files created for a complete interactive results page.",
-  align = c("l", "c")
+htmltools::save_html(
+  results_page,
+  file.path(widget_dir, "results_B-A.html")
 )
 ```
 
-The HTML file and `lib` directory form one deliverable and must be copied
-together. This option preserves the full NADIA toolbar, including its filters
-and offline Excel button.
+</details>
+
+The saved page retains the full NADIA toolbar, including filters and Excel
+export. Keep the HTML file and its `lib` directory together when moving or
+sharing the page so that it remains functional offline.
 
 ## Save an individual widget as one file
 
@@ -960,44 +1467,33 @@ and offline Excel button.
 `htmlwidget` objects. They can be embedded into a single HTML file with
 `htmlwidgets::saveWidget(..., selfcontained = TRUE)`.
 
-```{r save-self-contained-widget}
+The following example creates a results table for comparison `B-A` and saves
+it as a single HTML file, using the output directory from the previous example.
+
+<details class="code-details">
+<summary>Show the code used to save the self-contained HTML file</summary>
+
+```{r save-self-contained-widget-code, results = "hide"}
 result_table <- results_list_reactable(
   res$DEPs_results,
   protein_quant = nadia_dia$protein_quant,
-  comparisons = "B-A",
-  page_size = 15,
-  height = 600
+  comparisons = "B-A"
 )
 
-standalone_file <- file.path(widget_dir, "results_B-A_standalone.html")
 htmlwidgets::saveWidget(
   result_table,
-  standalone_file,
+  file.path(widget_dir, "results_B-A_standalone.html"),
   selfcontained = TRUE
-)
-
-standalone_summary <- data.frame(
-  File = basename(standalone_file),
-  Size = sprintf("%.1f MB", file.size(standalone_file) / 1024^2),
-  Dependency_directory_required = "No",
-  check.names = FALSE
-)
-
-knitr::kable(
-  standalone_summary,
-  col.names = c("File", "Size", "Dependency directory required"),
-  caption = "Self-contained HTML created from the Reactable table.",
-  align = c("l", "r", "c")
 )
 ```
 
-The self-contained table retains Reactable features such as sorting and search,
-but it does not include the additional toolbar supplied by
-`results_list_widget()`. Embedding all data and libraries also increases the
-size of the HTML file.
+</details>
 
 The same approach can be used for a Highcharts figure by selecting one chart
 from the named list before saving it.
+
+<details class="code-details">
+<summary>Show the code used to save a self-contained Highcharts figure</summary>
 
 ```{r save-highchart, eval = FALSE}
 volcanoes <- volcano_highchart_list(
@@ -1014,13 +1510,26 @@ htmlwidgets::saveWidget(
 )
 ```
 
+</details>
+
+The resulting HTML file contains the widget and its dependencies, so it can be
+shared on its own and opened offline, at the cost of a larger file. Reactable
+tables retain sorting and search, but not the additional NADIA toolbar supplied
+by `results_list_widget()`.
+
 # Preserve reproducibility
 
 Exported values are interpretable only when the analysis settings and source
 data can be identified. NADIA returns the processing parameters in memory and
 stores them automatically in a `.nadia` archive.
 
-```{r processing-parameters}
+The following table summarises the normalisation, imputation, and
+differential-abundance settings used to obtain the example results.
+
+<details class="code-details">
+<summary>Show the code used to summarise the processing parameters</summary>
+
+```{r processing-parameters-code, results = "hide"}
 selected_parameters <- data.frame(
   Parameter = c(
     "norm_method", "imp_method", "mar_method", "mnar_method",
@@ -1045,11 +1554,31 @@ knitr::kable(
 )
 ```
 
+</details>
+
+<div class="reproducibility-table">
+
+```{r processing-parameters-table, echo = FALSE}
+knitr::kable(
+  selected_parameters,
+  caption = "Main processing parameters for the example analysis.",
+  align = c("l", "l")
+)
+```
+
+</div>
+
 These values explain how the final assay and differential-abundance categories
 were produced. They should accompany any exported table that may be interpreted
 outside the original R session.
 
-```{r reproducibility-checklist}
+The following checklist identifies the files and metadata to retain and
+explains how each item supports reproducibility or sharing.
+
+<details class="code-details">
+<summary>Show the code used to create the reproducibility checklist</summary>
+
+```{r reproducibility-checklist-code, results = "hide"}
 reproducibility_items <- data.frame(
   Keep = c(
     "Original proteomics report and sample metadata",
@@ -1075,23 +1604,40 @@ knitr::kable(
 )
 ```
 
+</details>
+
+<div class="reproducibility-table">
+
+```{r reproducibility-checklist-table, echo = FALSE}
+knitr::kable(
+  reproducibility_items,
+  caption = "Recommended material to retain with a NADIA analysis.",
+  align = c("l", "l")
+)
+```
+
+</div>
+
 Together, these items preserve both the evidence and the decisions that produced
 the reported result. A `.nadia` archive reduces the number of files that must be
 coordinated, but it should complement rather than replace the original report
 and the analysis script.
 
 ```{r cleanup, include = FALSE}
-unlink(
-  c(
-    export_dir,
-    nadia_file,
-    paste0(nadia_file, ".wal"),
-    parquet_dir,
-    widget_dir
-  ),
-  recursive = TRUE
+cleanup_paths <- c(
+  if (exists("export_dir")) export_dir,
+  if (exists("nadia_file")) c(nadia_file, paste0(nadia_file, ".wal")),
+  if (exists("parquet_dir")) parquet_dir,
+  if (exists("widget_dir")) widget_dir
 )
+
+unlink(cleanup_paths, recursive = TRUE)
 ```
+
+# References
+
+Lin G (2026). *reactable: Interactive Data Tables for R*. R package version
+0.4.5.9000, [https://glin.github.io/reactable/](https://glin.github.io/reactable/).
 
 # Session information
 

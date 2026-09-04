@@ -303,8 +303,11 @@ summarises differential abundance, a boxplot compares sample distributions, a
 principal component analysis (PCA) reveals the main sources of variation, and a
 heatmap displays coordinated protein profiles across individual samples.
 Pattern Profiler adds a different view by grouping proteins with similar
-relative trajectories across ordered conditions. These views are complementary;
-none is a substitute for the others or for the underlying statistical model.
+relative trajectories across ordered conditions. These views provide different
+information; none is a substitute for the others or for the underlying
+statistical model. NADIA offers this broad set of complementary visualisations
+so users can select the views that best address their analytical question and
+communicate the results clearly.
 
 This vignette presents a complete visualisation workflow for NADIA results. It
 shows how to choose and prepare each plot, how to interpret the example output,
@@ -348,7 +351,10 @@ res <- process_proteomics(nadia_dia, verbose = FALSE)
 
 The sample design should always be checked before a plot is interpreted.
 
-```{r example-design}
+<details class="code-details">
+<summary>Show the code used to summarise the experimental design</summary>
+
+```{r example-design, results="hide"}
 sample_design <- unique(
   res$PCA_Input[c("SampleID", "Condition", "Replicate")]
 )
@@ -356,6 +362,16 @@ sample_design <- unique(
 design_summary <- as.data.frame(table(sample_design$Condition))
 names(design_summary) <- c("Condition", "Samples")
 
+knitr::kable(
+  design_summary,
+  row.names = FALSE,
+  caption = "Number of samples in each condition of the example experiment."
+)
+```
+
+</details>
+
+```{r example-design-table, echo=FALSE}
 knitr::kable(
   design_summary,
   row.names = FALSE,
@@ -373,7 +389,10 @@ Pattern Profiler separates clustering from visualisation.
 `long_output`; the plotting functions use this data frame directly, so saved
 clustering results can be visualised without rerunning the analysis.
 
-```{r visualisation-inputs}
+<details class="code-details">
+<summary>Show the code used to summarise the visualisation inputs</summary>
+
+```{r visualisation-inputs, results="hide"}
 input_summary <- data.frame(
   Object = c("DEPs_results", "BoxPlot_Input", "PCA_Input", "se_proc"),
   Rows = c(
@@ -402,6 +421,25 @@ knitr::kable(
   caption = "Objects returned by process_proteomics() for visualisation."
 )
 ```
+
+</details>
+
+```{r visualisation-inputs-table, echo=FALSE}
+knitr::kable(
+  input_summary,
+  row.names = FALSE,
+  caption = "Objects returned by process_proteomics() for visualisation."
+)
+```
+
+The values are calculated directly with `nrow()` and `ncol()`, but the row count
+reflects the structure of each object rather than the number of unique proteins.
+`DEPs_results` contains 1,997 proteins across three comparisons (5,991 rows),
+`BoxPlot_Input` contains the same proteins across 12 samples and two assays
+(47,928 rows), and `PCA_Input` contains one row per protein and sample (23,964
+rows). In the three data frames, `Columns` counts the available variables; in
+`se_proc`, its 1,997 rows and 12 columns correspond directly to proteins and
+samples, respectively.
 
 # Choosing the appropriate visualisation
 

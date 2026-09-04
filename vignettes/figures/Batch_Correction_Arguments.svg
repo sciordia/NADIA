@@ -87,7 +87,7 @@
   <text x="549" y="615" class="body">the differential abundance model.</text>
   <text x="549" y="651" class="label" fill="#245c83">EXAMPLES</text>
   <text x="549" y="678" class="body">• injection sequence or study centre</text>
-  <text x="549" y="704" class="body">• sex or another categorical covariate</text>
+  <text x="549" y="704" class="body">• sex or another biological adjustment covariate</text>
   <text x="549" y="730" class="body">• one name or a vector of column names</text>
   <text x="549" y="757" class="body-strong">Acts during differential testing.</text>
 

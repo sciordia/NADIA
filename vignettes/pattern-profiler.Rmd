@@ -57,6 +57,29 @@ have_pattern_profiler <- all(vapply(
   margin-left: 1.4em;
 }
 
+.code-details {
+  margin: 1em 0 1.4em;
+  border: 1px solid #c8d3dc;
+  border-radius: 5px;
+  background: #f7f9fb;
+}
+
+.code-details summary {
+  padding: 0.75em 1em;
+  color: #1d3557;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.code-details[open] summary {
+  border-bottom: 1px solid #c8d3dc;
+}
+
+.code-details pre,
+.code-details table {
+  margin: 1em;
+}
+
 .pattern-note {
   margin: 1.4em 0;
   padding: 0.95em 1.15em;
@@ -67,6 +90,16 @@ have_pattern_profiler <- all(vapply(
 .figure-space {
   margin-top: 1.8em;
   margin-bottom: 1.8em;
+}
+
+.horizontal-scroll > table:has(> caption) {
+  margin-left: 65px !important;
+  margin-right: 0 !important;
+}
+
+.cluster-summary-table .horizontal-scroll > table {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }
 
 .profile-lightbox-target,
@@ -197,11 +230,23 @@ each represented by four samples. Replicates are retained during protein
 quantification and are aggregated only when the condition-level profiles are
 constructed.
 
-```{r example-design}
+<details class="code-details">
+<summary>Show the code used to summarise the experimental design</summary>
+
+```{r example-design, results='hide'}
 design_table <- as.data.frame(SummarizedExperiment::colData(res$se_proc))
 design_table <- as.data.frame(table(Condition = design_table$Condition))
 names(design_table)[2] <- "Samples"
 
+knitr::kable(
+  design_table,
+  caption = "Number of samples available for each condition."
+)
+```
+
+</details>
+
+```{r example-design-table, echo=FALSE}
 knitr::kable(
   design_table,
   caption = "Number of samples available for each condition."
@@ -290,7 +335,10 @@ proteins passed the preprocessing checks. The output contains more rows than
 proteins because a protein can meet the membership threshold in more than one
 cluster.
 
-```{r run-overview, eval=have_pattern_profiler}
+<details class="code-details">
+<summary>Show the code used to summarise the Pattern Profiler run</summary>
+
+```{r run-overview, eval=have_pattern_profiler, results='hide'}
 run_overview <- data.frame(
   Measure = c(
     "Proteins selected",
@@ -308,6 +356,15 @@ run_overview <- data.frame(
   )
 )
 
+knitr::kable(
+  run_overview,
+  caption = "Overview of the Pattern Profiler run."
+)
+```
+
+</details>
+
+```{r run-overview-table, eval=have_pattern_profiler, echo=FALSE}
 knitr::kable(
   run_overview,
   caption = "Overview of the Pattern Profiler run."
@@ -336,7 +393,10 @@ For this dataset, the three modes produce substantially different input sizes.
 The counts below are obtained before missing-value and variance checks are
 applied by Pattern Profiler.
 
-```{r filter-counts}
+<details class="code-details">
+<summary>Show the code used to compare the filtering strategies</summary>
+
+```{r filter-counts, results='hide'}
 dep_assay <- as.data.frame(res$DEPs_results)
 dep_assay <- dep_assay[dep_assay$Assay == "Impseqrob_min", ]
 
@@ -355,6 +415,15 @@ filter_counts <- data.frame(
   )
 )
 
+knitr::kable(
+  filter_counts,
+  caption = "Number of proteins selected by three filtering strategies."
+)
+```
+
+</details>
+
+```{r filter-counts-table, echo=FALSE}
 knitr::kable(
   filter_counts,
   caption = "Number of proteins selected by three filtering strategies."
@@ -388,7 +457,10 @@ they disagree. `"elbow"` selects the largest change in centroid separation and
 should be treated as an exploratory alternative rather than as a universal
 optimum.
 
-```{r selection-metrics, eval=have_pattern_profiler}
+<details class="code-details">
+<summary>Show the code used to prepare the cluster-selection diagnostics</summary>
+
+```{r selection-metrics, eval=have_pattern_profiler, results='hide'}
 selection_table <- pp$selection_metrics
 selection_table[c("XB", "XB_sd", "FPC", "AMM", "Dmin")] <- lapply(
   selection_table[c("XB", "XB_sd", "FPC", "AMM", "Dmin")],
@@ -396,6 +468,16 @@ selection_table[c("XB", "XB_sd", "FPC", "AMM", "Dmin")] <- lapply(
   digits = 4
 )
 
+knitr::kable(
+  selection_table,
+  row.names = FALSE,
+  caption = "Cluster-selection diagnostics for c = 2 to 5."
+)
+```
+
+</details>
+
+```{r selection-metrics-table, eval=have_pattern_profiler, echo=FALSE}
 knitr::kable(
   selection_table,
   row.names = FALSE,
@@ -427,10 +509,24 @@ they cannot be mistaken for exceptionally good solutions.
 
 The main result is `long_output`. It contains the protein identifier, cluster,
 membership, and one standardised value for each condition. Because expression
-is converted to a row-wise z-score, these values describe the **shape within
-each protein**; they must not be interpreted as absolute protein abundance.
+is converted to a row-wise z-score, these values describe the **relative profile
+of each protein across the ordered conditions**; they must not be interpreted as
+absolute protein abundance.
 
-```{r long-output, eval=have_pattern_profiler}
+<details class="code-details">
+<summary>Show the code used to preview the long-format output</summary>
+
+```{r long-output, eval=have_pattern_profiler, results='hide'}
+knitr::kable(
+  head(pp$long_output, 6),
+  digits = 3,
+  caption = "First rows of the long-format Pattern Profiler output."
+)
+```
+
+</details>
+
+```{r long-output-table, eval=have_pattern_profiler, echo=FALSE}
 knitr::kable(
   head(pp$long_output, 6),
   digits = 3,
@@ -442,7 +538,10 @@ Each row represents one protein--cluster association that satisfies
 `min_membership`. `summarize_pattern_profiler()` provides an overview of these
 associations and reports how many proteins occur in more than one cluster.
 
-```{r membership-summary, eval=have_pattern_profiler}
+<details class="code-details">
+<summary>Show the code used to summarise soft-clustering assignments</summary>
+
+```{r membership-summary, eval=have_pattern_profiler, results='hide'}
 pp_summary <- summarize_pattern_profiler(pp$long_output)
 
 membership_overview <- data.frame(
@@ -464,12 +563,26 @@ knitr::kable(
 )
 ```
 
+</details>
+
+```{r membership-summary-table, eval=have_pattern_profiler, echo=FALSE}
+knitr::kable(
+  membership_overview,
+  caption = "Summary of the soft-clustering assignments."
+)
+```
+
 At the analysis threshold of 0.25, 73 proteins are associated with both
 clusters. These overlapping assignments are not duplicates or errors: they
 identify profiles that share characteristics with both centroids. The cluster
 summary shows the size and strength of each set of assignments.
 
-```{r cluster-summary, eval=have_pattern_profiler}
+<div class="cluster-summary-table">
+
+<details class="code-details">
+<summary>Show the code used to summarise cluster membership</summary>
+
+```{r cluster-summary, eval=have_pattern_profiler, results='hide'}
 cluster_table <- as.data.frame(pp_summary$cluster_summary)
 cluster_table[c("mean_membership", "min_membership", "max_membership")] <-
   lapply(
@@ -484,11 +597,25 @@ knitr::kable(
 )
 ```
 
+</details>
+
+```{r cluster-summary-table, eval=have_pattern_profiler, echo=FALSE}
+knitr::kable(
+  cluster_table,
+  caption = "Membership summary for each cluster."
+)
+```
+
+</div>
+
 Both clusters have high average memberships, indicating that the two-pattern
 solution is well defined overall. A stricter display threshold can be used when
 only the clearest representatives are needed.
 
-```{r membership-thresholds, eval=have_pattern_profiler}
+<details class="code-details">
+<summary>Show the code used to compare membership thresholds</summary>
+
+```{r membership-thresholds, eval=have_pattern_profiler, results='hide'}
 thresholds <- c(0.25, 0.50, 0.70, 0.90)
 threshold_table <- data.frame(
   Minimum_membership = thresholds,
@@ -499,6 +626,15 @@ threshold_table <- data.frame(
   )
 )
 
+knitr::kable(
+  threshold_table,
+  caption = "Effect of applying stricter membership thresholds."
+)
+```
+
+</details>
+
+```{r membership-thresholds-table, eval=have_pattern_profiler, echo=FALSE}
 knitr::kable(
   threshold_table,
   caption = "Effect of applying stricter membership thresholds."
@@ -776,11 +912,11 @@ The matching row counts confirm that the complete long-format clustering table
 was recovered. Alternatively, `pattern_profiler = pp` can be supplied directly
 to `write_nadia()` when the project and clustering are saved at the same time.
 
-To combine the clusters with the differential-abundance statistics in a single
-table, for example as input to a functional or enrichment analysis, use
-`deps_with_clusters()` on the two results in memory, or
-`nadia_deps_with_clusters()` on a stored project. Both are described in
-`vignette("results-and-export", package = "NADIA")`.
+To combine Pattern Profiler assignments with differential-abundance statistics
+in a single table, for example as input to a downstream functional or enrichment
+analysis, use `deps_with_clusters()` on the two results in memory or
+`nadia_deps_with_clusters()` on a stored project. Both functions are described
+in `vignette("results-and-export", package = "NADIA")`.
 
 # Practical recommendations
 
