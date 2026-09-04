@@ -559,3 +559,63 @@ test_that("a protein mapped to two species is rejected", {
                  "more than one species")
     expect_error(NADIA:::.validate_species_df(map), "ECOLI / YEAST")
 })
+
+# --- Pattern Profiler: the assay is resolved, not guessed ---------------------
+
+test_that("pattern_profiler_analysis() resolves assay_name from DEPs_results", {
+    # Defect: assay_name defaulted to "LoessCyc", a name no pipeline built since
+    # the package conversion produces, so every call that omitted the argument
+    # failed. It is now taken from DEPs_results$Assay, which records the assay
+    # the differential abundance was computed on -- the one the clustering
+    # belongs with, since assay_name also filters those results.
+    skip_if_not_installed("Mfuzz")
+    skip_if_not_installed("Biobase")
+    skip_if_not_installed("e1071")
+
+    data(nadia_dia, package = "NADIA", envir = environment())
+    res <- suppressMessages(process_proteomics(nadia_dia, verbose = FALSE))
+    imputed <- utils::tail(SummarizedExperiment::assayNames(res$se_proc), 1)
+
+    auto <- suppressMessages(pattern_profiler_analysis(
+        res$se_proc, res$DEPs_results, seed = 123, verbose = FALSE))
+    named <- suppressMessages(pattern_profiler_analysis(
+        res$se_proc, res$DEPs_results, assay_name = imputed,
+        seed = 123, verbose = FALSE))
+
+    # Leaving it out must be the same run as naming it: this is a new default,
+    # not new behaviour.
+    expect_identical(auto$long_output, named$long_output)
+    expect_identical(auto$optimal_c, named$optimal_c)
+})
+
+test_that(".pp_resolve_assay() refuses to guess when the answer is ambiguous", {
+    se <- .nadia_toy_se(n_prot = 20, na_prop = 0)
+    # A second assay, so the ambiguous case has two candidates to choose between.
+    SummarizedExperiment::assay(se, "log2") <-
+        SummarizedExperiment::assay(se, "cycloess")
+    assays_present <- SummarizedExperiment::assayNames(se)
+
+    de <- data.frame(Protein.IDs = "p1", Assay = assays_present[1])
+
+    # An explicit value is passed through untouched.
+    expect_identical(
+        NADIA:::.pp_resolve_assay(se, de, assays_present[1]),
+        assays_present[1])
+
+    # No Assay column: nothing to resolve from.
+    expect_error(
+        NADIA:::.pp_resolve_assay(se, data.frame(Protein.IDs = "p1"), NULL),
+        "no 'Assay' column")
+
+    # Several assays in the results: the caller has to choose.
+    if (length(assays_present) >= 2) {
+        de2 <- data.frame(Protein.IDs = c("p1", "p2"),
+                          Assay = assays_present[seq_len(2)])
+        expect_error(NADIA:::.pp_resolve_assay(se, de2, NULL), "several assays")
+    }
+
+    # An assay the object does not have.
+    expect_error(
+        NADIA:::.pp_resolve_assay(se, data.frame(Assay = "absent"), NULL),
+        "is present in the object")
+})

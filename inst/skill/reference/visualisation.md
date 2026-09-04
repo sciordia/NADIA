@@ -68,7 +68,7 @@ Soft (fuzzy) clustering with Mfuzz. **A separate step, not part of
 pp <- pattern_profiler_analysis(
   res$se_proc,
   res$DEPs_results,
-  assay_name  = "Impseqrob_min",   # REQUIRED in practice: see below
+  # assay_name  = NULL,            # resolved from DEPs_results$Assay
   filter_mode = "any",             # "any" | "all" | "specific"
   alpha       = 0.05,
   c_range     = 2:10,
@@ -84,11 +84,12 @@ cluster_profile_highchart_list(pp$long_output)
 cluster_centroids_highchart(pp$long_output)
 ```
 
-**Three traps here:**
+**Three things to know:**
 
-1. `assay_name` defaults to `"LoessCyc"`, which no current pipeline produces.
-   Always pass it. Get the real names from
-   `SummarizedExperiment::assayNames(res$se_proc)`.
+1. `assay_name` selects the matrix to cluster **and** filters `DEPs_results` by
+   its `Assay` column, so the two must agree. Left at `NULL` it is taken from
+   `DEPs_results$Assay`. Pass it to cluster a different assay, or when the
+   results cover several — NADIA then aborts rather than guessing.
 2. `filter_mode = "all"` means **all features**, i.e. no significance filter at
    all. It does *not* mean "significant in all comparisons". `"any"` is the one
    that keeps proteins significant in at least one comparison.

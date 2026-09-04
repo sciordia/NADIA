@@ -686,6 +686,57 @@ build_long_output <- function(cl, eset_std, conditions, min_membership) {
 # MAIN FUNCTION: PATTERN PROFILER ANALYSIS
 # =============================================================================
 
+#' Resolve which assay the clustering runs on
+#'
+#' `assay_name` selects the matrix to cluster *and* filters `DEPs_results` by
+#' its `Assay` column, so the two have to agree. When it is not supplied, the
+#' DE results say which assay they were computed on, and that is the one the
+#' clustering belongs with.
+#'
+#' @param se_proc The `SummarizedExperiment`.
+#' @param DEPs_results The differential abundance results.
+#' @param assay_name The user's value, possibly `NULL`.
+#'
+#' @return A single assay name.
+#'
+#' @keywords internal
+#' @noRd
+.pp_resolve_assay <- function(se_proc, DEPs_results, assay_name = NULL) {
+  in_se <- SummarizedExperiment::assayNames(se_proc)
+
+  if (!is.null(assay_name)) {
+    if (length(assay_name) != 1L || !is.character(assay_name) || is.na(assay_name)) {
+      stop("'assay_name' must be a single assay name, or NULL.", call. = FALSE)
+    }
+    return(assay_name)
+  }
+
+  if (is.null(DEPs_results$Assay)) {
+    stop("'assay_name' is NULL and 'DEPs_results' has no 'Assay' column, so the ",
+         "assay cannot be resolved. Pass one of: ",
+         paste(in_se, collapse = ", "), ".", call. = FALSE)
+  }
+
+  candidates <- unique(stats::na.omit(as.character(DEPs_results$Assay)))
+  usable <- intersect(candidates, in_se)
+
+  if (length(usable) != 1L) {
+    stop("'assay_name' is NULL and it cannot be resolved from 'DEPs_results'. ",
+         if (length(usable) > 1L) {
+           paste0("The results cover several assays present in the object (",
+                  paste(usable, collapse = ", "), "); pass the one to cluster.")
+         } else {
+           paste0("No assay of 'DEPs_results' (",
+                  paste(candidates, collapse = ", "),
+                  ") is present in the object (",
+                  paste(in_se, collapse = ", "), ").")
+         },
+         call. = FALSE)
+  }
+
+  usable
+}
+
 #' Pattern Profiler Analysis
 #'
 #' Complete clustering pipeline starting from a SummarizedExperiment.
@@ -693,7 +744,11 @@ build_long_output <- function(cl, eset_std, conditions, min_membership) {
 #'
 #' @param se_proc SummarizedExperiment with intensity data
 #' @param DEPs_results DataFrame with differential expression results (must have an 'Assay' column)
-#' @param assay_name Name of the assay to use (default: "LoessCyc"). It is also used to filter DEPs_results.
+#' @param assay_name Name of the assay to cluster. It is also the value used to
+#'   filter `DEPs_results` by its `Assay` column, so the two must agree. With
+#'   the default `NULL` it is taken from `DEPs_results$Assay`, which records the
+#'   assay the differential abundance was computed on; supply it explicitly when
+#'   those results cover more than one assay.
 #' @param filter_mode Filtering mode: "any" (significant in at least one
 #'   comparison), "all" (ALL features, with no significance filtering),
 #'   "specific" (significant in the comparison given by `comparison`)
@@ -748,7 +803,7 @@ build_long_output <- function(cl, eset_std, conditions, min_membership) {
 #' @export
 pattern_profiler_analysis <- function(se_proc,
                                        DEPs_results,
-                                       assay_name = "LoessCyc",
+                                       assay_name = NULL,
                                        filter_mode = c("any", "all", "specific"),
                                        alpha = 0.05,
                                        comparison = NULL,
@@ -780,6 +835,9 @@ pattern_profiler_analysis <- function(se_proc,
   # 1) Extract the data from the SummarizedExperiment
   # -------------------------------------------------------------------------
   if (verbose) message("1. Extracting data from the SummarizedExperiment...")
+
+  assay_name <- .pp_resolve_assay(se_proc, DEPs_results, assay_name)
+  if (verbose) message(sprintf("   - Assay: %s", assay_name))
 
   se_data <- extract_se_data(se_proc, assay_name)
 
@@ -985,11 +1043,11 @@ pattern_profiler_analysis <- function(se_proc,
 # are already loaded in the environment from previous pipeline steps.
 #
 #
-# # Run the analysis (uses assay 'LoessCyc' by default)
+# # Run the analysis. With assay_name left at NULL it is taken from
+# # DEPs_results$Assay, the assay the differential abundance was computed on.
 # result <- pattern_profiler_analysis(
 #   se_proc = se_proc,
 #   DEPs_results = DEPs_results,
-#   assay_name = "LoessCyc",  # default; also filters DEPs_results by this column
 #   filter_mode = "any",
 #   condition_order = c("A", "B", "C", "D"),
 #   c_range = 2:8,
@@ -1006,7 +1064,7 @@ pattern_profiler_analysis <- function(se_proc,
 # result <- pattern_profiler_analysis(
 #   se_proc = se_proc,
 #   DEPs_results = DEPs_results,
-#   assay_name = "log2",  # use log2 instead of LoessCyc
+#   assay_name = "log2",  # cluster the log2 assay instead of the imputed one
 #   filter_mode = "any",
 #   condition_order = c("A", "B", "C", "D")
 # )

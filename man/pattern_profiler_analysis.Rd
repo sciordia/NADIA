@@ -7,7 +7,7 @@
 pattern_profiler_analysis(
   se_proc,
   DEPs_results,
-  assay_name = "LoessCyc",
+  assay_name = NULL,
   filter_mode = c("any", "all", "specific"),
   alpha = 0.05,
   comparison = NULL,
@@ -29,7 +29,11 @@ pattern_profiler_analysis(
 
 \item{DEPs_results}{DataFrame with differential expression results (must have an 'Assay' column)}
 
-\item{assay_name}{Name of the assay to use (default: "LoessCyc"). It is also used to filter DEPs_results.}
+\item{assay_name}{Name of the assay to cluster. It is also the value used to
+filter \code{DEPs_results} by its \code{Assay} column, so the two must agree. With
+the default \code{NULL} it is taken from \code{DEPs_results$Assay}, which records the
+assay the differential abundance was computed on; supply it explicitly when
+those results cover more than one assay.}
 
 \item{filter_mode}{Filtering mode: "any" (significant in at least one
 comparison), "all" (ALL features, with no significance filtering),

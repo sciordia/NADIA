@@ -115,8 +115,8 @@ run_pattern_profiler <- FALSE
 if (run_pattern_profiler &&
     all(vapply(c("Mfuzz", "Biobase", "e1071"), requireNamespace, logical(1),
                quietly = TRUE))) {
-    # assay_name is required in practice: its default names an assay that no
-    # current pipeline produces.
+    # assay_name left at its default is resolved from DEPs_results$Assay; it is
+    # spelled out here because the script already knows the name.
     pp <- pattern_profiler_analysis(res$se_proc, res$DEPs_results,
                                     assay_name = imputed_assay,
                                     filter_mode = "any", seed = 123,

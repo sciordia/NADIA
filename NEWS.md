@@ -18,6 +18,14 @@ without any change to the results the pipeline produces.
 * Agent skill in `inst/skill/`, located with `nadia_skill_path()`: the pipeline
   written for a coding assistant, with the decision points and the guardrails
   the defaults invite.
+* **`pattern_profiler_analysis()` no longer defaults `assay_name` to
+  `"LoessCyc"`.** No pipeline built since the package conversion produces an
+  assay with that name, so every call that omitted the argument failed. The
+  default is now `NULL` and the assay is taken from `DEPs_results$Assay`, which
+  records the one the differential abundance was computed on -- and which
+  `assay_name` also filters, so the two have to agree anyway. When those results
+  cover several assays, the function aborts and names them rather than guessing.
+  Calls that already passed `assay_name` are unaffected.
 * **`species_df` must map each protein exactly once.** The mapping is joined to
   the DE results on `Protein.IDs` with no uniqueness check, so a repeated
   identifier multiplied that protein's row in every comparison and inflated the

@@ -110,10 +110,12 @@ missingness, pass a value explicitly; it then applies to every method alike.
 **`halfmin` is `min - 1`, not `min / 2`.** The assay is log2, so halving an
 intensity is subtracting 1. Do not "correct" it.
 
-**`pattern_profiler_analysis()` has a stale default, `assay_name = "LoessCyc"`.**
-No current pipeline produces an assay with that name; they are named after the
-imputation method. Always pass `assay_name` explicitly, e.g.
-`assay_name = "Impseqrob_min"`. Read the real names with
+**`pattern_profiler_analysis()` clusters the assay named in
+`DEPs_results$Assay`.** With the default `assay_name = NULL` it is resolved
+from there, because that column records the assay the differential abundance
+was computed on, and `assay_name` also filters those results — the two have to
+agree. Pass it explicitly to cluster something else, or when the results cover
+more than one assay, in which case NADIA refuses to guess. The names are in
 `SummarizedExperiment::assayNames(res$se_proc)`.
 
 **The four missingness columns are not interchangeable.** `MissGlobal` spans
