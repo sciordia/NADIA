@@ -73,3 +73,11 @@ results/
 # only package code. They are preserved on the 'dev' branch.
 [0-9]*_*.R
 Rplots.pdf
+
+# Internal working notes: the agent brief, the submission checklist and the code
+# review reports. They are kept on the maintainer's machine, never published.
+# .Rbuildignore already keeps them out of the tarball, and it still has to,
+# because they remain on disk.
+CLAUDE.md
+SUBMISSION.md
+CODE_REVIEW_*.md
