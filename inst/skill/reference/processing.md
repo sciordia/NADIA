@@ -26,7 +26,7 @@ res <- process_proteomics(
   batch_column      = "Batch",
   batch_algorithm   = "ComBat",     # or "limma"
   batch_covariates  = NULL,         # PASS THE CONDITION HERE. See below.
-  covariate_df      = NULL,         # data frame carrying the batch column
+  covariate_df      = NULL,         # Column (= metadata$Coding) + the batch column
 
   # --- imputation ---
   imp_method  = "combo",
@@ -81,9 +81,15 @@ pca_covariates_plot(res$se_proc, assay_name = "cycloess",
 Then:
 
 ```r
+# The table is joined on 'Column', whose values are metadata$Coding ("A_1"),
+# not R.FileName ("Abundance: A_1").
+batch_df <- data.frame(
+  Column = prep$metadata$Coding,
+  Batch  = ifelse(prep$metadata$R.Replicate <= 4, "Mix1", "Mix2"))
+
 res <- process_proteomics(
   prep,
-  covariate_df     = my_batch_table,      # must contain the batch column
+  covariate_df     = batch_df,
   batch_correct    = TRUE,
   batch_column     = "Batch",
   batch_algorithm  = "ComBat",
@@ -91,10 +97,22 @@ res <- process_proteomics(
 )
 ```
 
-**`batch_covariates` is not optional in practice.** With `NULL`, ComBat removes
-every batch-associated component, and when condition and batch are partly
-confounded that includes the biological signal. NADIA emits a warning; treat it
-as an error unless you can justify otherwise.
+**Check whether condition and batch are confounded before you decide about
+`batch_covariates`**, with the one table that answers it:
+
+```r
+table(batch_df$Batch, prep$metadata$R.Condition)
+```
+
+A balanced table (every condition present in every batch, in similar numbers)
+means the two are close to orthogonal, and protected and unprotected ComBat
+will give nearly the same answer. An unbalanced one — a condition living mostly
+in one batch — is where `batch_covariates = NULL` destroys the signal, because
+ComBat cannot tell the batch difference from the biological one.
+
+Pass the condition anyway: it costs nothing when the design is balanced and
+saves the analysis when it is not. NADIA warns when the argument is `NULL`;
+do not ignore that warning without having looked at the table above.
 
 Batch correction adds a `"BERT"` assay and imputation then runs on it instead
 of on the normalised assay. Features that cannot be fitted (fewer than two

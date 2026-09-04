@@ -877,6 +877,7 @@ pvca_analysis <- function(se,
 #' @param combatmode Integer 1-4 (only used when method = "ComBat")
 #' @param covariates data.frame with columns Cov_1, Cov_2, ... or NULL
 #' @param qualitycontrol Logical: compute ASW quality metrics
+#' @param verbose Let BERT print its own progress log (default: TRUE)
 #' @return Numeric matrix (proteins x samples), possibly fewer rows
 #' @keywords internal
 #' @noRd
@@ -884,7 +885,8 @@ pvca_analysis <- function(se,
                          method         = "ComBat",
                          combatmode     = 1,
                          covariates     = NULL,
-                         qualitycontrol = FALSE) {
+                         qualitycontrol = FALSE,
+                         verbose        = TRUE) {
 
   orig_colnames <- colnames(mat)
   n_samples  <- ncol(mat)
@@ -907,13 +909,22 @@ pvca_analysis <- function(se,
     bert_input <- cbind(bert_input, covariates)
   }
 
-  # Call BERT
-  result <- suppressWarnings(
-    BERT::BERT(bert_input,
-               method         = method,
-               combatmode     = combatmode,
-               qualitycontrol = qualitycontrol)
-  )
+  # Call BERT. It reports through the 'logging' package, which writes to
+  # stdout and honours no argument of ours, so the output is captured when the
+  # caller asked to be quiet.
+  bert_call <- function() {
+    suppressWarnings(
+      BERT::BERT(bert_input,
+                 method         = method,
+                 combatmode     = combatmode,
+                 qualitycontrol = qualitycontrol)
+    )
+  }
+  if (verbose) {
+    result <- bert_call()
+  } else {
+    utils::capture.output(result <- bert_call())
+  }
 
   # Extract corrected matrix (remove Batch, Cov_* and BERT's reserved names)
   meta_cols <- c("Batch", "Label", "Sample", "Reference", "Cov",
@@ -1102,7 +1113,8 @@ batch_correct_proteomics <- function(
     method         = algorithm,
     combatmode     = ComBat_mode,
     covariates     = cov_df,
-    qualitycontrol = qualitycontrol
+    qualitycontrol = qualitycontrol,
+    verbose        = verbose
   )
 
   if (any(combat_bad)) {

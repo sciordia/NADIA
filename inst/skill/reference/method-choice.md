@@ -56,6 +56,15 @@ MLE MinProb limpa`.
 `limpa` is different in kind — a model-based method that also carries precision
 weights through to the DE step. Use it with `de_method = "limpa"`.
 
+## First: is there anything to impute?
+
+Before comparing imputation methods, count the missing cells. If there are
+none, or a handful, the whole imputation question is moot — every method
+returns the input — and `imputation_metrics()` would rank methods on an
+artificial problem. Say so and move on to normalisation, which still matters.
+The TMT example shipped with the package is exactly this case: one missing cell
+in 48,000.
+
 ## How to choose, in order of preference
 
 **1. If the experiment has a known ground truth (a spike-in), benchmark it.**
@@ -69,15 +78,22 @@ truth needed:
 ```r
 se <- normalize_proteomics(prep, norm_method = "cycloess")$se   # or res$se_proc
 
-nm <- normalization_metrics(se, output_dir = "results/norm")
+nm <- normalization_metrics(
+  se,
+  methods = c("log2Norm", "GlobalMedian", "GlobalMean", "eqmedians", "vsn",
+              "medianNorm", "meanNorm", "quantile", "Rlr", "MAD", "cycloess",
+              "quantile.robust"),          # required: see reference/validation.md
+  output_dir = "results/norm")
 nm$final_rank        # rank 1 = best
 
 im <- imputation_metrics(se, assay_name = "cycloess", output_dir = "results/imp")
-im$ranking           # Rank_Mean over NRMSE, SOR, PSS, ACC_OI
+im$metrics_table     # Rank_Mean over NRMSE, SOR, PSS, ACC_OI
 ```
 
-`normalization_metrics()` compares 12 methods on within-group variability
-(PCV/PMAD/PEV), intragroup correlation and group separation.
+`normalization_metrics()` compares those 12 methods on within-group variability
+(PCV/PMAD/PEV), intragroup correlation and group separation. **Omit `methods`
+and it ranks the assays already in the object instead**, which is not a method
+comparison at all — `reference/validation.md` explains why that matters.
 `imputation_metrics()` simulates missingness on complete rows and measures
 recovery for 16 methods.
 

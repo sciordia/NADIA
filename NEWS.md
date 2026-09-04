@@ -33,6 +33,19 @@ without any change to the results the pipeline produces.
   `cat()`, which no argument of ours can reach, so its output is captured
   instead; and the Biobase startup banner, printed because NADIA attaches it for
   Mfuzz, is suppressed. The results are unchanged.
+* **Batch correction is quiet too.** BERT reports through the `logging` package,
+  which writes to stdout and honours no argument of NADIA's, so a corrected run
+  printed fifteen `INFO::` lines whatever `verbose` said. They are captured now.
+* Agent skill corrections, found by driving it through the TMT example from
+  scratch: the `normalization_metrics()` call was documented without `methods`,
+  which silently ranks the assays already in the object -- `raw`, `log2`, `BERT`,
+  the imputed one -- instead of the twelve normalisation methods, and so would
+  have justified a method choice with a comparison of pipeline stages; the join
+  key of `covariate_df` (a `Column` column matching `metadata$Coding`, not
+  `R.FileName`) was never stated; the import check rounded the missing
+  percentage and reported 0 % for a dataset that had one missing cell; and
+  nothing told the reader what to do when there is essentially nothing to
+  impute.
 * **`species_df` must map each protein exactly once.** The mapping is joined to
   the DE results on `Protein.IDs` with no uniqueness check, so a repeated
   identifier multiplied that protein's row in every comparison and inflated the

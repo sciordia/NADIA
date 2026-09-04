@@ -64,7 +64,19 @@ no sheet.
 
 There is no batch column in a `proteomics_data` object. Batch is supplied later,
 to `process_proteomics()`, through `covariate_df` + `batch_column`. Keep the
-mapping (sample → batch) in your own table.
+mapping (sample → batch) in your own table, and build it with the key NADIA
+joins on:
+
+```r
+batch_df <- data.frame(
+  Column = prep$metadata$Coding,        # <- the key. NOT R.FileName.
+  Batch  = ifelse(prep$metadata$R.Replicate <= 4, "Mix1", "Mix2"))
+```
+
+`covariate_df` must have a column literally called `Column`, and its values are
+matched against `metadata$Coding` — `"A_1"`, not the `"Abundance: A_1"` of
+`R.FileName`. Get it wrong and the merge yields NAs; NADIA then aborts saying
+the frame does not cover all samples.
 
 ## Verify the import before going on
 
@@ -76,13 +88,19 @@ prep <- preprocess_spectronaut(path, condition_order = c("A", "B", "D"))
 # 1. Did the design come out as intended?
 table(prep$metadata$R.Condition)
 
-# 2. How much is missing, before any imputation?
-q <- prep$protein_quant[, grep("PG.Quantity", names(prep$protein_quant))]
-round(100 * mean(is.na(as.matrix(q)) | as.matrix(q) == 0), 1)
+# 2. How much is missing, before any imputation? Report the COUNT as well as
+#    the percentage: a rounded percentage hides a handful of missing cells, and
+#    a handful is the difference between "nothing to impute" and "something".
+q <- as.matrix(prep$protein_quant[, grep("PG.Quantity", names(prep$protein_quant))])
+n_missing <- sum(is.na(q) | q == 0)
+sprintf("%d of %d cells (%.3f %%)", n_missing, length(q), 100 * n_missing / length(q))
 
 # 3. Size
 nrow(prep$protein_quant)
 ```
+
+The `PG.Quantity_*` naming is shared by all four readers, so this snippet works
+whichever one produced the object.
 
 Zeros count as missing: NADIA converts them during normalisation. A report that
 looks 0 % missing because the exporter wrote zeros is not complete data.
@@ -90,6 +108,21 @@ looks 0 % missing because the exporter wrote zeros is not complete data.
 If the missingness is far from what the experiment should give (say 40 % on a
 DIA run of four replicates), stop and ask about the export settings before
 analysing. No imputation method rescues a bad export.
+
+### When there is (almost) nothing missing
+
+Some experiments arrive complete — the TMT example shipped with the package has
+one missing cell in 48,000. Say so, and draw the consequence rather than going
+through the motions:
+
+- The imputation method is **irrelevant**: with nothing to fill, every method
+  returns the input. Do not run `imputation_metrics()`; its simulation masks
+  observed values, so it would measure recovery of an artificial problem that
+  this dataset does not have.
+- Normalisation still matters, and so does batch correction. Spend the effort
+  there.
+- Report it plainly: "no imputation was required (1 missing value in 48,000)"
+  is a stronger statement than any imputation ranking.
 
 ## Example data shipped with the package
 

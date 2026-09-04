@@ -14,8 +14,13 @@ ground truth.
 ### Normalisation
 
 ```r
+methods <- c("log2Norm", "GlobalMedian", "GlobalMean", "eqmedians", "vsn",
+             "medianNorm", "meanNorm", "quantile", "Rlr", "MAD", "cycloess",
+             "quantile.robust")
+
 nm <- normalization_metrics(
   se,                          # a SummarizedExperiment; res$se_proc works
+  methods       = methods,     # WITHOUT THIS IT COMPARES SOMETHING ELSE. See below.
   condition_col = "Condition",
   base_assay    = "log2",
   output_dir    = "results/norm_metrics",
@@ -27,8 +32,16 @@ nm$final_rank      # rank 1 = best
 nm$final_ranking   # the plot
 ```
 
-Compares 12 methods (`log2Norm GlobalMedian GlobalMean eqmedians vsn medianNorm
-meanNorm quantile Rlr MAD cycloess quantile.robust`) on:
+**`methods` is what makes this a comparison of normalisation methods.** It is
+`NULL` by default, and then the function ranks *the assays already in the
+object* instead — on a processed result that means `raw`, `log2`, the
+normalised assay, `BERT` if you corrected batches, and the imputed one. That
+ranking is meaningless for choosing a method: those are stages of one pipeline,
+not competing alternatives, and the batch-corrected and imputed assays win it
+by construction because they have the least within-group variability. Pass
+`methods` and the 12 are generated and compared properly.
+
+With `methods` supplied it compares them on:
 
 - **PCV / PMAD / PEV** — within-group variability, per protein. Lower is better.
 - **Intragroup correlation** — higher is better.
@@ -125,9 +138,14 @@ also produced when the per-comparison metrics are available.
 State the criterion, not only the winner:
 
 > Normalisation and imputation were selected with `normalization_metrics()`
-> and `imputation_metrics()` on this dataset; `cycloess` ranked first of 12 and
-> `Impseqrob` first of 16 (`Rank_Mean`). No spike-in was available, so recovery
-> of true changes could not be measured directly.
+> and `imputation_metrics()` on this dataset; `vsn` ranked first of the 12
+> normalisation methods and `Impseqrob` first of 16 imputation methods
+> (`Rank_Mean`). No spike-in was available, so recovery of true changes could
+> not be measured directly.
+
+Do not assume the default wins. On the TMT example shipped with the package,
+`vsn` ranks first on all five criteria and `cycloess`, the default, ranks
+sixth of twelve.
 
 That last sentence is not a caveat to be dropped. Without ground truth these
 metrics measure internal consistency, not correctness.

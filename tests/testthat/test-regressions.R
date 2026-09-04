@@ -652,3 +652,32 @@ test_that("pattern_profiler_analysis(verbose = FALSE) is actually silent", {
     expect_identical(quiet$long_output, loud$long_output)
     expect_identical(quiet$optimal_c, loud$optimal_c)
 })
+
+test_that("batch correction under verbose = FALSE does not print BERT's log", {
+    # Defect: BERT reports through the 'logging' package, which writes to stdout
+    # and honours no argument of NADIA's, so a corrected run printed 15 lines of
+    # "INFO::" regardless of verbose. Found while driving the agent skill through
+    # the TMT example, whose two mixes are the only real batch structure shipped.
+    skip_if_not_installed("BERT")
+
+    prep <- suppressMessages(preprocess_tmt(
+        system.file("extdata", "nadia_tmt_report.tsv.gz", package = "NADIA"),
+        condition_order = c("A", "B", "D"), verbose = FALSE))
+
+    # The mix is not in the report: replicates 1-4 are the first, 5-8 the second.
+    batch_df <- data.frame(
+        Column = prep$metadata$Coding,
+        Batch  = ifelse(prep$metadata$R.Replicate <= 4, "Mix1", "Mix2"),
+        stringsAsFactors = FALSE)
+
+    on_out <- utils::capture.output(type = "output",
+        on_err <- utils::capture.output(type = "message",
+            res <- suppressWarnings(process_proteomics(
+                prep, covariate_df = batch_df, batch_correct = TRUE,
+                batch_column = "Batch", batch_covariates = "Condition",
+                verbose = FALSE))))
+
+    expect_identical(on_out, character(0))
+    expect_identical(on_err, character(0))
+    expect_true("BERT" %in% SummarizedExperiment::assayNames(res$se_proc))
+})
