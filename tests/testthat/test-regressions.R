@@ -2,10 +2,10 @@
 # Regressions for the bugs fixed in the 2026-07 code reviews
 # =============================================================================
 #
-# Every test here corresponds to a defect documented in one of the
-# CODE_REVIEW_*.md reports. They are the tests that would have caught those
-# bugs, and their job is to stop them coming back. Each one names the defect it
-# guards, because a bare assertion is easy to "fix" by changing the expectation.
+# Every test here corresponds to a defect found in those reviews. They are the
+# tests that would have caught the bugs, and their job is to stop them coming
+# back. Each one names the defect it guards, because a bare assertion is easy to
+# "fix" by changing the expectation.
 
 # --- Normalisation metrics: per-protein, not per-group ------------------------
 
