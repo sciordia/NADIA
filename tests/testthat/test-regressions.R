@@ -681,3 +681,37 @@ test_that("batch correction under verbose = FALSE does not print BERT's log", {
     expect_identical(on_err, character(0))
     expect_true("BERT" %in% SummarizedExperiment::assayNames(res$se_proc))
 })
+
+test_that("no imputation method prints under verbose = FALSE", {
+    # Defect: two of them leaked through NADIA's verbose. impute::impute.knn()
+    # reports its recursive cluster split with cat(), and
+    # imputeLCMD::impute.MinProb() prints its estimated sigma -- neither gated on
+    # anything, both landing in quiet runs and in rendered vignettes. Sweeping
+    # every method at once is the point: this catches the next one too.
+    skip_if_not_installed("impute")
+    skip_if_not_installed("imputeLCMD")
+
+    data(nadia_dia, package = "NADIA", envir = environment())
+
+    # 'with' needs with_value and 'limpa' is slow; the rest run as they are.
+    methods <- setdiff(NADIA:::.IMP_METHODS_ALL, c("with", "limpa"))
+    methods <- Filter(function(m) {
+        pkg <- switch(m, bpca = "pcaMethods", knn = "impute", mice = "mice",
+                      missForest = "missForest", Impseq = "rrcovNA",
+                      Impseqrob = "rrcovNA", QRILC = "imputeLCMD",
+                      MLE = "norm", MinDet = "imputeLCMD",
+                      MinProb = "imputeLCMD", NA_character_)
+        is.na(pkg) || requireNamespace(pkg, quietly = TRUE)
+    }, methods)
+
+    noisy <- character(0)
+    for (m in methods) {
+        on_out <- utils::capture.output(type = "output",
+            on_err <- utils::capture.output(type = "message",
+                invisible(suppressWarnings(
+                    process_proteomics(nadia_dia, imp_method = m, verbose = FALSE)))))
+        if (length(on_out) || length(on_err)) noisy <- c(noisy, m)
+    }
+
+    expect_identical(noisy, character(0))
+})

@@ -245,7 +245,10 @@
   # raised to 0.99 so that KNN is effective up to the pre-filter threshold.
   rowmax <- args$rowmax %||% 0.99
   colmax <- args$colmax %||% 0.99
-  res <- impute::impute.knn(x, k = k, rowmax = rowmax, colmax = colmax)
+  # impute.knn() reports its recursive cluster split with bare cat() calls,
+  # which no argument of ours can reach. Captured, like MinProb's stray print().
+  utils::capture.output(
+    res <- impute::impute.knn(x, k = k, rowmax = rowmax, colmax = colmax))
   res$data
 }
 
@@ -371,7 +374,12 @@
   }
   q          <- args$q          %||% 0.01
   tune.sigma <- args$tune.sigma %||% 1
-  imputeLCMD::impute.MinProb(x, q = q, tune.sigma = tune.sigma)
+  # impute.MinProb() prints its estimated sigma with a bare print(). It is not
+  # gated on anything, carries no information the caller asked for, and leaks
+  # into every quiet run and every rendered vignette, so it is captured here.
+  utils::capture.output(
+    out <- imputeLCMD::impute.MinProb(x, q = q, tune.sigma = tune.sigma))
+  out
 }
 
 # =============================================================================

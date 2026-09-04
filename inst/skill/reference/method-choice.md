@@ -118,6 +118,21 @@ real MNAR component, and a purely MAR method (`knn`, `missForest`) will pull
 those values up towards the observed mean and erase the effect. That is exactly
 the `cycloess` + `knn` row in the table above: 179 Down against 937.
 
+Quantify it rather than eyeballing the plot:
+
+```r
+obs  <- rowMeans(x, na.rm = TRUE)
+rate <- rowMeans(is.na(x))
+cor(obs, rate, method = "spearman", use = "complete.obs")
+tapply(rate, cut(obs, quantile(obs, seq(0, 1, 0.2)), include.lowest = TRUE), mean)
+```
+
+On the DIA-NN example that gives −0.45, with the missing rate falling from
+26.7 % in the dimmest fifth of proteins to 3.5 % in the brightest. That is an
+MNAR component you must keep an MNAR stage for — **even though
+`imputation_metrics()` will rank every MNAR method last**, for reasons
+`reference/validation.md` explains.
+
 If missingness looks flat across intensity, the MNAR stage matters less and a
 MAR method alone is defensible.
 

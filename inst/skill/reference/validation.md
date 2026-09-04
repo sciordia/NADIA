@@ -75,9 +75,42 @@ values, re-imputes, and compares. Metrics:
 - **ACC_OI** — agreement on the masked cells only.
 - **Rank_Mean** — the summary column of `im$metrics_table`.
 
-16 methods by default. Note the limitation, and state it: the masking is
-applied to *observed* values, which are by construction not MNAR. The exercise
-measures MAR recovery well and MNAR recovery only indirectly.
+16 methods by default.
+
+**Read this ranking as a choice of MAR method, and nothing else.** The masking
+hides values that were *observed*, so the artificial gaps are missing at random
+by construction. MNAR methods are built for a kind of missingness the
+simulation never creates, and they are punished accordingly. On the DIA-NN
+example the table looks like this:
+
+| Method | NRMSE | Rank_Mean |
+|---|---|---|
+| Impseqrob | 0.077 | 2.75 |
+| knn | 0.101 | 3.00 |
+| … | | |
+| min | 3.514 | 14.00 |
+| halfmin | 3.896 | 15.00 |
+| zero | 8.941 | 16.00 |
+
+`min` placing 14th of 16 does **not** mean `min` is a bad MNAR stage. It means
+this benchmark cannot evaluate one. Reading the table as a straight ranking
+leads to dropping exactly the MNAR stage that the missingness structure of the
+same dataset calls for — the two halves of the evidence contradict each other
+unless you know why.
+
+So use it like this:
+
+- **MAR stage of `combo`** — take the winner among `Impseqrob`, `Impseq`,
+  `knn`, `bpca`, `missForest`, `mice`, `MLE`. That is what the table measures.
+- **MNAR stage** — choose it from the missingness structure (see
+  `reference/method-choice.md`) or, when a spike-in exists, from the benchmark
+  below. Never from this table.
+- **A single method for everything** — only defensible when the missingness
+  shows no intensity dependence. Otherwise use a hybrid.
+
+`ACC_OI` comes back `NA` for `min`, `halfmin` and `zero` because they fill
+every masked cell with the same constant, leaving nothing to correlate. That is
+a further sign the exercise does not fit them, not a defect.
 
 ## With a spike-in
 

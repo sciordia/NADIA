@@ -46,6 +46,18 @@ without any change to the results the pipeline produces.
   percentage and reported 0 % for a dataset that had one missing cell; and
   nothing told the reader what to do when there is essentially nothing to
   impute.
+* **Two imputation methods printed regardless of `verbose`.**
+  `impute::impute.knn()` reports its recursive cluster split with `cat()` and
+  `imputeLCMD::impute.MinProb()` prints its estimated sigma; neither is gated on
+  anything, so both landed in quiet runs and in rendered vignettes. Captured in
+  the wrappers, with a test that sweeps every method rather than the two known
+  ones.
+* A further skill correction: `imputation_metrics()` masks observed values, so
+  its ranking measures MAR recovery and places every MNAR method last. Read as a
+  straight ranking it says to drop the MNAR stage that the same dataset's
+  missingness structure calls for. The skill now says to take only the MAR stage
+  from that table, and to choose the MNAR stage from the intensity dependence or
+  a spike-in.
 * **`species_df` must map each protein exactly once.** The mapping is joined to
   the DE results on `Protein.IDs` with no uniqueness check, so a repeated
   identifier multiplied that protein's row in every comparison and inflated the
