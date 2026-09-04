@@ -20,3 +20,8 @@
 # extension no es portable y R CMD check lo marca.
 [ ][0-9]+\.
 
+# Vinetas renderizadas en local para revisarlas (git ya las ignora). Sin esto
+# viajan en el tarball ademas de las que R CMD build deja en inst/doc.
+^vignettes/.*\.html$
+^vignettes/.*\.pdf$
+^vignettes/.*_files$

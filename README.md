@@ -1,4 +1,4 @@
-# NADIA
+# NADIA <img src="man/figures/logo.svg" align="right" height="139" alt="NADIA package logo" style="width:auto;padding:0;" />
 
 <div align="justify">
 
