@@ -15,6 +15,9 @@ without any change to the results the pipeline produces.
   interactive and static visualization.
 * Example dataset `nadia_dia` and trimmed reports in `inst/extdata/`, with their
   provenance documented in `inst/scripts/`.
+* Agent skill in `inst/skill/`, located with `nadia_skill_path()`: the pipeline
+  written for a coding assistant, with the decision points and the guardrails
+  the defaults invite.
 * **`species_df` must map each protein exactly once.** The mapping is joined to
   the DE results on `Protein.IDs` with no uniqueness check, so a repeated
   identifier multiplied that protein's row in every comparison and inflated the

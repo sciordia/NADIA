@@ -1,0 +1,133 @@
+# Validation: justifying the pipeline you chose
+
+Three tools. Which one applies depends on whether the experiment has a known
+ground truth.
+
+| Situation | Tool |
+|---|---|
+| No ground truth | `normalization_metrics()`, `imputation_metrics()` |
+| Spike-in with expected changes, one pipeline | `benchmarking_proteomics()` |
+| Spike-in, several pipelines to rank | `benchmarking_multiple()` |
+
+## Without ground truth
+
+### Normalisation
+
+```r
+nm <- normalization_metrics(
+  se,                          # a SummarizedExperiment; res$se_proc works
+  condition_col = "Condition",
+  base_assay    = "log2",
+  output_dir    = "results/norm_metrics",
+  seed          = 42L,
+  verbose       = FALSE
+)
+
+nm$final_rank      # rank 1 = best
+nm$final_ranking   # the plot
+```
+
+Compares 12 methods (`log2Norm GlobalMedian GlobalMean eqmedians vsn medianNorm
+meanNorm quantile Rlr MAD cycloess quantile.robust`) on:
+
+- **PCV / PMAD / PEV** — within-group variability, per protein. Lower is better.
+- **Intragroup correlation** — higher is better.
+- **Rank_Sep** — group separation along PC1, as an F-ratio.
+
+`nm_rank_final` is the mean of the PCV/PMAD/PEV/correlation ranks plus the
+separation rank. Report the ranking, not just the winner: methods often tie
+within noise, and then the choice can be made on other grounds.
+
+### Imputation
+
+```r
+im <- imputation_metrics(
+  se,
+  assay_name = "cycloess",     # the NORMALISED assay, pre-imputation
+  na_prop    = 0.2,            # fraction of observed cells masked
+  seed       = 42L,
+  output_dir = "results/imp_metrics",
+  verbose    = FALSE
+)
+
+im$metrics_table       # the metrics, with Rank_Mean as the summary column
+```
+
+Ground-truth simulation: it takes the complete rows, hides a known fraction of
+values, re-imputes, and compares. Metrics:
+
+- **NRMSE** — recovery error. Lower is better.
+- **SOR** — penalises features left un-imputed.
+- **PSS** — structure preservation (needs `vegan`).
+- **ACC_OI** — agreement on the masked cells only.
+- **Rank_Mean** — the summary column of `im$metrics_table`.
+
+16 methods by default. Note the limitation, and state it: the masking is
+applied to *observed* values, which are by construction not MNAR. The exercise
+measures MAR recovery well and MNAR recovery only indirectly.
+
+## With a spike-in
+
+`benchmarking_proteomics()` scores one pipeline against known changes.
+
+```r
+bm <- benchmarking_proteomics(
+  de_res          = res$DEPs_results,
+  expected_values = expected,     # the expected direction per species/comparison
+  species_df      = species_map,  # Protein.IDs + Species; or a Species column in de_res
+  alpha           = 0.05,
+  lfc_thr         = 0,
+  output_dir      = "results/benchmark",
+  verbose         = FALSE
+)
+
+bm$metrics_table     # Sensitivity, Specificity, Precision, F1, AUC, MCC, ...
+bm$opdea_metrics     # nMCC, G_mean, pAUC at FPR 0.01 / 0.05 / 0.10
+```
+
+The classification convention matters when you interpret the output:
+
+- `truth` is the **immutable biological identity**: spike-in species = 1,
+  background = 0. It is never contaminated by the prediction, so the AUC is
+  honest.
+- A positive counts as a true positive only if it is significant **and** in the
+  expected direction. Significant with the wrong sign is a **false negative** —
+  a detection failure — not a false positive.
+
+**Full AUC and pAUC can disagree, and the low-FPR region is usually the one you
+care about.** A method can win on the whole ROC curve and lose in the first
+1 % of false positives, which is the regime an experiment actually operates in.
+Report both.
+
+### Ranking several pipelines
+
+Run each combination into its own `output_dir`, then:
+
+```r
+bmm <- benchmarking_multiple(
+  results_dir = "results",       # reads benchmark_opdea_metrics.tsv from subfolders
+  output_dir  = "results/ranking",
+  verbose     = FALSE
+)
+
+bmm$mean_ranking       # OpDEA ranking, 5 metrics
+bmm$extended_ranking   # 11 metrics, when the per-comparison tables are present
+```
+
+The OpDEA ranking (Peng et al., *Nature Communications* 2024) averages the
+ranks of nMCC, G_mean and the three pAUCs. An extended 11-metric ranking is
+also produced when the per-comparison metrics are available.
+
+`pROC` is needed for AUC/pAUC and `vegan` for PSS; both are in `Suggests`.
+
+## What to say afterwards
+
+State the criterion, not only the winner:
+
+> Normalisation and imputation were selected with `normalization_metrics()`
+> and `imputation_metrics()` on this dataset; `cycloess` ranked first of 12 and
+> `Impseqrob` first of 16 (`Rank_Mean`). No spike-in was available, so recovery
+> of true changes could not be measured directly.
+
+That last sentence is not a caveat to be dropped. Without ground truth these
+metrics measure internal consistency, not correctness.

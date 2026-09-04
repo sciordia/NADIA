@@ -291,6 +291,28 @@ to other experiments.
 
 The installed vignettes can be browsed with `browseVignettes("NADIA")`.
 
+### Running NADIA from a coding assistant
+
+NADIA ships an agent skill: the same pipeline written for a coding assistant
+rather than for a reader. It documents which function to call at each stage,
+how to choose between the normalisation and imputation methods, what to check
+afterwards, and the mistakes the package's defaults invite. It is plain
+Markdown, so any assistant can read it, and it follows the layout Claude
+expects for a skill.
+
+```r
+nadia_skill_path()          # where the skill is installed
+```
+
+To use it with Claude Code, copy that directory into the skills folder of your
+project or of your user account:
+
+```sh
+cp -R "$(Rscript -e 'cat(NADIA::nadia_skill_path())')" ~/.claude/skills/nadia
+```
+
+The source lives in `inst/skill/` in this repository.
+
 ## Package architecture
 
 NADIA has a modular architecture. The functions below can be used independently
