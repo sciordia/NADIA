@@ -114,13 +114,47 @@ a further sign the exercise does not fit them, not a defect.
 
 ## With a spike-in
 
-`benchmarking_proteomics()` scores one pipeline against known changes.
+`benchmarking_proteomics()` scores one pipeline against known changes. It needs
+two tables you have to build, and their exact shape is the part that trips
+people up.
+
+**`species_df` — which organism every protein belongs to.** Two columns,
+`Protein.IDs` and `Species`, covering **every** protein that can enter the
+benchmark, background included, one species per protein.
+
+```r
+# The spike-in map shipped with NADIA uses its own column names, so rename.
+sp <- readr::read_tsv(system.file("extdata", "nadia_dia_spikein.tsv.gz",
+                                  package = "NADIA"), show_col_types = FALSE)
+species_df <- data.frame(Protein.IDs = sp$PG.ProteinGroups,
+                         Species     = sp$PG.OrganismId)
+#  ECOLI  HUMAN  YEAST
+#    338   1256    406
+```
+
+**`expected_values` — what should change, and by how much.** Three columns:
+`Comparison`, `Species`, `expected_logFC`. The fold change must be numeric,
+finite and **non-zero**; one row per `Comparison` + `Species`.
+
+```r
+expected <- data.frame(
+  Comparison     = rep(c("B-A", "D-A", "D-B"), each = 2),
+  Species        = rep(c("ECOLI", "YEAST"), times = 3),
+  expected_logFC = c(1, -0.58, 2, -3.3, 1, -2.72))
+```
+
+**A species left out of `expected_values` is the background.** Human appears in
+`species_df` and not here, so a significant human protein scores as a false
+positive and a non-significant one as a true negative. Do **not** add a
+background species with `expected_logFC = 0` — NADIA rejects a zero, precisely
+so that "no change expected" is expressed by omission and never confused with
+"a change of size zero".
 
 ```r
 bm <- benchmarking_proteomics(
   de_res          = res$DEPs_results,
-  expected_values = expected,     # the expected direction per species/comparison
-  species_df      = species_map,  # Protein.IDs + Species; or a Species column in de_res
+  expected_values = expected,
+  species_df      = species_df,
   alpha           = 0.05,
   lfc_thr         = 0,
   output_dir      = "results/benchmark",
@@ -130,6 +164,14 @@ bm <- benchmarking_proteomics(
 bm$metrics_table     # Sensitivity, Specificity, Precision, F1, AUC, MCC, ...
 bm$opdea_metrics     # nMCC, G_mean, pAUC at FPR 0.01 / 0.05 / 0.10
 ```
+
+On the Spectronaut example with the defaults, that gives:
+
+| Comparison | Sensitivity | Specificity | AUC | pAUC_001 |
+|---|---|---|---|---|
+| B-A | 0.63 | 0.98 | 0.832 | 0.768 |
+| D-A | 0.93 | 0.95 | 0.978 | 0.912 |
+| D-B | 0.85 | 0.97 | 0.949 | 0.868 |
 
 The classification convention matters when you interpret the output:
 

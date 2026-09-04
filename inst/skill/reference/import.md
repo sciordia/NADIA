@@ -30,6 +30,14 @@ preprocess_tmt  (file_path, condition_order, annot_path = NULL, export_dir = NUL
 preprocess_lfq  (file_path, annot_path = NULL, condition_order = NULL, export_dir = NULL, ...)
 ```
 
+`preprocess_spectronaut()` is the only long-format reader — one row per protein
+group per run — and the only one with aggregation arguments. They decide how the
+per-run annotation columns are collapsed, and **they do not touch the
+quantification**: switching all four from their defaults leaves `PG.Quantity_*`
+and the whole `DEPs_results` `identical()`, changing only 13 annotation columns
+(`PG.MolecularWeight`, `PG.Coverage_*`, `PG.Cscore.RunWise_*`). Treat them as a
+reporting preference, not an analysis choice, and do not spend time tuning them.
+
 `condition_order` sets the factor level order, and the first level is the
 reference. It decides more than the sign: it decides **which contrasts exist
 and what they are called**. With `c("A", "B", "D")` you get `B-A`, `D-A`,
