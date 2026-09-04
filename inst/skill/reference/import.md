@@ -30,8 +30,17 @@ preprocess_tmt  (file_path, condition_order, annot_path = NULL, export_dir = NUL
 preprocess_lfq  (file_path, annot_path = NULL, condition_order = NULL, export_dir = NULL, ...)
 ```
 
-`condition_order` sets the factor level order, which decides the direction of
-every contrast. Give it deliberately: `c("A", "B", "D")` makes A the reference.
+`condition_order` sets the factor level order, and the first level is the
+reference. It decides more than the sign: it decides **which contrasts exist
+and what they are called**. With `c("A", "B", "D")` you get `B-A`, `D-A`,
+`D-B`; with `c("D", "B", "A")` you get `B-D`, `A-D`, `A-B` instead. The same
+pair now has the opposite name and the opposite sign — `A-B` correlates −1 with
+`B-A` — so downstream code that selects `comparisons = "B-A"` silently finds
+nothing. Give the order deliberately and keep it fixed across a project.
+
+`preprocess_lfq()` is the only reader where the argument is optional. Omitted,
+the conditions fall in alphabetical order, which is a decision made for you
+rather than by you: pass it anyway.
 
 ## How the design is declared in the three wide readers
 
@@ -57,8 +66,27 @@ a stable order, so a positional vector would silently relabel runs after a
 re-export. Everything else in the sheet is ignored; **batch structure does not
 go here** (see below).
 
-A sheet that merely restates the suffixes gives a result `identical()` to using
-no sheet.
+A sheet that merely restates the suffixes produces the same data: `metadata`,
+`protein_id` and `protein_quant` all come back `identical()`. The objects
+themselves do not compare equal, because each carries provenance attributes
+that record what was actually called — see below.
+
+## Provenance travels with the object
+
+Every `preprocess_*()` attaches two attributes. They are not list elements, so
+the three-element contract is unchanged, and they are what `write_nadia()`
+stores:
+
+```r
+attr(prep, "nadia_call")     # the call, as issued
+attr(prep, "nadia_source")   # one row per input file: role, path, size, mtime, md5
+```
+
+`nadia_source` records the annotation sheet too when one was used, each with an
+md5. Report them rather than describing the input in prose: they identify the
+exact file the numbers came from. It also means `identical()` between two
+objects built by different calls is `FALSE` even when the data match — compare
+the three elements, or strip the attributes, if that is what you meant to test.
 
 ## Batch structure does not belong to the design
 
