@@ -2,18 +2,6 @@
 
 <div align="justify">
 
-<style>
-.vignette-guide-table table {
-  margin-left: 80px !important;
-  margin-right: auto !important;
-}
-@media screen and (max-width: 991px) {
-  .vignette-guide-table table {
-    margin-left: 0 !important;
-  }
-}
-</style>
-
 **Missing Value-Aware Differential Abundance Analysis of DIA Proteomics Data**
 
 NADIA provides a complete workflow for the analysis of protein quantification
