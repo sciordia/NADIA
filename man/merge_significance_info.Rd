@@ -4,7 +4,13 @@
 \alias{merge_significance_info}
 \title{Merge significance information from DEPs_results}
 \usage{
-merge_significance_info(feature_ids, DEPs_results, assay_name, alpha = 0.05)
+merge_significance_info(
+  feature_ids,
+  DEPs_results,
+  assay_name,
+  alpha = 0.05,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{feature_ids}{Vector of feature IDs}
@@ -14,6 +20,8 @@ merge_significance_info(feature_ids, DEPs_results, assay_name, alpha = 0.05)
 \item{assay_name}{Name of the assay used to filter DEPs_results}
 
 \item{alpha}{Significance threshold (default: 0.05)}
+
+\item{verbose}{Print progress messages (default: TRUE)}
 }
 \value{
 DataFrame with FeatureID, adjP_*, sig_any

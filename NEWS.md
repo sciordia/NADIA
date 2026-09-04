@@ -26,6 +26,13 @@ without any change to the results the pipeline produces.
   `assay_name` also filters, so the two have to agree anyway. When those results
   cover several assays, the function aborts and names them rather than guessing.
   Calls that already passed `assay_name` are unaffected.
+* **`pattern_profiler_analysis(verbose = FALSE)` is now silent.** Its six
+  helpers wrote their progress with bare `message()` calls, so a run asked to be
+  quiet still reported the assay filter, the significance filter and the
+  condition order. They take `verbose` now. `Mfuzz::filter.NA()` reports through
+  `cat()`, which no argument of ours can reach, so its output is captured
+  instead; and the Biobase startup banner, printed because NADIA attaches it for
+  Mfuzz, is suppressed. The results are unchanged.
 * **`species_df` must map each protein exactly once.** The mapping is joined to
   the DE results on `Protein.IDs` with no uniqueness check, so a repeated
   identifier multiplied that protein's row in every comparison and inflated the

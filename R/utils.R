@@ -255,7 +255,12 @@
   # Only Biobase and e1071 need to be attached; Mfuzz is used via Mfuzz::
   attachable <- c("Biobase", "e1071")
   already_on <- paste0("package:", attachable) %in% search()
-  for (p in attachable[!already_on]) attachNamespace(asNamespace(p))
+  # The startup banner is suppressed: attaching these is an implementation
+  # detail of the clustering, not something the caller asked for, and it would
+  # otherwise print even under verbose = FALSE.
+  for (p in attachable[!already_on]) {
+    suppressPackageStartupMessages(attachNamespace(asNamespace(p)))
+  }
   attachable[!already_on]
 }
 

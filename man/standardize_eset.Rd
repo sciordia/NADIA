@@ -4,10 +4,12 @@
 \alias{standardize_eset}
 \title{Standardise an ExpressionSet (row-wise z-score)}
 \usage{
-standardize_eset(eset)
+standardize_eset(eset, verbose = TRUE)
 }
 \arguments{
 \item{eset}{ExpressionSet object}
+
+\item{verbose}{Print progress messages (default: TRUE)}
 }
 \value{
 Standardised ExpressionSet

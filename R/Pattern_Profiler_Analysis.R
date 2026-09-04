@@ -35,12 +35,13 @@
 #'
 #' @param se_proc SummarizedExperiment object
 #' @param assay_name Name of the assay to use (NULL = first available)
+#' @param verbose Print progress messages (default: TRUE)
 #'
 #' @return List with:
 #'   - intensity_matrix: features x samples matrix
 #'   - feature_ids: vector of protein IDs
 #'   - sample_metadata: DataFrame with SampleID, Condition, etc.
-extract_se_data <- function(se_proc, assay_name = NULL) {
+extract_se_data <- function(se_proc, assay_name = NULL, verbose = TRUE) {
 
 
   # Validate input
@@ -59,7 +60,7 @@ extract_se_data <- function(se_proc, assay_name = NULL) {
 
   if (is.null(assay_name)) {
     assay_name <- available_assays[1]
-    message(sprintf("Using assay: '%s'", assay_name))
+    if (verbose) message(sprintf("Using assay: '%s'", assay_name))
   } else if (!(assay_name %in% available_assays)) {
     stop(sprintf("Assay '%s' not found. Available: %s",
                  assay_name, paste(available_assays, collapse = ", ")))
@@ -100,7 +101,7 @@ extract_se_data <- function(se_proc, assay_name = NULL) {
 
     if (!is.na(cond_col)) {
       sample_metadata$Condition <- sample_metadata[[cond_col]]
-      message(sprintf("Using '%s' as the condition column", cond_col))
+      if (verbose) message(sprintf("Using '%s' as the condition column", cond_col))
     } else {
       stop("Column 'Condition' not found in colData")
     }
@@ -124,9 +125,11 @@ extract_se_data <- function(se_proc, assay_name = NULL) {
 #' @param DEPs_results DataFrame with columns Protein.IDs, adj.P.Val, Comparison, Assay
 #' @param assay_name Name of the assay used to filter DEPs_results
 #' @param alpha Significance threshold (default: 0.05)
+#' @param verbose Print progress messages (default: TRUE)
 #'
 #' @return DataFrame with FeatureID, adjP_*, sig_any
-merge_significance_info <- function(feature_ids, DEPs_results, assay_name, alpha = 0.05) {
+merge_significance_info <- function(feature_ids, DEPs_results, assay_name,
+                                    alpha = 0.05, verbose = TRUE) {
 
   DEPs_results <- as.data.frame(DEPs_results)
 
@@ -145,8 +148,10 @@ merge_significance_info <- function(feature_ids, DEPs_results, assay_name, alpha
   }
 
   DEPs_results <- DEPs_results[DEPs_results$Assay == assay_name, ]
-  message(sprintf("   - Filtered DEPs_results by Assay = '%s' (%d rows)",
-                  assay_name, nrow(DEPs_results)))
+  if (verbose) {
+    message(sprintf("   - Filtered DEPs_results by Assay = '%s' (%d rows)",
+                    assay_name, nrow(DEPs_results)))
+  }
 
   # Pivot to wide format: one row per protein, one adjP_* column per comparison
   sig_wide <- DEPs_results %>%
@@ -204,12 +209,14 @@ merge_significance_info <- function(feature_ids, DEPs_results, assay_name, alpha
 #'   - "specific": significant in the comparison given by `comparison`.
 #' @param comparison Specific comparison (for mode="specific")
 #' @param alpha Significance threshold
+#' @param verbose Print progress messages (default: TRUE)
 #'
 #' @return Vector of the selected FeatureIDs
 filter_significant_features <- function(feature_info,
                                          filter_mode = c("any", "all", "specific"),
                                          comparison = NULL,
-                                         alpha = 0.05) {
+                                         alpha = 0.05,
+                                         verbose = TRUE) {
 
   filter_mode <- match.arg(filter_mode)
 
@@ -222,8 +229,10 @@ filter_significant_features <- function(feature_info,
       stop("Column 'sig_any' not found. Run merge_significance_info() first.")
     }
     selected <- feature_info$FeatureID[feature_info$sig_any == TRUE]
-    message(sprintf("Filter 'any': %d of %d features are significant",
-                    length(selected), nrow(feature_info)))
+    if (verbose) {
+      message(sprintf("Filter 'any': %d of %d features are significant",
+                      length(selected), nrow(feature_info)))
+    }
     return(selected)
   }
 
@@ -242,8 +251,10 @@ filter_significant_features <- function(feature_info,
   selected <- feature_info$FeatureID[
     !is.na(feature_info[[adjP_col]]) & feature_info[[adjP_col]] <= alpha
   ]
-  message(sprintf("Specific filter '%s' (alpha=%.3f): %d features",
-                  comparison, alpha, length(selected)))
+  if (verbose) {
+    message(sprintf("Specific filter '%s' (alpha=%.3f): %d features",
+                    comparison, alpha, length(selected)))
+  }
 
   selected
 }
@@ -256,13 +267,15 @@ filter_significant_features <- function(feature_info,
 #' @param selected_features Vector of features to include
 #' @param condition_order Condition order (NULL = alphabetical order)
 #' @param aggregate Aggregation method: "median" or "mean"
+#' @param verbose Print progress messages (default: TRUE)
 #'
 #' @return Matrix of aggregated intensities (features x conditions)
 build_clustering_matrix <- function(intensity_matrix,
                                      sample_metadata,
                                      selected_features,
                                      condition_order = NULL,
-                                     aggregate = c("median", "mean")) {
+                                     aggregate = c("median", "mean"),
+                                     verbose = TRUE) {
 
   aggregate <- match.arg(aggregate)
   agg_fun <- if (aggregate == "median") median else mean
@@ -275,7 +288,10 @@ build_clustering_matrix <- function(intensity_matrix,
 
   if (is.null(condition_order)) {
     condition_order <- sort(conditions)
-    message(sprintf("Condition order: %s", paste(condition_order, collapse = " -> ")))
+    if (verbose) {
+      message(sprintf("Condition order: %s",
+                      paste(condition_order, collapse = " -> ")))
+    }
   } else {
     # Check that every condition exists
     missing <- setdiff(condition_order, conditions)
@@ -355,15 +371,22 @@ create_expression_set <- function(mat, feature_info = NULL) {
 #' Standardise an ExpressionSet (row-wise z-score)
 #'
 #' @param eset ExpressionSet object
+#' @param verbose Print progress messages (default: TRUE)
 #'
 #' @return Standardised ExpressionSet
-standardize_eset <- function(eset) {
+standardize_eset <- function(eset, verbose = TRUE) {
 
-  # Drop rows with too many NAs
-  eset_filtered <- Mfuzz::filter.NA(eset, thres = 0.25)
+  # Drop rows with too many NAs. Mfuzz::filter.NA() reports through cat(), which
+  # no verbose argument of ours can reach, so it is captured instead of guarded.
+  if (verbose) {
+    eset_filtered <- Mfuzz::filter.NA(eset, thres = 0.25)
+  } else {
+    utils::capture.output(
+      eset_filtered <- Mfuzz::filter.NA(eset, thres = 0.25))
+  }
 
   n_removed <- nrow(eset) - nrow(eset_filtered)
-  if (n_removed > 0) {
+  if (n_removed > 0 && verbose) {
     message(sprintf("Removed %d features with >25%% NAs", n_removed))
   }
 
@@ -380,8 +403,10 @@ standardize_eset <- function(eset) {
   finite_rows <- apply(X_std, 1, function(r) all(is.finite(r)))
   n_const <- sum(!finite_rows)
   if (n_const > 0) {
-    message(sprintf("Removed %d constant features (sd = 0) after standardising",
-                    n_const))
+    if (verbose) {
+      message(sprintf("Removed %d constant features (sd = 0) after standardising",
+                      n_const))
+    }
     eset_std <- eset_std[finite_rows, ]
   }
 
@@ -839,7 +864,7 @@ pattern_profiler_analysis <- function(se_proc,
   assay_name <- .pp_resolve_assay(se_proc, DEPs_results, assay_name)
   if (verbose) message(sprintf("   - Assay: %s", assay_name))
 
-  se_data <- extract_se_data(se_proc, assay_name)
+  se_data <- extract_se_data(se_proc, assay_name, verbose = verbose)
 
   if (verbose) {
     message(sprintf("   - Features: %d", length(se_data$feature_ids)))
@@ -857,7 +882,8 @@ pattern_profiler_analysis <- function(se_proc,
     se_data$feature_ids,
     DEPs_results,
     assay_name = se_data$assay_name,
-    alpha = alpha
+    alpha = alpha,
+    verbose = verbose
   )
 
   n_sig <- sum(feature_info$sig_any, na.rm = TRUE)
@@ -874,7 +900,8 @@ pattern_profiler_analysis <- function(se_proc,
     feature_info,
     filter_mode = filter_mode,
     comparison = comparison,
-    alpha = alpha
+    alpha = alpha,
+    verbose = verbose
   )
 
   if (length(selected_features) < 10) {
@@ -891,7 +918,8 @@ pattern_profiler_analysis <- function(se_proc,
     se_data$sample_metadata,
     selected_features,
     condition_order,
-    aggregate
+    aggregate,
+    verbose = verbose
   )
 
   # Keep the condition order
@@ -908,7 +936,7 @@ pattern_profiler_analysis <- function(se_proc,
   if (verbose) message("\n5. Standardising the data (z-score)...")
 
   eset <- create_expression_set(clustering_matrix)
-  eset_std <- standardize_eset(eset)
+  eset_std <- standardize_eset(eset, verbose = verbose)
 
   n_final <- nrow(eset_std)
   if (verbose) {

@@ -619,3 +619,36 @@ test_that(".pp_resolve_assay() refuses to guess when the answer is ambiguous", {
         NADIA:::.pp_resolve_assay(se, data.frame(Assay = "absent"), NULL),
         "is present in the object")
 })
+
+test_that("pattern_profiler_analysis(verbose = FALSE) is actually silent", {
+    # Defect: the six helpers behind the orchestrator wrote their progress with
+    # bare message() calls, and Mfuzz::filter.NA() reports through cat(), so a
+    # run asked to be quiet still printed the assay filter, the significance
+    # filter, the condition order and "0 genes excluded.". Attaching Biobase
+    # added its startup banner on top.
+    skip_if_not_installed("Mfuzz")
+    skip_if_not_installed("Biobase")
+    skip_if_not_installed("e1071")
+
+    data(nadia_dia, package = "NADIA", envir = environment())
+    res <- suppressMessages(process_proteomics(nadia_dia, verbose = FALSE))
+
+    quiet <- NULL
+    on_out <- utils::capture.output(type = "output",
+        on_err <- utils::capture.output(type = "message",
+            quiet <- pattern_profiler_analysis(
+                res$se_proc, res$DEPs_results, seed = 123, verbose = FALSE)))
+
+    expect_identical(on_out, character(0))
+    expect_identical(on_err, character(0))
+
+    # And verbose = TRUE still reports, without changing the result.
+    loud <- NULL
+    said <- utils::capture.output(type = "message",
+        loud <- suppressWarnings(pattern_profiler_analysis(
+            res$se_proc, res$DEPs_results, seed = 123, verbose = TRUE)))
+
+    expect_gt(length(said), 0L)
+    expect_identical(quiet$long_output, loud$long_output)
+    expect_identical(quiet$optimal_c, loud$optimal_c)
+})

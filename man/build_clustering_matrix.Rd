@@ -9,7 +9,8 @@ build_clustering_matrix(
   sample_metadata,
   selected_features,
   condition_order = NULL,
-  aggregate = c("median", "mean")
+  aggregate = c("median", "mean"),
+  verbose = TRUE
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ build_clustering_matrix(
 \item{condition_order}{Condition order (NULL = alphabetical order)}
 
 \item{aggregate}{Aggregation method: "median" or "mean"}
+
+\item{verbose}{Print progress messages (default: TRUE)}
 }
 \value{
 Matrix of aggregated intensities (features x conditions)

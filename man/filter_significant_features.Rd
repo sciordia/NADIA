@@ -8,7 +8,8 @@ filter_significant_features(
   feature_info,
   filter_mode = c("any", "all", "specific"),
   comparison = NULL,
-  alpha = 0.05
+  alpha = 0.05,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ filter_significant_features(
 \item{comparison}{Specific comparison (for mode="specific")}
 
 \item{alpha}{Significance threshold}
+
+\item{verbose}{Print progress messages (default: TRUE)}
 }
 \value{
 Vector of the selected FeatureIDs

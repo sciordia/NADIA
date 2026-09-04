@@ -4,12 +4,14 @@
 \alias{extract_se_data}
 \title{Extract data from a SummarizedExperiment}
 \usage{
-extract_se_data(se_proc, assay_name = NULL)
+extract_se_data(se_proc, assay_name = NULL, verbose = TRUE)
 }
 \arguments{
 \item{se_proc}{SummarizedExperiment object}
 
 \item{assay_name}{Name of the assay to use (NULL = first available)}
+
+\item{verbose}{Print progress messages (default: TRUE)}
 }
 \value{
 List with:
