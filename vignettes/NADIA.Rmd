@@ -51,14 +51,16 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
 
 /* Give the experimental-design figure more room without changing other figures. */
 @media screen and (min-width: 992px) {
-  #fig\:three-proteome-design + img {
+  #fig\:three-proteome-design + img,
+  img[src$="Three_Proteome_Experimental_Design.svg"] {
     width: 112% !important;
     max-width: none !important;
     margin-left: -6%;
   }
 }
 @media screen and (min-width: 1400px) {
-  #fig\:three-proteome-design + img {
+  #fig\:three-proteome-design + img,
+  img[src$="Three_Proteome_Experimental_Design.svg"] {
     width: 124% !important;
     margin-left: -12%;
   }
@@ -76,7 +78,8 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
   margin-top: 1.8em;
   margin-bottom: 1.8em;
 }
-#fig\:three-proteome-design + img.three-proteome-clickable {
+#fig\:three-proteome-design + img.three-proteome-clickable,
+img[src$="Three_Proteome_Experimental_Design.svg"].three-proteome-clickable {
   cursor: zoom-in;
 }
 .volcano-ba-figure img.volcano-ba-clickable {
@@ -243,7 +246,12 @@ knitr::include_graphics("figures/Three_Proteome_Experimental_Design.svg")
 (function () {
   var anchor = document.getElementById("fig:three-proteome-design");
   var source = anchor ? anchor.nextElementSibling : null;
-  if (!source || source.tagName !== "IMG") return;
+  // BiocStyle numbers figures and leaves that anchor before the image;
+  // pkgdown emits no such anchor, so fall back to the file itself.
+  if (!source || source.tagName !== "IMG") {
+    source = document.querySelector('img[src$="Three_Proteome_Experimental_Design.svg"]');
+  }
+  if (!source) return;
 
   source.classList.add("three-proteome-clickable");
   source.setAttribute("tabindex", "0");

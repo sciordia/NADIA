@@ -398,7 +398,7 @@ knitr::include_graphics("figures/Batch_Correction_Arguments.svg")
 
 <div id="diagram-lightbox" role="dialog" aria-modal="true" aria-label="Enlarged diagram">
 <button type="button" aria-label="Close enlarged diagram">&times;</button>
-<img alt="Enlarged diagram" />
+<img alt="Enlarged diagram" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" />
 </div>
 
 <script>

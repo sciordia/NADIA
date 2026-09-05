@@ -24,7 +24,7 @@ Description: Provides an end-to-end workflow for differential abundance
     sortable tables.
 License: GPL (>= 3)
 Encoding: UTF-8
-URL: https://github.com/sciordia/NADIA
+URL: https://github.com/sciordia/NADIA, https://sciordia.github.io/NADIA/
 BugReports: https://github.com/sciordia/NADIA/issues
 biocViews: Software, Proteomics, MassSpectrometry, DifferentialExpression,
     Normalization, QualityControl, BatchEffect
@@ -93,4 +93,5 @@ Suggests:
 VignetteBuilder: knitr
 Roxygen: list(markdown = TRUE)
 Config/testthat/edition: 3
+Config/Needs/website: pkgdown
 Config/roxygen2/version: 8.1.0

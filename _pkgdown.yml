@@ -1,0 +1,296 @@
+url: https://sciordia.github.io/NADIA/
+
+template:
+  bootstrap: 5
+  bslib:
+    primary: "#17324d"
+    base_font: {google: "Inter"}
+    code_font: {google: "JetBrains Mono"}
+
+navbar:
+  structure:
+    left:  [intro, articles, reference, news]
+    right: [search, github]
+  components:
+    articles:
+      text: Articles
+      menu:
+      - text: "Start here"
+      - text: A complete analysis
+        href: articles/NADIA.html
+      - text: -------
+      - text: "Getting the data in"
+      - text: Input formats
+        href: articles/input-formats.html
+      - text: -------
+      - text: "Choosing how to analyse it"
+      - text: Missing values
+        href: articles/missing-values.html
+      - text: Choosing methods without a reference
+        href: articles/choosing-methods.html
+      - text: Benchmarking against a spike-in
+        href: articles/benchmarking.html
+      - text: Batch correction
+        href: articles/batch-correction.html
+      - text: -------
+      - text: "Reading the result"
+      - text: Expression patterns
+        href: articles/pattern-profiler.html
+      - text: Visualisation
+        href: articles/visualization.html
+      - text: Results and export
+        href: articles/results-and-export.html
+
+articles:
+- title: Start here
+  navbar: ~
+  contents:
+  - NADIA
+
+- title: Getting the data in
+  contents:
+  - input-formats
+
+- title: Choosing how to analyse it
+  contents:
+  - missing-values
+  - choosing-methods
+  - benchmarking
+  - batch-correction
+
+- title: Reading the result
+  contents:
+  - pattern-profiler
+  - visualization
+  - results-and-export
+
+reference:
+- title: Import and preprocessing
+  desc: >
+    Four readers, one output contract. Each converts a quantification report
+    into the same `proteomics_data` object, so everything downstream is
+    independent of the search engine.
+  contents:
+  - preprocess_spectronaut
+  - preprocess_diann
+  - preprocess_tmt
+  - preprocess_lfq
+
+- title: The analysis pipeline
+  desc: >
+    `process_proteomics()` runs normalisation, optional batch correction,
+    imputation and differential abundance in order. The individual stages are
+    exported too, for workflows that need them separately.
+  contents:
+  - process_proteomics
+  - normalize_proteomics
+  - batch_correct_proteomics
+  - impute_proteomics
+  - de_analysis_proteomics
+
+- title: Batch effects
+  desc: >
+    Deciding whether a batch effect matters before correcting it: variance
+    decomposition and PCA against the covariates.
+  contents:
+  - pvca_analysis
+  - pvca_compute
+  - pvca_plot
+  - pca_covariates_plot
+
+- title: Choosing a normalisation method
+  desc: >
+    Ranks methods on properties of the data themselves, with no ground truth
+    required. Pass `methods` to compare the twelve methods; without it the
+    assays already in the object are ranked instead.
+  contents:
+  - normalization_metrics
+  - nm_compute_metrics
+  - nm_prepare_se
+  - nm_run_normalizations
+  - import_norm_matrices
+  - nm_rank_final
+  - nm_rank_pcv
+  - nm_rank_pmad
+  - nm_rank_pev
+  - nm_rank_cor
+  - nm_rank_pc1
+  - nm_rank_mds1
+  - nm_plot_final_ranking
+  - nm_plot_metrics
+  - nm_plot_boxplot
+  - nm_plot_density
+  - nm_plot_correlation
+  - nm_plot_pcv
+  - nm_plot_pmad
+  - nm_plot_pev
+  - nm_plot_pca
+  - nm_plot_mds
+  - nm_plot_pc1_ranking
+  - nm_plot_mds1_ranking
+  - nm_plot_qq
+  - nm_plot_scatter
+
+- title: Choosing an imputation method
+  desc: >
+    Simulated missingness on complete rows. The masking hides observed values,
+    so the ranking measures MAR recovery: use it for the MAR stage, not to
+    choose an MNAR one.
+  contents:
+  - imputation_metrics
+  - im_compute_metrics
+  - im_prepare_se
+  - import_imp_matrices
+  - im_plot_ranking
+  - im_plot_metrics
+  - im_plot_nrmse
+  - im_plot_sor
+  - im_plot_pss
+  - im_plot_acc_oi
+
+- title: Benchmarking one pipeline against a spike-in
+  desc: >
+    With a known ground truth, how well a pipeline recovers the expected
+    changes. A positive counts only when it is significant and in the expected
+    direction.
+  contents:
+  - benchmarking_proteomics
+  - compute_benchmark_metrics
+  - compute_opdea_metrics
+  - compute_dispersion_metrics
+  - benchmark_heatmap_gg
+  - benchmark_confusion_gg
+  - benchmark_confusion_overall_gg
+  - benchmark_metrics_bars_gg
+  - benchmark_auc_bars_gg
+  - benchmark_roc_gg
+  - benchmark_signif_bars_gg
+  - benchmark_volcano_hc
+  - benchmark_volcano_hc_list
+
+- title: Ranking several pipelines
+  desc: >
+    Comparing normalisation and imputation combinations against each other,
+    with the OpDEA ranking and an extended eleven-metric one.
+  contents:
+  - benchmarking_multiple
+  - bm_compute_ranking
+  - bm_compute_extended_ranking
+  - bm_compute_ranking_by_comparison
+  - import_opdea_results
+  - import_benchmark_metrics
+  - import_classified_results
+  - import_confusion_results
+  - bm_plot_ranking_bars
+  - bm_plot_ranking_heatmap
+  - bm_plot_ranking_bars_by_comp
+  - bm_plot_ranking_heatmap_by_comp
+  - bm_plot_extended_ranking_bars
+  - bm_plot_extended_ranking_heatmap
+  - bm_plot_metrics_comparison
+  - bm_plot_metrics_heatmap
+  - bm_plot_confusion_stacked
+  - bm_plot_roc
+
+- title: Interactive figures
+  desc: >
+    Highcharts volcano plots, boxplots and PCA. Each returns a named list, one
+    entry per comparison or mode.
+  contents:
+  - volcano_highchart_list
+  - boxplot_highchart_list
+  - pca_highchart
+  - pca_highchart_list
+  - build_pca_scores
+
+- title: Static figures
+  desc: Heatmaps through tidyHeatmap and ComplexHeatmap.
+  contents:
+  - proteomics_heatmap
+  - proteomics_heatmap_list
+
+- title: Expression patterns
+  desc: >
+    Fuzzy clustering of profiles across conditions, and the join that turns it
+    into the input for a functional analysis.
+  contents:
+  - pattern_profiler_analysis
+  - summarize_pattern_profiler
+  - read_pattern_profiler_data
+  - cluster_profile_highchart
+  - cluster_profile_highchart_list
+  - cluster_centroids_highchart
+  - deps_with_clusters
+
+- title: Interactive tables
+  desc: >
+    Reactable tables for reviewing results. `*_reactable()` returns the table
+    alone; `*_widget()` returns a complete page with a toolbar and Excel export.
+  contents:
+  - results_list_reactable
+  - results_list_widget
+  - protein_list_reactable
+  - protein_list_widget
+  - quant_list_widget
+  - summary_list_widget
+
+- title: The .nadia archive
+  desc: >
+    One DuckDB file holding a whole analysis: data, parameters and provenance,
+    with the reconstruction stored as SQL views rather than duplicated rows.
+  contents:
+  - write_nadia
+  - read_nadia
+  - nadia_result
+  - nadia_preprocessing
+  - nadia_tables
+  - nadia_connect
+  - nadia_export_parquet
+  - nadia_add_pattern_profiler
+  - nadia_pattern_profiler
+  - nadia_deps_with_clusters
+
+- title: Running NADIA from an assistant
+  desc: The agent skill shipped with the package.
+  contents:
+  - nadia_skill_path
+
+- title: Example data
+  desc: >
+    A preprocessed DIA dataset: three conditions, four replicates, 2,000
+    protein groups, 8.1 % missing. The trimmed reports for all four input
+    formats live in `inst/extdata/`.
+  contents:
+  - nadia_dia
+
+# Documented but not exported: users cannot call these without `:::`, so they
+# are kept out of the rendered index. pkgdown still requires every .Rd topic to
+# be placed somewhere, and a section titled `internal` is how it is told to
+# build the page without listing it.
+- title: internal
+  contents:
+  - build_clustering_matrix
+  - build_long_output
+  - compute_confidence_ellipse
+  - compute_hulls
+  - configure_cluster_palette
+  - create_expression_set
+  - detect_condition_columns
+  - evaluate_cluster_range
+  - extract_se_data
+  - filter_significant_features
+  - get_annotation_palette
+  - get_heatmap_palette
+  - merge_significance_info
+  - prepare_heatmap_data
+  - run_mfuzz_clustering
+  - select_optimal_clusters
+  - standardize_eset
+  - wrap_heatmap_with_title
+  - print.spectronaut_data
+  - print.diann_data
+  - print.tmt_data
+  - print.lfq_data
+  - print.proteomics_result
+  - print.proteomics_heatmap
+  - print.nadia_db

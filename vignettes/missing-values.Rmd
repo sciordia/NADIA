@@ -53,7 +53,8 @@ options(width = 100)
     max-width: none;
     margin-left: 2%;
   }
-  #fig\:mar-mnar-diagram + img {
+  #fig\:mar-mnar-diagram + img,
+  img[src$="MAR_MNAR_Missingness.svg"] {
     display: block;
     position: relative;
     left: 50%;
@@ -63,7 +64,8 @@ options(width = 100)
     margin-right: 0;
     transform: translateX(-50%);
   }
-  #fig\:combo-classification-diagram + img {
+  #fig\:combo-classification-diagram + img,
+  img[src$="Combo_Classification_Examples.svg"] {
     width: 106% !important;
     max-width: none !important;
     margin-left: -3%;
@@ -76,7 +78,9 @@ options(width = 100)
   }
 }
 #fig\:mar-mnar-diagram + img.mar-mnar-clickable,
-#fig\:combo-classification-diagram + img.combo-classification-clickable {
+img[src$="MAR_MNAR_Missingness.svg"].mar-mnar-clickable,
+#fig\:combo-classification-diagram + img.combo-classification-clickable,
+img[src$="Combo_Classification_Examples.svg"].combo-classification-clickable {
   cursor: zoom-in;
 }
 .figure-zoom-hint {
@@ -181,7 +185,12 @@ knitr::include_graphics("figures/MAR_MNAR_Missingness.svg")
 (function () {
   var anchor = document.getElementById("fig:mar-mnar-diagram");
   var source = anchor ? anchor.nextElementSibling : null;
-  if (!source || source.tagName !== "IMG") return;
+  // BiocStyle numbers figures and leaves that anchor before the image;
+  // pkgdown emits no such anchor, so fall back to the file itself.
+  if (!source || source.tagName !== "IMG") {
+    source = document.querySelector('img[src$="MAR_MNAR_Missingness.svg"]');
+  }
+  if (!source) return;
 
   source.classList.add("mar-mnar-clickable");
   source.setAttribute("tabindex", "0");
@@ -507,7 +516,12 @@ knitr::include_graphics("figures/Combo_Classification_Examples.svg")
 (function () {
   var anchor = document.getElementById("fig:combo-classification-diagram");
   var source = anchor ? anchor.nextElementSibling : null;
-  if (!source || source.tagName !== "IMG") return;
+  // BiocStyle numbers figures and leaves that anchor before the image;
+  // pkgdown emits no such anchor, so fall back to the file itself.
+  if (!source || source.tagName !== "IMG") {
+    source = document.querySelector('img[src$="Combo_Classification_Examples.svg"]');
+  }
+  if (!source) return;
 
   source.classList.add("combo-classification-clickable");
   source.setAttribute("tabindex", "0");

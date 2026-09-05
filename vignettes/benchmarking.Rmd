@@ -76,7 +76,9 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
 /* Give the experimental-design figure the same responsive scale as NADIA.Rmd. */
 @media screen and (min-width: 992px) {
   #fig\:benchmark-three-proteome-design + img,
-  #fig\:benchmarking-outputs + img {
+  img[src$="Three_Proteome_Experimental_Design.svg"],
+  #fig\:benchmarking-outputs + img,
+  img[src$="Benchmarking_Proteomics_Outputs.svg"] {
     width: 112% !important;
     max-width: none !important;
     margin-left: -6%;
@@ -84,7 +86,9 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
 }
 @media screen and (min-width: 1400px) {
   #fig\:benchmark-three-proteome-design + img,
-  #fig\:benchmarking-outputs + img {
+  img[src$="Three_Proteome_Experimental_Design.svg"],
+  #fig\:benchmarking-outputs + img,
+  img[src$="Benchmarking_Proteomics_Outputs.svg"] {
     width: 124% !important;
     margin-left: -12%;
   }
@@ -123,8 +127,11 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
   margin-bottom: 1.8em !important;
 }
 #fig\:benchmark-three-proteome-design + img.benchmark-three-proteome-clickable,
+img[src$="Three_Proteome_Experimental_Design.svg"].benchmark-three-proteome-clickable,
 #fig\:benchmarking-outputs + img.benchmarking-outputs-clickable,
-#fig\:bench-volcano-svg + img.benchmark-volcano-clickable {
+img[src$="Benchmarking_Proteomics_Outputs.svg"].benchmarking-outputs-clickable,
+#fig\:bench-volcano-svg + img.benchmark-volcano-clickable,
+img[src$="benchmark-volcano-b-a-im.svg"].benchmark-volcano-clickable {
   cursor: zoom-in;
 }
 .figure-zoom-hint {
@@ -246,7 +253,12 @@ knitr::include_graphics("figures/Three_Proteome_Experimental_Design.svg")
 (function () {
   var anchor = document.getElementById("fig:benchmark-three-proteome-design");
   var source = anchor ? anchor.nextElementSibling : null;
-  if (!source || source.tagName !== "IMG") return;
+  // BiocStyle numbers figures and leaves that anchor before the image;
+  // pkgdown emits no such anchor, so fall back to the file itself.
+  if (!source || source.tagName !== "IMG") {
+    source = document.querySelector('img[src$="Three_Proteome_Experimental_Design.svg"]');
+  }
+  if (!source) return;
 
   source.classList.add("benchmark-three-proteome-clickable");
   source.setAttribute("tabindex", "0");
@@ -466,7 +478,12 @@ knitr::include_graphics("figures/Benchmarking_Proteomics_Outputs.svg")
 (function () {
   var anchor = document.getElementById("fig:benchmarking-outputs");
   var source = anchor ? anchor.nextElementSibling : null;
-  if (!source || source.tagName !== "IMG") return;
+  // BiocStyle numbers figures and leaves that anchor before the image;
+  // pkgdown emits no such anchor, so fall back to the file itself.
+  if (!source || source.tagName !== "IMG") {
+    source = document.querySelector('img[src$="Benchmarking_Proteomics_Outputs.svg"]');
+  }
+  if (!source) return;
 
   source.classList.add("benchmarking-outputs-clickable");
   source.setAttribute("tabindex", "0");
@@ -1096,7 +1113,12 @@ knitr::include_graphics("figures/benchmark-volcano-b-a-im.svg")
 (function () {
   var anchor = document.getElementById("fig:bench-volcano-svg");
   var source = anchor ? anchor.nextElementSibling : null;
-  if (!source || source.tagName !== "IMG") return;
+  // BiocStyle numbers figures and leaves that anchor before the image;
+  // pkgdown emits no such anchor, so fall back to the file itself.
+  if (!source || source.tagName !== "IMG") {
+    source = document.querySelector('img[src$="benchmark-volcano-b-a-im.svg"]');
+  }
+  if (!source) return;
 
   source.classList.add("benchmark-volcano-clickable");
   source.setAttribute("tabindex", "0");

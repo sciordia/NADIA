@@ -1,0 +1,83 @@
+# Build the pkgdown site and publish it to GitHub Pages.
+#
+# Deploy from here, never with pkgdown::deploy_to_branch() from a laptop. The
+# runner works from a clean checkout, and the maintainer's working directory
+# holds gitignored notes (CLAUDE.md, SUBMISSION.md, CODE_REVIEW_*.md) that
+# pkgdown would otherwise render into the site: it globs every *.md in the
+# package root and honours no ignore file. Those files are not in the
+# repository, so a build made here cannot include them.
+#
+# Until GitHub Pages is enabled for this repository the build succeeds and the
+# final deploy step fails. To avoid failing runs while the repository is
+# private, drop the `push:` trigger below and start the workflow by hand from
+# the Actions tab.
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+name: pkgdown.yaml
+
+permissions: read-all
+
+jobs:
+  pkgdown:
+    runs-on: ubuntu-latest
+    # Only restrict concurrency for non-PR jobs
+    concurrency:
+      group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+          use-public-rspm: true
+
+      # The vignettes exercise most of Suggests -- duckdb, Mfuzz, BERT, arrow,
+      # pROC, vegan and the imputation back-ends -- so the site cannot be built
+      # from the hard dependencies alone.
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          dependencies: '"all"'
+          extra-packages: any::pkgdown, local::.
+          needs: website
+
+      - name: Build site
+        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
+        shell: Rscript {0}
+
+      # The vignettes point at their diagrams with knitr::include_graphics(),
+      # and rmarkdown::find_external_resources() reports those as neither
+      # `web` nor `explicit`, which is exactly the pair pkgdown filters on. So
+      # copy_article_images() skips all 21 of them and every diagram on the
+      # site 404s. Copying the directory afterwards is the whole fix.
+      - name: Copy the vignette figures pkgdown does not detect
+        run: |
+          # Articles: pkgdown rewrites the <img src> but never copies the file,
+          # so the directory has to follow.
+          cp -R vignettes/figures docs/articles/figures
+          # Home page: the README links its diagram to the repository-relative
+          # path, which is right on github.com. pkgdown rewrites the <img src>
+          # of that figure but not the <a href> around it, so serve that path
+          # too rather than editing the README for one renderer's benefit.
+          mkdir -p docs/vignettes
+          cp -R vignettes/figures docs/vignettes/figures
+          Rscript -e 'source("tools/check-site-links.R")'
+
+      - name: Deploy to GitHub Pages 🚀
+        if: github.event_name != 'pull_request'
+        uses: JamesIves/github-pages-deploy-action@v4.5.0
+        with:
+          clean: false
+          branch: gh-pages
+          folder: docs

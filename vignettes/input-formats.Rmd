@@ -18,17 +18,20 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL)
 ```
 
 <style type="text/css">
-#fig\:input-format-overview + img {
+#fig\:input-format-overview + img,
+img[src$="Input_Formats_Workflow.svg"] {
   width: 100% !important;
   max-width: none !important;
 }
 @media screen and (min-width: 992px) {
-  #fig\:input-format-overview + img {
+  #fig\:input-format-overview + img,
+  img[src$="Input_Formats_Workflow.svg"] {
     width: 116% !important;
     margin-left: -12%;
   }
 }
-#fig\:input-format-overview + img.input-format-clickable {
+#fig\:input-format-overview + img.input-format-clickable,
+img[src$="Input_Formats_Workflow.svg"].input-format-clickable {
   cursor: zoom-in;
 }
 .figure-zoom-hint {
@@ -78,17 +81,25 @@ body.input-format-lightbox-open {
   overflow: hidden;
 }
 #fig\:spectronaut-input-structure + img,
+img[src$="Spectronaut_Input_Structure.svg"],
 #fig\:diann-input-structure + img,
+img[src$="DIANN_Input_Structure.svg"],
 #fig\:tmt-input-structure + img,
-#fig\:lfq-input-structure + img {
+img[src$="TMT_Input_Structure.svg"],
+#fig\:lfq-input-structure + img,
+img[src$="LFQ_Input_Structure.svg"] {
   width: 100% !important;
   max-width: none !important;
 }
 @media screen and (min-width: 992px) {
   #fig\:spectronaut-input-structure + img,
+  img[src$="Spectronaut_Input_Structure.svg"],
   #fig\:diann-input-structure + img,
+  img[src$="DIANN_Input_Structure.svg"],
   #fig\:tmt-input-structure + img,
-  #fig\:lfq-input-structure + img {
+  img[src$="TMT_Input_Structure.svg"],
+  #fig\:lfq-input-structure + img,
+  img[src$="LFQ_Input_Structure.svg"] {
     width: 110% !important;
     margin-left: -5%;
   }
@@ -255,7 +266,12 @@ knitr::include_graphics("figures/Input_Formats_Workflow.svg")
 (function () {
   var anchor = document.getElementById("fig:input-format-overview");
   var source = anchor ? anchor.nextElementSibling : null;
-  if (!source || source.tagName !== "IMG") return;
+  // BiocStyle numbers figures and leaves that anchor before the image;
+  // pkgdown emits no such anchor, so fall back to the file itself.
+  if (!source || source.tagName !== "IMG") {
+    source = document.querySelector('img[src$="Input_Formats_Workflow.svg"]');
+  }
+  if (!source) return;
 
   source.classList.add("input-format-clickable");
   source.setAttribute("tabindex", "0");
@@ -318,16 +334,19 @@ knitr::include_graphics("figures/Input_Formats_Workflow.svg")
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  var figureIds = [
-    "fig:spectronaut-input-structure",
-    "fig:diann-input-structure",
-    "fig:tmt-input-structure",
-    "fig:lfq-input-structure"
+  // BiocStyle numbers figures and leaves an anchor before each image; pkgdown
+  // emits no such anchor, so each entry also carries the file to fall back on.
+  var figures = [
+    ["fig:spectronaut-input-structure", "Spectronaut_Input_Structure.svg"],
+    ["fig:diann-input-structure",       "DIANN_Input_Structure.svg"],
+    ["fig:tmt-input-structure",         "TMT_Input_Structure.svg"],
+    ["fig:lfq-input-structure",         "LFQ_Input_Structure.svg"]
   ];
-  var sources = figureIds.map(function (id) {
-    var anchor = document.getElementById(id);
+  var sources = figures.map(function (entry) {
+    var anchor = document.getElementById(entry[0]);
     var image = anchor ? anchor.nextElementSibling : null;
-    return image && image.tagName === "IMG" ? image : null;
+    if (image && image.tagName === "IMG") return image;
+    return document.querySelector('img[src$="' + entry[1] + '"]');
   }).filter(Boolean);
   if (!sources.length) return;
 

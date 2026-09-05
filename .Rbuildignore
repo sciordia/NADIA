@@ -25,3 +25,9 @@
 ^vignettes/.*\.html$
 ^vignettes/.*\.pdf$
 ^vignettes/.*_files$
+# El sitio de pkgdown: su configuracion, sus recursos y el sitio generado. Nada
+# de esto es contenido del paquete, y docs/ pesa varios MB. .gitignore ya ignora
+# docs/; estas reglas son las que impiden que R CMD build lo empaquete.
+^_pkgdown\.yml$
+^pkgdown$
+^docs$
