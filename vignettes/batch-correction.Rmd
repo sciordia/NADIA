@@ -14,8 +14,13 @@ vignette: >
 ---
 
 ```{r setup, include = FALSE}
+# fig.ext has to be set alongside dev: pkgdown fixes the figure extension at
+# "png" for articles, so with dev = "svg" alone knitr writes SVG documents into
+# files named *.png and the browser refuses to decode them. BiocStyle never
+# showed it, because a self-contained render embeds the image and the file name
+# stops mattering.
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL,
-                      dev = "svg")
+                      dev = "svg", fig.ext = "svg")
 ```
 
 <style>
