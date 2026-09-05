@@ -1,0 +1,93 @@
+/* --------------------------------------------------------------------------
+   NADIA — pkgdown site
+   --------------------------------------------------------------------------
+   The home page is README.md. GitHub renders it too, and its sanitiser escapes
+   <style> instead of removing it, which is why the README carries no CSS of its
+   own: the rules would appear as literal text on github.com. Here is where they
+   belong, because pkgdown does apply them.
+   -------------------------------------------------------------------------- */
+
+/* The vignette guide on the home page. The README keeps the wrapping div, which
+   is inert on GitHub and picked up here. */
+.vignette-guide-table table {
+  margin-left: 2rem;
+  margin-right: auto;
+  width: auto;
+}
+
+.vignette-guide-table td:first-child {
+  white-space: nowrap;
+  font-family: var(--bs-font-monospace);
+}
+
+@media (max-width: 991px) {
+  .vignette-guide-table table {
+    margin-left: 0;
+    width: 100%;
+  }
+  .vignette-guide-table td:first-child {
+    white-space: normal;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Justified body text
+   --------------------------------------------------------------------------
+   The vignettes are written for BiocStyle, whose stylesheet justifies every
+   paragraph (`p, dl { text-align: justify }`). pkgdown does not, so the same
+   prose came out ragged-right here and set differently from the rendering the
+   author proof-reads. These rules restore it across the articles and the home
+   page.
+
+   Justification without hyphenation opens rivers of white space, so hyphens
+   are enabled -- the pages declare `lang="en"`, which is what the browser
+   needs to hyphenate correctly. Code, identifiers and URLs are excluded: a
+   break inside `pattern_profiler_analysis()` would be worse than a loose line.
+   -------------------------------------------------------------------------- */
+
+main p,
+main li,
+main dd {
+  text-align: justify;
+  hyphens: auto;
+}
+
+main code,
+main pre,
+main kbd,
+main samp,
+main a[href^="http"] {
+  hyphens: none;
+}
+
+/* Captions, the click-to-enlarge hints and anything inside a table keep the
+   alignment they were given. */
+main p.caption,
+main figcaption,
+main .figure-zoom-hint,
+main .output-format-zoom-hint,
+main table p,
+main table li {
+  text-align: inherit;
+  hyphens: none;
+}
+
+/* Short paragraphs should not be stretched: a single line of two words set
+   across the full measure is the ugly case justification is blamed for. */
+main p:has(> a:only-child > img),
+main p:empty {
+  text-align: initial;
+}
+
+/* The workflow diagram and the tables in the README use the full column. */
+main div[align="justify"] table,
+main div[align="justify"] p > a > img {
+  max-width: 100%;
+}
+
+/* Wide tables scroll inside their own box instead of stretching the page. */
+main table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}

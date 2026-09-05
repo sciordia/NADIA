@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1060" viewBox="0 0 1200 1060" role="img" aria-labelledby="title desc">
+  <title id="title">NADIA: a missing-value-aware proteomics workflow</title>
+  <desc id="desc">Import DIA, TMT or label-free DDA reports into proteomics_data. In Process and test, normalise, optionally correct batches, handle missing values and test differential abundance. Pattern Profiler is a separate optional step in this stage for fuzzy clustering of expression profiles. Explore and share statistical results, figures, interactive tables and exported files. Method assessment and benchmarking support pipeline selection. Small graphics are schematic, not analysis results.</desc>
+  <defs>
+    <style>
+      text { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; fill: #263746; }
+      .section { font-size: 27px; font-weight: 650; fill: #17324d; }
+      .heading { font-size: 23px; font-weight: 600; }
+      .body { font-size: 21px; }
+      .small { font-size: 18px; fill: #516779; }
+      .code { font-family: 'DejaVu Sans Mono', Consolas, monospace; font-size: 20px; fill: #17324d; }
+      .white { fill: #ffffff; }
+      .badge { font-size: 15px; font-weight: 700; letter-spacing: 0.7px; fill: #684098; }
+      .arrow { fill: none; stroke: #71899a; stroke-width: 2; marker-end: url(#arrow); }
+      .join { fill: none; stroke: #71899a; stroke-width: 2; }
+      .optional { stroke-dasharray: 5 4; }
+    </style>
+    <linearGradient id="navy" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#17324d"/><stop offset="1" stop-color="#285c79"/></linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1 L9 5 L1 9 Z" fill="#71899a"/></marker>
+  </defs>
+  <rect width="1200" height="1060" fill="#ffffff"/>
+  <!-- Identity and schematic missing-value matrix. -->
+  <rect x="24" y="20" width="1152" height="115" rx="16" fill="url(#navy)"/>
+  <text x="48" y="78" font-size="49" font-weight="700" class="white">NADIA</text>
+  <text x="48" y="111" font-size="22" fill="#d7e7ef" style="fill:#d7e7ef">Quantitative proteomics · explicit treatment of missing values</text>
+  <g transform="translate(960 43)" aria-hidden="true">
+    <g fill="#77b7c1">
+      <rect width="37" height="18" rx="3"/><rect x="45" width="37" height="18" rx="3"/><rect x="90" width="37" height="18" rx="3"/>
+      <rect y="25" width="37" height="18" rx="3"/><rect x="90" y="25" width="37" height="18" rx="3"/><rect x="135" y="25" width="37" height="18" rx="3"/>
+      <rect x="45" y="50" width="37" height="18" rx="3"/><rect x="90" y="50" width="37" height="18" rx="3"/><rect x="135" y="50" width="37" height="18" rx="3"/>
+    </g>
+    <g fill="#f6c66c"><rect x="135" width="37" height="18" rx="3"/><rect x="45" y="25" width="37" height="18" rx="3"/><rect y="50" width="37" height="18" rx="3"/></g>
+    <g font-size="12" font-weight="700" text-anchor="middle"><text x="153.5" y="13">NA</text><text x="63.5" y="38">NA</text><text x="18.5" y="63">NA</text></g>
+  </g>
+
+  <circle cx="43" cy="174" r="19" fill="#3b8b72"/><text x="43" y="182" text-anchor="middle" class="heading white">1</text>
+  <text x="76" y="183" class="section">Import quantitative data</text>
+  <g transform="translate(24 203)">
+    <rect width="360" height="88" rx="10" fill="#eaf5f0"/><rect width="8" height="88" rx="4" fill="#3b8b72"/>
+    <text x="25" y="36" class="heading">DIA</text><text x="25" y="66" class="body">Spectronaut · DIA-NN</text>
+  </g>
+  <g transform="translate(420 203)">
+    <rect width="360" height="88" rx="10" fill="#eaf5f0"/><rect width="8" height="88" rx="4" fill="#3b8b72"/>
+    <text x="25" y="36" class="heading">TMT</text><text x="25" y="66" class="body">Proteome Discoverer</text>
+  </g>
+  <g transform="translate(816 203)">
+    <rect width="360" height="88" rx="10" fill="#eaf5f0"/><rect width="8" height="88" rx="4" fill="#3b8b72"/>
+    <text x="25" y="36" class="heading">Label-free DDA</text><text x="25" y="66" class="body">Proteome Discoverer</text>
+  </g>
+  <path d="M204 291 V311 H996 V291 M600 291 V311" class="join"/><path d="M600 311 V329" class="arrow"/>
+  <rect x="210" y="334" width="780" height="62" rx="10" fill="#edf4f8" stroke="#aac7dc"/>
+  <text x="600" y="360" text-anchor="middle" class="code">proteomics_data</text>
+  <text x="600" y="385" text-anchor="middle" class="small">Sample metadata + protein annotations + quantitative matrix</text>
+
+  <circle cx="43" cy="438" r="19" fill="#3f78a8"/><text x="43" y="446" text-anchor="middle" class="heading white">2</text>
+  <text x="76" y="447" class="section">Process and test</text>
+  <path d="M600 396 V474" class="arrow"/>
+  <rect x="24" y="479" width="1152" height="252" rx="14" fill="#f2f7fb" stroke="#c4d8e7"/>
+  <text x="44" y="509" class="code">process_proteomics()</text>
+  <path d="M44 519 H930" stroke="#aac7dc" stroke-width="1.5"/>
+  <text x="1052" y="509" text-anchor="middle" class="small">Separate optional step</text>
+
+  <!-- Main processing plus an optional Pattern Profiler extension. -->
+  <g transform="translate(44 534)">
+    <rect width="208" height="132" rx="9" fill="#ffffff" stroke="#b7cfdf"/>
+    <path d="M9 0 H199 Q208 0 208 9 V45 H0 V9 Q0 0 9 0" fill="#3f78a8"/>
+    <text x="104" y="30" text-anchor="middle" class="heading white">Normalise</text>
+    <text x="104" y="83" text-anchor="middle" class="small">Adjust intensity</text><text x="104" y="109" text-anchor="middle" class="small">scales</text>
+  </g>
+  <path d="M254 600 H267" class="arrow"/>
+  <g transform="translate(270 534)">
+    <rect width="208" height="132" rx="9" fill="#ffffff" stroke="#b7cfdf"/>
+    <path d="M9 0 H199 Q208 0 208 9 V45 H0 V9 Q0 0 9 0" fill="#3f78a8"/>
+    <text x="104" y="30" text-anchor="middle" class="heading white">Correct batches</text>
+    <rect x="49" y="56" width="110" height="25" rx="12.5" fill="#efe6f8"/><text x="104" y="74" text-anchor="middle" class="badge">OPTIONAL</text>
+    <text x="104" y="109" text-anchor="middle" class="small">Reduce batch effects</text>
+  </g>
+  <path d="M480 600 H493" class="arrow"/>
+  <g transform="translate(496 534)">
+    <rect width="208" height="132" rx="9" fill="#fff5df" stroke="#c89637"/>
+    <path d="M9 0 H199 Q208 0 208 9 V45 H0 V9 Q0 0 9 0" fill="#d59a31"/>
+    <text x="104" y="30" text-anchor="middle" class="heading">Missing values</text>
+    <text x="104" y="83" text-anchor="middle" class="small">Single or hybrid</text><text x="104" y="109" text-anchor="middle" class="small">imputation</text>
+  </g>
+  <path d="M706 600 H719" class="arrow"/>
+  <g transform="translate(722 534)">
+    <rect width="208" height="132" rx="9" fill="#ffffff" stroke="#b7cfdf"/>
+    <path d="M9 0 H199 Q208 0 208 9 V45 H0 V9 Q0 0 9 0" fill="#3f78a8"/>
+    <text x="104" y="30" text-anchor="middle" class="heading white">Test abundance</text><text x="104" y="95" text-anchor="middle" class="body">limma / limpa</text>
+  </g>
+  <path d="M932 600 H945" class="arrow optional"/>
+  <g transform="translate(948 534)">
+    <rect width="208" height="132" rx="9" fill="#f4eef9" stroke="#a985c6"/>
+    <path d="M9 0 H199 Q208 0 208 9 V45 H0 V9 Q0 0 9 0" fill="#8455aa"/>
+    <text x="104" y="30" text-anchor="middle" class="heading white">Pattern Profiler</text>
+    <rect x="49" y="56" width="110" height="25" rx="12.5" fill="#e7d8f3"/><text x="104" y="74" text-anchor="middle" class="badge">OPTIONAL</text>
+    <text x="104" y="109" text-anchor="middle" class="small">Fuzzy clustering</text>
+  </g>
+  <!-- Connectors run behind the supporting-methods strip. -->
+  <path d="M826 666 V753 H600 V793" class="arrow"/><path d="M1052 666 V753 H826" class="join optional"/>
+  <rect x="44" y="684" width="1112" height="30" rx="6" fill="#e1edf5"/>
+  <text x="600" y="706" text-anchor="middle" class="small">Assess missingness · compare methods · benchmark against known changes when available</text>
+
+  <circle cx="43" cy="773" r="19" fill="#3b8b72"/><text x="43" y="781" text-anchor="middle" class="heading white">3</text>
+  <text x="76" y="782" class="section">Explore and share</text>
+  <path d="M204 811 V795 H996 V811 M600 795 V811" class="join"/>
+  <g transform="translate(24 815)">
+    <rect width="360" height="191" rx="12" fill="#f0f6fb" stroke="#aac7dc"/>
+    <path d="M12 0 H348 Q360 0 360 12 V47 H0 V12 Q0 0 12 0" fill="#3f78a8"/>
+    <text x="20" y="32" class="heading white">Statistical results</text>
+    <g transform="translate(20 65)" aria-hidden="true"><rect width="76" height="48" rx="3" fill="#ffffff" stroke="#aac7dc"/><path d="M0 14 H76 M0 31 H76 M28 0 V48" stroke="#aac7dc"/><path d="M37 23 H65" stroke="#be6666" stroke-width="5"/><path d="M37 40 H57" stroke="#3f78a8" stroke-width="5"/></g>
+    <text x="111" y="82" class="body">Fold change</text><text x="111" y="109" class="body">Adjusted P value</text>
+    <text x="20" y="147" class="body">Up / Down / No Change</text><text x="20" y="176" class="small">Original missingness retained</text>
+  </g>
+  <g transform="translate(420 815)">
+    <rect width="360" height="191" rx="12" fill="#edf7f2" stroke="#a9d0c1"/>
+    <path d="M12 0 H348 Q360 0 360 12 V47 H0 V12 Q0 0 12 0" fill="#3b8b72"/>
+    <text x="20" y="32" class="heading white">Visual exploration</text>
+    <g transform="translate(20 63)" aria-hidden="true"><path d="M0 0 V53 H77" fill="none" stroke="#8caaa0"/><g fill="#3b8b72"><circle cx="10" cy="12" r="4"/><circle cx="19" cy="23" r="4"/><circle cx="25" cy="31" r="4"/></g><g fill="#be6666"><circle cx="66" cy="9" r="4"/><circle cx="60" cy="23" r="4"/><circle cx="54" cy="32" r="4"/></g><g fill="#a4b4af"><circle cx="31" cy="42" r="3"/><circle cx="40" cy="47" r="3"/><circle cx="48" cy="42" r="3"/></g></g>
+    <text x="111" y="82" class="body">Interactive and</text><text x="111" y="109" class="body">static figures</text>
+    <text x="20" y="147" class="body">Four interactive tables</text><text x="20" y="176" class="small">Sort · search · filter · export</text>
+  </g>
+  <g transform="translate(816 815)">
+    <rect width="360" height="191" rx="12" fill="#f4eef9" stroke="#c9b7db"/>
+    <path d="M12 0 H348 Q360 0 360 12 V47 H0 V12 Q0 0 12 0" fill="#8455aa"/>
+    <text x="20" y="32" class="heading white">Files and reproducibility</text>
+    <g transform="translate(27 65)" aria-hidden="true" fill="#e2d1ef" stroke="#8455aa" stroke-width="1.5"><path d="M0 9 V43 C0 56 62 56 62 43 V9 Z"/><ellipse cx="31" cy="9" rx="31" ry="9"/><path d="M0 27 C0 40 62 40 62 27" fill="none"/></g>
+    <text x="111" y="82" class="body">TSV / Parquet</text><text x="111" y="109" class="body">.nadia database</text>
+    <text x="20" y="147" class="body">HTML pages · Excel export</text><text x="20" y="176" class="small">Parameters and provenance preserved</text>
+  </g>
+  <text x="600" y="1039" text-anchor="middle" class="small">One coherent workflow — from quantitative reports to interpretable, reproducible results</text>
+</svg>

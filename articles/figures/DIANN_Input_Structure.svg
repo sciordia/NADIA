@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg viewBox="0 0 1200 520" role="img" aria-labelledby="title desc" xmlns="http://www.w3.org/2000/svg">
+  <title id="title">Structure of a DIA-NN protein-group matrix</title>
+  <desc id="desc">A wide-format table with one protein group per row. Protein annotations occupy the first columns and every run has its own abundance column. The design comes from abundance suffixes or annot_path.</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#17324d" flood-opacity="0.13"/>
+    </filter>
+    <style>
+      .h1{font:700 25px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#17324d}.sub{font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#526779}.group{font:700 15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#17324d}.head{font:600 12px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#17324d}.cell{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#334e60}.noteh{font:700 18px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#17324d}.note{font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#334e60}.small{font:13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#526779}.grid{stroke:#b9c7d2;stroke-width:1}.box{filter:url(#shadow);stroke-width:1.5}
+    </style>
+  </defs>
+  <rect width="1200" height="520" rx="18" fill="#f8fafc"/>
+  <text class="h1" x="32" y="43" style="white-space: pre;">DIA-NN protein-group matrix — wide format</text>
+  <text class="sub" x="32" y="70" style="white-space: pre;">One row represents one protein group; each run occupies a separate intensity column</text>
+  <rect class="box" x="30" y="102" width="835" height="344" rx="10" fill="#fff" stroke="#9b8ac5"/>
+  <rect x="32" y="104" width="455" height="38" fill="#ede9fe"/>
+  <rect x="487" y="104" width="376" height="38" fill="#dbeafe"/>
+  <text class="group" x="159" y="129" style="white-space: pre; font-size: 15px;">Protein-level annotations</text>
+  <text class="group" x="624" y="129" style="white-space: pre; font-size: 15px;">Run intensities</text>
+  <rect x="30" y="142" width="835" height="58" fill="#f7f5ff"/>
+  <rect x="30" y="258" width="835" height="58" fill="#fbfdff"/>
+  <path class="grid" d="M 168.489 141.765 L 170 446 M 285 142.296 L 285 446 M 390 141.585 L 390 446 M 487 102 L 487 446 M 615 141.788 L 615 446 M 743 141.648 L 743 446 M 30 142 L 865 142 M 30 200 L 865 200 M 30 258 L 865 258 M 30 316 L 865 316 M 30 374 L 865 374"/>
+  <text class="head" x="52" y="177" style="white-space: pre; font-size: 12px;">Protein.Group</text>
+  <text class="head" x="206" y="177" style="white-space: pre; font-size: 12px;">Genes</text>
+  <text class="head" x="298" y="177" style="white-space: pre;">N.Sequences</text>
+  <text class="head" x="392" y="169" style="white-space: pre; font-size: 12px;">N.Proteotypic</text>
+  <text class="head" x="407" y="188" style="white-space: pre; font-size: 12px;">Sequences</text>
+  <text class="head" x="511" y="169" style="white-space: pre; font-size: 12px;">Abundance:</text>
+  <text class="head" x="539" y="188" style="white-space: pre; font-size: 12px;">A_1</text>
+  <text class="head" x="639" y="169" style="white-space: pre; font-size: 12px;">Abundance:</text>
+  <text class="head" x="667" y="188" style="white-space: pre; font-size: 12px;">A_2</text>
+  <text class="head" x="767" y="169" style="white-space: pre; font-size: 12px;">Abundance:</text>
+  <text class="head" x="795" y="188" style="white-space: pre; font-size: 12px;">B_1</text>
+  <g class="cell">
+    <text x="79" y="235" style="white-space: pre; font-size: 13px;">P001</text>
+    <text x="206" y="235" style="white-space: pre; font-size: 13px;">GAPDH</text>
+    <text x="326" y="235" style="white-space: pre; font-size: 13px;">12</text>
+    <text x="430" y="235" style="white-space: pre; font-size: 13px;">8</text>
+    <text x="525" y="235" style="white-space: pre;">1.70e7</text>
+    <text x="655" y="235" style="white-space: pre; font-size: 13px;">1.59e7</text>
+    <text x="777" y="235" style="white-space: pre; font-size: 13px;">2.14e7</text>
+    <text x="79" y="293" style="white-space: pre; font-size: 13px;">P002</text>
+    <text x="209" y="293" style="white-space: pre; font-size: 13px;">ACTB</text>
+    <text x="329" y="293" style="white-space: pre; font-size: 13px;">9</text>
+    <text x="430" y="293" style="white-space: pre; font-size: 13px;">6</text>
+    <text x="525" y="293" style="white-space: pre;">8.10e6</text>
+    <text x="655" y="293" style="white-space: pre; font-size: 13px;">7.92e6</text>
+    <text x="777" y="293" style="white-space: pre; font-size: 13px;">9.35e6</text>
+    <text x="79" y="351" style="white-space: pre; font-size: 13px;">P003</text>
+    <text x="213" y="351" style="white-space: pre; font-size: 13px;">VIM</text>
+    <text x="328" y="351" style="white-space: pre; font-size: 13px;">7</text>
+    <text x="430" y="351" style="white-space: pre; font-size: 13px;">4</text>
+    <text x="525" y="351" style="white-space: pre;">4.24e6</text>
+    <text x="668" y="351" style="white-space: pre; font-size: 13px;">NA</text>
+    <text x="777" y="351" style="white-space: pre; font-size: 13px;">5.16e6</text>
+    <text x="95" y="409" style="white-space: pre; font-size: 13px;">…</text>
+    <text x="220" y="409" style="white-space: pre; font-size: 13px;">…</text>
+    <text x="328" y="409" style="white-space: pre; font-size: 13px;">…</text>
+    <text x="430" y="409" style="white-space: pre; font-size: 13px;">…</text>
+    <text x="540" y="409" style="white-space: pre; font-size: 13px;">…</text>
+    <text x="672" y="409" style="white-space: pre; font-size: 13px;">…</text>
+    <text x="781" y="409" style="white-space: pre;">…</text>
+  </g>
+  <rect class="box" x="900" y="102" width="270" height="344" rx="12" fill="#f6f3fc" stroke="#7c3aed"/>
+  <text class="noteh" x="925" y="139" style="white-space: pre;">How NADIA reads it</text>
+  <circle cx="927" cy="181" r="5" fill="#7c3aed"/>
+  <text class="note" x="943" y="186" style="white-space: pre;">Design from suffixes</text>
+  <text class="head" x="943" y="210" style="white-space: pre;">&lt;Condition&gt;_&lt;Replicate&gt;</text>
+  <text class="note" x="943" y="239" style="white-space: pre;">or from</text>
+  <text class="head" x="1002" y="239" style="white-space: pre;">annot_path</text>
+  <circle cx="927" cy="285" r="5" fill="#2563eb"/>
+  <text class="note" x="943" y="290" style="white-space: pre;">Original DIA-NN exports may</text>
+  <text class="note" x="943" y="312" style="white-space: pre;">use raw-file paths as headers</text>
+  <circle cx="927" cy="357" r="5" fill="#16a34a"/>
+  <text class="note" x="943" y="362" style="white-space: pre;">Missing intensities remain</text>
+  <text class="head" x="943" y="384" style="white-space: pre;">NA</text>
+  <text class="small" x="925" y="416" style="white-space: pre;">preprocess_diann()</text>
+</svg>

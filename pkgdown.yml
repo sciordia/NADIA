@@ -1,0 +1,17 @@
+pandoc: 3.8.3
+pkgdown: 2.2.1
+pkgdown_sha: ~
+articles:
+  batch-correction: batch-correction.html
+  benchmarking: benchmarking.html
+  choosing-methods: choosing-methods.html
+  input-formats: input-formats.html
+  missing-values: missing-values.html
+  NADIA: NADIA.html
+  pattern-profiler: pattern-profiler.html
+  results-and-export: results-and-export.html
+  visualization: visualization.html
+last_built: 2026-09-05T08:59Z
+urls:
+  reference: https://sciordia.github.io/NADIA/reference
+  article: https://sciordia.github.io/NADIA/articles
