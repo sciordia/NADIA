@@ -65,6 +65,11 @@ img[src$="Input_Formats_Workflow.svg"].input-format-clickable {
   background: white;
   box-shadow: 0 6px 30px rgba(0, 0, 0, 0.35);
   cursor: default;
+  /* The enlarged image is a clone: it must not inherit the
+     positioning the in-flow figure uses to widen itself. */
+  position: static !important;
+  left: auto !important;
+  transform: none !important;
 }
 #input-format-lightbox button {
   position: absolute;
@@ -131,6 +136,11 @@ img.preprocessor-structure-clickable {
   background: white;
   box-shadow: 0 6px 30px rgba(0, 0, 0, 0.35);
   cursor: default;
+  /* The enlarged image is a clone: it must not inherit the
+     positioning the in-flow figure uses to widen itself. */
+  position: static !important;
+  left: auto !important;
+  transform: none !important;
 }
 #preprocessor-structure-lightbox button {
   position: absolute;

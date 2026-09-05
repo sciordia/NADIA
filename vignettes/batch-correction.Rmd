@@ -126,6 +126,11 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", crop = NULL,
   background: #ffffff;
   box-shadow: 0 6px 30px rgba(0, 0, 0, 0.35);
   cursor: default;
+  /* The enlarged image is a clone: it must not inherit the
+     positioning the in-flow figure uses to widen itself. */
+  position: static !important;
+  left: auto !important;
+  transform: none !important;
 }
 #diagram-lightbox button {
   position: absolute;

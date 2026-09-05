@@ -114,6 +114,11 @@ img[src$="Combo_Classification_Examples.svg"].combo-classification-clickable {
   background: white;
   box-shadow: 0 6px 30px rgba(0, 0, 0, 0.35);
   cursor: default;
+  /* The enlarged image is a clone: it must not inherit the
+     positioning the in-flow figure uses to widen itself. */
+  position: static !important;
+  left: auto !important;
+  transform: none !important;
 }
 #mar-mnar-lightbox button,
 #combo-classification-lightbox button {

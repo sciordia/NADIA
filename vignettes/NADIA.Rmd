@@ -119,6 +119,11 @@ img[src$="Three_Proteome_Experimental_Design.svg"].three-proteome-clickable {
   background: white;
   box-shadow: 0 6px 30px rgba(0, 0, 0, 0.35);
   cursor: default;
+  /* The enlarged image is a clone: it must not inherit the
+     positioning the in-flow figure uses to widen itself. */
+  position: static !important;
+  left: auto !important;
+  transform: none !important;
 }
 #three-proteome-lightbox button,
 #volcano-ba-lightbox button {
