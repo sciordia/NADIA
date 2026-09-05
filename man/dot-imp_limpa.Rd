@@ -7,8 +7,10 @@
 .imp_limpa(x, args = list())
 }
 \arguments{
-\item{args}{list with optional \code{use_dpcCN} (default FALSE), \code{dpc.slope} (default 0.8),
-\code{maxit} (default 100), \code{eps} (default 1e-04), \code{b1.upper} (default 1),
+\item{args}{list with optional \code{use_dpcCN} (default FALSE), \code{model}
+(\code{"on"} or \code{"cn"}; defaults to \code{"cn"} when \code{use_dpcCN} is TRUE and \code{"on"}
+otherwise), \code{dpc.slope} (default 0.8), \code{dpc.start} (default NULL),
+\code{iterations} (default 2), \code{subset} (default 2000), \code{robust} (default TRUE),
 \code{chunk} (default 1000), \code{verbose} (default FALSE)}
 }
 \description{

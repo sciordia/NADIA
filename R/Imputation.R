@@ -173,8 +173,10 @@
 #' dpcQuantByRow to impute protein-level abundances with standard errors.
 #' The returned EList is attached as an attribute for downstream dpcDE.
 #'
-#' @param args list with optional `use_dpcCN` (default FALSE), `dpc.slope` (default 0.8),
-#'   `maxit` (default 100), `eps` (default 1e-04), `b1.upper` (default 1),
+#' @param args list with optional `use_dpcCN` (default FALSE), `model`
+#'   (`"on"` or `"cn"`; defaults to `"cn"` when `use_dpcCN` is TRUE and `"on"`
+#'   otherwise), `dpc.slope` (default 0.8), `dpc.start` (default NULL),
+#'   `iterations` (default 2), `subset` (default 2000), `robust` (default TRUE),
 #'   `chunk` (default 1000), `verbose` (default FALSE)
 #' @keywords internal
 .imp_limpa <- function(x, args = list()) {
@@ -183,20 +185,28 @@
          "  BiocManager::install('limpa')")
   }
 
-  use_dpcCN <- args$use_dpcCN %||% FALSE
+  # limpa 1.4.0 turned dpc() into a dispatcher over the two published models --
+  # "cn" (complete normal, formerly dpcCN) and "on" (observed normal, formerly
+  # what dpc() itself fitted) -- and dropped the convergence controls of the old
+  # fitter. `maxit`, `eps` and `b1.upper` no longer exist anywhere in limpa, so
+  # they are gone from here too; `use_dpcCN` still selects the CN model.
+  use_dpcCN  <- args$use_dpcCN  %||% FALSE
+  model      <- args$model      %||% if (use_dpcCN) "cn" else "on"
   dpc.slope  <- args$dpc.slope  %||% 0.8
-  maxit      <- args$maxit      %||% 100
-  eps        <- args$eps        %||% 1e-04
-  b1.upper   <- args$b1.upper   %||% 1
+  dpc.start  <- args$dpc.start  %||% NULL
+  iterations <- args$iterations %||% 2L
+  subset     <- args$subset     %||% 2000L
+  robust     <- args$robust     %||% TRUE
   chunk      <- args$chunk      %||% 1000
   verbose    <- args$verbose    %||% FALSE
 
+  model <- match.arg(model, c("on", "cn"))
+
   # 1. Estimate the detection probability curve
-  if (use_dpcCN) {
-    dpc_est <- limpa::dpcCN(x, dpc.slope.start = dpc.slope, verbose = verbose)
-  } else {
-    dpc_est <- limpa::dpc(x, maxit = maxit, eps = eps, b1.upper = b1.upper)
-  }
+  dpc_est <- limpa::dpc(x, model = model, dpc.start = dpc.start,
+                        dpc.slope.start = dpc.slope,
+                        iterations = iterations, subset = subset,
+                        robust = robust, verbose = verbose)
 
   # 2. Row-wise quantification (imputes + computes SEs)
   elist <- limpa::dpcQuantByRow(x, dpc = dpc_est, verbose = verbose, chunk = chunk)

@@ -37,6 +37,7 @@ the MAR/MNAR hybrids) and differential expression with limma or limpa.}
 Useful links:
 \itemize{
   \item \url{https://github.com/sciordia/NADIA}
+  \item \url{https://sciordia.github.io/NADIA/}
   \item Report bugs at \url{https://github.com/sciordia/NADIA/issues}
 }
 
