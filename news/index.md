@@ -1,5 +1,23 @@
 # Changelog
 
+## NADIA 0.99.1
+
+Submitted-version fix, in response to the first Bioconductor build
+report.
+
+- **A parameter was named `cat`.** `BiocCheck` reports “Avoid ‘cat’ and
+  ‘print’ outside of ‘show’ methods” for two lines of
+  `R/Benchmarking_Single.R`, but neither calls
+  [`cat()`](https://rdrr.io/r/base/cat.html): the name belonged to the
+  argument of an anonymous function, an abbreviation of `Category`, used
+  only to index a colour vector. `BiocCheck` reads parsed code and
+  cannot tell the local binding from the base function. The parameter is
+  now `category`, which removes the NOTE rather than leaving the
+  reviewer to verify that it is spurious. There are no
+  [`cat()`](https://rdrr.io/r/base/cat.html) calls anywhere in `R/`; the
+  package writes through
+  [`message()`](https://rdrr.io/r/base/message.html).
+
 ## NADIA 0.99.0
 
 First version prepared for submission to Bioconductor. The project moves

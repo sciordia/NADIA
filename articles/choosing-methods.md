@@ -666,7 +666,7 @@ sessionInfo()
 #>  [1] SummarizedExperiment_1.42.0 Biobase_2.72.0              GenomicRanges_1.64.0       
 #>  [4] Seqinfo_1.2.0               IRanges_2.46.0              S4Vectors_0.50.2           
 #>  [7] BiocGenerics_0.58.1         generics_0.1.4              MatrixGenerics_1.24.0      
-#> [10] matrixStats_1.5.0           NADIA_0.99.0                BiocStyle_2.40.0           
+#> [10] matrixStats_1.5.0           NADIA_0.99.1                BiocStyle_2.40.0           
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] sandwich_3.1-3      permute_0.9-10      rlang_1.3.0         magrittr_2.0.5     

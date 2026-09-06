@@ -11,14 +11,14 @@ Source:
 [`inst/CITATION`](https://github.com/sciordia/NADIA/blob/main/inst/CITATION)
 
 Ciordia S (2026). NADIA: Missing Value-Aware Differential Abundance
-Analysis of DIA Proteomics Data. R package version 0.99.0.
+Analysis of DIA Proteomics Data. R package version 0.99.1.
 doi:10.5281/zenodo.22504221. https://github.com/sciordia/NADIA
 
     @Manual{,
       title = {{NADIA}: Missing Value-Aware Differential Abundance Analysis of DIA Proteomics Data},
       author = {Sergio Ciordia},
       year = {2026},
-      note = {R package version 0.99.0},
+      note = {R package version 0.99.1},
       url = {https://github.com/sciordia/NADIA},
       doi = {10.5281/zenodo.22504221},
     }

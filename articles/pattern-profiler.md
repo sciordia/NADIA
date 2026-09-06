@@ -743,7 +743,7 @@ sessionInfo()
 #> [8] base     
 #> 
 #> other attached packages:
-#> [1] NADIA_0.99.0       DynDoc_1.90.0      widgetTools_1.90.0 BiocStyle_2.40.0  
+#> [1] NADIA_0.99.1       DynDoc_1.90.0      widgetTools_1.90.0 BiocStyle_2.40.0  
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] tidyselect_1.2.1            rrcovNA_0.5-3              

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">NADIA</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.99.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.99.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -51,6 +51,12 @@
       <small>Source: <a href="https://github.com/sciordia/NADIA/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.99.1" id="nadia-0991">NADIA 0.99.1<a class="anchor" aria-label="anchor" href="#nadia-0991"></a></h2>
+<p>Submitted-version fix, in response to the first Bioconductor build report.</p>
+<ul><li>
+<strong>A parameter was named <code>cat</code>.</strong> <code>BiocCheck</code> reports “Avoid ‘cat’ and ‘print’ outside of ‘show’ methods” for two lines of <code>R/Benchmarking_Single.R</code>, but neither calls <code><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat()</a></code>: the name belonged to the argument of an anonymous function, an abbreviation of <code>Category</code>, used only to index a colour vector. <code>BiocCheck</code> reads parsed code and cannot tell the local binding from the base function. The parameter is now <code>category</code>, which removes the NOTE rather than leaving the reviewer to verify that it is spurious. There are no <code><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat()</a></code> calls anywhere in <code>R/</code>; the package writes through <code><a href="https://rdrr.io/r/base/message.html" class="external-link">message()</a></code>.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.99.0" id="nadia-0990">NADIA 0.99.0<a class="anchor" aria-label="anchor" href="#nadia-0990"></a></h2>
 <p>First version prepared for submission to Bioconductor. The project moves from a collection of modules consumed with <code><a href="https://rdrr.io/r/base/source.html" class="external-link">source()</a></code> to an installable R package, without any change to the results the pipeline produces.</p>

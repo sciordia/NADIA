@@ -366,7 +366,7 @@ knitr::kable(
 | BoxPlot_Input_cycloess_Impseqrob_min.tsv | Long-format boxplot input | 1999.3 KB |
 | matrix_log2_cycloess_Impseqrob_min.tsv | Imputed intensity matrix | 450.1 KB |
 | matrix_log2_cycloess.tsv | Normalised intensity matrix | 423.1 KB |
-| PCA_Input_cycloess_Impseqrob_min.tsv | Long-format PCA input | 2316.5 KB |
+| PCA_Input_cycloess_Impseqrob_min.tsv | Long-format PCA input | 2317.0 KB |
 | VolcanoPlot_Input_cycloess_Impseqrob_min.tsv | Differential-abundance results | 635.8 KB |
 
 Files created by the default TSV export. {.table}
@@ -1274,7 +1274,7 @@ sessionInfo()
 #> [1] tcltk     stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] NADIA_0.99.0       DynDoc_1.90.0      widgetTools_1.90.0 BiocStyle_2.40.0  
+#> [1] NADIA_0.99.1       DynDoc_1.90.0      widgetTools_1.90.0 BiocStyle_2.40.0  
 #> 
 #> loaded via a namespace (and not attached):
 #>   [1] DBI_1.3.0                   rlang_1.3.0                 magrittr_2.0.5             
