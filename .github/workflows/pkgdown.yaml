@@ -7,10 +7,15 @@
 # package root and honours no ignore file. Those files are not in the
 # repository, so a build made here cannot include them.
 #
-# Until GitHub Pages is enabled for this repository the build succeeds and the
-# final deploy step fails. To avoid failing runs while the repository is
-# private, drop the `push:` trigger below and start the workflow by hand from
-# the Actions tab.
+# GitHub Pages is enabled and serves https://sciordia.github.io/NADIA/ from the
+# gh-pages branch, which this workflow writes.
+#
+# An earlier version of this comment warned that the deploy step would fail
+# until Pages was enabled. It does not: the deploy action only pushes a commit
+# to gh-pages, and pushing to a branch needs nothing from Pages. The runs made
+# before Pages was turned on were green, and the branch simply sat there
+# unserved. Enabling Pages is therefore a one-off click in Settings, not a
+# precondition for this workflow to be useful.
 
 on:
   push:
