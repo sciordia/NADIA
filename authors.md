@@ -8,7 +8,7 @@
 ## Citation
 
 Source:
-[`inst/CITATION`](https://github.com/sciordia/NADIA/blob/main/inst/CITATION)
+[`inst/CITATION`](https://github.com/sciordia/NADIA/blob/v0.99.0/inst/CITATION)
 
 Ciordia S (2026). NADIA: Missing Value-Aware Differential Expression
 Analysis of DIA Proteomics Data. R package version 0.99.0.
