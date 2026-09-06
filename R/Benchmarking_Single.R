@@ -1176,7 +1176,7 @@ benchmark_confusion_gg <- function(
 
   plot_long$intensity <- pmax(plot_long$Percentage / 100, 0.08)
   plot_long$fill_hex  <- mapply(
-    function(cat, int) .blend_to_white(base_colors[cat], int),
+    function(category, int) .blend_to_white(base_colors[category], int),
     as.character(plot_long$Category), plot_long$intensity
   )
 
@@ -1279,7 +1279,7 @@ benchmark_confusion_overall_gg <- function(
 
   plot_long$intensity  <- pmax(plot_long$Percentage / 100, 0.08)
   plot_long$fill_hex   <- mapply(
-    function(cat, int) .blend_to_white(base_colors[cat], int),
+    function(category, int) .blend_to_white(base_colors[category], int),
     as.character(plot_long$Category), plot_long$intensity
   )
 
