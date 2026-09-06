@@ -1,0 +1,40 @@
+{
+  "title": "NADIA: Missing Value-Aware Differential Abundance Analysis of DIA Proteomics Data",
+  "description": "<p>NADIA covers the differential abundance analysis of protein quantification data from the raw report to the figure, treating the missing values that dominate data-independent acquisition as the central problem rather than a nuisance to be filtered away.</p><p>Reports from Spectronaut, DIA-NN and Proteome Discoverer (both TMT and label-free) are parsed into a common structure and then normalised (13 methods), optionally batch-corrected, imputed (20 methods, including two-stage MAR/MNAR hybrids and the probabilistic model limpa) and tested with limma or limpa. Benchmarking functions score and rank method combinations by ground-truth simulation and on spike-in datasets, so that a choice of pipeline can be justified on the data at hand rather than by convention.</p><p>The results carry the per-group missingness measured before imputation alongside the fold change, which is what lets a reader tell a genuine on/off signal from a fold change built entirely on imputed values.</p>",
+  "upload_type": "software",
+  "license": "GPL-3.0-or-later",
+  "access_right": "open",
+  "creators": [
+    {
+      "name": "Ciordia, Sergio",
+      "orcid": "0000-0002-5726-853X",
+      "affiliation": "Proteomics Facility, Centro Nacional de Biotecnologia (CNB-CSIC), Madrid, Spain"
+    }
+  ],
+  "keywords": [
+    "proteomics",
+    "mass spectrometry",
+    "data-independent acquisition",
+    "DIA",
+    "missing values",
+    "imputation",
+    "differential abundance",
+    "normalization",
+    "batch effect",
+    "benchmarking",
+    "R package",
+    "Bioconductor"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/sciordia/NADIA",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://sciordia.github.io/NADIA/",
+      "relation": "isDocumentedBy",
+      "scheme": "url"
+    }
+  ]
+}

@@ -31,3 +31,6 @@
 ^_pkgdown\.yml$
 ^pkgdown$
 ^docs$
+# Zenodo archiving metadata. It is read by Zenodo when a GitHub release is
+# published, and describes the deposit, not the package.
+^\.zenodo\.json$

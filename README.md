@@ -1,5 +1,11 @@
 # NADIA <img src="man/figures/logo.svg" align="right" height="139" alt="NADIA package logo" style="width:auto;padding:0;" />
 
+<!-- badges: start -->
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22504221.svg)](https://doi.org/10.5281/zenodo.22504221)
+[![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![pkgdown](https://github.com/sciordia/NADIA/actions/workflows/pkgdown.yaml/badge.svg)](https://github.com/sciordia/NADIA/actions/workflows/pkgdown.yaml)
+<!-- badges: end -->
+
 <div align="justify">
 
 **Missing Value-Aware Differential Abundance Analysis of DIA Proteomics Data**

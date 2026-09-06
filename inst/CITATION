@@ -11,17 +11,19 @@ citHeader("To cite NADIA in publications, please use:")
 
 bibentry(
     bibtype  = "Manual",
-    title    = paste("{NADIA}: Missing Value-Aware Differential Expression",
+    title    = paste("{NADIA}: Missing Value-Aware Differential Abundance",
                      "Analysis of DIA Proteomics Data"),
     author   = person(given = "Sergio", family = "Ciordia",
                       comment = c(ORCID = "0000-0002-5726-853X")),
     year     = "2026",
     note     = paste("R package version", version),
     url      = "https://github.com/sciordia/NADIA",
-    ## Add the Zenodo DOI here once the first release is archived, and mirror it
-    ## in the README. A dated DOI is what makes authorship demonstrable.
-    # doi    = "10.5281/zenodo.XXXXXXX",
+    ## The Zenodo *concept* DOI, which always resolves to the latest archived
+    ## release. The per-version DOI of 0.99.0 is 10.5281/zenodo.22504222, but a
+    ## citation should not pin a reader to the version that happened to be
+    ## current when the file was written.
+    doi      = "10.5281/zenodo.22504221",
     textVersion = paste0(
-        "Ciordia S (2026). NADIA: Missing Value-Aware Differential Expression ",
+        "Ciordia S (2026). NADIA: Missing Value-Aware Differential Abundance ",
         "Analysis of DIA Proteomics Data. R package version ", version, ". ",
-        "https://github.com/sciordia/NADIA"))
+        "doi:10.5281/zenodo.22504221. https://github.com/sciordia/NADIA"))
