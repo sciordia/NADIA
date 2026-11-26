@@ -5,25 +5,46 @@
 ## what happens under devtools::load_all().
 if (!exists("meta") || is.null(meta)) meta <- packageDescription("NADIA")
 version <- meta$Version
-if (is.null(version)) version <- "0.99.0"
+if (is.null(version)) version <- "1.0.0"
+
+nadia_title <- paste("{NADIA}: Missing Value-Aware Differential Abundance",
+                     "Analysis of DIA Proteomics Data")
+nadia_author <- person(given = "Sergio", family = "Ciordia",
+                       comment = c(ORCID = "0000-0002-5726-853X"))
 
 citHeader("To cite NADIA in publications, please use:")
 
+## The Bioconductor DOI, assigned on acceptance. It resolves to the package's
+## landing page, the one most readers will reach.
 bibentry(
     bibtype  = "Manual",
-    title    = paste("{NADIA}: Missing Value-Aware Differential Abundance",
-                     "Analysis of DIA Proteomics Data"),
-    author   = person(given = "Sergio", family = "Ciordia",
-                      comment = c(ORCID = "0000-0002-5726-853X")),
+    title    = nadia_title,
+    author   = nadia_author,
     year     = "2026",
     note     = paste("R package version", version),
-    url      = "https://github.com/sciordia/NADIA",
-    ## The Zenodo *concept* DOI, which always resolves to the latest archived
-    ## release. The per-version DOI of 0.99.0 is 10.5281/zenodo.22504222, but a
-    ## citation should not pin a reader to the version that happened to be
-    ## current when the file was written.
-    doi      = "10.5281/zenodo.22504221",
+    url      = "https://bioconductor.org/packages/NADIA",
+    doi      = "10.18129/B9.bioc.NADIA",
     textVersion = paste0(
         "Ciordia S (2026). NADIA: Missing Value-Aware Differential Abundance ",
         "Analysis of DIA Proteomics Data. R package version ", version, ". ",
+        "doi:10.18129/B9.bioc.NADIA. https://bioconductor.org/packages/NADIA"))
+
+## The Zenodo *concept* DOI, which always resolves to the latest archived
+## release. The per-version DOI of 0.99.0 is 10.5281/zenodo.22504222, but a
+## citation should not pin a reader to the version that happened to be current
+## when the file was written.
+bibentry(
+    bibtype  = "Misc",
+    title    = nadia_title,
+    author   = nadia_author,
+    year     = "2026",
+    howpublished = "Zenodo software archive",
+    url      = "https://github.com/sciordia/NADIA",
+    doi      = "10.5281/zenodo.22504221",
+    textVersion = paste0(
+        "Ciordia S (2026). NADIA: Missing Value-Aware Differential Abundance ",
+        "Analysis of DIA Proteomics Data. Zenodo software archive. ",
         "doi:10.5281/zenodo.22504221. https://github.com/sciordia/NADIA"))
+
+citFooter(paste("The Bioconductor DOI identifies the package; the Zenodo DOI",
+                "archives the source of every release."))
