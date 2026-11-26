@@ -286,8 +286,8 @@ the following result:</p>
 <span></span>
 <span><span class="va">pvca_default</span><span class="op">$</span><span class="va">variance_components</span></span>
 <span><span class="co">#&gt;       label     weights   category</span></span>
-<span><span class="co">#&gt; 1 Condition 0.998364844 biological</span></span>
-<span><span class="co">#&gt; 2  Below 1% 0.001635156   residual</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 Condition 0.998364382 biological</span></span>
+<span><span class="co">#&gt; 2  Below 1% 0.001635618   residual</span></span></code></pre></div>
 <p>Condition accounts for almost all of the reported variation, while
 digestion is absent from the table. This is surprising because the
 simulated digestion effect is known to be present.</p>
@@ -313,13 +313,13 @@ later components, which are excluded from the default decomposition.</p>
 <span></span>
 <span><span class="va">pvca_before</span><span class="op">$</span><span class="va">variance_components</span></span>
 <span><span class="co">#&gt;                 label      weights   category</span></span>
-<span><span class="co">#&gt; 1           Condition 0.7021401719 biological</span></span>
-<span><span class="co">#&gt; 2           Digestion 0.2742105406  technical</span></span>
-<span><span class="co">#&gt; 3 Digestion:Condition 0.0222670639 biol:techn</span></span>
-<span><span class="co">#&gt; 4 Injection:Condition 0.0005417228 biol:techn</span></span>
-<span><span class="co">#&gt; 5           Injection 0.0002478541  technical</span></span>
-<span><span class="co">#&gt; 6 Digestion:Injection 0.0001029636  technical</span></span>
-<span><span class="co">#&gt; 7               resid 0.0004896831   residual</span></span></code></pre></div>
+<span><span class="co">#&gt; 1           Condition 0.7021402345 biological</span></span>
+<span><span class="co">#&gt; 2           Digestion 0.2742063184  technical</span></span>
+<span><span class="co">#&gt; 3 Digestion:Condition 0.0222708653 biol:techn</span></span>
+<span><span class="co">#&gt; 4 Injection:Condition 0.0005416905 biol:techn</span></span>
+<span><span class="co">#&gt; 5           Injection 0.0002480711  technical</span></span>
+<span><span class="co">#&gt; 6 Digestion:Injection 0.0001029695  technical</span></span>
+<span><span class="co">#&gt; 7               resid 0.0004898508   residual</span></span></code></pre></div>
 <p>After increasing the threshold, digestion accounts for
 <strong>27.4%</strong> of the weighted variation and condition for
 <strong>70.2%</strong>. The batch effect does not need to dominate the
@@ -574,13 +574,13 @@ determine whether the biological structure remains visible:</p>
 <span></span>
 <span><span class="va">pvca_comparison</span></span>
 <span><span class="co">#&gt;                 label weights_before weights_after</span></span>
-<span><span class="co">#&gt; 1           Condition     0.70214017    0.77501717</span></span>
-<span><span class="co">#&gt; 2           Digestion     0.27421054    0.00003316</span></span>
-<span><span class="co">#&gt; 3 Digestion:Condition     0.02226706    0.03051652</span></span>
-<span><span class="co">#&gt; 4 Digestion:Injection     0.00010296    0.03131737</span></span>
-<span><span class="co">#&gt; 5           Injection     0.00024785    0.05424928</span></span>
-<span><span class="co">#&gt; 6 Injection:Condition     0.00054172    0.02172705</span></span>
-<span><span class="co">#&gt; 7               resid     0.00048968    0.08713946</span></span></code></pre></div>
+<span><span class="co">#&gt; 1           Condition     0.70214023    0.77501535</span></span>
+<span><span class="co">#&gt; 2           Digestion     0.27420632    0.00000002</span></span>
+<span><span class="co">#&gt; 3 Digestion:Condition     0.02227087    0.03051548</span></span>
+<span><span class="co">#&gt; 4 Digestion:Injection     0.00010297    0.03128563</span></span>
+<span><span class="co">#&gt; 5           Injection     0.00024807    0.05424928</span></span>
+<span><span class="co">#&gt; 6 Injection:Condition     0.00054169    0.02173484</span></span>
+<span><span class="co">#&gt; 7               resid     0.00048985    0.08719940</span></span></code></pre></div>
 <p>The estimated digestion contribution falls from 27.4% to a value
 close to zero, while the relative share assigned to condition rises from
 70.2% to 77.5%. This is the desired direction: the known technical
@@ -770,10 +770,10 @@ the reference assay used for the initial variance decomposition:</p>
 <span></span>
 <span><span class="va">tmt_pvca_before</span><span class="op">$</span><span class="va">variance_components</span></span>
 <span><span class="co">#&gt;           label      weights   category</span></span>
-<span><span class="co">#&gt; 1           Mix 0.6907005253  technical</span></span>
-<span><span class="co">#&gt; 2     Condition 0.3054257968 biological</span></span>
-<span><span class="co">#&gt; 3 Mix:Condition 0.0036035437 biol:techn</span></span>
-<span><span class="co">#&gt; 4         resid 0.0002701342   residual</span></span></code></pre></div>
+<span><span class="co">#&gt; 1           Mix 0.6907002599  technical</span></span>
+<span><span class="co">#&gt; 2     Condition 0.3054259524 biological</span></span>
+<span><span class="co">#&gt; 3 Mix:Condition 0.0036035945 biol:techn</span></span>
+<span><span class="co">#&gt; 4         resid 0.0002701932   residual</span></span></code></pre></div>
 <p>Before correction, TMT mix accounts for 69.1% of the weighted
 variation and condition for 30.5%. Unlike the preceding simulation, no
 numerical shift was introduced artificially: this structure is present
@@ -837,10 +837,10 @@ the mix-associated component was removed:</p>
 <span></span>
 <span><span class="va">tmt_pvca_comparison</span></span>
 <span><span class="co">#&gt;           label weights_before weights_after</span></span>
-<span><span class="co">#&gt; 1     Condition     0.30542580    0.96840801</span></span>
-<span><span class="co">#&gt; 2           Mix     0.69070053    0.00000000</span></span>
-<span><span class="co">#&gt; 3 Mix:Condition     0.00360354    0.03010062</span></span>
-<span><span class="co">#&gt; 4         resid     0.00027013    0.00149137</span></span></code></pre></div>
+<span><span class="co">#&gt; 1     Condition     0.30542595    0.96840802</span></span>
+<span><span class="co">#&gt; 2           Mix     0.69070026    0.00000000</span></span>
+<span><span class="co">#&gt; 3 Mix:Condition     0.00360359    0.03010062</span></span>
+<span><span class="co">#&gt; 4         resid     0.00027019    0.00149137</span></span></code></pre></div>
 <p>The estimated contribution of mix falls from 69.1% to a value close
 to zero, while the relative share assigned to condition rises from 30.5%
 to 96.8%. This confirms removal of the visible mix structure, but it

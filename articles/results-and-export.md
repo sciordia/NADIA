@@ -365,9 +365,9 @@ knitr::kable(
 | File | Contents | Size |
 |:---|:---|---:|
 | BoxPlot_Input_cycloess_Impseqrob_min.tsv | Long-format boxplot input | 1999.3 KB |
-| matrix_log2_cycloess_Impseqrob_min.tsv | Imputed intensity matrix | 450.1 KB |
+| matrix_log2_cycloess_Impseqrob_min.tsv | Imputed intensity matrix | 450.0 KB |
 | matrix_log2_cycloess.tsv | Normalised intensity matrix | 423.1 KB |
-| PCA_Input_cycloess_Impseqrob_min.tsv | Long-format PCA input | 2325.8 KB |
+| PCA_Input_cycloess_Impseqrob_min.tsv | Long-format PCA input | 2325.5 KB |
 | VolcanoPlot_Input_cycloess_Impseqrob_min.tsv | Differential-abundance results | 637.4 KB |
 
 Files created by the default TSV export. {.table}
