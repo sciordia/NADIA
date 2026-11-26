@@ -25,4 +25,5 @@ McClish correction). Normalized range: 0.5-1.
 
 ## Value
 
-Corrected partial AUC value or NA if pROC not available
+Corrected partial AUC value, or NA if the comparison lacks both classes
+or has fewer than three proteins

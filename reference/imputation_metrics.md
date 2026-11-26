@@ -15,7 +15,6 @@ imputation_metrics(
   combo_methods = list(),
   condition_col = "Condition",
   na_prop = 0.2,
-  seed = 42L,
   pattern = "random",
   method_args = list(),
   with_value = NA_real_,
@@ -46,15 +45,15 @@ imputation_metrics(
 - methods:
 
   Character vector of individual methods to benchmark. Default:
-  `.IM_BENCH_METHODS` (16 methods). Use `NULL` or `character(0)` to skip
+  `.IM_BENCH_METHODS` (15 methods). Use `NULL` or `character(0)` to skip
   individual methods when only using combo_methods.
 
 - combo_methods:
 
-  Named list of combo/softHybrid configurations. Each element:
-  `list(mar_method, mnar_method, mode)`. See
-  [`im_compute_metrics()`](https://sciordia.github.io/NADIA/reference/im_compute_metrics.md)
-  for details.
+  Named list of combo/softHybrid configurations. Each element is a list
+  with: `mode` ("combo" or "softHybrid", default "combo"), `mar_method`,
+  `mnar_method`. The list name is used as the method label in results.
+  Default: empty list (no combo methods).
 
 - condition_col:
 
@@ -65,10 +64,6 @@ imputation_metrics(
   Numeric (0-1). Proportion of artificial NAs. Default 0.20. Only used
   when `pattern = "random"`. Ignored when `pattern = "from_data"` (NA
   proportion is derived from the data, replicating NAguideR).
-
-- seed:
-
-  Integer. Random seed. Default 42.
 
 - pattern:
 
@@ -121,8 +116,16 @@ imputation_metrics(
 ## Value
 
 Named list of ggplot objects (or NULL for failed plots), plus
-`metrics_table`: a data.frame from
-[`im_compute_metrics()`](https://sciordia.github.io/NADIA/reference/im_compute_metrics.md).
+`metrics_table`: a data.frame with one row per method and the columns
+`NRMSE`, `SOR`, `PSS`, `ACC_OI` and `Rank_Mean`.
+
+## Reproducibility
+
+The cells masked to build the ground truth are drawn from the caller's
+RNG, and so are the imputations of the stochastic methods (`MinProb`,
+`QRILC`, `PI`, `mice`, `missForest`, `MLE`). Call
+[`set.seed()`](https://rdrr.io/r/base/Random.html) beforehand to
+reproduce a run.
 
 ## Examples
 
@@ -130,7 +133,8 @@ Named list of ggplot objects (or NULL for failed plots), plus
 data(nadia_dia)
 se <- im_prepare_se(nadia_dia, norm_method = "cycloess", verbose = FALSE)
 
-# The default sweeps 16 methods; a handful is enough to illustrate it
+# The default sweeps 15 methods; a handful is enough to illustrate it
+set.seed(42)
 res <- imputation_metrics(se, methods = c("min", "zero", "knn"),
                           plots = "ranking", verbose = FALSE)
 res$metrics_table

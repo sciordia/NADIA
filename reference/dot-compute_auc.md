@@ -1,6 +1,6 @@
-# Compute AUC using pROC (optional)
+# Compute AUC using pROC
 
-Compute AUC using pROC (optional)
+Compute AUC using pROC
 
 ## Usage
 
@@ -20,4 +20,5 @@ Compute AUC using pROC (optional)
 
 ## Value
 
-AUC value or NA if pROC not available
+AUC value, or NA if the comparison lacks both classes or has fewer than
+three proteins

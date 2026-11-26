@@ -48,6 +48,8 @@ process_proteomics(
   export_volcano = TRUE,
   export_boxplot = TRUE,
   export_pca = TRUE,
+  assay_name = NULL,
+  log2_input = FALSE,
   verbose = TRUE
 )
 ```
@@ -59,9 +61,13 @@ process_proteomics(
   A `proteomics_data` object, as returned by
   [`preprocess_spectronaut()`](https://sciordia.github.io/NADIA/reference/preprocess_spectronaut.md),
   [`preprocess_diann()`](https://sciordia.github.io/NADIA/reference/preprocess_diann.md),
-  [`preprocess_tmt()`](https://sciordia.github.io/NADIA/reference/preprocess_tmt.md)
+  [`preprocess_tmt()`](https://sciordia.github.io/NADIA/reference/preprocess_tmt.md),
+  [`preprocess_lfq()`](https://sciordia.github.io/NADIA/reference/preprocess_lfq.md)
   or
-  [`preprocess_lfq()`](https://sciordia.github.io/NADIA/reference/preprocess_lfq.md).
+  [`preprocess_se()`](https://sciordia.github.io/NADIA/reference/preprocess_se.md);
+  or a `SummarizedExperiment` of protein intensities with the condition
+  in `colData()$Condition` (see
+  [`preprocess_se()`](https://sciordia.github.io/NADIA/reference/preprocess_se.md)).
 
 - export_dir:
 
@@ -225,7 +231,10 @@ process_proteomics(
 
 - export_format:
 
-  Export format: "tsv", "parquet", or "both" (default: "tsv")
+  Export format: "tsv", "parquet", or "both" (default: "tsv"). It
+  applies to every file written, the matrices and the plot inputs alike.
+  Parquet needs the suggested package arrow, which is checked before the
+  analysis starts.
 
 - export_volcano:
 
@@ -238,6 +247,17 @@ process_proteomics(
 - export_pca:
 
   Export PCA_Input (default: TRUE)
+
+- assay_name:
+
+  For a `SummarizedExperiment` input, the assay with the intensities
+  (default: the first). See
+  [`preprocess_se()`](https://sciordia.github.io/NADIA/reference/preprocess_se.md).
+
+- log2_input:
+
+  For a `SummarizedExperiment` input, `TRUE` if the intensities are on
+  the log2 scale (default `FALSE`, linear).
 
 - verbose:
 
@@ -276,6 +296,10 @@ round trip through disk to obtain them would be gratuitous.
 The input is a `proteomics_data` object, which every preprocessing
 function returns with the same three elements, so the pipeline is
 indifferent to the acquisition and the search engine the data came from.
+A `SummarizedExperiment` is also accepted, for data imported with other
+tools: it is converted by
+[`preprocess_se()`](https://sciordia.github.io/NADIA/reference/preprocess_se.md),
+with `assay_name` and `log2_input`.
 
 ## Examples
 

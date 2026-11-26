@@ -12,15 +12,10 @@ get_heatmap_palette(palette = NULL, n = 11, reverse = FALSE)
 
 - palette:
 
-  Palette specification:
-
-  - NULL: use the default palette (RdBu)
-
-  - Vector of colours: use those colours directly
-
-  - String "paletteer::" (e.g. "viridis::viridis"): use paletteer
-
-  - String "brewer:" (e.g. "brewer:RdBu"): use RColorBrewer
+  Palette for the values, used as a colour ramp: `NULL` for the default
+  (blue-white-red); `"pkg::name"` for a palette from paletteer;
+  `"brewer:Name"`, or the bare name, for an RColorBrewer palette (up to
+  `n` colours); or a vector of colours.
 
 - n:
 

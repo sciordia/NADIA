@@ -89,7 +89,8 @@ A browsable htmltools object
 ## Examples
 
 ``` r
-if (requireNamespace("crosstalk", quietly = TRUE)) {
+if (requireNamespace("reactable", quietly = TRUE) &&
+    requireNamespace("crosstalk", quietly = TRUE)) {
   data(nadia_dia)
   res <- process_proteomics(nadia_dia, verbose = FALSE)
 

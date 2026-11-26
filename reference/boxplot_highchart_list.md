@@ -42,7 +42,10 @@ boxplot_highchart_list(
 
 - palette:
 
-  Colour palette: "ggsci::palette", "brewer:Name", or a vector
+  Colour palette: `NULL` for the default; `"pkg::name"` for a palette
+  from paletteer; `"brewer:Name"`, or the bare name, for an RColorBrewer
+  palette; or a vector of colours, unnamed or named after the groups. A
+  palette with fewer colours than groups is interpolated.
 
 - title:
 
@@ -84,16 +87,18 @@ List of highchart objects (one per assay)
 ## Examples
 
 ``` r
-data(nadia_dia)
-res <- process_proteomics(nadia_dia, verbose = FALSE)
+if (requireNamespace("highcharter", quietly = TRUE)) {
+  data(nadia_dia)
+  res <- process_proteomics(nadia_dia, verbose = FALSE)
 
-# One boxplot per assay; keep only the imputed one
-hc_list <- boxplot_highchart_list(
-  res$BoxPlot_Input,
-  assays      = "Impseqrob_min",
-  group_order = c("A", "B", "D"),
-  title       = "Boxplot: {assay}"
-)
-names(hc_list)
+  # One boxplot per assay; keep only the imputed one
+  hc_list <- boxplot_highchart_list(
+    res$BoxPlot_Input,
+    assays      = "Impseqrob_min",
+    group_order = c("A", "B", "D"),
+    title       = "Boxplot: {assay}"
+  )
+  names(hc_list)
+}
 #> [1] "Impseqrob_min"
 ```

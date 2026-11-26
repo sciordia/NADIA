@@ -65,7 +65,7 @@ A browsable object.
 ## Examples
 
 ``` r
-if (requireNamespace("jsonlite", quietly = TRUE)) {
+if (requireNamespace("reactable", quietly = TRUE)) {
   data(nadia_dia)
   res <- process_proteomics(nadia_dia, verbose = FALSE)
 

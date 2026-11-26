@@ -32,7 +32,8 @@ The drawn `HeatmapList`, invisibly. Called for its side effect.
 
 ``` r
 if (requireNamespace("ComplexHeatmap", quietly = TRUE) &&
-    requireNamespace("tidyHeatmap", quietly = TRUE)) {
+    requireNamespace("tidyHeatmap", quietly = TRUE) &&
+    requireNamespace("circlize", quietly = TRUE)) {
   data(nadia_dia)
   res <- process_proteomics(nadia_dia, verbose = FALSE)
   hm <- proteomics_heatmap(res$PCA_Input, mode = "any")

@@ -12,15 +12,20 @@ MLE: Maximum Likelihood Estimation (norm)
 
 - args:
 
-  list with optional `seed` (default 123). NAguideR strategy: no
+  list with optional `seed` (default `NULL`). NAguideR strategy: no
   transpose (features x samples).
 
 ## Details
 
-The seed is handed to
-[`norm::rngseed()`](https://rdrr.io/pkg/norm/man/rngseed.html), which
-seeds the internal RNG of the `norm` package rather than R's
-`.Random.seed`. That state cannot be read or restored, so – unlike every
-other seeded method here – this one is not wrapped in
-`.rng_state()`/`.rng_restore()`. It leaves R's own RNG untouched, but
-successive calls within a session are not independent.
+`norm` has an RNG of its own, separate from R's, which
+[`norm::rngseed()`](https://rdrr.io/pkg/norm/man/rngseed.html)
+initialises. When no `seed` is given, it is drawn from the caller's RNG,
+so [`set.seed()`](https://rdrr.io/r/base/Random.html) before
+[`impute_proteomics()`](https://sciordia.github.io/NADIA/reference/impute_proteomics.md)
+reproduces a run here as it does for every other stochastic method. A
+`seed` passed explicitly is handed to
+[`norm::rngseed()`](https://rdrr.io/pkg/norm/man/rngseed.html)
+unchanged. One limitation belongs to `norm` and no seed removes it: its
+generator keeps state that `rngseed()` does not reset, so a second `MLE`
+imputation in the same R session differs from the first even with the
+same seed. A script run in a fresh session is reproducible.

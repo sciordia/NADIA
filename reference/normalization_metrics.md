@@ -21,7 +21,6 @@ normalization_metrics(
   methods = NULL,
   method_args = list(),
   base_assay = "log2",
-  seed = 42L,
   verbose = TRUE,
   output_dir = NULL,
   export_plots = TRUE,
@@ -61,9 +60,7 @@ normalization_metrics(
 
 - cor_method:
 
-  Correlation method for
-  [`nm_plot_correlation()`](https://sciordia.github.io/NADIA/reference/nm_plot_correlation.md).
-  Default `"pearson"`.
+  Correlation method for the `"correlation"` plot. Default `"pearson"`.
 
 - pca_scales:
 
@@ -96,13 +93,6 @@ normalization_metrics(
 
   Name of the baseline assay to normalize from when using
   auto-normalization. Default `"log2"`.
-
-- seed:
-
-  Integer. Seed passed to
-  [`nm_compute_metrics()`](https://sciordia.github.io/NADIA/reference/nm_compute_metrics.md)
-  for the two metrics that use randomness, the Hopkins statistic and the
-  PERMANOVA p-value. Default 42.
 
 - verbose:
 
@@ -139,13 +129,11 @@ normalization_metrics(
 
 Named list of ggplot objects (or NULL for failed plots), plus
 data.frames always computed regardless of `plots` selection:
-`metrics_table` (from
-[`nm_compute_metrics()`](https://sciordia.github.io/NADIA/reference/nm_compute_metrics.md)),
-`pc1_rank`, `mds1_rank`, `pcv_rank`, `pmad_rank`, `pev_rank`,
-`cor_rank`, and `final_rank` (combined ranking as the mean of the five
-ranks `Rank_PCV`, `Rank_PMAD`, `Rank_PEV`, `Rank_Cor` and `Rank_Sep`;
-`pc1_rank` and `mds1_rank` are standalone diagnostics and do not enter
-it).
+`metrics_table` (one row per method and metric), `pc1_rank`,
+`mds1_rank`, `pcv_rank`, `pmad_rank`, `pev_rank`, `cor_rank`, and
+`final_rank` (combined ranking as the mean of the five ranks `Rank_PCV`,
+`Rank_PMAD`, `Rank_PEV`, `Rank_Cor` and `Rank_Sep`; `pc1_rank` and
+`mds1_rank` are standalone diagnostics and do not enter it).
 
 ## Details
 
@@ -154,6 +142,14 @@ When `methods` is provided, the function first runs
 to automatically apply the requested normalization methods from the
 `base_assay`, then computes metrics and generates plots on the resulting
 multi-assay SE.
+
+## Reproducibility
+
+Two columns use random numbers: `Hopkins`, which samples random
+reference points, and `PERMANOVA_pval`, which permutes the group labels.
+Both draw from the caller's RNG, so call
+[`set.seed()`](https://rdrr.io/r/base/Random.html) beforehand to
+reproduce them. Every other column is deterministic.
 
 ## Examples
 

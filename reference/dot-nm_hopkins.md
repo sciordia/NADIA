@@ -7,7 +7,7 @@ distribution.
 ## Usage
 
 ``` r
-.nm_hopkins(mat, n_sample = 10L, seed = 42L)
+.nm_hopkins(mat, n_sample = 10L)
 ```
 
 ## Arguments
@@ -20,12 +20,12 @@ distribution.
 
   Integer. Number of points to sample (default 10, capped at ncol - 1).
 
-- seed:
-
-  Integer. Seed used for the random reference points, so the statistic
-  is reproducible across calls. The caller's RNG state is restored on
-  exit.
-
 ## Value
 
 Numeric scalar (0-1).
+
+## Details
+
+The random reference points and the sampled data points are drawn from
+the caller's RNG, so the statistic is reproducible only after
+[`set.seed()`](https://rdrr.io/r/base/Random.html).

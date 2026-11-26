@@ -35,11 +35,10 @@ im_prepare_se(
 
 - pc1_rank:
 
-  data.frame from
-  [`nm_rank_pc1()`](https://sciordia.github.io/NADIA/reference/nm_rank_pc1.md)
-  or `normalization_metrics()$pc1_rank`. The first row's `Method` column
-  is used as winner. Ignored if `norm_method` is provided. Default
-  `NULL`.
+  The `pc1_rank` data.frame returned by
+  [`normalization_metrics()`](https://sciordia.github.io/NADIA/reference/normalization_metrics.md).
+  The first row's `Method` column is used as winner. Ignored if
+  `norm_method` is provided. Default `NULL`.
 
 - min_reps:
 
@@ -63,7 +62,8 @@ im_prepare_se(
 - include_log2:
 
   Logical. Include the baseline `"log2"` assay in the returned SE.
-  Default `TRUE`.
+  Default `TRUE`. Ignored when the method is `"log2"` itself, whose only
+  assay is the baseline.
 
 - verbose:
 
@@ -71,15 +71,15 @@ im_prepare_se(
 
 ## Value
 
-SummarizedExperiment with assays `"log2"` (optional) + winner method.
+SummarizedExperiment with assays `"log2"` (optional) + winner method;
+only `"log2"` when that is the method.
 
 ## Details
 
 Internally calls
 [`nm_prepare_se()`](https://sciordia.github.io/NADIA/reference/nm_prepare_se.md)
 to build the baseline SE with assay `"log2"`, then applies the chosen
-normalization via
-[`.nm_dispatch_normalization()`](https://sciordia.github.io/NADIA/reference/dot-nm_dispatch_normalization.md).
+normalization via `.norm_dispatch()`.
 
 ## Examples
 

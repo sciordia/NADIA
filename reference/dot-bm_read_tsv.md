@@ -1,6 +1,6 @@
-# Read a TSV file with readr fallback
+# Read a TSV file
 
-Read a TSV file with readr fallback
+Read a TSV file
 
 ## Usage
 

@@ -92,6 +92,9 @@ proteomics_heatmap(
 
   - NULL: no row annotations (default)
 
+  Empty values, and proteins the annotation does not list, are shown as
+  "NA" in white and placed last when ordering or splitting by it.
+
 - row_annotation_cols:
 
   Vector of column names to display as annotations. Default: NULL (uses
@@ -214,15 +217,9 @@ proteomics_heatmap(
 
 - palette_adjp:
 
-  Palette for the adjP annotation. It can be:
-
-  - NULL: use the default palette (red-orange-white)
-
-  - A vector of 3 colours: c(color_0, color_middle, color_0.05)
-
-  - String "brewer:name": use an RColorBrewer palette
-
-  - String "package::palette": use a paletteer palette
+  Palette for the adjP annotation, three colours for adjP = 0, 0.01 and
+  0.05: `NULL` for the default (red-orange-white), `"pkg::name"`
+  (paletteer), `"brewer:Name"` (RColorBrewer) or a vector of colours.
 
 - row_names_size:
 
@@ -321,7 +318,8 @@ tidyHeatmap/ComplexHeatmap object
 
 ``` r
 if (requireNamespace("ComplexHeatmap", quietly = TRUE) &&
-    requireNamespace("tidyHeatmap", quietly = TRUE)) {
+    requireNamespace("tidyHeatmap", quietly = TRUE) &&
+    requireNamespace("circlize", quietly = TRUE)) {
   data(nadia_dia)
   res <- process_proteomics(nadia_dia, verbose = FALSE)
 

@@ -1,11 +1,11 @@
-# Export benchmark data to TSV or Parquet
+# Export benchmark data to TSV
 
-Export benchmark data to TSV or Parquet
+Export benchmark data to TSV
 
 ## Usage
 
 ``` r
-.export_benchmark_data(data, filepath, format = "tsv")
+.export_benchmark_data(data, filepath)
 ```
 
 ## Arguments
@@ -17,7 +17,3 @@ Export benchmark data to TSV or Parquet
 - filepath:
 
   Full file path (with extension)
-
-- format:
-
-  "tsv" or "parquet"

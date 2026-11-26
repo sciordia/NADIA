@@ -87,15 +87,17 @@ A reactable object
 ## Examples
 
 ``` r
-data(nadia_dia)
-res <- process_proteomics(nadia_dia, verbose = FALSE)
+if (requireNamespace("reactable", quietly = TRUE)) {
+  data(nadia_dia)
+  res <- process_proteomics(nadia_dia, verbose = FALSE)
 
-# protein_quant adds the Description and Quant_Pepts columns
-tbl <- results_list_reactable(
-  res$DEPs_results,
-  protein_quant = nadia_dia$protein_quant,
-  comparisons   = "B-A"
-)
-class(tbl)
+  # protein_quant adds the Description and Quant_Pepts columns
+  tbl <- results_list_reactable(
+    res$DEPs_results,
+    protein_quant = nadia_dia$protein_quant,
+    comparisons   = "B-A"
+  )
+  class(tbl)
+}
 #> [1] "reactable"  "htmlwidget"
 ```

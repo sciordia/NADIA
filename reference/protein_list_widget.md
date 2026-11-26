@@ -66,7 +66,7 @@ A browsable htmltools object.
 ## Examples
 
 ``` r
-if (requireNamespace("jsonlite", quietly = TRUE)) {
+if (requireNamespace("reactable", quietly = TRUE)) {
   data(nadia_dia)
 
   w <- protein_list_widget(nadia_dia$protein_id,

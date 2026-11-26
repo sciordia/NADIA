@@ -25,7 +25,7 @@ The package is organised in four blocks:
 
   [`process_proteomics()`](https://sciordia.github.io/NADIA/reference/process_proteomics.md)
   coordinates normalization (13 methods), optional batch correction,
-  imputation (20 methods, including the MAR/MNAR hybrids) and
+  imputation (19 methods, including the MAR/MNAR hybrids) and
   differential expression with limma or limpa.
 
 - Metrics and benchmarking:

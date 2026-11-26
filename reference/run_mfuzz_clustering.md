@@ -5,7 +5,7 @@ Run Mfuzz clustering
 ## Usage
 
 ``` r
-run_mfuzz_clustering(eset_std, c, m, seed = 42)
+run_mfuzz_clustering(eset_std, c, m)
 ```
 
 ## Arguments
@@ -22,10 +22,10 @@ run_mfuzz_clustering(eset_std, c, m, seed = 42)
 
   Fuzziness parameter
 
-- seed:
-
-  Seed for reproducibility
-
 ## Value
 
 Mfuzz clustering object
+
+## Details
+
+The initial partition is drawn from the caller's RNG.

@@ -12,4 +12,7 @@ bpca: Bayesian PCA imputation (pcaMethods)
 
 - args:
 
-  list with optional `nPcs` (default ncol-1), `maxSteps` (default 100)
+  list with optional `maxSteps` (default 100). The number of principal
+  components is `ncol(x) - 1`, which `MsCoreUtils` fixes. Delegated to
+  `MsCoreUtils`, which gives identical results (Bioconductor review,
+  \#186); this wrapper keeps NADIA's argument names.

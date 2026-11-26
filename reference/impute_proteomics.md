@@ -1,6 +1,6 @@
 # Impute proteomics data
 
-Complete imputation pipeline with 20 methods. Four pathways:
+Complete imputation pipeline with 19 methods. Four pathways:
 
 ## Usage
 
@@ -44,10 +44,10 @@ impute_proteomics(
 
   Imputation method (default: "combo"). One of: "combo", "softHybrid",
   "bpca", "knn", "mice", "missForest", "Impseq", "Impseqrob", "QRILC",
-  "MLE", "MinDet", "MinProb", "PI", "min", "halfmin", "zero", "nbavg",
-  "with", "limpa", "none". `"halfmin"` is the DIA-NN half-minimum
-  recipe: since the assay is on the log2 scale, halving the intensity
-  means one unit below the global observed minimum.
+  "MLE", "MinDet", "MinProb", "PI", "min", "halfmin", "zero", "with",
+  "limpa", "none". `"halfmin"` is the DIA-NN half-minimum recipe: since
+  the assay is on the log2 scale, halving the intensity means one unit
+  below the global observed minimum.
 
 - mar_method:
 
@@ -82,7 +82,9 @@ impute_proteomics(
 - method_args:
 
   Named list of per-method argument lists (e.g., list(knn = list(k =
-  10), bpca = list(nPcs = 3)))
+  10), bpca = list(nPcs = 3))). For `missForest`,
+  `observations = "samples"` fits the forests on the samples, as
+  NAguideR does, instead of on the proteins (the default).
 
 - with_value:
 

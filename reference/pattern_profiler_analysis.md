@@ -20,8 +20,7 @@ pattern_profiler_analysis(
   c = NULL,
   selection_method = c("xb", "consensus", "elbow"),
   min_membership = 0.25,
-  seed = 42,
-  seeds = c(42, 123, 456),
+  n_starts = 3L,
   output_file = NULL,
   verbose = TRUE
 )
@@ -88,25 +87,19 @@ pattern_profiler_analysis(
 
   Minimum membership threshold for inclusion in the output
 
-- seed:
+- n_starts:
 
-  Integer. Seed for the Mfuzz clustering itself. Fuzzy c-means starts
-  from a random partition, so the cluster labels and the memberships
-  depend on it; fix it to make a run reproducible. The caller's RNG
-  state is restored on exit. Default 42.
-
-- seeds:
-
-  Numeric vector of seeds used when `auto_select_c = TRUE`: each
-  candidate number of clusters is fitted once per seed and the metrics
-  are averaged, so that the choice of `c` does not hang on a single
-  partition. Default `c(42, 123, 456)`.
+  Integer. Number of random starts used when `auto_select_c = TRUE`:
+  each candidate number of clusters is fitted `n_starts` times and the
+  metrics are averaged, so that the choice of `c` does not hang on a
+  single partition. Default `3`.
 
 - output_file:
 
   Path of the output parquet file. `NULL` by default, which writes
   nothing to disk; the long-format data is returned regardless in the
-  `long_output` element of the result.
+  `long_output` element of the result. Writing it needs the suggested
+  package arrow, which is checked before the clustering starts.
 
 - verbose:
 
@@ -119,6 +112,15 @@ List (invisible) with the clustering results: `optimal_c`, `m`,
 Mfuzz `cl` object, the standardised `eset_std` and `long_output`, the
 long-format data.frame that is written when `output_file` is given.
 
+## Reproducibility
+
+Fuzzy c-means starts from a random partition, so the cluster labels, the
+memberships and, with `auto_select_c = TRUE`, the chosen number of
+clusters depend on the caller's RNG. Call
+[`set.seed()`](https://rdrr.io/r/base/Random.html) immediately before
+the function to make a run reproducible on its own, whatever ran before
+it.
+
 ## Examples
 
 ``` r
@@ -128,6 +130,7 @@ if (requireNamespace("Mfuzz", quietly = TRUE) &&
   res <- process_proteomics(nadia_dia, verbose = FALSE)
 
   # auto_select_c = TRUE would cluster once per value of c_range
+  set.seed(42)
   pp <- pattern_profiler_analysis(
     res$se_proc,
     DEPs_results    = res$DEPs_results,

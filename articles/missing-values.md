@@ -8,8 +8,8 @@ successfully, or because its abundance was too low to be detected. These
 mechanisms call for different assumptions and can coexist within the
 same experiment.
 
-This vignette explains how to inspect that missingness, summarises the
-20 strategies available in NADIA and describes the behaviour of the
+This vignette explains how to inspect that missingness, summarizes the
+19 strategies available in NADIA and describes the behavior of the
 hybrid and detection-aware options. It does not repeat the benchmarking
 metrics used to rank candidate methods; those are covered in
 [`vignette("choosing-methods")`](https://sciordia.github.io/NADIA/articles/choosing-methods.md).
@@ -22,6 +22,10 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 BiocManager::install("NADIA")
 ```
+
+This vignette also uses `limpa`, which is optional;
+`BiocManager::install("NADIA", dependencies = TRUE)` installs it
+together with NADIA.
 
 ``` r
 
@@ -47,7 +51,7 @@ following practical distinction:
   abundance is below the detection limit. Missingness depends on the
   unobserved abundance being low and therefore carries biological or
   measurement information. Replacing such a gap with a typical
-  neighbouring value may erase that evidence, so a low-value or
+  neighboring value may erase that evidence, so a low-value or
   detection-aware method is generally more plausible.
 
 ![Two-panel diagram comparing MAR and MNAR missing values. MAR shows a
@@ -60,9 +64,6 @@ and that both mechanisms can coexist.](figures/MAR_MNAR_Missingness.svg)
 Practical distinction between MAR and MNAR missing values in proteomics.
 MAR values are reconstructed from observed data structure, whereas MNAR
 values call for a low-value or detection-aware model.
-
-Click the figure to enlarge it; press Esc or click outside the image to
-close it.
 
 An individual `NA` does not reveal why the value is missing. MAR and
 MNAR are possible explanations that must be evaluated using the
@@ -78,7 +79,7 @@ format. In a long Spectronaut report, a protein that was not quantified
 in a particular run is usually absent from the report; when NADIA
 constructs the wide `protein_quant` table, the corresponding protein–run
 cell becomes `NA`. Some wide reports use zero instead to mark an
-unreported intensity. Before normalisation,
+unreported intensity. Before normalization,
 [`normalize_proteomics()`](https://sciordia.github.io/NADIA/reference/normalize_proteomics.md)
 converts these zeros to `NA`, so downstream functions handle both
 situations consistently.
@@ -229,11 +230,11 @@ missingness, more condition-wise dropout and a stronger association
 between low abundance and missingness. This does not show that one
 search engine is better; it shows that imputation decisions should be
 based on the missing-value pattern of the matrix that will actually be
-analysed.
+analyzed.
 
 ## Imputation strategies available in NADIA
 
-NADIA offers 20 selectable imputation strategies. The table below groups
+NADIA offers 19 selectable imputation strategies. The table below groups
 them according to their main purpose and the type of missingness they
 are generally intended to address. This grouping provides practical
 guidance; it does not imply that the mechanism behind every missing
@@ -242,13 +243,12 @@ value can be determined unambiguously.
 | Group | imp_method | Principle |
 |----|----|----|
 | Structure-based, generally used for MAR | `bpca` | Bayesian principal-component imputation using `pcaMethods`. |
-|  | `knn` | Estimates a value from similar proteins using k-nearest neighbours. |
+|  | `knn` | Estimates a value from similar proteins using k-nearest neighbors. |
 |  | `mice` | Multiple imputation by chained equations; NADIA averages the completed matrices. |
-|  | `missForest` | Non-parametric random-forest imputation using relationships among variables. |
+|  | `missForest` | Non-parametric random-forest imputation: each sample is predicted from the others, learned over the proteins (`observations = "samples"` in `method_args` reverses it, as NAguideR does). |
 |  | `Impseq` | Sequential model-based imputation from `rrcovNA`. |
 |  | `Impseqrob` | Robust sequential imputation that reduces sensitivity to outlying profiles. |
 |  | `MLE` | Maximum-likelihood imputation under a multivariate normal model. |
-|  | `nbavg` | Replaces a gap with the mean of the nearest observed positions in the same protein profile. |
 | Low-value, generally used for MNAR | `QRILC` | Quantile-regression imputation for left-censored data. |
 |  | `MinDet` | Uses a low, sample-specific quantile; the default is the first percentile. |
 |  | `MinProb` | Draws low values around a sample-specific low quantile. |
@@ -268,14 +268,14 @@ that missingness is associated with low abundance and impute values from
 the lower tail of the intensity distribution. `combo`, `softHybrid` and
 `limpa` address this distinction more explicitly, as described below.
 The `none` option leaves the missing values unchanged and therefore
-requires downstream methods that can analyse an incomplete matrix.
+requires downstream methods that can analyze an incomplete matrix.
 
 `halfmin` operates on log₂-transformed data. Halving the global minimum
 on the original intensity scale is equivalent to subtracting one from
 its log₂ value, so the imputed value is `log2(minimum) - 1`. Both `min`
 and `halfmin` depend on the single lowest observed intensity in the
 matrix. Distribution-based methods such as `MinDet`, `QRILC` and
-`MinProb` instead characterise the low-intensity tail using more than
+`MinProb` instead characterize the low-intensity tail using more than
 this single value.
 
 ## Why one method may not represent every gap
@@ -337,8 +337,8 @@ replicates. `Observed` denotes a measured intensity. Classification is
 performed separately for the missing cells in each condition, so the
 protein is not assigned one fixed MAR or MNAR label.
 
-![Four coloured examples of combo classification with four replicates
-per condition. The first is assigned to MNAR because one condition is 75
+![Four colored examples of combo classification with four replicates per
+condition. The first is assigned to MNAR because one condition is 75
 percent missing and another is fully observed. The second is assigned to
 MAR because 50 percent missing is below the 51 percent threshold. The
 third protein is removed because no other condition has at least 50
@@ -351,9 +351,6 @@ is assigned to the MNAR branch only when the missingness threshold and
 the evidence in other conditions are both satisfied; otherwise it enters
 the MAR branch or the protein may be removed by the preliminary combo
 filter.
-
-Click the figure to enlarge it; press Esc or click outside the image to
-close it.
 
 In these examples, each condition has four replicates. Therefore,
 `prop_present_mar = 0.5` means that another condition must contain at
@@ -415,7 +412,7 @@ default MAR and MNAR methods, respectively.
 
 The transition is controlled by two sigmoid functions. Parameter `a`
 determines how rapidly the weight changes with the missing-value
-proportion, `b` controls the transition along the standardised intensity
+proportion, `b` controls the transition along the standardized intensity
 axis and `lambda` balances the two signals. In most cases, the defaults
 provide the natural starting point:
 
@@ -537,13 +534,13 @@ particular dataset**.
 ``` r
 
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
+#> R version 4.6.2 (2026-10-29)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 26.04.1 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.32.so;  LAPACK version 3.12.0
 #> 
 #> locale:
 #>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8        LC_COLLATE=C.UTF-8    
@@ -557,36 +554,33 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] NADIA_0.99.1     BiocStyle_2.40.0
+#> [1] NADIA_1.1.0      BiocStyle_2.40.0
 #> 
 #> loaded via a namespace (and not attached):
-#>  [1] SummarizedExperiment_1.42.0 xfun_0.60                   bslib_0.12.0               
-#>  [4] htmlwidgets_1.6.4           rlist_0.4.6.2               Biobase_2.72.0             
-#>  [7] lattice_0.22-9              limpa_1.4.0                 vctrs_0.7.3                
-#> [10] tools_4.6.1                 generics_0.1.4              stats4_4.6.1               
-#> [13] curl_8.0.0                  tibble_3.3.1                DEoptimR_1.2-1             
-#> [16] cluster_2.1.8.2             xts_0.14.2                  pkgconfig_2.0.3            
-#> [19] Matrix_1.7-5                data.table_1.18.6.1         desc_1.4.3                 
-#> [22] S4Vectors_0.50.2            assertthat_0.2.1            lifecycle_1.0.5            
-#> [25] compiler_4.6.1              stringr_1.6.0               textshaping_1.0.5          
-#> [28] statmod_1.5.2               highcharter_0.9.5           Seqinfo_1.2.0              
-#> [31] htmltools_0.5.9             sass_0.4.10                 yaml_2.3.12                
-#> [34] rrcov_1.7-7                 pillar_1.11.1               pkgdown_2.2.1              
-#> [37] jquerylib_0.1.4             tidyr_1.3.2                 DelayedArray_0.38.2        
-#> [40] cachem_1.1.0                limma_3.68.5                abind_1.4-8                
-#> [43] robustbase_0.99-7           tidyselect_1.2.1            digest_0.6.39              
-#> [46] mvtnorm_1.4-2               stringi_1.8.9               dplyr_1.2.1                
-#> [49] purrr_1.2.2                 bookdown_0.48               splines_4.6.1              
-#> [52] pcaPP_2.0-5                 fastmap_1.2.0               grid_4.6.1                 
-#> [55] SparseArray_1.12.2          cli_3.6.6                   magrittr_2.0.5             
-#> [58] S4Arrays_1.12.0             rrcovNA_0.5-3               broom_1.0.13               
-#> [61] backports_1.5.1             lubridate_1.9.5             timechange_0.4.0           
-#> [64] XVector_0.52.0              TTR_0.24.4                  rmarkdown_2.32             
-#> [67] matrixStats_1.5.0           quantmod_0.4.29             otel_0.2.0                 
-#> [70] norm_1.0-11.1               ragg_1.5.2                  zoo_1.9-0                  
-#> [73] evaluate_1.0.5              knitr_1.51                  GenomicRanges_1.64.0       
-#> [76] IRanges_2.46.0              rlang_1.3.0                 glue_1.8.1                 
-#> [79] reactable_0.4.5             BiocManager_1.30.27         BiocGenerics_0.58.1        
-#> [82] jsonlite_2.0.0              R6_2.6.1                    MatrixGenerics_1.24.0      
-#> [85] systemfonts_1.3.2           fs_2.1.0
+#>  [1] SummarizedExperiment_1.42.0 xfun_0.62                   bslib_0.12.0               
+#>  [4] htmlwidgets_1.6.4           Biobase_2.72.0              lattice_0.23-1             
+#>  [7] limpa_1.4.2                 vctrs_0.7.3                 tools_4.6.2                
+#> [10] generics_0.1.4              stats4_4.6.2                tibble_3.3.1               
+#> [13] DEoptimR_1.2-2              cluster_2.1.8.3             pkgconfig_2.0.3            
+#> [16] Matrix_1.7-6                data.table_1.18.6.1         desc_1.4.3                 
+#> [19] S4Vectors_0.50.3            lifecycle_1.0.5             compiler_4.6.2             
+#> [22] stringr_1.6.0               textshaping_1.1.0           statmod_1.5.2              
+#> [25] Seqinfo_1.2.0               clue_0.3-68                 htmltools_0.5.9            
+#> [28] sass_0.5.0                  yaml_2.3.12                 pillar_1.11.1              
+#> [31] pkgdown_2.2.1               jquerylib_0.1.4             rrcov_1.7-7                
+#> [34] tidyr_1.3.2                 MASS_7.3-66                 cachem_1.1.0               
+#> [37] DelayedArray_0.38.2         limma_3.68.5                abind_1.4-8                
+#> [40] robustbase_0.99-7           tidyselect_1.2.1            digest_0.6.39              
+#> [43] mvtnorm_1.5-0               stringi_1.8.9               dplyr_1.2.1                
+#> [46] purrr_1.2.2                 bookdown_0.48               splines_4.6.2              
+#> [49] pcaPP_2.0-7                 fastmap_1.2.0               grid_4.6.2                 
+#> [52] cli_3.6.6                   SparseArray_1.12.3          magrittr_2.0.5             
+#> [55] S4Arrays_1.12.1             rrcovNA_0.5-3               rmarkdown_2.32             
+#> [58] XVector_0.52.0              matrixStats_1.5.0           otel_0.3.0                 
+#> [61] norm_1.0-11.1               ragg_1.5.2                  evaluate_1.0.5             
+#> [64] knitr_1.52                  GenomicRanges_1.64.0        IRanges_2.46.0             
+#> [67] rlang_1.3.0                 glue_1.8.1                  BiocManager_1.30.27        
+#> [70] BiocGenerics_0.58.1         jsonlite_2.0.0              R6_2.6.1                   
+#> [73] MatrixGenerics_1.24.0       systemfonts_1.3.4           fs_2.1.0                   
+#> [76] MsCoreUtils_1.24.0
 ```

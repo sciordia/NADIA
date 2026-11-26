@@ -1,5 +1,7 @@
 # NADIA
 
+![NADIA package logo](reference/figures/logo.svg)
+
 **Missing Value-Aware Differential Abundance Analysis of DIA Proteomics
 Data**
 
@@ -7,12 +9,13 @@ NADIA provides a complete workflow for the analysis of protein
 quantification data from bottom-up proteomics. It starts from
 quantification reports exported by Spectronaut, DIA-NN or Proteome
 Discoverer and produces processed matrices, differential abundance
-results, tables and visualisations.
+results, tables and visualizations.
 
-[![NADIA workflow: import DIA, TMT or label-free DDA data; normalise,
-optionally correct batch effects, handle missing values, test
-differential abundance and optionally run Pattern Profiler; explore and
-export the results. Method assessment and benchmarking support pipeline
+[![NADIA workflow: import DIA, TMT or label-free DDA data, or a
+SummarizedExperiment object; normalize, optionally correct batch
+effects, handle missing values, test differential abundance and
+optionally run Pattern Profiler; explore and export the results. Method
+assessment and benchmarking support pipeline
 selection.](articles/figures/nadia-workflow-overview.svg)](https://sciordia.github.io/NADIA/vignettes/figures/nadia-workflow-overview.svg)
 
 *NADIA at a glance: a common workflow from quantification reports to
@@ -20,8 +23,8 @@ interpretable, reproducible results, with explicit attention to missing
 values.*
 
 The name NADIA is derived from **Missing Value-Aware Differential
-Abundance Analysis of DIA Proteomics Data**, which summarises the
-package’s main purpose: analysing differential protein abundance while
+Abundance Analysis of DIA Proteomics Data**, which summarizes the
+package’s main purpose: analyzing differential protein abundance while
 explicitly accounting for missing values. The name also brings together
 **NA**, the notation used by R for missing values, and **DIA**,
 data-independent acquisition, the proteomics context in which the
@@ -79,19 +82,19 @@ exploring and exporting reproducible results:
     experiments processed with Proteome Discoverer. Every format is
     converted into a common `proteomics_data` object, so that the rest
     of the workflow is independent of the source software.
-2.  *Processing and differential abundance* — Offers 13 normalisation
+2.  *Processing and differential abundance* — Offers 13 normalization
     methods, batch-effect assessment and correction, and 20 individual
     imputation methods. Hybrid imputation strategies handle values
     assumed to be missing at random (MAR) and missing not at random
-    (MNAR) separately. Differential abundance is analysed with `limma`
+    (MNAR) separately. Differential abundance is analyzed with `limma`
     or `limpa`.
-3.  *Method assessment and selection* — Compares normalisation and
+3.  *Method assessment and selection* — Compares normalization and
     imputation methods using data-derived metrics. Where a known
     reference is available, such as a *spike-in* experiment, NADIA
     evaluates sensitivity, specificity and the recovery of the expected
-    changes, and ranks normalisation and imputation combinations using
+    changes, and ranks normalization and imputation combinations using
     the OpDEA approach.
-4.  *Results exploration and visualisation* — Produces interactive
+4.  *Results exploration and visualization* — Produces interactive
     figures with Highcharts, including volcano plots, boxplots,
     principal component analysis (PCA) plots and protein cluster
     profiles. It also produces static figures with ggplot2 and
@@ -99,17 +102,17 @@ exploring and exporting reproducible results:
     through fuzzy clustering.
 5.  *Tables and export* — Presents the results in interactive tables and
     exports the processed matrices, the differential abundance results
-    and the data used by the visualisations in formats suited to
+    and the data used by the visualizations in formats suited to
     archiving or further analysis. The analysis can also be saved as a
     single `.nadia` file: a DuckDB database that avoids unnecessary
     duplication and preserves results, parameters and provenance.
 
 ## Method choice is not cosmetic
 
-Normalisation and imputation are not merely technical steps. They can
+Normalization and imputation are not merely technical steps. They can
 substantially change the outcome of a differential abundance analysis.
 
-The table below compares four normalisation and imputation combinations
+The table below compares four normalization and imputation combinations
 applied to the same dataset, using the same statistical model and the
 same significance and fold-change thresholds:
 
@@ -129,7 +132,7 @@ differentially abundant also changes considerably: from around 1,050
 with `cycloess` + `knn` to more than 3,700 with `quantile` + `combo`.
 
 This variability does not by itself indicate which pipeline is correct.
-It shows that the choice of normalisation and imputation method should
+It shows that the choice of normalization and imputation method should
 be assessed on the data, rather than adopted by convention alone. It
 also shows why a reproducible analysis must state which methods and
 parameters produced the final table: without that information, two
@@ -145,38 +148,7 @@ evaluates them against that reference.
 
 ## Installation
 
-NADIA requires R 4.6 or later. While the package is under development
-and not yet available on Bioconductor, it can be installed from its
-GitHub repository:
-
-``` r
-
-# install.packages("remotes")
-remotes::install_github("sciordia/NADIA", build_vignettes = TRUE)
-library(NADIA)
-```
-
-The mandatory dependencies declared in the `Imports:` field of
-`DESCRIPTION` are installed automatically. The dependencies declared in
-`Suggests:` are only needed for particular optional functions or
-methods. `mice`, for instance, is required when that imputation method
-is selected, `pROC` computes the AUC and pAUC benchmarking metrics, and
-`Mfuzz` is used by the Pattern Profiler.
-
-When an optional dependency is missing, NADIA names the required package
-and explains how to install it. All the package dependencies can be
-checked or installed through the helper functions included in the
-repository:
-
-``` r
-
-source("install_dependencies.R")         # from a clone of the repository
-install_nadia_deps(dry_run = TRUE)       # only report what is missing
-install_nadia_deps(optional = FALSE)     # only the essentials
-```
-
-Once NADIA is available on Bioconductor, the recommended installation
-will be:
+NADIA requires R 4.6 or later. Install it from Bioconductor with:
 
 ``` r
 
@@ -185,22 +157,36 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 BiocManager::install("NADIA")
 ```
 
+This installs the packages in the `Imports:` field of `DESCRIPTION`.
+Those in `Suggests:` are needed only by particular methods or functions:
+`mice` when that imputation method is selected, for instance, `Mfuzz`
+for the Pattern Profiler, or `highcharter` and `reactable` for the
+interactive figures and tables. When one is missing, NADIA names it and
+explains how to install it. To install them all at once:
+
+``` r
+
+BiocManager::install("NADIA", dependencies = TRUE)
+```
+
 ### A note on Highcharts licensing
 
 NADIA uses the R package `highcharter`, distributed under the MIT
-licence, to generate some of its interactive visualisations.
+license, to generate some of its interactive visualizations.
 `highcharter` acts as an interface to the Highcharts JavaScript library,
 which is distributed under its own licensing terms.
 
-NADIA’s licence neither grants nor implies a licence to use Highcharts.
-Depending on the context in which the visualisations are used —
+NADIA’s license neither grants nor implies a license to use Highcharts.
+Depending on the context in which the visualizations are used —
 personal, educational, academic, institutional, governmental or
-commercial — a specific Highcharts licence may be required. Users should
+commercial — a specific Highcharts license may be required. Users should
 consult the current [Highsoft terms](https://www.highcharts.com/license)
-and ensure that their use complies with the applicable licence.
+and ensure that their use complies with the applicable license.
 
 NADIA’s statistical analysis does not depend on producing interactive
-figures. The static visualisations produced with ggplot2 and
+figures. `highcharter` is in `Suggests:`, so it is installed only with
+`dependencies = TRUE` or on its own, and using Highcharts is always an
+explicit choice. The static visualizations produced with ggplot2 and
 ComplexHeatmap can be used instead, and the complete workflow can be run
 without generating a single Highcharts figure.
 
@@ -210,7 +196,7 @@ NADIA includes `nadia_dia`, a preprocessed DIA dataset with three
 conditions, four replicates per condition and 2,000 protein groups.
 Approximately 8% of its intensity measurements are missing.
 
-The example below normalises the data with `cycloess`, applies the
+The example below normalizes the data with `cycloess`, applies the
 hybrid `combo` imputation strategy and runs the differential abundance
 analysis with `limma`:
 
@@ -242,8 +228,8 @@ imputed matrix is stored in the `Impseqrob_min` assay.
 [`process_proteomics()`](https://sciordia.github.io/NADIA/reference/process_proteomics.md)
 coordinates the main stages of the analysis and returns a list
 containing the processed object, the differential abundance results and
-the tables used by the visualisation modules. `res$DEPs_results` holds
-one row per protein group and comparison analysed.
+the tables used by the visualization modules. `res$DEPs_results` holds
+one row per protein group and comparison analyzed.
 
 The function writes no files unless a directory is given through
 `export_dir`.
@@ -295,7 +281,7 @@ NADIA includes nine vignettes documenting the complete workflow and its
 main modules. To get started, read
 [`vignette("NADIA")`](https://sciordia.github.io/NADIA/articles/NADIA.md),
 which walks through an analysis from the quantification data to the
-differential abundance results and their visualisations.
+differential abundance results and their visualizations.
 
 Use the following guide to find the vignette that addresses your
 question:
@@ -305,11 +291,11 @@ question:
 | `NADIA` | How do I run a complete analysis with NADIA? |
 | `input-formats` | How do I import DIA, TMT or label-free (DDA) data? |
 | `missing-values` | What do the missing values mean and how should I impute them? |
-| `choosing-methods` | How do I compare normalisation and imputation methods without a known reference? |
+| `choosing-methods` | How do I compare normalization and imputation methods without a known reference? |
 | `benchmarking` | How do I evaluate pipelines when I have a *spike-in* experiment with expected changes? |
 | `batch-correction` | How do I detect batch effects, correct them and assess the correction? |
 | `pattern-profiler` | How do I identify proteins with similar profiles across conditions? |
-| `visualization` | How do I customise the interactive and static figures? |
+| `visualization` | How do I customize the interactive and static figures? |
 | `results-and-export` | How do I export, archive and share the analysis results? |
 
 Every vignette contains executable code and generates its results from
@@ -322,7 +308,7 @@ The installed vignettes can be browsed with `browseVignettes("NADIA")`.
 
 NADIA ships an agent skill: the same pipeline written for a coding
 assistant rather than for a reader. It documents which function to call
-at each stage, how to choose between the normalisation and imputation
+at each stage, how to choose between the normalization and imputation
 methods, what to check afterwards, and the mistakes the package’s
 defaults invite. It is plain Markdown, so any assistant can read it, and
 it follows the layout Claude expects for a skill.
@@ -377,7 +363,7 @@ the source software or quantification design.
 [`process_proteomics()`](https://sciordia.github.io/NADIA/reference/process_proteomics.md)
 coordinates the central stages of the analysis:
 
-1.  normalisation
+1.  normalization
 2.  optional batch-effect correction
 3.  imputation of missing values
 4.  differential abundance analysis
@@ -387,15 +373,15 @@ Pattern Profiler is a separate optional step. It is run afterwards with
 which identifies proteins with similar abundance profiles from the
 processed object and the differential abundance results.
 
-From normalisation onwards, NADIA stores the data in a
+From normalization onwards, NADIA stores the data in a
 `SummarizedExperiment`. Assays contain quantitative matrices with
 protein groups in rows and samples in columns; `rowData` and `colData`
 store the corresponding protein annotations and sample metadata. These
 components remain aligned when the object is subsetted.
 
-Separate assays preserve the input, log-transformed, normalised and
+Separate assays preserve the input, log-transformed, normalized and
 imputed matrices. The function also returns the differential-abundance
-results and the tables used by the visualisation modules.
+results and the tables used by the visualization modules.
 
 The main stages can be run individually through
 [`normalize_proteomics()`](https://sciordia.github.io/NADIA/reference/normalize_proteomics.md),
@@ -409,7 +395,7 @@ and
 The assessment modules are separate from the main processing:
 
 - [`normalization_metrics()`](https://sciordia.github.io/NADIA/reference/normalization_metrics.md)
-  compares normalisation methods using observable properties of the
+  compares normalization methods using observable properties of the
   data.
 - [`imputation_metrics()`](https://sciordia.github.io/NADIA/reference/imputation_metrics.md)
   evaluates imputation methods by simulating missing values.
@@ -417,11 +403,11 @@ The assessment modules are separate from the main processing:
   compares one pipeline against the expected changes of a *spike-in*
   experiment.
 - [`benchmarking_multiple()`](https://sciordia.github.io/NADIA/reference/benchmarking_multiple.md)
-  ranks multiple normalisation and imputation combinations.
+  ranks multiple normalization and imputation combinations.
 
-### Visualisation and presentation of results
+### Visualization and presentation of results
 
-The visualisation functions mainly accept tables and data frames, so
+The visualization functions mainly accept tables and data frames, so
 they can be used both with the results of
 [`process_proteomics()`](https://sciordia.github.io/NADIA/reference/process_proteomics.md)
 and with results produced elsewhere.
@@ -469,7 +455,7 @@ documents how the example reports and the `nadia_dia` object were
 prepared from the original data.
 
 These data are provided solely to demonstrate, test and reproduce the
-behaviour of the package. They should not be treated as reference
+behavior of the package. They should not be treated as reference
 datasets from which to draw biological conclusions about the original
 experiments.
 
@@ -478,7 +464,7 @@ experiments.
 NADIA is free and open-source software distributed under the terms of
 the GNU General Public License, version 3 or any later version. The code
 may be used, modified and redistributed in accordance with the
-conditions of that licence. See the `LICENSE` file and the `License:`
+conditions of that license. See the `LICENSE` file and the `License:`
 field of `DESCRIPTION` for further details.
 
 Copyright © 2025–2026 Sergio Ciordia.
@@ -487,9 +473,12 @@ Copyright © 2025–2026 Sergio Ciordia.
 
 ## Import and preprocessing
 
-Four readers, one output contract. Each converts a quantification report
-into the same `proteomics_data` object, so everything downstream is
-independent of the search engine.
+Five readers, one output contract. Four convert a quantification report,
+and
+[`preprocess_se()`](https://sciordia.github.io/NADIA/reference/preprocess_se.md)
+a `SummarizedExperiment` imported with another tool, into the same
+`proteomics_data` object, so everything downstream is independent of the
+search engine.
 
 - [`preprocess_spectronaut()`](https://sciordia.github.io/NADIA/reference/preprocess_spectronaut.md)
   : Preprocess Spectronaut reports
@@ -499,6 +488,8 @@ independent of the search engine.
   : Preprocess Proteome Discoverer TMT exports
 - [`preprocess_lfq()`](https://sciordia.github.io/NADIA/reference/preprocess_lfq.md)
   : Preprocess Proteome Discoverer LFQ exports
+- [`preprocess_se()`](https://sciordia.github.io/NADIA/reference/preprocess_se.md)
+  : Import Protein Intensities from a SummarizedExperiment
 
 ## The analysis pipeline
 
@@ -525,10 +516,6 @@ decomposition and PCA against the covariates.
 
 - [`pvca_analysis()`](https://sciordia.github.io/NADIA/reference/pvca_analysis.md)
   : PVCA Analysis – Orchestrator
-- [`pvca_compute()`](https://sciordia.github.io/NADIA/reference/pvca_compute.md)
-  : Compute PVCA variance components
-- [`pvca_plot()`](https://sciordia.github.io/NADIA/reference/pvca_plot.md)
-  : Plot PVCA variance components
 - [`pca_covariates_plot()`](https://sciordia.github.io/NADIA/reference/pca_covariates_plot.md)
   : PCA Plots Colored by Covariates
 
@@ -540,62 +527,12 @@ assays already in the object are ranked instead.
 
 - [`normalization_metrics()`](https://sciordia.github.io/NADIA/reference/normalization_metrics.md)
   : Generate quality metric plots for normalization comparison
-- [`nm_compute_metrics()`](https://sciordia.github.io/NADIA/reference/nm_compute_metrics.md)
-  : Compute quantitative group-separation metrics per normalization
-  method
 - [`nm_prepare_se()`](https://sciordia.github.io/NADIA/reference/nm_prepare_se.md)
   : Prepare a SummarizedExperiment from a proteomics_data object
 - [`nm_run_normalizations()`](https://sciordia.github.io/NADIA/reference/nm_run_normalizations.md)
   : Run multiple normalization methods from a baseline assay
 - [`import_norm_matrices()`](https://sciordia.github.io/NADIA/reference/import_norm_matrices.md)
   : Import normalized matrices into a SummarizedExperiment
-- [`nm_rank_final()`](https://sciordia.github.io/NADIA/reference/nm_rank_final.md)
-  : Compute a combined final ranking across PCV, PMAD, PEV, Correlation
-  and group-separation (PC1 F-ratio)
-- [`nm_rank_pcv()`](https://sciordia.github.io/NADIA/reference/nm_rank_pcv.md)
-  : Rank normalization methods by median PCV (ascending – lower is
-  better)
-- [`nm_rank_pmad()`](https://sciordia.github.io/NADIA/reference/nm_rank_pmad.md)
-  : Rank normalization methods by median PMAD (ascending – lower is
-  better)
-- [`nm_rank_pev()`](https://sciordia.github.io/NADIA/reference/nm_rank_pev.md)
-  : Rank normalization methods by median PEV (ascending – lower is
-  better)
-- [`nm_rank_cor()`](https://sciordia.github.io/NADIA/reference/nm_rank_cor.md)
-  : Rank normalization methods by median intragroup correlation
-  (descending – higher is better)
-- [`nm_rank_pc1()`](https://sciordia.github.io/NADIA/reference/nm_rank_pc1.md)
-  : Rank normalization methods by PC1 variance explained
-- [`nm_rank_mds1()`](https://sciordia.github.io/NADIA/reference/nm_rank_mds1.md)
-  : Rank normalization methods by MDS1 variance explained
-- [`nm_plot_final_ranking()`](https://sciordia.github.io/NADIA/reference/nm_plot_final_ranking.md)
-  : Horizontal bar chart of combined final ranking
-- [`nm_plot_metrics()`](https://sciordia.github.io/NADIA/reference/nm_plot_metrics.md)
-  : Bar chart of group-separation metrics per normalization method
-- [`nm_plot_boxplot()`](https://sciordia.github.io/NADIA/reference/nm_plot_boxplot.md)
-  : Intensity boxplot per method
-- [`nm_plot_density()`](https://sciordia.github.io/NADIA/reference/nm_plot_density.md)
-  : Density plot per method
-- [`nm_plot_correlation()`](https://sciordia.github.io/NADIA/reference/nm_plot_correlation.md)
-  : Intra-group correlation boxplot per method (PRONE-style)
-- [`nm_plot_pcv()`](https://sciordia.github.io/NADIA/reference/nm_plot_pcv.md)
-  : PCV boxplot per method (PRONE-style)
-- [`nm_plot_pmad()`](https://sciordia.github.io/NADIA/reference/nm_plot_pmad.md)
-  : PMAD boxplot per method (PRONE-style)
-- [`nm_plot_pev()`](https://sciordia.github.io/NADIA/reference/nm_plot_pev.md)
-  : PEV boxplot per method (PRONE-style)
-- [`nm_plot_pca()`](https://sciordia.github.io/NADIA/reference/nm_plot_pca.md)
-  : PCA scatter plot per method
-- [`nm_plot_mds()`](https://sciordia.github.io/NADIA/reference/nm_plot_mds.md)
-  : MDS 2D scatter per method
-- [`nm_plot_pc1_ranking()`](https://sciordia.github.io/NADIA/reference/nm_plot_pc1_ranking.md)
-  : Horizontal bar chart of PC1 variance ranking
-- [`nm_plot_mds1_ranking()`](https://sciordia.github.io/NADIA/reference/nm_plot_mds1_ranking.md)
-  : Horizontal bar chart of MDS1 variance ranking
-- [`nm_plot_qq()`](https://sciordia.github.io/NADIA/reference/nm_plot_qq.md)
-  : Q-Q plot per method (NormalyzerDE style)
-- [`nm_plot_scatter()`](https://sciordia.github.io/NADIA/reference/nm_plot_scatter.md)
-  : Sample-vs-sample scatter plot per method (NormalyzerDE style)
 
 ## Choosing an imputation method
 
@@ -605,24 +542,10 @@ not to choose an MNAR one.
 
 - [`imputation_metrics()`](https://sciordia.github.io/NADIA/reference/imputation_metrics.md)
   : Generate imputation quality metric plots and ranking
-- [`im_compute_metrics()`](https://sciordia.github.io/NADIA/reference/im_compute_metrics.md)
-  : Compute imputation quality metrics (NRMSE, SOR, PSS, ACC_OI)
 - [`im_prepare_se()`](https://sciordia.github.io/NADIA/reference/im_prepare_se.md)
   : Build a SummarizedExperiment for imputation benchmarking
 - [`import_imp_matrices()`](https://sciordia.github.io/NADIA/reference/import_imp_matrices.md)
   : Import imputed matrices into a SummarizedExperiment
-- [`im_plot_ranking()`](https://sciordia.github.io/NADIA/reference/im_plot_ranking.md)
-  : Ranking heatmap of imputation methods
-- [`im_plot_metrics()`](https://sciordia.github.io/NADIA/reference/im_plot_metrics.md)
-  : Faceted bar chart of all 4 imputation quality metrics
-- [`im_plot_nrmse()`](https://sciordia.github.io/NADIA/reference/im_plot_nrmse.md)
-  : NRMSE bar plot per imputation method
-- [`im_plot_sor()`](https://sciordia.github.io/NADIA/reference/im_plot_sor.md)
-  : SOR bar plot per imputation method
-- [`im_plot_pss()`](https://sciordia.github.io/NADIA/reference/im_plot_pss.md)
-  : PSS bar plot per imputation method
-- [`im_plot_acc_oi()`](https://sciordia.github.io/NADIA/reference/im_plot_acc_oi.md)
-  : ACC_OI bar plot per imputation method
 
 ## Benchmarking one pipeline against a spike-in
 
@@ -632,30 +555,6 @@ expected direction.
 
 - [`benchmarking_proteomics()`](https://sciordia.github.io/NADIA/reference/benchmarking_proteomics.md)
   : Benchmark Proteomics Differential Expression Results
-- [`compute_benchmark_metrics()`](https://sciordia.github.io/NADIA/reference/compute_benchmark_metrics.md)
-  : Compute benchmark metrics for all comparisons
-- [`compute_opdea_metrics()`](https://sciordia.github.io/NADIA/reference/compute_opdea_metrics.md)
-  : Compute OpDEA metrics for all comparisons
-- [`compute_dispersion_metrics()`](https://sciordia.github.io/NADIA/reference/compute_dispersion_metrics.md)
-  : Compute dispersion metrics by Comparison x Species
-- [`benchmark_heatmap_gg()`](https://sciordia.github.io/NADIA/reference/benchmark_heatmap_gg.md)
-  : Performance Heatmap (ggplot2)
-- [`benchmark_confusion_gg()`](https://sciordia.github.io/NADIA/reference/benchmark_confusion_gg.md)
-  : Confusion Matrix Heatmap (ggplot2)
-- [`benchmark_confusion_overall_gg()`](https://sciordia.github.io/NADIA/reference/benchmark_confusion_overall_gg.md)
-  : Overall Confusion Matrix Heatmap (ggplot2)
-- [`benchmark_metrics_bars_gg()`](https://sciordia.github.io/NADIA/reference/benchmark_metrics_bars_gg.md)
-  : Grouped Metrics Bar Chart (ggplot2)
-- [`benchmark_auc_bars_gg()`](https://sciordia.github.io/NADIA/reference/benchmark_auc_bars_gg.md)
-  : AUC Bar Chart (ggplot2)
-- [`benchmark_roc_gg()`](https://sciordia.github.io/NADIA/reference/benchmark_roc_gg.md)
-  : ROC Curves by Comparison (ggplot2)
-- [`benchmark_signif_bars_gg()`](https://sciordia.github.io/NADIA/reference/benchmark_signif_bars_gg.md)
-  : Significant Proteins Stacked Bars (ggplot2)
-- [`benchmark_volcano_hc()`](https://sciordia.github.io/NADIA/reference/benchmark_volcano_hc.md)
-  : Benchmark Volcano Plot (Highcharter)
-- [`benchmark_volcano_hc_list()`](https://sciordia.github.io/NADIA/reference/benchmark_volcano_hc_list.md)
-  : List of Benchmark Volcano Plots (Highcharter)
 
 ## Ranking several pipelines
 
@@ -664,40 +563,6 @@ with the OpDEA ranking and an extended eleven-metric one.
 
 - [`benchmarking_multiple()`](https://sciordia.github.io/NADIA/reference/benchmarking_multiple.md)
   : Multiple-method OpDEA Benchmarking
-- [`bm_compute_ranking()`](https://sciordia.github.io/NADIA/reference/bm_compute_ranking.md)
-  : Compute OpDEA ranking across multiple methods
-- [`bm_compute_extended_ranking()`](https://sciordia.github.io/NADIA/reference/bm_compute_extended_ranking.md)
-  : Compute extended ranking across 11 classification + OpDEA metrics
-- [`bm_compute_ranking_by_comparison()`](https://sciordia.github.io/NADIA/reference/bm_compute_ranking_by_comparison.md)
-  : Compute OpDEA ranking separately for each comparison
-- [`import_opdea_results()`](https://sciordia.github.io/NADIA/reference/import_opdea_results.md)
-  : Import OpDEA metrics from multiple benchmark result folders
-- [`import_benchmark_metrics()`](https://sciordia.github.io/NADIA/reference/import_benchmark_metrics.md)
-  : Import benchmark metrics from multiple benchmark result folders
-- [`import_classified_results()`](https://sciordia.github.io/NADIA/reference/import_classified_results.md)
-  : Import classified results from multiple benchmark result folders
-- [`import_confusion_results()`](https://sciordia.github.io/NADIA/reference/import_confusion_results.md)
-  : Import confusion matrices from multiple benchmark result folders
-- [`bm_plot_ranking_bars()`](https://sciordia.github.io/NADIA/reference/bm_plot_ranking_bars.md)
-  : Bar chart of final ranks
-- [`bm_plot_ranking_heatmap()`](https://sciordia.github.io/NADIA/reference/bm_plot_ranking_heatmap.md)
-  : Heatmap of metric ranks by method
-- [`bm_plot_ranking_bars_by_comp()`](https://sciordia.github.io/NADIA/reference/bm_plot_ranking_bars_by_comp.md)
-  : Bar chart of final ranks for a single comparison
-- [`bm_plot_ranking_heatmap_by_comp()`](https://sciordia.github.io/NADIA/reference/bm_plot_ranking_heatmap_by_comp.md)
-  : Heatmap of metric ranks for a single comparison
-- [`bm_plot_extended_ranking_bars()`](https://sciordia.github.io/NADIA/reference/bm_plot_extended_ranking_bars.md)
-  : Horizontal bar chart of extended combined ranking
-- [`bm_plot_extended_ranking_heatmap()`](https://sciordia.github.io/NADIA/reference/bm_plot_extended_ranking_heatmap.md)
-  : Heatmap of extended ranking (11 metrics)
-- [`bm_plot_metrics_comparison()`](https://sciordia.github.io/NADIA/reference/bm_plot_metrics_comparison.md)
-  : Boxplot comparison of metric distributions across methods
-- [`bm_plot_metrics_heatmap()`](https://sciordia.github.io/NADIA/reference/bm_plot_metrics_heatmap.md)
-  : Heatmap of aggregated metric values (not ranks)
-- [`bm_plot_confusion_stacked()`](https://sciordia.github.io/NADIA/reference/bm_plot_confusion_stacked.md)
-  : Stacked bar chart of TP/FP/FN/TN (OpDEA Figure 5 style)
-- [`bm_plot_roc()`](https://sciordia.github.io/NADIA/reference/bm_plot_roc.md)
-  : ROC Curves by Method for a Single Comparison
 
 ## Interactive figures
 
@@ -708,8 +573,6 @@ one entry per comparison or mode.
   : Interactive Volcano Plot with Highcharter
 - [`boxplot_highchart_list()`](https://sciordia.github.io/NADIA/reference/boxplot_highchart_list.md)
   : Interactive Highcharts Boxplot for Proteomics
-- [`pca_highchart()`](https://sciordia.github.io/NADIA/reference/pca_highchart.md)
-  : Interactive PCA Plot with Highcharts
 - [`pca_highchart_list()`](https://sciordia.github.io/NADIA/reference/pca_highchart_list.md)
   : Build a List of PCA Plots for Multiple Subsets
 - [`build_pca_scores()`](https://sciordia.github.io/NADIA/reference/build_pca_scores.md)
@@ -847,14 +710,14 @@ formats live in `inst/extdata/`.
 
 ### Getting the data in
 
-- [Input formats: Spectronaut, DIA-NN, TMT and
-  LFQ](https://sciordia.github.io/NADIA/articles/input-formats.md):
+- [Input formats: reports and SummarizedExperiment
+  objects](https://sciordia.github.io/NADIA/articles/input-formats.md):
 
 ### Choosing how to analyse it
 
 - [Missing values: what they mean and how to fill
   them](https://sciordia.github.io/NADIA/articles/missing-values.md):
-- [Choosing normalisation and imputation
+- [Choosing normalization and imputation
   methods](https://sciordia.github.io/NADIA/articles/choosing-methods.md):
 - [Benchmarking with a spike-in: scoring against known
   truth](https://sciordia.github.io/NADIA/articles/benchmarking.md):
@@ -865,7 +728,7 @@ formats live in `inst/extdata/`.
 
 - [Pattern Profiler: identifying shared protein
   profiles](https://sciordia.github.io/NADIA/articles/pattern-profiler.md):
-- [Visualisation: exploring and presenting
+- [Visualization: exploring and presenting
   results](https://sciordia.github.io/NADIA/articles/visualization.md):
 - [Results and export: sharing and preserving an
   analysis](https://sciordia.github.io/NADIA/articles/results-and-export.md):

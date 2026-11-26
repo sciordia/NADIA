@@ -99,7 +99,8 @@ List with:
 
 - gg_signif_bars: ggplot2 significant proteins stacked bars (absolute)
 
-- hc_volcano_list: Named list of Highcharter volcano plots
+- hc_volcano_list: Named list of Highcharter volcano plots (empty if the
+  suggested package highcharter is not installed)
 
 - parameters: List of parameters used
 

@@ -12,4 +12,6 @@ QRILC: Quantile Regression Imputation of Left-Censored data (imputeLCMD)
 
 - args:
 
-  list with optional `tune.sigma` (default 1)
+  list with optional `tune.sigma` (default 1) Delegated to
+  `MsCoreUtils`, which gives identical results (Bioconductor review,
+  \#186); this wrapper keeps NADIA's argument names.

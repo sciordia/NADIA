@@ -65,8 +65,8 @@ preprocess_spectronaut(
 
 - agg_cscore_runwise:
 
-  Aggregation method for PG.Cscore.RunWise. Options: "mean" (default),
-  "max", "median", "min".
+  Aggregation method for the run-wise C-score, stored as
+  `PG.Score.RunWise`. Options: "mean" (default), "max", "median", "min".
 
 - timestamp_suffix:
 

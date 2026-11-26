@@ -53,12 +53,12 @@ benchmarking_multiple(
 
 - bench_metrics_combined:
 
-  Optional pre-built data.frame from
-  [`import_benchmark_metrics()`](https://sciordia.github.io/NADIA/reference/import_benchmark_metrics.md)
-  with columns: Assay, Comparison, Sensitivity, Specificity, Precision,
-  NPV, F1, Accuracy, MCC, Performance. If NULL and `results_dir` is
-  provided, imported from `benchmark_metrics.tsv` files. Used for
-  extended 11-metric ranking.
+  Optional pre-built data.frame, the `metrics_table` of several
+  [`benchmarking_proteomics()`](https://sciordia.github.io/NADIA/reference/benchmarking_proteomics.md)
+  runs stacked with an Assay column. Columns: Assay, Comparison,
+  Sensitivity, Specificity, Precision, NPV, F1, Accuracy, MCC,
+  Performance. If NULL and `results_dir` is provided, imported from
+  `benchmark_metrics.tsv` files. Used for extended 11-metric ranking.
 
 - results_dir:
 
@@ -268,6 +268,9 @@ for (nm in c("cycloess", "quantile")) {
   benchmarking_proteomics(de, ev, output_dir = file.path(root, nm),
                           verbose = FALSE)
 }
+#> Registered S3 method overwritten by 'quantmod':
+#>   method            from
+#>   as.zoo.data.frame zoo 
 result <- benchmarking_multiple(results_dir = root, verbose = FALSE)
 #> import_opdea_results: loaded 2 method(s), 2 comparison(s), 4 rows.
 #> import_confusion_results: loaded 2 method(s), 2 comparison(s), 4 rows.

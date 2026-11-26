@@ -24,18 +24,16 @@ results for later use.
 
 ## Setup and example data
 
-Pattern Profiler is included in NADIA, while `Mfuzz` and its clustering
-dependencies are optional. The following commands install the required
-packages if they are not already available.
-
 ``` r
 
 if (!requireNamespace("BiocManager", quietly = TRUE))
-  install.packages("BiocManager")
-
-BiocManager::install(c("NADIA", "Mfuzz", "Biobase"))
-install.packages("e1071")
+    install.packages("BiocManager")
+BiocManager::install("NADIA")
 ```
+
+This vignette also uses `Mfuzz`, `highcharter`, `arrow` and `duckdb`,
+which are optional; `BiocManager::install("NADIA", dependencies = TRUE)`
+installs them together with NADIA.
 
 We use `nadia_dia`, the example DIA proteomics dataset distributed with
 NADIA. The data are first processed to obtain both the intensity assays
@@ -54,7 +52,7 @@ and `D`), each represented by four samples. Replicates are retained
 during protein quantification and are aggregated only when the
 condition-level profiles are constructed.
 
-Show the code used to summarise the experimental design
+Show the code used to summarize the experimental design
 
 ``` r
 
@@ -86,7 +84,7 @@ corresponding fold change.
 
 The function first selects proteins using the differential-expression
 table. For each selected protein, it then aggregates replicates within
-conditions, standardises the resulting profile, selects or accepts a
+conditions, standardizes the resulting profile, selects or accepts a
 number of clusters, and performs fuzzy c-means clustering. The example
 below evaluates two to five clusters and uses the Xie–Beni index to
 choose among them.
@@ -119,7 +117,7 @@ Arguments of `pattern_profiler_analysis()`
 
 - `aggregate` :
 
-  How replicates are summarised within each condition: `“median”`
+  How replicates are summarized within each condition: `“median”`
   (default) or `“mean”`.
 
 - `auto_select_c`, `c_range`, and `c` :
@@ -137,10 +135,10 @@ Arguments of `pattern_profiler_analysis()`
   The minimum fuzzy membership required for a protein–cluster pair to be
   included in `long_output` (default: `0.25`).
 
-- `seed` and `seeds` :
+- `n_starts` :
 
-  `seed` makes the final clustering reproducible. `seeds` supplies
-  repeated starts when candidate cluster numbers are evaluated.
+  The number of random starts used to evaluate each candidate number of
+  clusters; their metrics are averaged (default: `3`).
 
 - `output_file` :
 
@@ -151,6 +149,7 @@ Arguments of `pattern_profiler_analysis()`
 
 ``` r
 
+set.seed(42)
 pp <- pattern_profiler_analysis(
   se_proc          = res$se_proc,
   DEPs_results     = res$DEPs_results,
@@ -163,20 +162,19 @@ pp <- pattern_profiler_analysis(
   auto_select_c    = TRUE,
   selection_method = "xb",
   min_membership   = 0.25,
-  seed             = 42,
-  seeds            = c(42, 123, 456),
+  n_starts         = 3,
   verbose          = FALSE
 )
 ```
 
 The returned object contains the chosen cluster number, the estimated
 fuzzifier (`m`), selection diagnostics, the fitted `Mfuzz` object, and a
-long-format table for inspection and visualisation. The overview below
+long-format table for inspection and visualization. The overview below
 confirms that all selected proteins passed the preprocessing checks. The
 output contains more rows than proteins because a protein can meet the
 membership threshold in more than one cluster.
 
-Show the code used to summarise the Pattern Profiler run
+Show the code used to summarize the Pattern Profiler run
 
 ``` r
 
@@ -282,7 +280,7 @@ The number of clusters determines the resolution of the analysis. Too
 few clusters can merge distinct profiles, whereas too many can divide
 one pattern into small, weakly supported groups. When
 `auto_select_c = TRUE`, NADIA fits each candidate value in `c_range`
-with multiple seeds and reports four complementary diagnostics.
+from several random starts and reports four complementary diagnostics.
 
 | Metric | What it evaluates | Preferred value |
 |:---|:---|:---|
@@ -291,7 +289,7 @@ with multiple seeds and reports four complementary diagnostics.
 | AMM | Average maximum membership across proteins. | Higher |
 | Dmin | Minimum distance between any two cluster centroids. | Higher |
 
-The default `selection_method = "xb"` minimises the Xie–Beni (XB) index.
+The default `selection_method = "xb"` minimizes the Xie–Beni (XB) index.
 `"consensus"` combines the ranks of all four diagnostics and can be
 useful when they disagree. `"elbow"` selects the largest change in
 centroid separation and should be treated as an exploratory alternative
@@ -320,33 +318,37 @@ knitr::kable(
 |   2 | 0.0056 | 0.0000 | 0.8342 | 0.8973 | 2.6890 |
 |   3 | 0.0391 | 0.0000 | 0.7171 | 0.8115 | 0.5446 |
 |   4 | 0.0862 | 0.0000 | 0.6102 | 0.7305 | 0.2392 |
-|   5 | 0.1267 | 0.1484 | 0.5509 | 0.6835 | 0.2019 |
+|   5 | 0.7707 | 0.8229 | 0.5142 | 0.6419 | 0.0754 |
 
 Cluster-selection diagnostics for c = 2 to 5. {.table}
 
-All four diagnostics favour two clusters in this example: `c = 2` has
-the lowest XB value and the highest FPC, AMM, and Dmin values. The
-selected solution therefore provides two well-separated expression
-patterns without adding poorly supported subdivisions. These metrics are
-guides rather than biological proof; candidate solutions should still be
+All four diagnostics favor two clusters in this example: `c = 2` has the
+lowest XB value and the highest FPC, AMM, and Dmin values. The selected
+solution therefore provides two well-separated expression patterns
+without adding poorly supported subdivisions. These metrics are guides
+rather than biological proof; candidate solutions should still be
 checked visually and interpreted in the context of the experiment.
 
-Fuzzy c-means starts from a random partition. Keep `seed` fixed for a
-reproducible final fit, and use several values in `seeds` when selecting
-the number of clusters. Cluster numbers are arbitrary labels and may be
-swapped between runs even when the underlying patterns are equivalent.
+Fuzzy c-means starts from a random partition, drawn from R’s random
+number generator. Call
+[`set.seed()`](https://rdrr.io/r/base/Random.html) immediately before
+[`pattern_profiler_analysis()`](https://sciordia.github.io/NADIA/reference/pattern_profiler_analysis.md)
+to make a run reproducible, and raise `n_starts` for a more stable
+choice of the number of clusters. Cluster numbers are arbitrary labels
+and may be swapped between runs even when the underlying patterns are
+equivalent.
 
-Before clustering, NADIA removes profiles that cannot be standardised
+Before clustering, NADIA removes profiles that cannot be standardized
 reliably, including constant profiles and features with excessive
 missingness. Remaining isolated missing values are filled by
-k-nearest-neighbour imputation. Failed candidate fits are stored as
+k-nearest-neighbor imputation. Failed candidate fits are stored as
 missing diagnostic values rather than as zeros, so they cannot be
 mistaken for exceptionally good solutions.
 
 ## Understanding the soft-clustering output
 
 The main result is `long_output`. It contains the protein identifier,
-cluster, membership, and one standardised value for each condition.
+cluster, membership, and one standardized value for each condition.
 Because expression is converted to a row-wise z-score, these values
 describe the **relative profile of each protein across the ordered
 conditions**; they must not be interpreted as absolute protein
@@ -363,14 +365,14 @@ knitr::kable(
 )
 ```
 
-| FeatureID | Cluster | Membership |     A |     B |      D |
-|:----------|--------:|-----------:|------:|------:|-------:|
-| P32610    |       1 |      0.974 | 0.638 | 0.514 | -1.152 |
-| P21375    |       1 |      0.974 | 0.638 | 0.514 | -1.152 |
-| Q04182    |       1 |      0.974 | 0.639 | 0.514 | -1.152 |
-| P21147    |       1 |      0.974 | 0.638 | 0.514 | -1.152 |
-| Q01476    |       1 |      0.974 | 0.638 | 0.514 | -1.152 |
-| P36090    |       1 |      0.974 | 0.639 | 0.514 | -1.152 |
+| FeatureID | Cluster | Membership |      A |     B |     D |
+|:----------|--------:|-----------:|-------:|------:|------:|
+| P0ADA1    |       1 |      0.964 | -1.037 | 0.079 | 0.958 |
+| P76403    |       1 |      0.964 | -1.037 | 0.079 | 0.958 |
+| P0AEX9    |       1 |      0.964 | -1.036 | 0.077 | 0.960 |
+| P63020    |       1 |      0.964 | -1.036 | 0.075 | 0.960 |
+| P0A6A0    |       1 |      0.964 | -1.036 | 0.075 | 0.960 |
+| P0ACY3    |       1 |      0.964 | -1.035 | 0.075 | 0.961 |
 
 First rows of the long-format Pattern Profiler output. {.table}
 
@@ -380,7 +382,7 @@ Each row represents one protein–cluster association that satisfies
 provides an overview of these associations and reports how many proteins
 occur in more than one cluster.
 
-Show the code used to summarise soft-clustering assignments
+Show the code used to summarize soft-clustering assignments
 
 ``` r
 
@@ -419,7 +421,7 @@ they identify profiles that share characteristics with both centroids.
 The cluster summary shows the size and strength of each set of
 assignments.
 
-Show the code used to summarise cluster membership
+Show the code used to summarize cluster membership
 
 ``` r
 
@@ -439,8 +441,8 @@ knitr::kable(
 
 | Cluster | n_entries | n_unique_features | mean_membership | min_membership | max_membership |
 |---:|---:|---:|---:|---:|---:|
-| 1 | 446 | 446 | 0.865 | 0.252 | 0.974 |
-| 2 | 421 | 421 | 0.835 | 0.254 | 0.964 |
+| 1 | 421 | 421 | 0.835 | 0.254 | 0.964 |
+| 2 | 446 | 446 | 0.865 | 0.252 | 0.974 |
 
 Membership summary for each cluster. {.table}
 
@@ -477,7 +479,7 @@ knitr::kable(
 
 Effect of applying stricter membership thresholds. {.table}
 
-Raising the threshold from 0.25 to 0.50 removes low-confidence secondary
+Raising the threshold from 0.25 to 0.50 removes low-membership secondary
 associations while retaining one best-supported assignment for every
 protein in this two-cluster solution. At 0.90, only 554 highly
 characteristic associations remain. The appropriate threshold depends on
@@ -490,9 +492,9 @@ determines which rows are retained in `long_output`. Plotting functions
 can apply an additional, stricter threshold, but they cannot recover
 associations that were removed during the analysis.
 
-## Visualising the expression patterns
+## Visualizing the expression patterns
 
-Visualisation connects the numerical memberships to their biological
+Visualization connects the numerical memberships to their biological
 meaning. NADIA provides interactive Highcharts plots for inspecting all
 protein profiles within individual clusters and for comparing cluster
 centroids.
@@ -501,9 +503,11 @@ centroids.
 
 [`cluster_profile_highchart_list()`](https://sciordia.github.io/NADIA/reference/cluster_profile_highchart_list.md)
 creates one interactive figure per cluster. Individual protein lines
-reveal within-cluster heterogeneity, while the centroid summarises the
-dominant pattern. Here, a membership threshold of 0.70 is used as a
-conservative starting point for displaying reliable cluster profiles.
+reveal within-cluster heterogeneity, while the centroid line, the mean
+or median of the proteins drawn (not the center fitted by the
+clustering), summarizes the dominant pattern. Here, a membership
+threshold of 0.70 is used as a conservative starting point for
+displaying reliable cluster profiles.
 
 ``` r
 
@@ -513,32 +517,16 @@ profile_plots <- cluster_profile_highchart_list(
   min_membership = 0.70,
   centroid_summary = "median"
 )
-
-profile_plots[[1]]
+## 
+## profile_plots[[1]]
 ```
 
-The first cluster is shown below. Its interactive Highcharts object was
-exported as SVG so that the figure remains compact and can be enlarged
-without losing quality.
+The first cluster is shown below.
 
-![Standardised expression profiles for the 378 proteins assigned to
-Pattern Profiler cluster 1 with membership of at least
-0.70.](figures/pattern-profiler_cluster1-n-378-ms_0p7.svg)
-
-Click the figure to enlarge it; press Esc or click outside the image to
-close it.
-
-The thin red lines represent the 378 individual protein profiles
+The thin red lines represent the 370 individual protein profiles
 retained at this threshold, and the thick dark-red line is their median
-centroid. Most proteins remain relatively stable between `A` and `B` and
-then decrease in `D`. Their concentration around the centroid indicates
-a coherent cluster pattern.
-
-The live object is best generated in the R session, because hundreds of
-interactive series would make the installed vignette unnecessarily
-large. See
-[`vignette("visualization")`](https://sciordia.github.io/NADIA/articles/visualization.md)
-for additional guidance on interactive figures.
+centroid. Most proteins rise from `A` to `D`. Their concentration around
+the centroid indicates a coherent cluster pattern.
 
 ### Comparing cluster centroids
 
@@ -557,23 +545,13 @@ centroid_plot <- cluster_centroids_highchart(
   centroid_summary = "median",
   title = "Pattern Profiler cluster centroids"
 )
-
-centroid_plot
+## 
+## centroid_plot
 ```
 
-The exported SVG retains the appearance of the interactive Highcharts
-object without embedding its JavaScript libraries in the vignette.
-
-![Median standardised profiles for Pattern Profiler clusters 1 and 2
-after applying a membership threshold of
-0.70.](figures/pattern-profiler_cluster_centroids.svg)
-
-Click the figure to enlarge it; press Esc or click outside the image to
-close it.
-
-The centroids summarise 378 proteins in cluster 1 and 370 in cluster 2.
-Cluster 1 remains high in `A` and `B` before decreasing in `D`, whereas
-cluster 2 rises from `A` to `D`. These opposing trajectories are
+The centroids summarize 370 proteins in cluster 1 and 378 in cluster 2.
+Cluster 2 remains high in `A` and `B` before decreasing in `D`, whereas
+cluster 1 rises from `A` to `D`. These opposing trajectories are
 expressed as within-protein z-scores and therefore describe relative
 patterns rather than absolute abundances.
 
@@ -593,7 +571,8 @@ Parquet file.
 
 parquet_file <- file.path(tempdir(), "pattern_profiler.parquet")
 
-invisible(capture.output(pattern_profiler_analysis(
+set.seed(42)
+invisible(capture.output(pp_saved <- pattern_profiler_analysis(
   se_proc          = res$se_proc,
   DEPs_results     = res$DEPs_results,
   assay_name       = "Impseqrob_min",
@@ -602,7 +581,6 @@ invisible(capture.output(pattern_profiler_analysis(
   auto_select_c    = FALSE,
   c                = pp$optimal_c,
   min_membership   = 0.25,
-  seed             = 42,
   output_file      = parquet_file,
   verbose          = FALSE
 )))
@@ -613,7 +591,7 @@ reloaded <- read_pattern_profiler_data(
 )
 
 data.frame(
-  Rows_saved = nrow(pp$long_output),
+  Rows_saved = nrow(pp_saved$long_output),
   Rows_reloaded_at_0.70 = nrow(reloaded)
 )
 #>   Rows_saved Rows_reloaded_at_0.70
@@ -693,11 +671,12 @@ practices make the results easier to reproduce and interpret:
   set to answer a specific biological question;
 - inspect all cluster-selection diagnostics rather than treating one
   index as definitive;
-- keep random seeds fixed and check that the main profiles remain stable
-  across plausible cluster numbers;
+- call [`set.seed()`](https://rdrr.io/r/base/Random.html) before each
+  run, and check that the main profiles remain stable across seeds and
+  plausible cluster numbers;
 - use membership to distinguish representative proteins from ambiguous
   ones;
-- interpret standardised trajectories as relative shapes, not abundance
+- interpret standardized trajectories as relative shapes, not abundance
   differences; and
 - perform pathway or functional enrichment only after verifying that the
   corresponding cluster is coherent and biologically interpretable.
@@ -721,13 +700,13 @@ support reproducibility.
 ``` r
 
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
+#> R version 4.6.2 (2026-10-29)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 26.04.1 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.32.so;  LAPACK version 3.12.0
 #> 
 #> locale:
 #>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
@@ -743,55 +722,57 @@ sessionInfo()
 #> [8] base     
 #> 
 #> other attached packages:
-#> [1] NADIA_0.99.1       DynDoc_1.90.0      widgetTools_1.90.0 BiocStyle_2.40.0  
+#> [1] NADIA_1.1.0        DynDoc_1.90.0      widgetTools_1.90.0 BiocStyle_2.40.0  
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] tidyselect_1.2.1            rrcovNA_0.5-3              
-#>  [3] dplyr_1.2.1                 arrow_25.0.1               
-#>  [5] fastmap_1.2.0               duckdb_1.5.5               
+#>  [3] dplyr_1.2.1                 arrow_26.0.1.1             
+#>  [5] fastmap_1.2.0               duckdb_2.0.1               
 #>  [7] digest_0.6.39               timechange_0.4.0           
 #>  [9] lifecycle_1.0.5             Mfuzz_2.72.0               
-#> [11] cluster_2.1.8.2             statmod_1.5.2              
-#> [13] magrittr_2.0.5              compiler_4.6.1             
+#> [11] cluster_2.1.8.3             statmod_1.5.2              
+#> [13] magrittr_2.0.5              compiler_4.6.2             
 #> [15] rlang_1.3.0                 tkWidgets_1.90.0           
-#> [17] sass_0.4.10                 tools_4.6.1                
+#> [17] sass_0.5.0                  tools_4.6.2                
 #> [19] yaml_2.3.12                 data.table_1.18.6.1        
-#> [21] knitr_1.51                  rrcov_1.7-7                
-#> [23] S4Arrays_1.12.0             htmlwidgets_1.6.4          
-#> [25] bit_4.6.0                   curl_8.0.0                 
-#> [27] DelayedArray_0.38.2         TTR_0.24.4                 
-#> [29] abind_1.4-8                 norm_1.0-11.1              
-#> [31] withr_3.0.3                 purrr_1.2.2                
-#> [33] BiocGenerics_0.58.1         desc_1.4.3                 
-#> [35] grid_4.6.1                  pcaPP_2.0-5                
-#> [37] stats4_4.6.1                xts_0.14.2                 
-#> [39] e1071_1.7-17                SummarizedExperiment_1.42.0
-#> [41] cli_3.6.6                   mvtnorm_1.4-2              
-#> [43] rmarkdown_2.32              ragg_1.5.2                 
-#> [45] generics_0.1.4              otel_0.2.0                 
-#> [47] rlist_0.4.6.2               robustbase_0.99-7          
-#> [49] DBI_1.3.0                   cachem_1.1.0               
-#> [51] proxy_0.4-29                stringr_1.6.0              
-#> [53] splines_4.6.1               assertthat_0.2.1           
-#> [55] BiocManager_1.30.27         XVector_0.52.0             
-#> [57] matrixStats_1.5.0           vctrs_0.7.3                
-#> [59] Matrix_1.7-5                jsonlite_2.0.0             
-#> [61] bookdown_0.48               IRanges_2.46.0             
-#> [63] S4Vectors_0.50.2            bit64_4.8.6                
-#> [65] systemfonts_1.3.2           limma_3.68.5               
-#> [67] tidyr_1.3.2                 jquerylib_0.1.4            
-#> [69] quantmod_0.4.29             glue_1.8.1                 
-#> [71] pkgdown_2.2.1               DEoptimR_1.2-1             
-#> [73] lubridate_1.9.5             stringi_1.8.9              
-#> [75] GenomicRanges_1.64.0        tibble_3.3.1               
-#> [77] pillar_1.11.1               htmltools_0.5.9            
-#> [79] Seqinfo_1.2.0               reactable_0.4.5            
-#> [81] R6_2.6.1                    textshaping_1.0.5          
-#> [83] evaluate_1.0.5              lattice_0.22-9             
-#> [85] Biobase_2.72.0              backports_1.5.1            
-#> [87] broom_1.0.13                bslib_0.12.0               
-#> [89] class_7.3-23                SparseArray_1.12.2         
-#> [91] highcharter_0.9.5           xfun_0.60                  
-#> [93] fs_2.1.0                    MatrixGenerics_1.24.0      
-#> [95] zoo_1.9-0                   pkgconfig_2.0.3
+#> [21] knitr_1.52                  rrcov_1.7-7                
+#> [23] S4Arrays_1.12.1             htmlwidgets_1.6.4          
+#> [25] bit_4.6.0                   curl_8.2.0                 
+#> [27] DelayedArray_0.38.2         RColorBrewer_1.1-3         
+#> [29] TTR_0.24.4                  abind_1.4-8                
+#> [31] norm_1.0-11.1               withr_3.0.3                
+#> [33] purrr_1.2.2                 BiocGenerics_0.58.1        
+#> [35] desc_1.4.3                  grid_4.6.2                 
+#> [37] pcaPP_2.0-7                 stats4_4.6.2               
+#> [39] xts_0.14.3                  e1071_1.7-17               
+#> [41] MASS_7.3-66                 SummarizedExperiment_1.42.0
+#> [43] cli_3.6.6                   mvtnorm_1.5-0              
+#> [45] rmarkdown_2.32              ragg_1.5.2                 
+#> [47] generics_0.1.4              otel_0.3.0                 
+#> [49] rlist_0.4.6.2               robustbase_0.99-7          
+#> [51] DBI_1.3.0                   cachem_1.1.0               
+#> [53] proxy_0.4-29                stringr_1.6.0              
+#> [55] splines_4.6.2               assertthat_0.2.1           
+#> [57] BiocManager_1.30.27         XVector_0.52.0             
+#> [59] matrixStats_1.5.0           vctrs_0.7.3                
+#> [61] Matrix_1.7-6                jsonlite_2.0.0             
+#> [63] bookdown_0.48               IRanges_2.46.0             
+#> [65] S4Vectors_0.50.3            bit64_4.8.6                
+#> [67] clue_0.3-68                 systemfonts_1.3.4          
+#> [69] limma_3.68.5                tidyr_1.3.2                
+#> [71] jquerylib_0.1.4             quantmod_0.4.29            
+#> [73] glue_1.8.1                  pkgdown_2.2.1              
+#> [75] DEoptimR_1.2-2              lubridate_1.9.5            
+#> [77] stringi_1.8.9               GenomicRanges_1.64.0       
+#> [79] tibble_3.3.1                pillar_1.11.1              
+#> [81] htmltools_0.5.9             Seqinfo_1.2.0              
+#> [83] R6_2.6.1                    textshaping_1.1.0          
+#> [85] evaluate_1.0.5              lattice_0.23-1             
+#> [87] Biobase_2.72.0              backports_1.5.1            
+#> [89] broom_1.0.13                bslib_0.12.0               
+#> [91] class_7.3-24                SparseArray_1.12.3         
+#> [93] highcharter_0.9.5           xfun_0.62                  
+#> [95] fs_2.1.0                    MatrixGenerics_1.24.0      
+#> [97] MsCoreUtils_1.24.0          zoo_1.9-1                  
+#> [99] pkgconfig_2.0.3
 ```

@@ -57,8 +57,10 @@ volcano_highchart_list(
 
 - palette:
 
-  Name of a paletteer palette (e.g. "ggsci::default_jco"). Uses 3
-  colours: up, down, ns
+  Colour palette for up, down and non-significant proteins, in that
+  order: `"pkg::name"` for a palette from paletteer, `"brewer:Name"` (or
+  the bare name) for an RColorBrewer palette, or a vector of colours.
+  Its first three colours are used. `NULL` (default) uses `colors`.
 
 - show_top_genes:
 
@@ -81,17 +83,19 @@ List of highchart objects
 ## Examples
 
 ``` r
-data(nadia_dia)
-res <- process_proteomics(nadia_dia, verbose = FALSE)
+if (requireNamespace("highcharter", quietly = TRUE)) {
+  data(nadia_dia)
+  res <- process_proteomics(nadia_dia, verbose = FALSE)
 
-# One volcano per comparison, labelling the 10 most significant proteins
-hc_list <- volcano_highchart_list(
-  res$DEPs_results,
-  comparisons     = c("B-A", "D-A"),
-  lfc_thr         = 1,
-  alpha           = 0.05,
-  show_top_genes  = 10
-)
-names(hc_list)
+  # One volcano per comparison, labelling the 10 most significant proteins
+  hc_list <- volcano_highchart_list(
+    res$DEPs_results,
+    comparisons     = c("B-A", "D-A"),
+    lfc_thr         = 1,
+    alpha           = 0.05,
+    show_top_genes  = 10
+  )
+  names(hc_list)
+}
 #> [1] "B-A" "D-A"
 ```

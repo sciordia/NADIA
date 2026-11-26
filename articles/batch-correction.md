@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Samples prepared on different days, labelled in different batches or
+Samples prepared on different days, labeled in different batches or
 acquired in different run sequences may contain systematic technical
 differences. Batch correction aims to remove this unwanted variation
 while retaining the biological signal. If the experimental design is
@@ -16,7 +16,7 @@ omic profiles. Rather than requiring a single complete matrix, it
 decomposes the integration into pairwise batch-correction steps arranged
 as a binary tree. Each step applies the selected correction method, such
 as ComBat or limma, and the corrected branches are then combined. This
-hierarchical strategy allows NADIA to correct the normalised
+hierarchical strategy allows NADIA to correct the normalized
 protein-abundance matrix before imputation, without first replacing its
 missing values.
 
@@ -44,6 +44,10 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 BiocManager::install("NADIA")
 ```
 
+This vignette also uses `BERT` and `lme4`, which are optional;
+`BiocManager::install("NADIA", dependencies = TRUE)` installs them
+together with NADIA.
+
 ``` r
 
 library(NADIA)
@@ -51,7 +55,7 @@ data(nadia_dia)
 ```
 
 Batch correction needs `BERT` and the variance decomposition needs
-`lme4`; both are optional dependencies:
+`lme4`. The sections that use them run only when they are installed:
 
 ``` r
 
@@ -111,7 +115,7 @@ evaluated against a known starting point.
 The simulated effect is deliberately protein-dependent: in the second
 digestion batch, half of the proteins are multiplied by six and the
 remainder by one sixth. A uniform shift affecting every protein
-similarly may be largely removed by normalisation, whereas
+similarly may be largely removed by normalization, whereas
 protein-specific technical effects can remain and may require explicit
 batch correction.
 
@@ -177,14 +181,20 @@ samples in every batch. When `batch_covariates` are supplied, this
 requirement applies to each combination of batch and protected-covariate
 levels. In addition, a protein must have at least two non-missing
 quantitative values within each of these combinations for BERT to
-estimate its correction. Insufficient replication can make individual
-proteins unadjustable and, when it affects many proteins, may prevent
-the batch-correction model from being fitted.
+estimate its correction. NADIA corrects the proteins that lack them for
+the batch alone, without protecting the covariates, so that none of
+their measured values is lost, and lists them in
+`metadata(se)$batch_correction`. This is reasonable when every condition
+is equally represented in every batch, although missing values can still
+leave an individual protein unbalanced; when the design is unbalanced,
+it can remove part of the biological signal of those proteins, so check
+the proteins listed there. Proteins with fewer than two values in a
+batch cannot be corrected at all and are kept unadjusted.
 
 ## Step 2: how much variance does the batch explain?
 
 Before correcting the batch effect, we first process the modified
-dataset with batch correction disabled. This provides the normalised and
+dataset with batch correction disabled. This provides the normalized and
 imputed assay that will serve as the uncorrected reference. We can then
 use
 [`pvca_analysis()`](https://sciordia.github.io/NADIA/reference/pvca_analysis.md)
@@ -213,8 +223,8 @@ pvca_default <- pvca_analysis(
 
 pvca_default$variance_components
 #>       label     weights   category
-#> 1 Condition 0.998363414 biological
-#> 2  Below 1% 0.001636586   residual
+#> 1 Condition 0.998364844 biological
+#> 2  Below 1% 0.001635156   residual
 ```
 
 Condition accounts for almost all of the reported variation, while
@@ -245,13 +255,13 @@ pvca_before <- pvca_analysis(
 
 pvca_before$variance_components
 #>                 label      weights   category
-#> 1           Condition 0.7021386837 biological
-#> 2           Digestion 0.2742098118  technical
-#> 3 Digestion:Condition 0.0222691267 biol:techn
-#> 4 Injection:Condition 0.0005416519 biol:techn
-#> 5           Injection 0.0002479565  technical
-#> 6 Digestion:Injection 0.0001029405  technical
-#> 7               resid 0.0004898288   residual
+#> 1           Condition 0.7021401719 biological
+#> 2           Digestion 0.2742105406  technical
+#> 3 Digestion:Condition 0.0222670639 biol:techn
+#> 4 Injection:Condition 0.0005417228 biol:techn
+#> 5           Injection 0.0002478541  technical
+#> 6 Digestion:Injection 0.0001029636  technical
+#> 7               resid 0.0004896831   residual
 ```
 
 After increasing the threshold, digestion accounts for **27.4%** of the
@@ -285,7 +295,7 @@ within
 set `batch_correct = TRUE` and use `batch_column` to identify the
 technical factor that should be removed. Two related arguments,
 `covariate_column` and `bio_replicate_column`, describe variables that
-should be modelled during differential abundance analysis rather than
+should be modeled during differential abundance analysis rather than
 removed from the quantitative matrix. The three arguments therefore have
 distinct roles and should be defined according to the experimental
 design:
@@ -306,12 +316,11 @@ to account for the correlation between samples from the same subject
 rather than treating all samples as independent.
 
 The diagram below places the three arguments in the complete workflow
-and shows typical variables that can be supplied to each one. Click the
-figure to enlarge it.
+and shows typical variables that can be supplied to each one.
 
 ![Workflow diagram comparing batch_column, covariate_column and
 bio_replicate_column. Batch_column removes a technical effect from the
-normalised matrix before imputation. Covariate_column adds nuisance
+normalized matrix before imputation. Covariate_column adds nuisance
 variables to the limma model without changing the matrix.
 Bio_replicate_column models correlation between paired, repeated or
 technical replicate samples.](figures/Batch_Correction_Arguments.svg)
@@ -319,11 +328,6 @@ technical replicate samples.](figures/Batch_Correction_Arguments.svg)
 The three arguments act at different stages: batch_column modifies the
 quantitative matrix, whereas covariate_column and bio_replicate_column
 act during differential abundance analysis.
-
-×
-
-![Enlarged
-diagram](data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==)
 
 ``` r
 
@@ -347,7 +351,7 @@ SummarizedExperiment::assayNames(res_bc$se_proc)
 ```
 
 Note where the new `BERT` assay sits: after `cycloess`, before the
-imputed matrix. Correction runs on the normalised data, and imputation
+imputed matrix. Correction runs on the normalized data, and imputation
 then runs on its output.
 
 ### Protecting a variable inside ComBat
@@ -377,10 +381,9 @@ explicitly. NADIA therefore warns when ComBat or limma correction is
 performed without a protected covariate.
 
 The appropriate choice depends on both the biological question and the
-design. The following guide summarises when a protected covariate should
+design. The following guide summarizes when a protected covariate should
 be supplied, when `NULL` may be reasonable, and when the design should
-be reconsidered rather than forcing an unprotected correction. Click the
-figure to enlarge it.
+be reconsidered rather than forcing an unprotected correction.
 
 ![Decision guide for batch_covariates. Use a protected covariate for a
 known biological variable when the design is estimable. Reassess the
@@ -435,11 +438,14 @@ participate in BERT/ComBat: they are used later during differential
 abundance analysis.
 
 In the simulated example used in this vignette, `Condition` is not
-protected because the small batch-by-condition groups do not provide
-enough usable observations for BERT to fit the protected model. The
-unprotected correction is acceptable here only because the simulated
-digestion effect is balanced across conditions and its removal can be
-evaluated against a known result.
+protected. With two samples per batch and condition, many proteins lack
+the two values in every batch-by-condition cell that the protected model
+needs: NADIA would correct those for the batch alone, and leave
+unadjusted those with fewer than two values in a batch, so protecting
+`Condition` would mix kinds of correction. The unprotected correction is
+acceptable here only because the simulated digestion effect is balanced
+across conditions and its removal can be evaluated against a known
+result.
 
 ## Step 4: verify
 
@@ -508,13 +514,13 @@ pvca_comparison$weights_after <- formatC(
 
 pvca_comparison
 #>                 label weights_before weights_after
-#> 1           Condition     0.70213868    0.77501709
-#> 2           Digestion     0.27420981    0.00000002
-#> 3 Digestion:Condition     0.02226913    0.03051598
-#> 4 Digestion:Injection     0.00010294    0.03128463
-#> 5           Injection     0.00024796    0.05424928
-#> 6 Injection:Condition     0.00054165    0.02173631
-#> 7               resid     0.00048983    0.08719669
+#> 1           Condition     0.70214017    0.77501717
+#> 2           Digestion     0.27421054    0.00003316
+#> 3 Digestion:Condition     0.02226706    0.03051652
+#> 4 Digestion:Injection     0.00010296    0.03131737
+#> 5           Injection     0.00024785    0.05424928
+#> 6 Injection:Condition     0.00054172    0.02172705
+#> 7               resid     0.00048968    0.08713946
 ```
 
 The estimated digestion contribution falls from 27.4% to a value close
@@ -560,7 +566,7 @@ than the number of significant calls alone.
 [`batch_correct_proteomics()`](https://sciordia.github.io/NADIA/reference/batch_correct_proteomics.md)
 corrects one factor per call. Because each call can read one assay and
 write the corrected values to a new assay, corrections can be applied
-sequentially. The first call below starts from the normalised `cycloess`
+sequentially. The first call below starts from the normalized `cycloess`
 assay; the second uses the first corrected assay as its input:
 
 ``` r
@@ -602,17 +608,16 @@ corrected. A more conservative option is to use `batch_column` for the
 dominant technical effect and include the remaining factor in
 `covariate_column`, so that limma adjusts for it without altering the
 quantitative matrix again. In this example, that means correcting
-`Digestion` and modelling `Injection`. This strategy reduces, but does
+`Digestion` and modeling `Injection`. This strategy reduces, but does
 not eliminate, the need to check design balance and verify the results.
 
 ## Inspecting the correction with PCA
 
-PVCA summarises the contributions numerically, whereas PCA shows how the
+PVCA summarizes the contributions numerically, whereas PCA shows how the
 samples are arranged.
 [`pca_covariates_plot()`](https://sciordia.github.io/NADIA/reference/pca_covariates_plot.md)
-displays the same projection coloured by each selected covariate, making
-it easier to identify factors associated with sample separation. Click
-the figure to enlarge it:
+displays the same projection colored by each selected covariate, making
+it easier to identify factors associated with sample separation:
 
 ``` r
 
@@ -627,11 +632,11 @@ pca_grid$grid +
     ggplot2::theme(panel.spacing = grid::unit(1.2, "lines"))
 ```
 
-![PCA coloured by condition, digestion, injection and subject using
-distinct colours and
+![PCA colored by condition, digestion, injection and subject using
+distinct colors and
 shapes](batch-correction_files/figure-html/pca-cov-styled-1.svg)
 
-PCA of the simulated example after correction, coloured in turn by each
+PCA of the simulated example after correction, colored in turn by each
 biological or technical variable.
 
 After a successful correction, samples should retain their biological
@@ -646,20 +651,19 @@ independently assessable technical effect.
 
 The simulated example made it possible to verify removal of an effect
 whose size and direction were known. The TMT example provides a
-complementary test: its two labelling mixes represent a real technical
+complementary test: its two labeling mixes represent a real technical
 batch, while the three-proteome spike-in design provides expected
 biological changes against which the results can be evaluated.
 
 ### The batch has to be declared, not discovered
 
-`nadia_tmt_report.tsv.gz` contains samples labelled in two TMTpro mixes:
+`nadia_tmt_report.tsv.gz` contains samples labeled in two TMTpro mixes:
 replicates 1–4 of each condition belong to the first mix and replicates
-5–8 to the second. The separate labelling reactions and acquisitions
+5–8 to the second. The separate labeling reactions and acquisitions
 create a plausible source of technical variation.
 
 The diagram below combines the biological spike-in composition with the
-channel allocation across the two TMTpro mixes. Click the figure to
-enlarge it.
+channel allocation across the two TMTpro mixes.
 
 ![Experimental design of the TMT spike-in study. Condition A contains 80
 percent human, 5 percent E. coli and 15 percent yeast; condition B
@@ -729,10 +733,10 @@ tmt_pvca_before <- pvca_analysis(
 
 tmt_pvca_before$variance_components
 #>           label      weights   category
-#> 1           Mix 0.6906984833  technical
-#> 2     Condition 0.3054270909 biological
-#> 3 Mix:Condition 0.0036038014 biol:techn
-#> 4         resid 0.0002706244   residual
+#> 1           Mix 0.6907005253  technical
+#> 2     Condition 0.3054257968 biological
+#> 3 Mix:Condition 0.0036035437 biol:techn
+#> 4         resid 0.0002701342   residual
 ```
 
 Before correction, TMT mix accounts for 69.1% of the weighted variation
@@ -807,10 +811,10 @@ tmt_pvca_comparison$weights_after <- formatC(
 
 tmt_pvca_comparison
 #>           label weights_before weights_after
-#> 1     Condition     0.30542709    0.96840884
-#> 2           Mix     0.69069848    0.00000000
-#> 3 Mix:Condition     0.00360380    0.03010000
-#> 4         resid     0.00027062    0.00149116
+#> 1     Condition     0.30542580    0.96840801
+#> 2           Mix     0.69070053    0.00000000
+#> 3 Mix:Condition     0.00360354    0.03010062
+#> 4         resid     0.00027013    0.00149137
 ```
 
 The estimated contribution of mix falls from 69.1% to a value close to
@@ -870,7 +874,7 @@ Protecting `Condition` produces very similar values: 97.8% rather than
 97.4% for *E. coli*, 96.1% rather than 95.6% for yeast, and 36.6% rather
 than 38.2% for the human background. This agreement is consistent with
 the balanced allocation of every condition across both mixes. It should
-not be generalised: when conditions are unevenly distributed across
+not be generalized: when conditions are unevenly distributed across
 batches, an unprotected ComBat correction can remove part of the
 biological difference together with the batch effect. In that setting,
 **the biological condition should be protected whenever the design
@@ -879,7 +883,7 @@ allows it to be estimated**.
 ### Visual assessment with PCA
 
 The PCA projections below show the same samples before and after the
-unprotected correction, coloured separately by condition and TMT mix.
+unprotected correction, colored separately by condition and TMT mix.
 This assay is shown because the directional benchmark above found very
 similar biological performance for the protected and unprotected
 corrections in this balanced design:
@@ -897,11 +901,11 @@ tmt_pca_before +
     ggplot2::theme(panel.spacing.x = grid::unit(2, "lines"))
 ```
 
-![PCA of the TMT experiment before correction, coloured by condition and
+![PCA of the TMT experiment before correction, colored by condition and
 by TMT mix. The samples separate by mix along the first
 component.](batch-correction_files/figure-html/tmt-pca-before-1.svg)
 
-TMT experiment before correction. The same PCA is coloured by biological
+TMT experiment before correction. The same PCA is colored by biological
 condition and TMT mix.
 
 Before correction, PC1 explains 66.4% of the variance and clearly
@@ -923,7 +927,7 @@ tmt_pca_after +
     ggplot2::theme(panel.spacing.x = grid::unit(2, "lines"))
 ```
 
-![PCA of the TMT experiment after correction, coloured by condition and
+![PCA of the TMT experiment after correction, colored by condition and
 by TMT mix. The mix panel has no structure left and the conditions
 separate along the first
 component.](batch-correction_files/figure-html/tmt-pca-after-1.svg)
@@ -1020,25 +1024,25 @@ biologically relevant, a non-zero `logFC_threshold` can be specified.
 compares the results with the known spike-in changes. The expected
 values and the complete scoring procedure are described in
 [`vignette("benchmarking")`](https://sciordia.github.io/NADIA/articles/benchmarking.md);
-here, the `D-A` results are summarised across several log2 fold-change
+here, the `D-A` results are summarized across several log2 fold-change
 thresholds. True positives (TP) are *E. coli* and yeast proteins
 recovered with the expected direction of change, whereas false positives
 (FP) are human proteins called differential despite the constant human
-background. The Matthews correlation coefficient (MCC) summarises the
+background. The Matthews correlation coefficient (MCC) summarizes the
 complete confusion matrix in a single score, with values closer to 1
-indicating better overall classification. Click the table to enlarge it.
+indicating better overall classification.
 
 ![Table comparing true positives, false positives, sensitivity,
 specificity and Matthews correlation coefficient for uncorrected,
 corrected and condition-protected analyses at log2 fold-change
 thresholds of zero, 0.2, 0.3, 0.5 and 1. True positives are expected E.
 coli and yeast changes and false positives are unchanged human proteins
-called differential. Sensitivity, specificity and MCC cells are coloured
+called differential. Sensitivity, specificity and MCC cells are colored
 from red at zero to green at one. The cells for threshold 0.3 are bold
 and outlined.](figures/TMT_Benchmarking_Thresholds.svg)
 
 Benchmarking of the D-A comparison across log2 fold-change thresholds.
-Sensitivity, specificity and MCC are coloured on a common scale from 0
+Sensitivity, specificity and MCC are colored on a common scale from 0
 (red) to 1 (green); the 0.3 threshold is highlighted because it provides
 the best overall balance in this experiment.
 
@@ -1086,13 +1090,13 @@ appropriate for every experiment**.
 ``` r
 
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
+#> R version 4.6.2 (2026-10-29)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 26.04.1 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.32.so;  LAPACK version 3.12.0
 #> 
 #> locale:
 #>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
@@ -1107,74 +1111,69 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] NADIA_0.99.1     BiocStyle_2.40.0
+#> [1] NADIA_1.1.0      BiocStyle_2.40.0
 #> 
 #> loaded via a namespace (and not attached):
-#>   [1] RColorBrewer_1.1-3          jsonlite_2.0.0             
-#>   [3] magrittr_2.0.5              farver_2.1.2               
-#>   [5] nloptr_2.2.1                rmarkdown_2.32             
-#>   [7] fs_2.1.0                    ragg_1.5.2                 
-#>   [9] vctrs_0.7.3                 memoise_2.0.1              
-#>  [11] minqa_1.2.8                 janitor_2.2.1              
-#>  [13] htmltools_0.5.9             S4Arrays_1.12.0            
-#>  [15] curl_8.0.0                  broom_1.0.13               
-#>  [17] SparseArray_1.12.2          TTR_0.24.4                 
-#>  [19] sass_0.4.10                 bslib_0.12.0               
-#>  [21] htmlwidgets_1.6.4           desc_1.4.3                 
-#>  [23] zoo_1.9-0                   lubridate_1.9.5            
-#>  [25] cachem_1.1.0                lifecycle_1.0.5            
-#>  [27] iterators_1.0.14            pkgconfig_2.0.3            
-#>  [29] Matrix_1.7-5                R6_2.6.1                   
-#>  [31] fastmap_1.2.0               rbibutils_2.4.1            
-#>  [33] MatrixGenerics_1.24.0       snakecase_0.11.1           
-#>  [35] digest_0.6.39               AnnotationDbi_1.74.0       
-#>  [37] S4Vectors_0.50.2            textshaping_1.0.5          
-#>  [39] rrcovNA_0.5-3               GenomicRanges_1.64.0       
-#>  [41] RSQLite_3.53.3              labeling_0.4.3             
-#>  [43] timechange_0.4.0            mgcv_1.9-4                 
-#>  [45] httr_1.4.9                  abind_1.4-8                
-#>  [47] compiler_4.6.1              bit64_4.8.6                
-#>  [49] withr_3.0.3                 S7_0.2.2                   
-#>  [51] backports_1.5.1             BiocParallel_1.46.0        
-#>  [53] DBI_1.3.0                   MASS_7.3-65                
-#>  [55] DelayedArray_0.38.2         tools_4.6.1                
-#>  [57] rrcov_1.7-7                 otel_0.2.0                 
-#>  [59] reactable_0.4.5             quantmod_0.4.29            
-#>  [61] glue_1.8.1                  nlme_3.1-169               
-#>  [63] grid_4.6.1                  cluster_2.1.8.2            
-#>  [65] generics_0.1.4              sva_3.60.0                 
-#>  [67] gtable_0.3.6                tidyr_1.3.2                
-#>  [69] data.table_1.18.6.1         XVector_0.52.0             
-#>  [71] BiocGenerics_0.58.1         foreach_1.5.2              
-#>  [73] pillar_1.11.1               stringr_1.6.0              
-#>  [75] limma_3.68.5                genefilter_1.94.0          
-#>  [77] logging_0.10-111            robustbase_0.99-7          
-#>  [79] splines_4.6.1               dplyr_1.2.1                
-#>  [81] lattice_0.22-9              survival_3.8-6             
-#>  [83] bit_4.6.0                   annotate_1.90.0            
-#>  [85] tidyselect_1.2.1            locfit_1.5-9.12            
-#>  [87] Biostrings_2.80.2           knitr_1.51                 
-#>  [89] BERT_1.8.0                  reformulas_0.4.4           
-#>  [91] bookdown_0.48               IRanges_2.46.0             
-#>  [93] Seqinfo_1.2.0               edgeR_4.10.4               
-#>  [95] SummarizedExperiment_1.42.0 stats4_4.6.1               
-#>  [97] xfun_0.60                   Biobase_2.72.0             
-#>  [99] statmod_1.5.2               matrixStats_1.5.0          
-#> [101] DEoptimR_1.2-1              stringi_1.8.9              
-#> [103] yaml_2.3.12                 boot_1.3-32                
-#> [105] evaluate_1.0.5              codetools_0.2-20           
-#> [107] tibble_3.3.1                BiocManager_1.30.27        
-#> [109] cli_3.6.6                   xtable_1.8-8               
-#> [111] systemfonts_1.3.2           Rdpack_2.6.6               
-#> [113] jquerylib_0.1.4             Rcpp_1.1.2                 
-#> [115] png_0.1-9                   norm_1.0-11.1              
-#> [117] XML_3.99-0.24               parallel_4.6.1             
-#> [119] pkgdown_2.2.1               ggplot2_4.0.3              
-#> [121] assertthat_0.2.1            blob_1.3.0                 
-#> [123] lme4_2.0-6                  mvtnorm_1.4-2              
-#> [125] rlist_0.4.6.2               scales_1.4.0               
-#> [127] xts_0.14.2                  pcaPP_2.0-5                
-#> [129] purrr_1.2.2                 highcharter_0.9.5          
-#> [131] crayon_1.5.3                rlang_1.3.0                
-#> [133] KEGGREST_1.52.2
+#>   [1] DBI_1.3.0                   Rdpack_2.6.6               
+#>   [3] rlang_1.3.0                 magrittr_2.0.5             
+#>   [5] clue_0.3-68                 snakecase_0.11.1           
+#>   [7] otel_0.3.0                  RSQLite_3.53.3             
+#>   [9] matrixStats_1.5.0           compiler_4.6.2             
+#>  [11] mgcv_1.9-4                  png_0.1-9                  
+#>  [13] systemfonts_1.3.4           vctrs_0.7.3                
+#>  [15] sva_3.60.0                  stringr_1.6.0              
+#>  [17] pkgconfig_2.0.3             crayon_1.5.3               
+#>  [19] fastmap_1.2.0               XVector_0.52.0             
+#>  [21] labeling_0.4.3              rmarkdown_2.32             
+#>  [23] BERT_1.8.0                  nloptr_2.2.1               
+#>  [25] ragg_1.5.2                  bit_4.6.0                  
+#>  [27] purrr_1.2.2                 xfun_0.62                  
+#>  [29] cachem_1.1.0                jsonlite_2.0.0             
+#>  [31] blob_1.3.0                  DelayedArray_0.38.2        
+#>  [33] BiocParallel_1.46.0         parallel_4.6.2             
+#>  [35] cluster_2.1.8.3             R6_2.6.1                   
+#>  [37] bslib_0.12.0                stringi_1.8.9              
+#>  [39] RColorBrewer_1.1-3          limma_3.68.5               
+#>  [41] genefilter_1.94.0           boot_1.3-32                
+#>  [43] rrcov_1.7-7                 GenomicRanges_1.64.0       
+#>  [45] lubridate_1.9.5             jquerylib_0.1.4            
+#>  [47] Rcpp_1.1.2                  Seqinfo_1.2.0              
+#>  [49] bookdown_0.48               SummarizedExperiment_1.42.0
+#>  [51] iterators_1.0.14            knitr_1.52                 
+#>  [53] IRanges_2.46.0              Matrix_1.7-6               
+#>  [55] splines_4.6.2               timechange_0.4.0           
+#>  [57] tidyselect_1.2.1            abind_1.4-8                
+#>  [59] yaml_2.3.12                 codetools_0.2-20           
+#>  [61] lattice_0.23-1              tibble_3.3.1               
+#>  [63] KEGGREST_1.52.2             Biobase_2.72.0             
+#>  [65] withr_3.0.3                 S7_1.0.0                   
+#>  [67] evaluate_1.0.5              survival_3.8-12            
+#>  [69] desc_1.4.3                  rrcovNA_0.5-3              
+#>  [71] norm_1.0-11.1               Biostrings_2.80.2          
+#>  [73] pillar_1.11.1               BiocManager_1.30.27        
+#>  [75] MatrixGenerics_1.24.0       foreach_1.5.2              
+#>  [77] stats4_4.6.2                reformulas_0.4.4           
+#>  [79] pcaPP_2.0-7                 generics_0.1.4             
+#>  [81] S4Vectors_0.50.3            ggplot2_4.0.4              
+#>  [83] scales_1.4.0                minqa_1.2.8                
+#>  [85] xtable_1.8-8                glue_1.8.1                 
+#>  [87] janitor_2.2.1               tools_4.6.2                
+#>  [89] robustbase_0.99-7           lme4_2.1-0                 
+#>  [91] locfit_1.5-9.12             annotate_1.90.0            
+#>  [93] XML_3.99-0.25               fs_2.1.0                   
+#>  [95] mvtnorm_1.5-0               grid_4.6.2                 
+#>  [97] tidyr_1.3.2                 rbibutils_2.4.1            
+#>  [99] edgeR_4.10.7                AnnotationDbi_1.74.0       
+#> [101] MsCoreUtils_1.24.0          nlme_3.1-171               
+#> [103] cli_3.6.6                   textshaping_1.1.0          
+#> [105] S4Arrays_1.12.1             dplyr_1.2.1                
+#> [107] gtable_0.3.6                DEoptimR_1.2-2             
+#> [109] logging_0.10-111            sass_0.5.0                 
+#> [111] digest_0.6.39               BiocGenerics_0.58.1        
+#> [113] SparseArray_1.12.3          htmlwidgets_1.6.4          
+#> [115] farver_2.1.2                memoise_2.0.1              
+#> [117] htmltools_0.5.9             pkgdown_2.2.1              
+#> [119] lifecycle_1.0.5             httr_1.4.9                 
+#> [121] statmod_1.5.2               bit64_4.8.6                
+#> [123] MASS_7.3-66
 ```

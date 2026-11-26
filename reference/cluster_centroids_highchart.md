@@ -43,7 +43,10 @@ cluster_centroids_highchart(
 
 - palette:
 
-  Colour palette
+  Colour palette: `NULL` for the default; `"pkg::name"` for a palette
+  from paletteer; `"brewer:Name"`, or the bare name, for an RColorBrewer
+  palette; or a vector of colours. A palette with fewer colours than
+  clusters is interpolated.
 
 - line_width:
 
@@ -68,7 +71,8 @@ highchart object
 ## Examples
 
 ``` r
-if (requireNamespace("Mfuzz", quietly = TRUE) &&
+if (requireNamespace("highcharter", quietly = TRUE) &&
+    requireNamespace("Mfuzz", quietly = TRUE) &&
     requireNamespace("e1071", quietly = TRUE)) {
   data(nadia_dia)
   res <- process_proteomics(nadia_dia, verbose = FALSE)

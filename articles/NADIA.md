@@ -6,11 +6,11 @@ NADIA provides a complete workflow for the analysis of protein
 quantification data from bottom-up proteomics. It starts from
 quantification reports exported by Spectronaut, DIA-NN or Proteome
 Discoverer and produces processed matrices, differential abundance
-results, tables and visualisations.
+results, tables and visualizations.
 
 The name NADIA is derived from **Missing Value-Aware Differential
-Abundance Analysis of DIA Proteomics Data**, which summarises the
-package’s main purpose: analysing differential protein abundance while
+Abundance Analysis of DIA Proteomics Data**, which summarizes the
+package’s main purpose: analyzing differential protein abundance while
 explicitly accounting for missing values. The name also brings together
 **NA**, the notation used by R for missing values, and **DIA**,
 data-independent acquisition, the proteomics context in which the
@@ -26,15 +26,15 @@ abundance analysis. Removing every affected protein may discard
 biological signal, whereas unsuitable imputation may attenuate real
 differences or introduce artificial ones.
 
-For this reason, NADIA treats normalisation and imputation as decisions
+For this reason, NADIA treats normalization and imputation as decisions
 that should be evaluated rather than accepted as fixed preprocessing
-steps. The package includes 13 normalisation methods and 20 imputation
+steps. The package includes 13 normalization methods and 19 imputation
 strategies, together with functions for comparing their performance on
 the data themselves or against a known reference.
 
 This vignette provides a complete walkthrough of the workflow using a
 DIA experiment: data import, filtering, log2 transformation,
-normalisation, optional batch correction, imputation, differential
+normalization, optional batch correction, imputation, differential
 abundance analysis, method assessment, benchmarking and preparation of
 the results for downstream interpretation. The remaining vignettes
 examine each module in greater detail and can be read independently.
@@ -45,14 +45,18 @@ NADIA workflow:
 | Step | Workflow stage and documentation | Question it answers |
 |---:|----|----|
 | 1 | Import Spectronaut, DIA-NN, TMT and LFQ data into a common `proteomics_data` object: [`vignette("input-formats")`](https://sciordia.github.io/NADIA/articles/input-formats.md) | How do I import DIA, TMT or label-free (DDA) data? |
-| 2 | Filter, transform to log2 and select among 13 normalisation options: *Filtering, log2 transformation and normalisation* in this vignette | How are proteins filtered, log2-transformed and normalised? |
+| 2 | Filter, transform to log2 and select among 13 normalization options: *Filtering, log2 transformation and normalization* in this vignette | How are proteins filtered, log2-transformed and normalized? |
 | 3 | Optionally diagnose and correct batch effects using PVCA/BERT: [`vignette("batch-correction")`](https://sciordia.github.io/NADIA/articles/batch-correction.md) | How do I diagnose, correct and verify a batch effect? |
-| 4 | Select among 20 imputation options, including `combo`, `softHybrid` and `limpa`: [`vignette("missing-values")`](https://sciordia.github.io/NADIA/articles/missing-values.md) | What do the missing values mean and how should I impute them? |
+| 4 | Select among 19 imputation options, including `combo`, `softHybrid` and `limpa`: [`vignette("missing-values")`](https://sciordia.github.io/NADIA/articles/missing-values.md) | What do the missing values mean and how should I impute them? |
 | 5 | Perform differential abundance analysis with `limma` or `limpa`: *Differential abundance results* in this vignette and [`vignette("missing-values")`](https://sciordia.github.io/NADIA/articles/missing-values.md) | How do I obtain and interpret differential abundance results? |
-| 6 | Assess normalisation and imputation methods: [`vignette("choosing-methods")`](https://sciordia.github.io/NADIA/articles/choosing-methods.md) | How do I compare methods when no known reference is available? |
+| 6 | Assess normalization and imputation methods: [`vignette("choosing-methods")`](https://sciordia.github.io/NADIA/articles/choosing-methods.md) | How do I compare methods when no known reference is available? |
 | 7 | Benchmark complete pipelines against known references or spike-in experiments: [`vignette("benchmarking")`](https://sciordia.github.io/NADIA/articles/benchmarking.md) | How do I evaluate pipelines using a spike-in experiment? |
 | 8 | Run Pattern Profiler with Mfuzz: [`vignette("pattern-profiler")`](https://sciordia.github.io/NADIA/articles/pattern-profiler.md) | How do I identify proteins with similar profiles across conditions? |
-| 9 | Create Highcharts, ggplot2 and ComplexHeatmap visualisations and interactive `reactable` tables: [`vignette("visualization")`](https://sciordia.github.io/NADIA/articles/visualization.md) and [`vignette("results-and-export")`](https://sciordia.github.io/NADIA/articles/results-and-export.md) | How do I customise, export and share figures and result tables? |
+| 9 | Create Highcharts, ggplot2 and ComplexHeatmap visualizations and interactive `reactable` tables: [`vignette("visualization")`](https://sciordia.github.io/NADIA/articles/visualization.md) and [`vignette("results-and-export")`](https://sciordia.github.io/NADIA/articles/results-and-export.md) | How do I customize, export and share figures and result tables? |
+
+The section *NADIA and related Bioconductor packages* at the end of this
+vignette compares NADIA with other Bioconductor packages for proteomics
+and shows how they can be used together.
 
 ## Installation
 
@@ -65,6 +69,11 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 BiocManager::install("NADIA")
 ```
+
+This vignette also uses `ComplexHeatmap`, `tidyHeatmap` and
+`highcharter`, which are optional;
+`BiocManager::install("NADIA", dependencies = TRUE)` installs them
+together with NADIA.
 
 After installation, the package is loaded into the R session:
 
@@ -95,9 +104,6 @@ groups.](figures/Three_Proteome_Experimental_Design.svg)
 Complete three-proteome spike-in design underlying the example datasets.
 For distribution with NADIA, the datasets retain conditions A, B and D
 and 2,000 protein groups.
-
-Click the figure to enlarge it; press Esc or click outside the image to
-close it.
 
 Condition D contains no yeast proteins. This structural absence means
 that yeast-derived protein groups are expected to show the greatest
@@ -172,7 +178,7 @@ and `protein_quant` each contain 2,000 protein groups.
 
 The three tables have different roles. `metadata` defines the
 experimental design, `protein_quant` provides the abundance matrix used
-for normalisation, imputation and differential abundance analysis, and
+for normalization, imputation and differential abundance analysis, and
 `protein_id` retains the more detailed identification evidence for
 inspection and reporting.
 
@@ -228,7 +234,7 @@ filtering and imputation settings selected for the analysis.
 
 Other export formats may encode absence differently. An empty cell may
 be converted directly to `NA` during import, and `NaN` is also
-recognised as missing by functions such as
+recognized as missing by functions such as
 [`is.na()`](https://rdrr.io/r/base/NA.html). Some reports use zero as a
 marker of absence. In an intensity matrix, zero requires explicit
 treatment because `log2(0)` produces `-Inf` rather than a missing value.
@@ -246,7 +252,7 @@ value should be regarded as MAR or MNAR.
 describes the working assumptions used by NADIA and explains how missing
 values are assigned to the available imputation strategies.
 
-## Filtering, log2 transformation and normalisation
+## Filtering, log2 transformation and normalization
 
 Before imputation and statistical analysis, NADIA prepares the
 quantitative matrix in three stages. First, values equal to zero are
@@ -336,15 +342,15 @@ all three conditions retains 1,444 protein groups and removes 556.
 Second, the retained intensities are transformed to the log2 scale.
 Third, NADIA applies the method selected through `norm_method`. Thirteen
 options are available, including `log2`, which retains the
-log2-transformed values without additional normalisation. The
+log2-transformed values without additional normalization. The
 untransformed matrix (the `raw` assay), the log2-transformed matrix and
-the normalised matrix are kept as separate assays in the resulting
+the normalized matrix are kept as separate assays in the resulting
 `SummarizedExperiment` whenever they represent distinct processing
 stages.
 
-The *Normalisation* section of
+The *Normalization* section of
 [`vignette("choosing-methods")`](https://sciordia.github.io/NADIA/articles/choosing-methods.md)
-shows how to run and compare alternative normalisation methods. A
+shows how to run and compare alternative normalization methods. A
 separate optional filter, `max_na_prop`, can remove proteins with a high
 overall proportion of missing values immediately before imputation; it
 is disabled by default and is documented in
@@ -352,15 +358,15 @@ is disabled by default and is documented in
 
 ## Imputation of missing values
 
-Normalisation makes sample distributions more comparable, but it does
+Normalization makes sample distributions more comparable, but it does
 not replace the values that remain missing. By default, NADIA therefore
-applies an imputation stage to the normalised matrix. Imputation
+applies an imputation stage to the normalized matrix. Imputation
 estimates plausible values for missing entries from the observed data or
 from a model of the missingness mechanism. These estimates allow the
 subsequent analysis to use a complete matrix, but they are not new
 measurements and should not be interpreted as the unknown true values.
 
-NADIA provides 20 selectable imputation strategies through `imp_method`.
+NADIA provides 19 selectable imputation strategies through `imp_method`.
 They include methods designed for MAR or MNAR values, the hybrid `combo`
 and `softHybrid` strategies, and `none`, which leaves missing values
 unchanged. The new `halfmin` option implements half-minimum imputation:
@@ -370,7 +376,7 @@ entries and instead accounts for them in its probabilistic differential
 abundance model.
 
 Each imputed result is stored as a new assay without overwriting the
-normalised matrix from which it was generated.
+normalized matrix from which it was generated.
 [`vignette("missing-values")`](https://sciordia.github.io/NADIA/articles/missing-values.md)
 describes the assumptions behind all available methods, explains how
 `combo` and `softHybrid` assign missing values to different branches,
@@ -381,10 +387,10 @@ abundance results.
 
 [`process_proteomics()`](https://sciordia.github.io/NADIA/reference/process_proteomics.md)
 coordinates the main stages of the analysis: filtering, log2
-transformation, normalisation, optional batch-effect correction,
+transformation, normalization, optional batch-effect correction,
 imputation of missing values, and differential abundance analysis. The
 function returns in memory the objects and tables required to inspect,
-visualise and export the results.
+visualize and export the results.
 
 The concise syntax does not, however, represent a parameter-free
 analysis. Every omitted argument is assigned either a fixed default or a
@@ -394,8 +400,8 @@ choices:
 
 | Stage | Default choice | Where it is explained |
 |----|----|----|
-| Filtering | `min_reps_filter = NULL` is resolved automatically (two replicates for this dataset), and `min_groups_filter = 1` requires the criterion in at least one condition | *Filtering, log2 transformation and normalisation* above |
-| Normalisation | `cycloess`, using the fast algorithm, three iterations and a span of 0.7 | *Filtering, log2 transformation and normalisation* above and the *Normalisation* section of [`vignette("choosing-methods")`](https://sciordia.github.io/NADIA/articles/choosing-methods.md) |
+| Filtering | `min_reps_filter = NULL` is resolved automatically (two replicates for this dataset), and `min_groups_filter = 1` requires the criterion in at least one condition | *Filtering, log2 transformation and normalization* above |
+| Normalization | `cycloess`, using the fast algorithm, three iterations and a span of 0.7 | *Filtering, log2 transformation and normalization* above and the *Normalization* section of [`vignette("choosing-methods")`](https://sciordia.github.io/NADIA/articles/choosing-methods.md) |
 | Batch correction | Not applied (`batch_correct = FALSE`) | [`vignette("batch-correction")`](https://sciordia.github.io/NADIA/articles/batch-correction.md) |
 | Imputation | `combo`, using `Impseqrob` for the MAR branch and `min` for the MNAR branch | *Imputation of missing values* above and [`vignette("missing-values")`](https://sciordia.github.io/NADIA/articles/missing-values.md) |
 | Differential abundance | All pairwise comparisons with `limma`; `alpha = 0.05` and no additional log2 fold-change threshold | *Differential abundance results* below |
@@ -421,7 +427,7 @@ res <- process_proteomics(
     min_reps_filter = NULL,
     min_groups_filter = 1,
 
-    # Normalisation
+    # Normalization
     norm_method = "cycloess",
     cyclic_loess_method = "fast",
     cyclic_loess_iterations = 3,
@@ -468,6 +474,11 @@ res <- process_proteomics(
     export_volcano = TRUE,
     export_boxplot = TRUE,
     export_pca = TRUE,
+
+    # SummarizedExperiment input only (see "Using NADIA together with other
+    # packages")
+    assay_name = NULL,
+    log2_input = FALSE,
 
     # Progress messages
     verbose = TRUE
@@ -529,10 +540,10 @@ explains the assumptions underlying the available imputation strategies.
 During processing, NADIA stores the quantitative matrices in a
 `SummarizedExperiment`, the standard Bioconductor container for
 matrix-like omics data. This object retains the input, log2-transformed
-and normalised matrices and, when the corresponding stages are applied,
+and normalized matrices and, when the corresponding stages are applied,
 the batch-corrected and imputed matrices. Each matrix is stored as a
 separate assay, so the object contains both the intermediate processing
-stages and the normalised-and-imputed matrix used for downstream
+stages and the normalized-and-imputed matrix used for downstream
 differential abundance analysis.
 
 A `SummarizedExperiment` keeps three coordinated components:
@@ -551,7 +562,7 @@ Structure of a SummarizedExperiment object.
 
 *Figure reproduced from the [SummarizedExperiment source
 repository](https://github.com/Bioconductor/SummarizedExperiment/blob/devel/vignettes/SE.svg),
-distributed under the Artistic-2.0 licence.*
+distributed under the Artistic-2.0 license.*
 
 These components share the same row and column indexing. Consequently,
 subsetting the object also subsets the corresponding protein annotation
@@ -578,19 +589,19 @@ workflow:
 
 - `raw`, the input quantification matrix;
 - `log2`, the matrix after log2 transformation;
-- `cycloess`, the normalised matrix;
+- `cycloess`, the normalized matrix;
 - `Impseqrob_min`, the matrix after the hybrid imputation.
 
 The `Impseqrob_min` assay is the complete quantitative matrix obtained
-after the successive normalisation and imputation stages. In this
-analysis, it contains the intensities normalised with `cycloess`, with
+after the successive normalization and imputation stages. In this
+analysis, it contains the intensities normalized with `cycloess`, with
 the remaining missing values filled by the default `combo` strategy:
 `Impseqrob` for values assigned to the MAR branch and `min` for values
 assigned to the MNAR branch. Thus, the data in `Impseqrob_min` are both
-normalised and imputed, and this is the matrix used as input for the
+normalized and imputed, and this is the matrix used as input for the
 subsequent differential abundance analysis. The assay name records the
 two imputation methods, although complete reproducibility also requires
-recording the normalisation method, the function arguments and the NADIA
+recording the normalization method, the function arguments and the NADIA
 version.
 
 ## Differential abundance results
@@ -690,7 +701,7 @@ has more than two conditions, as this one does. `MissGlobal` is a
 property of the protein group in the experiment, so it does not move
 from one comparison to the next; `MissComp` does, because the replicates
 it counts change with the contrast. A protein group that is missing in a
-single replicate of D shows both behaviours at once:
+single replicate of D shows both behaviors at once:
 
 ``` r
 
@@ -712,7 +723,7 @@ based mainly on measured intensities from estimates that depend largely
 on imputed values.
 
 The relationship between missingness and the differential call can be
-summarised directly. `MissComp` is the right column here, because what
+summarized directly. `MissComp` is the right column here, because what
 is being related to the call is the evidence available for that
 particular contrast:
 
@@ -783,10 +794,10 @@ were measured and how many were imputed.
 develops this distinction and explains how the different imputation
 strategies affect these results.
 
-## Visualising the results
+## Visualizing the results
 
 [`process_proteomics()`](https://sciordia.github.io/NADIA/reference/process_proteomics.md)
-prepares three tables that can be used directly by the visualisation
+prepares three tables that can be used directly by the visualization
 modules:
 
 - `res$DEPs_results`, for the *volcano plots*;
@@ -794,7 +805,7 @@ modules:
   different assays;
 - `res$PCA_Input`, for PCA and heatmaps.
 
-The visualisation functions take these tables rather than the complete
+The visualization functions take these tables rather than the complete
 `SummarizedExperiment`, which means they can also be applied to results
 that have been modified or produced by other workflows, provided they
 keep the expected structure.
@@ -811,36 +822,17 @@ selection modes:
 volcano <- volcano_highchart_list(res$DEPs_results)
 boxplot <- boxplot_highchart_list(res$BoxPlot_Input)
 pca     <- pca_highchart_list(res$PCA_Input)
-
-volcano[["B-A"]]
+## 
+## volcano[["B-A"]]
 ```
 
 `volcano[["B-A"]]`, for example, selects the volcano plot for the `B-A`
-comparison.
+comparison. It shows the results obtained from the matrix normalized
+with `cycloess` and imputed with the default `Impseqrob_min` strategy:
 
-The following static image provides a preview of that interactive
-volcano plot for the `B-A` comparison. It shows the results obtained
-from the matrix normalised with `cycloess` and imputed with the default
-`Impseqrob_min` strategy:
-
-![Volcano plot for the B-A comparison. The horizontal axis shows log2
-fold change and the vertical axis shows minus log10 p-value; significant
-up-regulated proteins are blue, significant down-regulated proteins are
-red, and non-significant proteins are
-grey.](figures/Volcano_B-A_impseqrob-min.svg)
-
-Static SVG preview of the interactive volcano plot for the B-A
-comparison using the cycloess-normalised and Impseqrob_min-imputed
-matrix.
-
-Click the figure to enlarge it; press Esc or click outside the image to
-close it.
-
-The interactive figures themselves are not rendered in this vignette, to
-keep the document small.
 [`vignette("visualization")`](https://sciordia.github.io/NADIA/articles/visualization.md)
 shows interactive versions of the three modules and explains their main
-customisation options.
+customization options.
 [`vignette("results-and-export")`](https://sciordia.github.io/NADIA/articles/results-and-export.md)
 describes how to save each widget as an HTML file.
 
@@ -883,22 +875,237 @@ comparison](NADIA_files/figure-html/heatmap-1.png)
 The figure uses the following options:
 
 - `comparison = "B-A"` selects the comparison of interest;
-- `scale_data = "row"` standardises the profile of each protein group
-  separately, so that colour represents relative changes between samples
+- `scale_data = "row"` standardizes the profile of each protein group
+  separately, so that color represents relative changes between samples
   rather than differences in absolute abundance between proteins;
 - `sample_order = "condition"` groups the samples by condition;
 - `condition_order = c("A", "B", "D")` sets the order of those
-  conditions explicitly;
+  conditions explicitly; with `mode = "target"` only the two compared
+  are drawn, so D does not appear;
 - `show_row_names = FALSE` hides the identifiers, which would otherwise
   be illegible when many rows are drawn.
 
 The heatmap therefore shows the relative patterns of the selected
-protein groups across the A, B and D samples. It should not be
+protein groups across the eight samples of A and B. It should not be
 interpreted as a map of absolute protein abundances.
 
-Further options for selection, clustering, ordering and customisation
+Further options for selection, clustering, ordering and customization
 are described in
 [`vignette("visualization")`](https://sciordia.github.io/NADIA/articles/visualization.md).
+
+## NADIA and related Bioconductor packages
+
+Several Bioconductor packages cover parts of the same ground. The table
+below summarizes those closest to NADIA, as described in their own
+documentation, and how each one relates to it.
+
+| Package | What it does | Relation to NADIA |
+|----|----|----|
+| [`QFeatures`](https://bioconductor.org/packages/QFeatures) | Infrastructure that keeps PSMs, peptides and proteins of an experiment as linked assays | Complementary: NADIA stores its assays in a `SummarizedExperiment`, which can be included in a `QFeatures` object, and accepts one as input |
+| [`msqrob2`](https://bioconductor.org/packages/msqrob2) | Robust linear (mixed) models for differential abundance from peptides or proteins, with a hurdle workflow that handles missing values without imputation | Can model NADIA’s normalized protein assay, missing values included |
+| [`DEP`](https://bioconductor.org/packages/DEP) | Workflow for label-free and TMT tables from MaxQuant or IsobarQuant: filtering, `vsn` normalization, imputation with one of the `MSnbase` methods, `limma`, plots and Shiny apps | The closest in scope; NADIA adds the points listed below |
+| [`limpa`](https://bioconductor.org/packages/limpa) | Models the probability of detecting each precursor to quantify proteins and test them with `limma` without imputation | Built into NADIA: `imp_method = "limpa"` and `de_method = "limpa"` |
+| [`proDA`](https://bioconductor.org/packages/proDA) | Probabilistic dropout model for differential abundance without imputation | Can take NADIA’s normalized assay, missing values included |
+| [`MSstats`](https://bioconductor.org/packages/MSstats) | Feature-level statistical modeling for DDA, SRM and DIA, with converters for Spectronaut, DIA-NN, Proteome Discoverer and other tools | Its group comparisons can be scored with NADIA’s spike-in benchmark |
+| [`PRONE`](https://bioconductor.org/packages/PRONE) | Evaluation of normalization methods, including batch correction (IRS, `limma`), by intragroup variation, downstream differential abundance and spike-in data | NADIA uses its intragroup metrics and also evaluates imputation, for which `PRONE` currently offers a single mixed method |
+| [`NormalyzerDE`](https://bioconductor.org/packages/NormalyzerDE) | Screening of normalization methods, including a retention-time-segmented approach, with an evaluation report and `limma` or ANOVA testing | Complementary for normalization, notably for retention-time effects, which NADIA does not address |
+
+### What NADIA adds
+
+NADIA combines data import, processing, method assessment and reporting
+in a single protein-level workflow. Its main contributions are the
+connections between these steps and the attention given to missing
+values throughout the analysis:
+
+- **A common starting point for different data sources.** NADIA imports
+  protein-level reports from Spectronaut, DIA-NN and Proteome
+  Discoverer, including TMT and label-free data. It also accepts
+  `SummarizedExperiment` objects containing protein abundances and
+  sample conditions, allowing data prepared with other Bioconductor
+  tools to enter the same workflow. For report-based inputs, sample
+  information, identification evidence and quantitative measurements are
+  retained in coordinated tables
+  ([`vignette("input-formats")`](https://sciordia.github.io/NADIA/articles/input-formats.md)).
+
+- **Several ways to handle missing values.** The 19 available strategies
+  include individual imputation methods, hybrid approaches and options
+  that leave values missing. In `combo`, working MAR/MNAR assignments
+  determine which of two methods fills each missing value. `softHybrid`
+  blends two estimates using a continuous weight, while the `limpa`
+  route models detection without imputing. NADIA also reports
+  missing-value percentages for each protein, both across the experiment
+  and within each comparison, to help interpret the evidence behind a
+  differential result
+  ([`vignette("missing-values")`](https://sciordia.github.io/NADIA/articles/missing-values.md)).
+
+- **Batch diagnosis and correction before imputation.** PVCA helps
+  assess the contribution of batch and biological factors to variation.
+  BERT applies ComBat or `limma` correction to incomplete matrices, with
+  options to protect biological covariates. This allows batch effects to
+  be addressed before filling missing values. The design and the
+  available observations still determine which effects can be separated
+  ([`vignette("batch-correction")`](https://sciordia.github.io/NADIA/articles/batch-correction.md)).
+
+- **Differential abundance linked to missingness.** NADIA supports
+  testing with `limma` or `limpa`; the latter carries quantification
+  uncertainty into the test. Fold changes, p-values and missing-value
+  summaries are returned together. This helps distinguish comparisons
+  supported by measured values from those that depend strongly on
+  imputation or condition-specific non-detection
+  ([`vignette("missing-values")`](https://sciordia.github.io/NADIA/articles/missing-values.md)).
+
+- **Method assessment without a known biological reference.**
+  Normalization methods can be compared using `PRONE`’s within-group
+  metrics. Imputation methods can be assessed by hiding observed values
+  and measuring how well they are recovered. These diagnostics help
+  guide method choice, although recovery of held-out observations does
+  not establish how well a method estimates genuinely unobserved values
+  ([`vignette("choosing-methods")`](https://sciordia.github.io/NADIA/articles/choosing-methods.md)).
+
+- **Benchmarking when an expected result is available.** For spike-in
+  data, NADIA scores and ranks complete combinations of normalization,
+  imputation and differential analysis using OpDEA metrics. This
+  evaluates the downstream results of a pipeline, rather than an
+  individual processing step alone. Results from other tools, such as
+  `MSstats`, can be adapted to the same format and included in the
+  comparison
+  ([`vignette("benchmarking")`](https://sciordia.github.io/NADIA/articles/benchmarking.md)).
+
+- **Exploration of results.** Pattern Profiler identifies proteins with
+  similar abundance profiles across conditions, helping users explore
+  coordinated changes. Interactive volcano plots, PCA plots and boxplots
+  provide complementary views of differential abundance and sample
+  variation. Interactive tables connect these results with
+  identification, quantification and sample information for closer
+  inspection of individual proteins
+  ([`vignette("pattern-profiler")`](https://sciordia.github.io/NADIA/articles/pattern-profiler.md)
+  and
+  [`vignette("visualization")`](https://sciordia.github.io/NADIA/articles/visualization.md)).
+
+- **Export and sharing of results.** Figures and interactive tables can
+  be saved as standalone HTML files, so collaborators can explore them
+  in a web browser without running R. Table widgets also provide Excel
+  export, while the processing workflow can write selected data tables
+  for use in other tools. These options support both interactive
+  reporting and further analysis
+  ([`vignette("results-and-export")`](https://sciordia.github.io/NADIA/articles/results-and-export.md)).
+
+- **A saved record of the analysis.** A single `.nadia` file stores
+  imported data, results, processing parameters and input-file
+  provenance. The analysis can be restored in R, and the underlying
+  DuckDB database can be inspected with other DuckDB clients. The
+  precision weights used internally by `limpa` are not stored
+  ([`vignette("results-and-export")`](https://sciordia.github.io/NADIA/articles/results-and-export.md)).
+
+NADIA analyzes proteins, not individual peptides or precursors. Its
+default workflow imputes missing values before testing. With
+`imp_method = "none"`, `limma` receives the incomplete matrix; the
+`limpa` route instead models missingness and carries quantification
+uncertainty into the test.
+
+### Using NADIA together with other packages
+
+NADIA can run `limpa` directly, pass its normalized data to other
+analysis packages, or accept protein-level data prepared elsewhere.
+
+**Run limpa within NADIA.** Select it for both quantification and
+differential analysis:
+
+``` r
+
+res_limpa <- process_proteomics(nadia_dia, imp_method = "limpa",
+                                de_method = "limpa")
+```
+
+**Analyze NADIA output with proDA or msqrob2.** Use the normalized
+assay, which retains missing values. Convert the condition to an
+unordered factor for the usual treatment contrasts:
+
+``` r
+
+library(QFeatures)   # also attaches SummarizedExperiment
+library(msqrob2)
+
+x <- assay(res$se_proc, "cycloess")
+condition <- factor(res$se_proc$Condition, ordered = FALSE)
+
+# proDA
+fit <- proDA::proDA(x, design = condition)
+proDA::test_diff(fit, B - A)
+
+# msqrob2, through a QFeatures object
+coldata <- colData(res$se_proc)
+coldata$Condition <- condition
+qf <- QFeatures(list(proteins = SummarizedExperiment(list(cycloess = x))),
+                colData = coldata)
+qf <- msqrob(qf, i = "proteins", formula = ~ Condition)
+qf <- hypothesisTest(qf, i = "proteins",
+                     contrast = makeContrast("ConditionB = 0", "ConditionB"))
+rowData(qf[["proteins"]])$ConditionB
+```
+
+**Bring external data into NADIA.** Supply a `SummarizedExperiment` with
+proteins in rows, samples in columns and conditions in
+`colData()$Condition`. This example reconstructs that input from the
+bundled data:
+
+``` r
+
+quant_cols <- grep("^PG.Quantity_", names(nadia_dia$protein_quant))
+intensities <- as.matrix(nadia_dia$protein_quant[, quant_cols])
+rownames(intensities) <- nadia_dia$protein_quant$PG.ProteinGroups
+
+se <- SummarizedExperiment::SummarizedExperiment(
+    assays  = list(intensity = intensities),
+    colData = data.frame(Condition = nadia_dia$metadata$R.Condition,
+                         Replicate = nadia_dia$metadata$R.Replicate),
+    rowData = data.frame(Genes = nadia_dia$protein_quant$PG.Genes))
+
+res_se <- process_proteomics(se, verbose = FALSE)
+identical(res_se$DEPs_results, res$DEPs_results)
+#> [1] TRUE
+```
+
+The differential results match those obtained from the Spectronaut
+input. Use `log2_input = TRUE` for log2 intensities and `assay_name` to
+select among multiple assays. To convert the input without running the
+analysis, use
+[`preprocess_se()`](https://sciordia.github.io/NADIA/reference/preprocess_se.md).
+
+The same approach accepts a protein-level assay from `QFeatures` or
+protein estimates from `limpa`. Aggregate precursors first:
+`readDIANN()` imports precursors, whereas `dpcQuant()` estimates protein
+abundances. In the examples below, condition labels must match the
+number and order of samples.
+
+``` r
+
+# QFeatures: the protein-level assay, with the condition added to its colData
+se <- qf[["proteins"]]
+se$Condition <- c("A", "A", "A", "B", "B", "B")
+res <- process_proteomics(se)
+
+# limpa: precursors read from the DIA-NN report, summarized into proteins
+y   <- limpa::readDIANN("report.parquet")
+dpc <- limpa::dpcCN(y)
+yp  <- limpa::dpcQuant(y, protein.id = "Protein.Group", dpc = dpc)
+se  <- SummarizedExperiment::SummarizedExperiment(
+    assays  = list(log2 = yp$E),
+    colData = data.frame(Condition = c("A", "A", "A", "B", "B", "B")))
+res <- process_proteomics(se, log2_input = TRUE)
+```
+
+`limpa` already accounts for missingness when estimating protein
+abundances; passing those estimates to NADIA does not carry over its
+precision weights. To use NADIA’s own missing-value handling, import the
+DIA-NN protein-group matrix with
+[`preprocess_diann()`](https://sciordia.github.io/NADIA/reference/preprocess_diann.md)
+instead
+([`vignette("input-formats")`](https://sciordia.github.io/NADIA/articles/input-formats.md)).
+
+Results from `MSstats` or other tools can also be adapted to NADIA’s
+table format and compared in the same benchmark
+([`vignette("benchmarking")`](https://sciordia.github.io/NADIA/articles/benchmarking.md)).
 
 ## Next steps
 
@@ -907,7 +1114,7 @@ configuration. Those defaults provide a reproducible starting point, but
 they should not be interpreted as the best choice for every dataset.
 
 One of the decisions with the greatest effect on the final results table
-is the choice of normalisation and imputation methods.
+is the choice of normalization and imputation methods.
 [`vignette("missing-values")`](https://sciordia.github.io/NADIA/articles/missing-values.md)
 explains the assumptions underlying the available strategies, whereas
 [`vignette("choosing-methods")`](https://sciordia.github.io/NADIA/articles/choosing-methods.md)
@@ -924,13 +1131,13 @@ vignettes linked in the introduction.
 ``` r
 
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
+#> R version 4.6.2 (2026-10-29)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 26.04.1 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.32.so;  LAPACK version 3.12.0
 #> 
 #> locale:
 #>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
@@ -945,24 +1152,24 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] NADIA_0.99.1     BiocStyle_2.40.0
+#> [1] NADIA_1.1.0      BiocStyle_2.40.0
 #> 
 #> loaded via a namespace (and not attached):
 #>   [1] gridExtra_2.3.1             rlang_1.3.0                
 #>   [3] magrittr_2.0.5              clue_0.3-68                
-#>   [5] GetoptLong_1.1.1            otel_0.2.0                 
-#>   [7] matrixStats_1.5.0           compiler_4.6.1             
-#>   [9] png_0.1-9                   systemfonts_1.3.2          
+#>   [5] GetoptLong_1.1.1            otel_0.3.0                 
+#>   [7] matrixStats_1.5.0           compiler_4.6.2             
+#>   [9] png_0.1-9                   systemfonts_1.3.4          
 #>  [11] vctrs_0.7.3                 stringr_1.6.0              
 #>  [13] pkgconfig_2.0.3             shape_1.4.6.1              
 #>  [15] crayon_1.5.3                fastmap_1.2.0              
 #>  [17] backports_1.5.1             XVector_0.52.0             
 #>  [19] rmarkdown_2.32              ragg_1.5.2                 
 #>  [21] highcharter_0.9.5           purrr_1.2.2                
-#>  [23] xfun_0.60                   cachem_1.1.0               
-#>  [25] tidyHeatmap_1.13.1          jsonlite_2.0.0             
+#>  [23] xfun_0.62                   cachem_1.1.0               
+#>  [25] jsonlite_2.0.0              tidyHeatmap_1.13.1         
 #>  [27] DelayedArray_0.38.2         broom_1.0.13               
-#>  [29] parallel_4.6.1              cluster_2.1.8.2            
+#>  [29] parallel_4.6.2              cluster_2.1.8.3            
 #>  [31] R6_2.6.1                    bslib_0.12.0               
 #>  [33] stringi_1.8.9               RColorBrewer_1.1-3         
 #>  [35] limma_3.68.5                rlist_0.4.6.2              
@@ -970,39 +1177,39 @@ sessionInfo()
 #>  [39] lubridate_1.9.5             jquerylib_0.1.4            
 #>  [41] Seqinfo_1.2.0               bookdown_0.48              
 #>  [43] assertthat_0.2.1            SummarizedExperiment_1.42.0
-#>  [45] iterators_1.0.14            knitr_1.51                 
-#>  [47] zoo_1.9-0                   IRanges_2.46.0             
-#>  [49] Matrix_1.7-5                splines_4.6.1              
+#>  [45] iterators_1.0.14            knitr_1.52                 
+#>  [47] zoo_1.9-1                   IRanges_2.46.0             
+#>  [49] Matrix_1.7-6                splines_4.6.2              
 #>  [51] timechange_0.4.0            tidyselect_1.2.1           
 #>  [53] viridis_0.6.5               abind_1.4-8                
 #>  [55] yaml_2.3.12                 doParallel_1.0.17          
-#>  [57] codetools_0.2-20            curl_8.0.0                 
-#>  [59] lattice_0.22-9              tibble_3.3.1               
-#>  [61] S7_0.2.2                    Biobase_2.72.0             
+#>  [57] codetools_0.2-20            curl_8.2.0                 
+#>  [59] lattice_0.23-1              tibble_3.3.1               
+#>  [61] S7_1.0.0                    Biobase_2.72.0             
 #>  [63] quantmod_0.4.29             withr_3.0.3                
 #>  [65] evaluate_1.0.5              desc_1.4.3                 
-#>  [67] rrcovNA_0.5-3               xts_0.14.2                 
+#>  [67] rrcovNA_0.5-3               xts_0.14.3                 
 #>  [69] norm_1.0-11.1               circlize_0.4.18            
 #>  [71] pillar_1.11.1               BiocManager_1.30.27        
 #>  [73] MatrixGenerics_1.24.0       foreach_1.5.2              
-#>  [75] stats4_4.6.1                pcaPP_2.0-5                
+#>  [75] stats4_4.6.2                pcaPP_2.0-7                
 #>  [77] generics_0.1.4              TTR_0.24.4                 
-#>  [79] ggplot2_4.0.3               S4Vectors_0.50.2           
+#>  [79] ggplot2_4.0.4               S4Vectors_0.50.3           
 #>  [81] scales_1.4.0                glue_1.8.1                 
-#>  [83] tools_4.6.1                 dendextend_1.19.1          
+#>  [83] tools_4.6.2                 dendextend_1.19.1          
 #>  [85] robustbase_0.99-7           data.table_1.18.6.1        
-#>  [87] reactable_0.4.5             fs_2.1.0                   
-#>  [89] mvtnorm_1.4-2               grid_4.6.1                 
-#>  [91] tidyr_1.3.2                 colorspace_2.1-3           
+#>  [87] fs_2.1.0                    mvtnorm_1.5-0              
+#>  [89] grid_4.6.2                  tidyr_1.3.2                
+#>  [91] MsCoreUtils_1.24.0          colorspace_2.1-4           
 #>  [93] patchwork_1.3.2             cli_3.6.6                  
-#>  [95] textshaping_1.0.5           viridisLite_0.4.3          
-#>  [97] S4Arrays_1.12.0             ComplexHeatmap_2.28.0      
+#>  [95] textshaping_1.1.0           viridisLite_0.4.3          
+#>  [97] S4Arrays_1.12.1             ComplexHeatmap_2.28.0      
 #>  [99] dplyr_1.2.1                 gtable_0.3.6               
-#> [101] DEoptimR_1.2-1              sass_0.4.10                
+#> [101] DEoptimR_1.2-2              sass_0.5.0                 
 #> [103] digest_0.6.39               BiocGenerics_0.58.1        
-#> [105] SparseArray_1.12.2          farver_2.1.2               
+#> [105] SparseArray_1.12.3          farver_2.1.2               
 #> [107] rjson_0.2.23                htmlwidgets_1.6.4          
 #> [109] htmltools_0.5.9             pkgdown_2.2.1              
 #> [111] lifecycle_1.0.5             GlobalOptions_0.1.4        
-#> [113] statmod_1.5.2
+#> [113] statmod_1.5.2               MASS_7.3-66
 ```

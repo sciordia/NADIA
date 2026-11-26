@@ -12,4 +12,6 @@ with: replace NAs with user-specified constant
 
 - args:
 
-  list with `with_value`
+  list with `with_value` Delegated to `MsCoreUtils`, which gives
+  identical results (Bioconductor review, \#186); this wrapper keeps
+  NADIA's argument names.

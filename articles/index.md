@@ -7,14 +7,14 @@
 
 ### Getting the data in
 
-- [Input formats: Spectronaut, DIA-NN, TMT and
-  LFQ](https://sciordia.github.io/NADIA/articles/input-formats.md):
+- [Input formats: reports and SummarizedExperiment
+  objects](https://sciordia.github.io/NADIA/articles/input-formats.md):
 
 ### Choosing how to analyse it
 
 - [Missing values: what they mean and how to fill
   them](https://sciordia.github.io/NADIA/articles/missing-values.md):
-- [Choosing normalisation and imputation
+- [Choosing normalization and imputation
   methods](https://sciordia.github.io/NADIA/articles/choosing-methods.md):
 - [Benchmarking with a spike-in: scoring against known
   truth](https://sciordia.github.io/NADIA/articles/benchmarking.md):
@@ -25,7 +25,7 @@
 
 - [Pattern Profiler: identifying shared protein
   profiles](https://sciordia.github.io/NADIA/articles/pattern-profiler.md):
-- [Visualisation: exploring and presenting
+- [Visualization: exploring and presenting
   results](https://sciordia.github.io/NADIA/articles/visualization.md):
 - [Results and export: sharing and preserving an
   analysis](https://sciordia.github.io/NADIA/articles/results-and-export.md):

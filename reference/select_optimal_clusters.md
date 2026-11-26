@@ -10,7 +10,7 @@ select_optimal_clusters(
   c_range = 2:10,
   m = NULL,
   method = c("xb", "consensus", "elbow"),
-  seeds = c(42, 123, 456),
+  n_starts = 3L,
   verbose = TRUE
 )
 ```
@@ -33,9 +33,9 @@ select_optimal_clusters(
 
   Method: "xb", "consensus", "elbow"
 
-- seeds:
+- n_starts:
 
-  Seeds passed on to
+  Random starts per candidate, passed on to
   [`evaluate_cluster_range()`](https://sciordia.github.io/NADIA/reference/evaluate_cluster_range.md)
 
 - verbose:

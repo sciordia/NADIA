@@ -33,8 +33,8 @@ approach.
   MAR imputation method (default: "Impseqrob", deterministic and with no
   additional dependencies; the impute_proteomics wrapper passes this
   value). Note: if a stochastic MAR/MNAR method is chosen (e.g.
-  "missForest"), softHybrid does not set a seed of its own – pass one
-  via method_args for reproducibility.
+  "missForest"), call [`set.seed()`](https://rdrr.io/r/base/Random.html)
+  before the imputation to reproduce it.
 
 - mnar_method:
 

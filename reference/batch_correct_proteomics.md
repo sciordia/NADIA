@@ -64,6 +64,16 @@ batch_correct_proteomics(
   batch-associated variance and can erase biological signal when
   condition and batch are confounded.
 
+  Protecting covariates needs at least two non-missing values of a
+  protein in every combination of batch and covariate level. Proteins
+  that lack them are corrected for the batch alone, without protecting
+  the covariates, so that none of their measured values is lost; BERT
+  itself would set them to missing. With a balanced design (every
+  condition equally represented in every batch) this is harmless; when
+  batch and condition are unbalanced, it can remove part of the
+  biological signal of those proteins. Their names are listed in
+  `metadata(se)$batch_correction`.
+
 - qualitycontrol:
 
   Logical. Compute ASW (Average Silhouette Width) quality metrics for
@@ -75,9 +85,12 @@ batch_correct_proteomics(
 
 ## Value
 
-SummarizedExperiment with the new corrected assay added. If BERT returns
-fewer features than the input, the SE is subsetted to match and a
-warning is issued.
+SummarizedExperiment with the new corrected assay added, and
+`metadata(se)$batch_correction`, a list naming the features kept
+unadjusted (`unadjusted`, no variance within a batch) and those
+corrected for the batch only (`batch_only`). If BERT returns fewer
+features than the input, the SE is subsetted to match and a warning is
+issued.
 
 ## Examples
 
@@ -103,9 +116,6 @@ SummarizedExperiment::assayNames(se)
 
 # On a real experiment you would normally pass the biological variable of
 # interest in `covariates`, so that ComBat preserves it instead of removing
-# it along with the batch effect. `covariates = "Condition"` works on this
-# example: the assay is already imputed, so each batch-by-condition cell has
-# its two values. Before imputation, with only two samples per cell, BERT
-# needs two non-missing values per cell and any protein with a gap there
-# stops being adjustable.
+# it along with the batch effect. Before imputation, a protein that lacks
+# two values in some batch-by-condition cell is corrected for the batch only.
 ```

@@ -58,11 +58,13 @@ A reactable object.
 ## Examples
 
 ``` r
-data(nadia_dia)
+if (requireNamespace("reactable", quietly = TRUE)) {
+  data(nadia_dia)
 
-# metadata$Coding fixes the order of the sample columns
-tbl <- protein_list_reactable(nadia_dia$protein_id,
-                              metadata = nadia_dia$metadata)
-class(tbl)
+  # metadata$Coding fixes the order of the sample columns
+  tbl <- protein_list_reactable(nadia_dia$protein_id,
+                                metadata = nadia_dia$metadata)
+  class(tbl)
+}
 #> [1] "reactable"  "htmlwidget"
 ```

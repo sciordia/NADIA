@@ -65,7 +65,6 @@ main a[href^="http"] {
 main p.caption,
 main figcaption,
 main .figure-zoom-hint,
-main .output-format-zoom-hint,
 main table p,
 main table li {
   text-align: inherit;
@@ -90,4 +89,1127 @@ main table {
   display: block;
   overflow-x: auto;
   max-width: 100%;
+}
+
+/* ==========================================================================
+   Articles
+   ==========================================================================
+   The vignettes carry no CSS or JavaScript of their own (Bioconductor review,
+   #186): BiocStyle lays them out in the package, and these rules only apply
+   on the site. The vignettes keep the wrapping divs (`::: {.workflow-roadmap}`,
+   `.lightbox-figure`, ...), which are inert under BiocStyle and picked up
+   here, as the README does on the home page. The rules were moved verbatim;
+   the per-figure lightboxes became the single one below and in extra.js.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Figure lightbox (see extra.js)
+   -------------------------------------------------------------------------- */
+.lightbox-figure img {
+  cursor: zoom-in;
+}
+
+/* Aligned like the text: `main .figure-zoom-hint` above keeps it from being
+   justified, as it did when each vignette styled its own hint. */
+.figure-zoom-hint {
+  margin: -0.15em 0 1.2em;
+  color: #5f6f7e;
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+#nadia-lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  padding: 24px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 25, 35, 0.88);
+  cursor: zoom-out;
+}
+
+#nadia-lightbox.is-open {
+  display: flex;
+}
+
+#nadia-lightbox img {
+  width: auto !important;
+  height: auto !important;
+  max-width: 96vw !important;
+  max-height: 92vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: white;
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.35);
+  cursor: default;
+  /* The enlarged image is a copy: it must not inherit the positioning that
+     some figures use to widen themselves in the page. */
+  position: static !important;
+  left: auto !important;
+  transform: none !important;
+}
+
+#nadia-lightbox button {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  border: 0;
+  background: transparent;
+  color: white;
+  font-size: 36px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+body.nadia-lightbox-open {
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   Components shared by several articles
+   -------------------------------------------------------------------------- */
+.default-call[open] summary {
+  border-bottom: 1px solid #c8d3dc;
+}
+
+.default-call pre {
+  margin: 1em;
+}
+
+.wide-reference-table {
+  position: relative;
+}
+
+.imputation-methods-table col:nth-child(1) {
+  width: 22% !important;
+}
+
+.imputation-methods-table col:nth-child(2) {
+  width: 13% !important;
+}
+
+.imputation-methods-table col:nth-child(3) {
+  width: 65% !important;
+}
+
+@media screen and (max-width: 991px) {
+  .wide-reference-table {
+    overflow-x: auto;
+  }
+}
+
+.function-parameters .parameter-content {
+  padding: 0.2em 1em 0.7em;
+}
+
+.function-parameters .parameter-content ul {
+  margin-bottom: 0.7em;
+}
+
+.code-details pre,
+.code-details table {
+  margin: 1em;
+}
+
+/* --------------------------------------------------------------------------
+   An introduction to NADIA (NADIA.Rmd)
+   -------------------------------------------------------------------------- */
+.workflow-roadmap table {
+  width: calc(100% - 95px);
+  margin-left: 65px;
+  margin-right: 30px;
+  table-layout: fixed;
+}
+
+.workflow-roadmap col:nth-child(1) {
+  width: 7% !important;
+}
+
+.workflow-roadmap col:nth-child(2) {
+  width: 56% !important;
+}
+
+.workflow-roadmap col:nth-child(3) {
+  width: 37% !important;
+}
+
+.workflow-roadmap th:first-child,
+.workflow-roadmap td:first-child {
+  text-align: center !important;
+}
+
+@media screen and (max-width: 767px) {
+  .workflow-roadmap {
+    overflow-x: auto;
+  }
+  .workflow-roadmap table {
+    min-width: 760px;
+    width: 760px;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+@media screen and (min-width: 992px) {
+  #fig\:three-proteome-design + img,
+  img[src$="Three_Proteome_Experimental_Design.svg"] {
+    width: 112% !important;
+    max-width: none !important;
+    margin-left: -6%;
+  }
+}
+
+@media screen and (min-width: 1400px) {
+  #fig\:three-proteome-design + img,
+  img[src$="Three_Proteome_Experimental_Design.svg"] {
+    width: 124% !important;
+    margin-left: -12%;
+  }
+}
+
+.default-call {
+  margin: 1em 0 1.25em;
+  border: 1px solid #c8d3dc;
+  border-radius: 5px;
+  background: #f7f9fb;
+}
+
+.default-call summary {
+  padding: 0.75em 1em;
+  color: #1d3557;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   Input formats
+   -------------------------------------------------------------------------- */
+#fig\:input-format-overview + img,
+img[src$="Input_Formats_Workflow.svg"] {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+@media screen and (min-width: 992px) {
+  #fig\:input-format-overview + img,
+  img[src$="Input_Formats_Workflow.svg"] {
+    width: 116% !important;
+    margin-left: -12%;
+  }
+}
+
+#fig\:spectronaut-input-structure + img,
+img[src$="Spectronaut_Input_Structure.svg"],
+#fig\:diann-input-structure + img,
+img[src$="DIANN_Input_Structure.svg"],
+#fig\:tmt-input-structure + img,
+img[src$="TMT_Input_Structure.svg"],
+#fig\:lfq-input-structure + img,
+img[src$="LFQ_Input_Structure.svg"] {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+@media screen and (min-width: 992px) {
+  #fig\:spectronaut-input-structure + img,
+  img[src$="Spectronaut_Input_Structure.svg"],
+  #fig\:diann-input-structure + img,
+  img[src$="DIANN_Input_Structure.svg"],
+  #fig\:tmt-input-structure + img,
+  img[src$="TMT_Input_Structure.svg"],
+  #fig\:lfq-input-structure + img,
+  img[src$="LFQ_Input_Structure.svg"] {
+    width: 110% !important;
+    margin-left: -5%;
+  }
+}
+
+.spectronaut-schema-note {
+  margin: 1.15em 0 1.5em;
+  width: calc(100% - 1.5em);
+  box-sizing: border-box;
+  padding: 1em 1.15em 0.9em;
+  border: 1px solid #a9c3d6;
+  border-left: 5px solid #3577a8;
+  border-radius: 5px;
+  background: #f4f8fb;
+  box-shadow: 0 1px 2px rgba(27, 62, 88, 0.08);
+}
+
+.spectronaut-schema-note-title {
+  margin-bottom: 0.55em;
+  color: #1d5278;
+  font-size: 1.08em;
+  font-weight: 700;
+}
+
+.spectronaut-schema-note p {
+  margin: 0 0 0.75em;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  text-align: left;
+}
+
+.spectronaut-schema-command {
+  margin: 0.75em 0;
+  padding: 0.65em 0.8em;
+  overflow-x: auto;
+  border: 1px solid #d0dee8;
+  border-radius: 4px;
+  background: #ffffff;
+  white-space: nowrap;
+}
+
+.spectronaut-schema-note p:last-child {
+  margin-bottom: 0;
+}
+
+.default-call {
+  margin: 1em 0 1.25em;
+  border: 1px solid #c8d3dc;
+  border-radius: 5px;
+  background: #f7f9fb;
+}
+
+.default-call summary {
+  padding: 0.75em 1em;
+  color: #1d3557;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.input-format-summary table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.input-format-summary col:nth-child(1) {
+  width: 20% !important;
+}
+
+.input-format-summary col:nth-child(2) {
+  width: 18% !important;
+}
+
+.input-format-summary col:nth-child(3) {
+  width: 62% !important;
+}
+
+.input-format-summary th,
+.input-format-summary td {
+  vertical-align: top !important;
+}
+
+@media screen and (max-width: 767px) {
+  .input-format-summary {
+    overflow-x: auto;
+  }
+  .input-format-summary table {
+    min-width: 760px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Missing values
+   -------------------------------------------------------------------------- */
+.wide-reference-table table {
+  width: 100%;
+  max-width: none;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  table-layout: fixed;
+  font-size: 0.93em;
+  line-height: 1.28;
+}
+
+.wide-reference-table th,
+.wide-reference-table td {
+  padding: 0.42em 0.62em !important;
+  vertical-align: top !important;
+  overflow-wrap: anywhere;
+}
+
+@media screen and (max-width: 991px) {
+  .wide-reference-table table {
+    width: 860px;
+    min-width: 860px;
+  }
+}
+
+@media screen and (min-width: 992px) {
+  .wide-reference-table {
+    width: 96%;
+    max-width: none;
+    margin-left: 2%;
+  }
+  #fig\:mar-mnar-diagram + img,
+  img[src$="MAR_MNAR_Missingness.svg"] {
+    display: block;
+    position: relative;
+    left: 50%;
+    width: 105% !important;
+    max-width: none !important;
+    margin-left: 0;
+    margin-right: 0;
+    transform: translateX(-50%);
+  }
+  #fig\:combo-classification-diagram + img,
+  img[src$="Combo_Classification_Examples.svg"] {
+    width: 106% !important;
+    max-width: none !important;
+    margin-left: -3%;
+  }
+}
+
+@media screen and (min-width: 1400px) {
+  .wide-reference-table {
+    width: 98%;
+    margin-left: 1%;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Choosing methods
+   -------------------------------------------------------------------------- */
+.wide-reference-table table {
+  width: 100%;
+  max-width: none;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  table-layout: fixed;
+  font-size: 0.93em;
+  line-height: 1.28;
+}
+
+.wide-reference-table th,
+.wide-reference-table td {
+  padding: 0.42em 0.62em !important;
+  vertical-align: top !important;
+  overflow-wrap: anywhere;
+}
+
+.normalization-methods-table col:nth-child(1) {
+  width: 18% !important;
+}
+
+.normalization-methods-table col:nth-child(2) {
+  width: 82% !important;
+}
+
+.metrics-reference-table col:nth-child(1) {
+  width: 14% !important;
+}
+
+.metrics-reference-table col:nth-child(2) {
+  width: 72% !important;
+}
+
+.metrics-reference-table col:nth-child(3) {
+  width: 14% !important;
+}
+
+@media screen and (min-width: 992px) {
+  .wide-reference-table {
+    width: 96%;
+    max-width: none;
+    margin-left: 2%;
+  }
+  #fig\:mar-mnar-diagram + img,
+  img[src$="MAR_MNAR_Missingness.svg"] {
+    display: block;
+    position: relative;
+    left: 50%;
+    width: 105% !important;
+    max-width: none !important;
+    margin-left: 0;
+    margin-right: 0;
+    transform: translateX(-50%);
+  }
+}
+
+@media screen and (min-width: 1400px) {
+  .wide-reference-table {
+    width: 98%;
+    margin-left: 1%;
+  }
+}
+
+@media screen and (max-width: 991px) {
+  .wide-reference-table table {
+    width: 860px;
+    min-width: 860px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Benchmarking
+   -------------------------------------------------------------------------- */
+.species-preview,
+.function-parameters,
+.code-details {
+  margin: 1em 0 1.4em;
+  border: 1px solid #c8d3dc;
+  border-radius: 5px;
+  background: #f7f9fb;
+}
+
+.species-preview summary,
+.function-parameters summary,
+.code-details summary {
+  padding: 0.75em 1em;
+  color: #1d3557;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.species-preview[open] summary,
+.function-parameters[open] summary,
+.code-details[open] summary {
+  border-bottom: 1px solid #c8d3dc;
+}
+
+.species-preview pre,
+.species-preview table,
+.function-parameters pre,
+.function-parameters table,
+.code-details pre,
+.code-details table {
+  margin: 1em;
+}
+
+.benchmark-warning {
+  width: calc(100% - 4.5em);
+  box-sizing: border-box;
+  margin: 1.15em 0 1.5em;
+  padding: 0.9em 1.1em;
+  border: 1px solid #e4c78e;
+  border-left: 5px solid #c98718;
+  border-radius: 5px;
+  background: #fffaf0;
+  box-shadow: 0 1px 2px rgba(112, 78, 20, 0.08);
+}
+
+.benchmark-warning p {
+  margin: 0;
+  padding: 0 !important;
+  text-align: justify;
+}
+
+.benchmark-warning strong:first-child {
+  color: #7a5310;
+}
+
+@media screen and (min-width: 992px) {
+  #fig\:benchmark-three-proteome-design + img,
+  img[src$="Three_Proteome_Experimental_Design.svg"],
+  #fig\:benchmarking-outputs + img,
+  img[src$="Benchmarking_Proteomics_Outputs.svg"] {
+    width: 112% !important;
+    max-width: none !important;
+    margin-left: -6%;
+  }
+}
+
+@media screen and (min-width: 1400px) {
+  #fig\:benchmark-three-proteome-design + img,
+  img[src$="Three_Proteome_Experimental_Design.svg"],
+  #fig\:benchmarking-outputs + img,
+  img[src$="Benchmarking_Proteomics_Outputs.svg"] {
+    width: 124% !important;
+    margin-left: -12%;
+  }
+}
+
+@media screen and (min-width: 768px) {
+  .signif-direction-plot img,
+  .confusion-plot-110 img,
+  .metrics-heatmap-110 img,
+  .roc-plot-110 img,
+  .multiple-confusion-plot-110 img,
+  .multiple-ranking-plot-110 img {
+    width: 110% !important;
+    height: auto !important;
+    max-width: none !important;
+    margin-left: -5%;
+  }
+}
+
+.confusion-plot-110 {
+  margin: 1.8em 0;
+}
+
+.metrics-heatmap-110 {
+  margin-top: 1.8em;
+  margin-bottom: 1.8em;
+}
+
+.roc-plot-110 {
+  margin: 1.8em 0;
+}
+
+.multiple-confusion-plot-110 img,
+.multiple-ranking-plot-110 img {
+  display: block;
+  margin-top: 1.8em !important;
+  margin-bottom: 1.8em !important;
+}
+
+/* --------------------------------------------------------------------------
+   Batch correction
+   -------------------------------------------------------------------------- */
+.bert-warning {
+  width: calc(100% - 4.5em);
+  box-sizing: border-box;
+  margin: 1.15em 0 1.5em;
+  padding: 0.9em 1.1em;
+  border: 1px solid #e4c78e;
+  border-left: 5px solid #c98718;
+  border-radius: 5px;
+  background: #fffaf0;
+  box-shadow: 0 1px 2px rgba(112, 78, 20, 0.08);
+}
+
+.bert-warning p {
+  margin: 0;
+  padding: 0 !important;
+  text-align: justify;
+}
+
+.bert-warning strong:first-child {
+  color: #7a5310;
+}
+
+.batch-argument-table {
+  width: calc(100% + 3em);
+  margin: 1em 0 1.35em -1.5em;
+}
+
+.batch-argument-table table {
+  width: 100% !important;
+  table-layout: fixed;
+}
+
+.batch-argument-table col:first-child {
+  width: 29% !important;
+}
+
+.batch-argument-table col:nth-child(2) {
+  width: 71% !important;
+}
+
+.batch-argument-table th:first-child,
+.batch-argument-table td:first-child {
+  width: 29%;
+  padding-right: 1.25em !important;
+}
+
+.batch-argument-table th:nth-child(2),
+.batch-argument-table td:nth-child(2) {
+  width: 71%;
+  padding-left: 1.25em !important;
+}
+
+.batch-argument-table th,
+.batch-argument-table td {
+  vertical-align: top;
+}
+
+.batch-arguments-figure,
+.batch-covariates-figure,
+.pca-covariates-figure,
+.tmt-design-figure,
+.tmt-benchmark-table {
+  width: calc(100% - 1em);
+  margin: 1.25em 0 1.5em;
+  text-align: center;
+}
+
+.batch-arguments-figure img,
+.batch-covariates-figure img,
+.pca-covariates-figure img,
+.tmt-design-figure img,
+.tmt-benchmark-table img {
+  width: 100%;
+  height: auto;
+}
+
+.lightbox-figure.pca-covariates-figure {
+  width: 110%;
+  margin-left: -5%;
+}
+
+.lightbox-figure.tmt-benchmark-table {
+  width: 110%;
+  margin-left: -5%;
+}
+
+.tmt-pca-figure {
+  width: 110%;
+  margin-left: -5%;
+}
+
+.tmt-pca-figure img {
+  width: 100%;
+  height: auto;
+}
+
+@media (max-width: 767px) {
+  .lightbox-figure.pca-covariates-figure,
+  .lightbox-figure.tmt-benchmark-table,
+  .tmt-pca-figure {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Pattern Profiler
+   -------------------------------------------------------------------------- */
+.code-details {
+  margin: 1em 0 1.4em;
+  border: 1px solid #c8d3dc;
+  border-radius: 5px;
+  background: #f7f9fb;
+}
+
+.code-details summary {
+  padding: 0.75em 1em;
+  color: #1d3557;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.code-details[open] summary {
+  border-bottom: 1px solid #c8d3dc;
+}
+
+.pattern-note {
+  margin: 1.4em 0;
+  padding: 0.95em 1.15em;
+  border-left: 5px solid #e6a700;
+  background: #fff8e5;
+}
+
+.figure-space {
+  margin-top: 1.8em;
+  margin-bottom: 1.8em;
+}
+
+.horizontal-scroll > table:has(> caption) {
+  margin-left: 65px !important;
+  margin-right: 0 !important;
+}
+
+.cluster-summary-table .horizontal-scroll > table {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Visualisation
+   -------------------------------------------------------------------------- */
+.code-details,
+.function-parameters {
+  margin: 1em 0 1.4em;
+  border: 1px solid #c8d3dc;
+  border-radius: 5px;
+  background: #f7f9fb;
+}
+
+.code-details summary,
+.function-parameters summary {
+  padding: 0.75em 1em;
+  color: #1d3557;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.code-details[open] summary,
+.function-parameters[open] summary {
+  border-bottom: 1px solid #c8d3dc;
+}
+
+.code-details pre,
+.code-details table,
+.function-parameters pre,
+.function-parameters table {
+  margin: 1em;
+}
+
+.visualization-warning {
+  width: calc(100% - 4.5em);
+  box-sizing: border-box;
+  margin: 1.15em 0 1.5em;
+  padding: 0.9em 1.1em;
+  border: 1px solid #e4c78e;
+  border-left: 5px solid #c98718;
+  border-radius: 5px;
+  background: #fffaf0;
+  box-shadow: 0 1px 2px rgba(112, 78, 20, 0.08);
+}
+
+.visualization-warning p {
+  margin: 0 0 0.75em;
+  padding: 0 !important;
+  text-align: justify;
+}
+
+.visualization-warning p:last-child {
+  margin-bottom: 0;
+}
+
+.visualization-warning strong:first-child {
+  color: #7a5310;
+}
+
+.visualization-workflow-figure {
+  margin: 1.5em 0 2em;
+}
+
+.visualization-workflow-figure img {
+  display: block;
+  height: auto !important;
+}
+
+.interactive-chart-compact {
+  width: 90%;
+  margin: 1em auto 1.6em;
+}
+
+.interactive-chart-compact .html-widget {
+  width: 100% !important;
+}
+
+.pattern-profiler-chart {
+  margin-top: 1.6em;
+  margin-bottom: 1.6em;
+}
+
+.pattern-profiler-chart .html-widget {
+  height: 440px !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.volcano-chart {
+  margin-top: 1.6em;
+}
+
+.volcano-chart .html-widget {
+  margin-top: 1.6em;
+}
+
+.pca-chart {
+  margin-top: 1.6em;
+}
+
+.pca-chart .html-widget {
+  margin-top: 1.6em;
+}
+
+.boxplot-chart .html-widget {
+  height: 560px !important;
+  margin-top: 1.6em;
+}
+
+.boxplot-chart {
+  margin-bottom: 1.6em;
+}
+
+.wide-data-table {
+  width: calc(100% - 4.5em);
+  box-sizing: border-box;
+  margin: 1em 0 1.5em;
+}
+
+.wide-data-table table {
+  width: 100% !important;
+  max-width: none;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  table-layout: fixed;
+}
+
+table.wide-data-table {
+  max-width: none;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  table-layout: fixed;
+}
+
+.wide-data-table th,
+.wide-data-table td {
+  padding: 0.5em 0.7em !important;
+  vertical-align: top !important;
+}
+
+.pca-outline-table {
+  width: calc(100% - 8em);
+}
+
+table.pca-outline-table {
+  width: calc(100% - 8em) !important;
+}
+
+.pca-outline-intro {
+  margin-top: 1.6em;
+}
+
+.heatmap-annotation-figure {
+  margin-top: 1.6em;
+  margin-bottom: 1.6em;
+}
+
+.pca-outline-table th,
+.pca-outline-table td {
+  box-sizing: border-box;
+}
+
+.heatmap-subset-table th:nth-child(1),
+.heatmap-subset-table td:nth-child(1) {
+  width: 34%;
+}
+
+.heatmap-subset-table th:nth-child(2),
+.heatmap-subset-table td:nth-child(2),
+.heatmap-subset-table th:nth-child(3),
+.heatmap-subset-table td:nth-child(3) {
+  width: 12%;
+}
+
+.heatmap-subset-table th:nth-child(4),
+.heatmap-subset-table td:nth-child(4) {
+  width: 42%;
+}
+
+.palette-reference-table {
+  margin: 1em 0 1.5em;
+}
+
+.palette-reference-table table {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+
+@media screen and (min-width: 768px) {
+  .visualization-workflow-figure img {
+    width: 110% !important;
+    max-width: none !important;
+    margin-left: -8%;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .wide-data-table {
+    overflow-x: auto;
+  }
+  .wide-data-table table {
+    min-width: 680px;
+  }
+  .visualization-workflow-figure img {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0;
+  }
+  .visualization-warning,
+  .wide-data-table,
+  .interactive-chart-compact {
+    width: 100%;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Results and export
+   -------------------------------------------------------------------------- */
+.function-parameters,
+.code-details {
+  margin: 1em 0 1.4em;
+  border: 1px solid #c8d3dc;
+  border-radius: 5px;
+  background: #f7f9fb;
+}
+
+.function-parameters summary,
+.code-details summary {
+  padding: 0.75em 1em;
+  color: #1d3557;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.function-parameters[open] summary,
+.code-details[open] summary {
+  border-bottom: 1px solid #c8d3dc;
+}
+
+.format-comparison-table {
+  width: 100%;
+  margin: 1em 0 1.5em 0;
+}
+
+.format-comparison-table table {
+  width: 100% !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  table-layout: fixed;
+}
+
+.format-comparison-table th:nth-child(1),
+.format-comparison-table td:nth-child(1) {
+  width: 28% !important;
+}
+
+.format-comparison-table th:nth-child(2),
+.format-comparison-table td:nth-child(2) {
+  width: 32% !important;
+}
+
+.format-comparison-table th:nth-child(3),
+.format-comparison-table td:nth-child(3) {
+  width: 40% !important;
+}
+
+@media screen and (min-width: 768px) {
+  .format-comparison-table th,
+  .format-comparison-table td {
+    white-space: nowrap;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .format-comparison-table {
+    width: 100%;
+    margin-left: 0;
+  }
+  .format-comparison-table table {
+    table-layout: auto;
+  }
+}
+
+.export-manifest-table {
+  width: 80%;
+  margin: 1em 0 1.5em 0;
+}
+
+.export-manifest-table table {
+  width: 100% !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  table-layout: fixed;
+}
+
+.export-manifest-table th:nth-child(1),
+.export-manifest-table td:nth-child(1) {
+  width: 48% !important;
+}
+
+.export-manifest-table th:nth-child(2),
+.export-manifest-table td:nth-child(2) {
+  width: 38% !important;
+}
+
+.export-manifest-table th:nth-child(3),
+.export-manifest-table td:nth-child(3) {
+  width: 14% !important;
+}
+
+@media screen and (max-width: 767px) {
+  .export-manifest-table {
+    width: 100%;
+  }
+  .export-manifest-table table {
+    table-layout: auto;
+  }
+}
+
+.archive-output-table table,
+.reproducibility-table table {
+  margin-left: 65px !important;
+  margin-right: auto !important;
+}
+
+@media screen and (max-width: 991px) {
+  .archive-output-table table,
+  .reproducibility-table table {
+    margin-left: 0 !important;
+  }
+}
+
+.cluster-results-table table {
+  width: 580px !important;
+  max-width: none !important;
+  table-layout: auto;
+}
+
+.cluster-results-table th,
+.cluster-results-table td {
+  white-space: nowrap;
+}
+
+.cluster-results-table th:nth-child(5),
+.cluster-results-table td:nth-child(5) {
+  min-width: 6.5em;
+}
+
+.interactive-tables-figure img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.export-warning {
+  box-sizing: border-box;
+  margin: 1.15em 0 1.5em;
+  padding: 0.9em 1.1em;
+  border: 1px solid #e4c78e;
+  border-left: 5px solid #c98718;
+  border-radius: 5px;
+  background: #fffaf0;
+  box-shadow: 0 1px 2px rgba(112, 78, 20, 0.08);
+}
+
+.export-warning p {
+  margin: 0;
+  padding: 0 !important;
+}
+
+.export-warning p + p {
+  margin-top: 0.65em;
+}
+
+.export-warning strong:first-child {
+  color: #7a5310;
+}
+
+.output-format-figure {
+  margin: 1.6em 0;
+}
+
+.output-format-figure img,
+.interactive-tables-figure img {
+  cursor: zoom-in;
+}
+
+@media screen and (min-width: 768px) {
+  .output-format-figure img {
+    display: block;
+    width: 110% !important;
+    height: auto !important;
+    max-width: none !important;
+    margin-left: -5%;
+  }
+  .interactive-tables-figure img {
+    width: 90% !important;
+    height: auto !important;
+    max-width: none !important;
+    margin-left: 5%;
+    margin-right: 5%;
+  }
 }

@@ -56,7 +56,7 @@ An htmltools object (browsable tagList) ready to be rendered.
 ## Examples
 
 ``` r
-if (requireNamespace("jsonlite", quietly = TRUE)) {
+if (requireNamespace("reactable", quietly = TRUE)) {
   data(nadia_dia)
 
   # LFQ/TMT metadata lack the identification counts; the widget then shows

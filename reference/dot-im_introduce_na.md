@@ -6,13 +6,7 @@ or mimicking the NA pattern from a reference matrix.
 ## Usage
 
 ``` r
-.im_introduce_na(
-  mat,
-  na_prop = 0.2,
-  seed = 42L,
-  pattern = "random",
-  ref_mat = NULL
-)
+.im_introduce_na(mat, na_prop = 0.2, pattern = "random", ref_mat = NULL)
 ```
 
 ## Arguments
@@ -25,10 +19,6 @@ or mimicking the NA pattern from a reference matrix.
 
   Numeric (0-1). Proportion of values to set as NA. Default 0.20. Only
   used when `pattern = "random"`; ignored when `pattern = "from_data"`.
-
-- seed:
-
-  Integer. Random seed. Default 42.
 
 - pattern:
 

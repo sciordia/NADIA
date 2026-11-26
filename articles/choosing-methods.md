@@ -1,9 +1,9 @@
-# Choosing normalisation and imputation methods
+# Choosing normalization and imputation methods
 
 ## Introduction
 
-Normalisation and imputation are not merely technical details.
-Normalisation changes the scale on which samples are compared, whereas
+Normalization and imputation are not merely technical details.
+Normalization changes the scale on which samples are compared, whereas
 imputation determines which values replace the measurements that were
 not observed. Both choices can therefore affect the proteins identified
 as differentially abundant.
@@ -13,25 +13,25 @@ should be based on the characteristics of the experiment, the
 missing-value pattern and diagnostics calculated from the data. This
 vignette follows that reasoning in four steps:
 
-1.  describe the normalisation methods available in NADIA;
-2.  compare candidate normalisation methods using quantitative metrics
+1.  describe the normalization methods available in NADIA;
+2.  compare candidate normalization methods using quantitative metrics
     and diagnostic plots;
 3.  describe and compare the available imputation strategies; and
 4.  apply the selected combination and examine how alternative choices
     affect the differential abundance results.
 
-NADIA exposes 13 normalisation labels and 20 imputation strategies. At
-the level of selectable methods, this gives **13 × 20 = 260** nominal
-normalisation–imputation combinations. Running and interpreting every
+NADIA exposes 13 normalization labels and 19 imputation strategies. At
+the level of selectable methods, this gives **13 × 19 = 247** nominal
+normalization–imputation combinations. Running and interpreting every
 combination is possible, but it is rarely an efficient first step. The
 metrics in this vignette provide a staged screen: first rank plausible
-normalisation methods using replicate agreement and condition
+normalization methods using replicate agreement and condition
 separation, then compare imputation methods on the selected—or a small
-number of plausible—normalised assays. The resulting ranks reduce the
+number of plausible—normalized assays. The resulting ranks reduce the
 search space; they do not by themselves prove that the highest-ranked
 combination is biologically correct.
 
-The value 260 is a catalogue-level count rather than 260 fully
+The value 247 is a catalog-level count rather than 247 fully
 interchangeable completed matrices: `log2` and `log2Norm` are
 numerically redundant, and `limpa` and `none` have special downstream
 interpretations. The count nevertheless illustrates why a principled
@@ -40,7 +40,7 @@ shortlist is preferable to choosing a pipeline by trial and error.
 The examples use `nadia_dia`, a preprocessed DIA dataset included with
 NADIA. The comparison is performed without an external ground truth. If
 an experiment contains spike-in proteins with known abundances or
-expected fold changes, the best normalisation–imputation combination is
+expected fold changes, the best normalization–imputation combination is
 easier to establish. Such an experiment supplies an external reference
 against which the complete pipeline can be benchmarked, rather than
 relying only on internal properties of the processed matrix. Proteins
@@ -53,14 +53,16 @@ internal ranks described here; see
 
 ## Installation and packages
 
-While NADIA is under development, it can be installed from GitHub:
-
 ``` r
 
-if (!requireNamespace("remotes", quietly = TRUE))
-    install.packages("remotes")
-remotes::install_github("sciordia/NADIA", build_vignettes = TRUE)
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("NADIA")
 ```
+
+This vignette also uses `impute`, `imputeLCMD` and `vegan`, which are
+optional; `BiocManager::install("NADIA", dependencies = TRUE)` installs
+them together with NADIA.
 
 Only NADIA and `SummarizedExperiment` need to be attached for the code
 in this vignette. Method-specific packages are called internally when
@@ -74,13 +76,13 @@ library(SummarizedExperiment)
 data(nadia_dia)
 ```
 
-## Normalisation
+## Normalization
 
-### What normalisation does
+### What normalization does
 
 Protein intensities may contain systematic differences caused by sample
 preparation, injected amount, instrument response or other
-non-biological sources. Normalisation aims to reduce these unwanted
+non-biological sources. Normalization aims to reduce these unwanted
 differences while preserving the biological variation that the
 experiment was designed to measure.
 
@@ -94,34 +96,34 @@ Making every sample look identical would reduce technical dispersion,
 but it could also remove biological signal. For this reason, no single
 diagnostic is sufficient on its own.
 
-### Normalisation methods available in NADIA
+### Normalization methods available in NADIA
 
-NADIA provides 13 normalisation options, which are selected with the
+NADIA provides 13 normalization options, which are selected with the
 `norm_method` argument. Regardless of the option chosen, the resulting
 protein-abundance matrix is expressed on the log2 scale.
 
 | norm_method | Principle |
 |----|----|
-| `log2` | Applies the log2 transformation and no additional normalisation. It is the natural baseline for comparison. |
+| `log2` | Applies the log2 transformation and no additional normalization. It is the natural baseline for comparison. |
 | `log2Norm` | Applies the same log2 transformation. It is retained as a named benchmark method for compatibility. |
 | `GlobalMedian` | Divides each sample by its total intensity and rescales the totals to their median before log2 transformation. |
 | `GlobalMean` | Divides each sample by its total intensity and rescales the totals to their mean before log2 transformation. |
-| `eqmedians` | Log2-transforms the data and shifts every sample so that all sample medians are equal. This approach is based on the equal-median normalisation used by MSstats. |
+| `eqmedians` | Log2-transforms the data and shifts every sample so that all sample medians are equal. This approach is based on the equal-median normalization used by MSstats. |
 | `medianNorm` | Divides raw intensities by the sample median, rescales to the mean of the sample medians and then applies log2. |
 | `meanNorm` | Divides raw intensities by the sample mean, rescales to the mean of the sample means and then applies log2. |
-| `vsn` | Uses variance-stabilising normalisation from the `vsn` package to reduce the dependence between variance and mean intensity. |
+| `vsn` | Uses variance-stabilizing normalization from the `vsn` package to reduce the dependence between variance and mean intensity. |
 | `quantile` | Maps the empirical distribution of every sample to a common quantile distribution using `limma`. |
 | `quantile.robust` | Uses the median, rather than the mean, across sample quantiles to construct a reference distribution that is less sensitive to extreme samples. |
-| `Rlr` | Fits a robust linear regression between each sample and the protein-wise median profile, then removes the fitted offset and scale. This approach is based on the global robust linear regression normalisation implemented in NormalyzerDE. |
+| `Rlr` | Fits a robust linear regression between each sample and the protein-wise median profile, then removes the fitted offset and scale. This approach is based on the global robust linear regression normalization implemented in NormalyzerDE. |
 | `MAD` | Aligns both the median and the median absolute deviation of every sample to the corresponding global values. |
-| `cycloess` | Applies cyclic loess normalisation with `limma`, correcting intensity-dependent differences between samples. |
+| `cycloess` | Applies cyclic loess normalization with `limma`, correcting intensity-dependent differences between samples. |
 
 `log2` and `log2Norm` produce the same values. Consequently,
 `nm_run_normalizations(methods = "all")` retains the `log2` baseline and
 skips the redundant `log2Norm` assay, leaving 12 distinct assays for
 comparison.
 
-### How normalisation methods are evaluated
+### How normalization methods are evaluated
 
 NADIA combines quantitative measures of within-condition agreement with
 a measure of between-condition separation. Four of the measures follow
@@ -130,10 +132,10 @@ intragroup correlation.
 
 | Rank | What NADIA calculates | Preferred direction |
 |----|----|---:|
-| `Rank_PCV` | For each protein and condition, the coefficient of variation is calculated as $`100 \times SD / |mean|`$. Values are averaged across conditions and summarised by the median across proteins. | Lower |
-| `Rank_PMAD` | The median absolute deviation is calculated within each condition for every protein, averaged across conditions and summarised by the median across proteins. | Lower |
-| `Rank_PEV` | The within-condition variance is calculated for every protein, averaged across conditions and summarised by the median across proteins. | Lower |
-| `Rank_Cor` | Pairwise correlations are calculated between replicate samples within each condition and summarised by their median. | Higher |
+| `Rank_PCV` | For each protein and condition, the coefficient of variation is calculated as $`100 \times SD / |mean|`$. Values are averaged across conditions and summarized by the median across proteins. | Lower |
+| `Rank_PMAD` | The median absolute deviation is calculated within each condition for every protein, averaged across conditions and summarized by the median across proteins. | Lower |
+| `Rank_PEV` | The within-condition variance is calculated for every protein, averaged across conditions and summarized by the median across proteins. | Lower |
+| `Rank_Cor` | Pairwise correlations are calculated between replicate samples within each condition and summarized by their median. | Higher |
 | `Rank_Sep` | PCA is performed on complete protein profiles. A one-way ANOVA F-ratio measures separation of the PC1 sample scores by condition relative to variation within conditions. | Higher |
 
 `Rank_Final` is the mean of these five ranks. The lowest value is
@@ -161,7 +163,7 @@ by
 These plots answer different questions. A method should not be selected
 from a single attractive PCA or a single low dispersion value.
 
-### Comparing normalisation methods with NADIA
+### Comparing normalization methods with NADIA
 
 The first step builds a baseline `SummarizedExperiment`. The second
 applies the candidate methods, storing each result as a separate assay.
@@ -186,6 +188,8 @@ calculates the diagnostics and returns both tables and plots.
 
 ``` r
 
+# Two diagnostics (Hopkins and the PERMANOVA p-value) use random numbers.
+set.seed(42)
 nm <- normalization_metrics(
     se_norm,
     output_dir = NULL,
@@ -211,7 +215,7 @@ calculate an additional ranking. The separately returned `pc1_rank` and
 The first row is the preferred method under the combined criterion. In
 this example, `cycloess` has the lowest `Rank_Final`: it ranks first for
 PCV, PMAD and correlation while retaining good separation between
-conditions. `Rlr` is second, and the unnormalised `log2` baseline ranks
+conditions. `Rlr` is second, and the unnormalized `log2` baseline ranks
 last.
 
 The final ranking plot provides the same comparison visually. Shorter
@@ -222,7 +226,7 @@ bars indicate a better mean rank.
 nm$final_ranking
 ```
 
-![Final ranking of candidate normalisation
+![Final ranking of candidate normalization
 methods](choosing-methods_files/figure-html/norm-ranking-1.png)
 
 The PCA remains useful as a complementary check because it shows the
@@ -233,10 +237,10 @@ individual samples rather than reducing the comparison to one score.
 nm$pca
 ```
 
-![PCA of samples after each candidate normalisation
+![PCA of samples after each candidate normalization
 method](choosing-methods_files/figure-html/norm-pca-1.png)
 
-The selected normalisation method can be extracted directly:
+The selected normalization method can be extracted directly:
 
 ``` r
 
@@ -265,7 +269,7 @@ following practical distinction:
   abundance is below the detection limit. Missingness depends on the
   unobserved abundance being low and therefore carries biological or
   measurement information. Replacing such a gap with a typical
-  neighbouring value may erase that evidence, so a low-value or
+  neighboring value may erase that evidence, so a low-value or
   detection-aware method is generally more plausible.
 
 ![Two-panel diagram comparing MAR and MNAR missing values. MAR shows a
@@ -278,9 +282,6 @@ and that both mechanisms can coexist.](figures/MAR_MNAR_Missingness.svg)
 Practical distinction between MAR and MNAR missing values in proteomics.
 MAR values are reconstructed from observed data structure, whereas MNAR
 values call for a low-value or detection-aware model.
-
-Click the figure to enlarge it; press Esc or click outside the image to
-close it.
 
 An individual `NA` does not reveal why the value is missing. MAR and
 MNAR are possible explanations that must be evaluated using the
@@ -296,27 +297,26 @@ format. In a long Spectronaut report, a protein that was not quantified
 in a particular run is usually absent from the report; when NADIA
 constructs the wide `protein_quant` table, the corresponding protein–run
 cell becomes `NA`. Some wide reports use zero instead to mark an
-unreported intensity. Before normalisation,
+unreported intensity. Before normalization,
 [`normalize_proteomics()`](https://sciordia.github.io/NADIA/reference/normalize_proteomics.md)
 converts these zeros to `NA`, so downstream functions handle both
 situations consistently.
 
 ### Imputation methods available in NADIA
 
-NADIA provides 20 selectable strategies. The grouping below describes
+NADIA provides 19 selectable strategies. The grouping below describes
 their main intent and does not imply that every missing value can be
 classified unambiguously.
 
 | Group | imp_method | Principle |
 |----|----|----|
 | Structure-based, generally used for MAR | `bpca` | Bayesian principal-component imputation using `pcaMethods`. |
-|  | `knn` | Estimates a value from similar proteins using k-nearest neighbours. |
+|  | `knn` | Estimates a value from similar proteins using k-nearest neighbors. |
 |  | `mice` | Multiple imputation by chained equations; NADIA averages the completed matrices. |
-|  | `missForest` | Non-parametric random-forest imputation using relationships among variables. |
+|  | `missForest` | Non-parametric random-forest imputation: each sample is predicted from the others, learned over the proteins (`observations = "samples"` in `method_args` reverses it, as NAguideR does). |
 |  | `Impseq` | Sequential model-based imputation from `rrcovNA`. |
 |  | `Impseqrob` | Robust sequential imputation that reduces sensitivity to outlying profiles. |
 |  | `MLE` | Maximum-likelihood imputation under a multivariate normal model. |
-|  | `nbavg` | Replaces a gap with the mean of the nearest observed positions in the same protein profile. |
 | Low-value, generally used for MNAR | `QRILC` | Quantile-regression imputation for left-censored data. |
 |  | `MinDet` | Uses a low, sample-specific quantile; the default is the first percentile. |
 |  | `MinProb` | Draws low values around a sample-specific low quantile. |
@@ -385,7 +385,7 @@ NADIA calculates four metrics:
 
 | Metric | Interpretation | Preferred direction |
 |----|----|---:|
-| `NRMSE` | Normalised root mean squared error over the artificially masked cells. | Lower |
+| `NRMSE` | Normalized root mean squared error over the artificially masked cells. | Lower |
 | `SOR` | Sum of per-protein error ranks. A method receives the worst rank for a protein if it fails to impute its artificial gaps. | Lower |
 | `PSS` | Procrustes sum of squares comparing the PCA structures of the true and imputed matrices. | Lower |
 | `ACC_OI` | Pearson correlation between the true and imputed values pooled over the artificially masked cells. | Higher |
@@ -416,8 +416,8 @@ indicate either good or poor imputation.
 
 ### Comparing imputation methods with NADIA
 
-Imputation must be evaluated on a normalised assay. The code below uses
-the normalisation selected above and compares representative
+Imputation must be evaluated on a normalized assay. The code below uses
+the normalization selected above and compares representative
 structure-based, low-value and hybrid strategies. It uses a controlled
 20% random mask for this illustration. For an experiment-specific
 evaluation, use `pattern = "from_data"` and omit `na_prop` from the
@@ -430,6 +430,8 @@ se_imp <- im_prepare_se(
     norm_method = norm_winner,
     verbose = FALSE)
 
+# The cells masked to build the ground truth are drawn at random.
+set.seed(42)
 im <- imputation_metrics(
     se_imp,
     assay_name = norm_winner,
@@ -476,7 +478,7 @@ methods](choosing-methods_files/figure-html/imp-metrics-plot-1.png)
 The heatmap shows one imputation method per row and one evaluation
 metric per column. The number printed in each cell is the method’s rank
 for that metric: rank 1 is the best result. Lower ranks are shown in
-blue and higher ranks in red; a grey cell marked `NA` indicates that the
+blue and higher ranks in red; a gray cell marked `NA` indicates that the
 metric could not be calculated. The final column, `Rank_Mean`, is the
 average of the available metric ranks. Methods are ordered by this
 value, so the method in the first row has the lowest `Rank_Mean` and the
@@ -501,7 +503,7 @@ imp_winner
 
 ## Applying the selected combination
 
-The selected normalisation and imputation methods can now be passed to
+The selected normalization and imputation methods can now be passed to
 the main workflow. For this example the data-driven combination is
 `cycloess` followed by `Impseqrob`.
 
@@ -519,7 +521,7 @@ table(res_selected$DEPs_results$Change)
 #>       964       759      4268
 ```
 
-The normalised matrix and the imputed matrix are retained as separate
+The normalized matrix and the imputed matrix are retained as separate
 assays, so the processing history can be inspected without overwriting
 earlier stages.
 
@@ -580,8 +582,8 @@ are the same in every run, but the numbers called Up and Down change
 substantially. These are protein–comparison results: a protein tested in
 several contrasts can contribute more than one row. The comparison does
 not establish which pipeline is biologically correct. It shows that
-normalisation and imputation are consequential modelling choices and
-must be evaluated, reported and reproduced.
+normalization and imputation are consequential modeling choices and must
+be evaluated, reported and reproduced.
 
 ## Practical decision guide
 
@@ -589,7 +591,7 @@ For a dataset without external ground truth, the following sequence
 provides a defensible starting point:
 
 1.  inspect sample distributions and the missing-value pattern;
-2.  compare several plausible normalisation methods using both the final
+2.  compare several plausible normalization methods using both the final
     rank and the diagnostic plots;
 3.  examine whether missingness appears predominantly scattered or
     related to low abundance and condition-wise dropout;
@@ -643,13 +645,13 @@ expected biological changes directly.
 ``` r
 
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
+#> R version 4.6.2 (2026-10-29)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 26.04.1 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.32.so;  LAPACK version 3.12.0
 #> 
 #> locale:
 #>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8        LC_COLLATE=C.UTF-8    
@@ -664,33 +666,30 @@ sessionInfo()
 #> 
 #> other attached packages:
 #>  [1] SummarizedExperiment_1.42.0 Biobase_2.72.0              GenomicRanges_1.64.0       
-#>  [4] Seqinfo_1.2.0               IRanges_2.46.0              S4Vectors_0.50.2           
+#>  [4] Seqinfo_1.2.0               IRanges_2.46.0              S4Vectors_0.50.3           
 #>  [7] BiocGenerics_0.58.1         generics_0.1.4              MatrixGenerics_1.24.0      
-#> [10] matrixStats_1.5.0           NADIA_0.99.1                BiocStyle_2.40.0           
+#> [10] matrixStats_1.5.0           NADIA_1.1.0                 BiocStyle_2.40.0           
 #> 
 #> loaded via a namespace (and not attached):
-#>  [1] sandwich_3.1-3      permute_0.9-10      rlang_1.3.0         magrittr_2.0.5     
-#>  [5] otel_0.2.0          compiler_4.6.1      mgcv_1.9-4          systemfonts_1.3.2  
-#>  [9] vctrs_0.7.3         stringr_1.6.0       pkgconfig_2.0.3     fastmap_1.2.0      
-#> [13] backports_1.5.1     XVector_0.52.0      labeling_0.4.3      rmarkdown_2.32     
-#> [17] ragg_1.5.2          highcharter_0.9.5   purrr_1.2.2         xfun_0.60          
-#> [21] cachem_1.1.0        jsonlite_2.0.0      gmm_1.9-1           DelayedArray_0.38.2
-#> [25] broom_1.0.13        parallel_4.6.1      cluster_2.1.8.2     R6_2.6.1           
-#> [29] bslib_0.12.0        stringi_1.8.9       RColorBrewer_1.1-3  limma_3.68.5       
-#> [33] rlist_0.4.6.2       rrcov_1.7-7         lubridate_1.9.5     jquerylib_0.1.4    
-#> [37] Rcpp_1.1.2          bookdown_0.48       assertthat_0.2.1    knitr_1.51         
-#> [41] zoo_1.9-0           Matrix_1.7-5        splines_4.6.1       timechange_0.4.0   
-#> [45] tidyselect_1.2.1    abind_1.4-8         yaml_2.3.12         vegan_2.7-6        
-#> [49] curl_8.0.0          lattice_0.22-9      tibble_3.3.1        quantmod_0.4.29    
-#> [53] withr_3.0.3         S7_0.2.2            evaluate_1.0.5      tmvtnorm_1.7       
-#> [57] desc_1.4.3          rrcovNA_0.5-3       xts_0.14.2          norm_1.0-11.1      
-#> [61] pillar_1.11.1       BiocManager_1.30.27 pcaPP_2.0-5         TTR_0.24.4         
-#> [65] ggplot2_4.0.3       scales_1.4.0        glue_1.8.1          tools_4.6.1        
-#> [69] robustbase_0.99-7   data.table_1.18.6.1 reactable_0.4.5     imputeLCMD_2.1     
-#> [73] fs_2.1.0            mvtnorm_1.4-2       grid_4.6.1          impute_1.86.0      
-#> [77] tidyr_1.3.2         nlme_3.1-169        cli_3.6.6           textshaping_1.0.5  
-#> [81] S4Arrays_1.12.0     viridisLite_0.4.3   dplyr_1.2.1         pcaMethods_2.4.0   
-#> [85] gtable_0.3.6        DEoptimR_1.2-1      sass_0.4.10         digest_0.6.39      
-#> [89] SparseArray_1.12.2  htmlwidgets_1.6.4   farver_2.1.2        htmltools_0.5.9    
-#> [93] pkgdown_2.2.1       lifecycle_1.0.5     statmod_1.5.2       MASS_7.3-65
+#>  [1] tidyselect_1.2.1    viridisLite_0.4.3   rrcovNA_0.5-3       dplyr_1.2.1        
+#>  [5] farver_2.1.2        S7_1.0.0            fastmap_1.2.0       digest_0.6.39      
+#>  [9] lifecycle_1.0.5     cluster_2.1.8.3     statmod_1.5.2       magrittr_2.0.5     
+#> [13] compiler_4.6.2      rlang_1.3.0         sass_0.5.0          tools_4.6.2        
+#> [17] yaml_2.3.12         knitr_1.52          rrcov_1.7-7         S4Arrays_1.12.1    
+#> [21] labeling_0.4.3      htmlwidgets_1.6.4   DelayedArray_0.38.2 RColorBrewer_1.1-3 
+#> [25] abind_1.4-8         norm_1.0-11.1       withr_3.0.3         purrr_1.2.2        
+#> [29] desc_1.4.3          grid_4.6.2          pcaPP_2.0-7         ggplot2_4.0.4      
+#> [33] scales_1.4.0        MASS_7.3-66         tmvtnorm_1.7        cli_3.6.6          
+#> [37] mvtnorm_1.5-0       rmarkdown_2.32      vegan_2.7-8         ragg_1.5.2         
+#> [41] otel_0.3.0          robustbase_0.99-7   cachem_1.1.0        splines_4.6.2      
+#> [45] parallel_4.6.2      impute_1.86.0       BiocManager_1.30.27 XVector_0.52.0     
+#> [49] vctrs_0.7.3         sandwich_3.1-3      Matrix_1.7-6        jsonlite_2.0.0     
+#> [53] bookdown_0.48       imputeLCMD_2.1      clue_0.3-68         systemfonts_1.3.4  
+#> [57] limma_3.68.5        tidyr_1.3.2         jquerylib_0.1.4     glue_1.8.1         
+#> [61] pkgdown_2.2.1       DEoptimR_1.2-2      gmm_1.9-1           gtable_0.3.6       
+#> [65] tibble_3.3.1        pillar_1.11.1       pcaMethods_2.4.0    htmltools_0.5.9    
+#> [69] R6_2.6.1            textshaping_1.1.0   evaluate_1.0.5      lattice_0.23-1     
+#> [73] bslib_0.12.0        Rcpp_1.1.2          SparseArray_1.12.3  nlme_3.1-171       
+#> [77] permute_0.10-1      mgcv_1.9-4          xfun_0.62           zoo_1.9-1          
+#> [81] fs_2.1.0            MsCoreUtils_1.24.0  pkgconfig_2.0.3
 ```

@@ -36,8 +36,8 @@ if (requireNamespace("Mfuzz", quietly = TRUE) &&
 #> # A tibble: 3 × 6
 #>   Cluster n_entries n_unique_features mean_membership min_membership
 #>     <int>     <int>             <int>           <dbl>          <dbl>
-#> 1       1       412               412           0.860          0.250
-#> 2       2       177               177           0.476          0.252
-#> 3       3       359               359           0.707          0.255
+#> 1       1       177               177           0.476          0.252
+#> 2       2       359               359           0.707          0.255
+#> 3       3       412               412           0.860          0.250
 #> # ℹ 1 more variable: max_membership <dbl>
 ```

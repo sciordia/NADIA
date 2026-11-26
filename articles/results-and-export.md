@@ -26,11 +26,15 @@ then load the package and example data.
 
 ``` r
 
-if (!requireNamespace("BiocManager", quietly = TRUE)) {
-  install.packages("BiocManager")
-}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
 BiocManager::install("NADIA")
 ```
+
+This vignette also uses `reactable`, `crosstalk`, `Mfuzz`, `arrow` and
+`duckdb`, which are optional;
+`BiocManager::install("NADIA", dependencies = TRUE)` installs them
+together with NADIA.
 
 ``` r
 
@@ -54,10 +58,10 @@ res <- process_proteomics(
 
 The returned object contains the processed experiment,
 differential-abundance results, plotting tables, comparison names, and
-the parameters used in the run. The following code summarises the size
+the parameters used in the run. The following code summarizes the size
 and purpose of the main components used throughout this vignette.
 
-Show the code used to summarise the returned components
+Show the code used to summarize the returned components
 
 ``` r
 
@@ -143,10 +147,7 @@ consideration.](figures/results-export-formats.svg)
 Four complementary formats for exporting, preserving, or presenting
 NADIA results.
 
-Click the figure to enlarge it; press Esc or click outside the image to
-close it.
-
-The four formats address different priorities. TSV files favour
+The four formats address different priorities. TSV files favor
 immediate, human-readable inspection, whereas Parquet preserves column
 types for efficient programmatic exchange. A `.nadia` archive is the
 most complete option for restoring the analysis and its provenance,
@@ -264,7 +265,7 @@ Main export arguments of `process_proteomics()`
 - `export_normalized` and `export_imputed` control the processed
   intensity matrices.
 - `export_volcano`, `export_boxplot`, and `export_pca` control the
-  tables used by the corresponding visualisation functions.
+  tables used by the corresponding visualization functions.
 
 The following alternatives differ only in `export_dir` and
 `export_format`. Run the one that matches the intended downstream use;
@@ -298,7 +299,7 @@ process_proteomics(
 ```
 
 With the default export switches, NADIA writes five datasets: the
-normalised intensity matrix (`export_normalized`), the final imputed
+normalized intensity matrix (`export_normalized`), the final imputed
 matrix (`export_imputed`), the differential-abundance results used by
 the volcano plots (`export_volcano`), the long-format intensities used
 by the boxplots (`export_boxplot`), and the imputed intensities with
@@ -306,7 +307,7 @@ significance annotations used by PCA and heatmaps (`export_pca`). The
 matrix files contain one protein per row and one sample per intensity
 column, whereas the plotting inputs use long or results-oriented layouts
 suited to their downstream functions. File names include the
-normalisation and imputation methods so that outputs from different runs
+normalization and imputation methods so that outputs from different runs
 can be distinguished.
 
 The next call writes all five default outputs as TSV files to a
@@ -366,12 +367,12 @@ knitr::kable(
 | BoxPlot_Input_cycloess_Impseqrob_min.tsv | Long-format boxplot input | 1999.3 KB |
 | matrix_log2_cycloess_Impseqrob_min.tsv | Imputed intensity matrix | 450.1 KB |
 | matrix_log2_cycloess.tsv | Normalised intensity matrix | 423.1 KB |
-| PCA_Input_cycloess_Impseqrob_min.tsv | Long-format PCA input | 2317.0 KB |
-| VolcanoPlot_Input_cycloess_Impseqrob_min.tsv | Differential-abundance results | 635.8 KB |
+| PCA_Input_cycloess_Impseqrob_min.tsv | Long-format PCA input | 2325.8 KB |
+| VolcanoPlot_Input_cycloess_Impseqrob_min.tsv | Differential-abundance results | 637.4 KB |
 
 Files created by the default TSV export. {.table}
 
-The filenames record the normalisation and imputation methods, reducing
+The filenames record the normalization and imputation methods, reducing
 the risk of mixing tables from different runs. The plotting inputs are
 intentionally long: each row represents an observation required by its
 corresponding plot, whereas the two matrix files keep one protein per
@@ -382,7 +383,7 @@ above. Each `export_*` argument is `TRUE` by default; set it to `FALSE`
 to omit that dataset. The value of `export_format` is applied to every
 dataset that remains enabled. The following example requests matching
 TSV and Parquet copies of only the final imputed matrix and the
-differential-abundance results; the normalised matrix and the boxplot
+differential-abundance results; the normalized matrix and the boxplot
 and PCA inputs are omitted.
 
 ``` r
@@ -426,10 +427,10 @@ Main arguments of `write_nadia()`
 - `overwrite = TRUE` explicitly replaces an existing archive.
 
 The following example creates a `.nadia` archive from the bundled
-dataset and summarises selected file characteristics and metadata in the
+dataset and summarizes selected file characteristics and metadata in the
 table below.
 
-Show the code used to create and summarise the .nadia archive
+Show the code used to create and summarize the .nadia archive
 
 ``` r
 
@@ -502,7 +503,9 @@ during the original analysis:
 - [`nadia_result()`](https://sciordia.github.io/NADIA/reference/nadia_result.md)
   reconstructs the `proteomics_result` returned by
   [`process_proteomics()`](https://sciordia.github.io/NADIA/reference/process_proteomics.md),
-  ready for NADIA plotting and reporting functions.
+  ready for NADIA plotting and reporting functions. The object is
+  identical to the original except, after `imp_method = "limpa"`, for
+  the `limpa` precision weights, which are not stored.
 - [`nadia_preprocessing()`](https://sciordia.github.io/NADIA/reference/nadia_preprocessing.md)
   restores the original `proteomics_data` object so that the processing
   workflow can be run again.
@@ -743,9 +746,9 @@ knitr::kable(
 Parquet tables extracted from the .nadia archive. {.table}
 
 **Working location.** Do not keep an open `.nadia` database inside a
-folder that is being synchronised by iCloud Drive, Dropbox, or OneDrive.
+folder that is being synchronized by iCloud Drive, Dropbox, or OneDrive.
 Write and use the archive in a local directory, close it, and then copy
-the completed file to the synchronised location.
+the completed file to the synchronized location.
 
 ### Combine differential abundance with clustering
 
@@ -758,12 +761,13 @@ Show the code used to run and store Pattern Profiler
 
 ``` r
 
-# Generate expression-pattern clusters.
+# Generate expression-pattern clusters. Fuzzy c-means starts from a random
+# partition, so set.seed() makes the clusters reproducible.
+set.seed(123)
 pp <- pattern_profiler_analysis(
   res$se_proc,
   res$DEPs_results,
   assay_name = "Impseqrob_min",
-  seed       = 123,
   verbose    = FALSE
 )
 
@@ -831,12 +835,12 @@ knitr::kable(
 
 | Protein.IDs       | Comparison |   logFC | adj.P.Val | Change    | Cluster | Membership |
 |:------------------|:-----------|--------:|----------:|:----------|--------:|-----------:|
-| A0A140T897;P02769 | B-A        |  0.1344 |    0.0031 | Up        |       2 |     0.8810 |
-| A0A140T897;P02769 | D-B        |  0.2048 |    0.0001 | Up        |       2 |     0.8810 |
-| A0A140T897;P02769 | D-A        |  0.3392 |    0.0000 | Up        |       2 |     0.8810 |
-| A6H7B5            | D-B        | -0.0538 |    0.0795 | No Change |       2 |     0.5814 |
-| A6H7B5            | D-A        |  0.0550 |    0.0644 | No Change |       2 |     0.5814 |
-| A6H7B5            | B-A        |  0.1088 |    0.0021 | Up        |       2 |     0.5814 |
+| A0A140T897;P02769 | B-A        |  0.1344 |    0.0031 | Up        |       1 |     0.8810 |
+| A0A140T897;P02769 | D-B        |  0.2048 |    0.0001 | Up        |       1 |     0.8810 |
+| A0A140T897;P02769 | D-A        |  0.3392 |    0.0000 | Up        |       1 |     0.8810 |
+| A6H7B5            | D-B        | -0.0538 |    0.0795 | No Change |       1 |     0.5814 |
+| A6H7B5            | D-A        |  0.0550 |    0.0644 | No Change |       1 |     0.5814 |
+| A6H7B5            | B-A        |  0.1088 |    0.0021 | Up        |       1 |     0.5814 |
 
 Differential-abundance results with the dominant cluster of each
 protein. {.table style="width:100%;"}
@@ -923,16 +927,16 @@ knitr::kable(
 )
 ```
 
-The following table summarises the number of proteins in each
+The following table summarizes the number of proteins in each
 differential-abundance category within each dominant cluster.
 
 | Cluster | Change    | Proteins |
 |--------:|:----------|---------:|
-|       1 | Down      |      172 |
-|       1 | No Change |      228 |
-|       1 | Up        |        4 |
-|       2 | No Change |       69 |
-|       2 | Up        |      321 |
+|       1 | No Change |       69 |
+|       1 | Up        |      321 |
+|       2 | Down      |      172 |
+|       2 | No Change |      228 |
+|       2 | Up        |        4 |
 
 Differential-abundance categories per cluster in comparison B-A.
 {.table}
@@ -960,9 +964,6 @@ schematic table layout, input objects, row units, and the available
 NADIA functions.](figures/interactive-tables-overview.svg)
 
 Four complementary interactive tables for reviewing a NADIA analysis.
-
-Click the figure to enlarge it; press Esc or click outside the image to
-close it.
 
 The following code creates and displays the four interactive pages in
 the same order as the diagram, using the example dataset and processing
@@ -1034,7 +1035,7 @@ This export requires two JavaScript libraries: **ExcelJS**, which
 creates the formatted `.xlsx` workbook, and **PapaParse**, which parses
 tabular text during browser-side export.
 
-Both libraries and their licence files are shipped with NADIA rather
+Both libraries and their license files are shipped with NADIA rather
 than downloaded from a content-delivery network. The Excel button
 therefore remains available when the saved page is opened offline,
 provided its local dependency folder accompanies the HTML file.
@@ -1057,7 +1058,7 @@ and
 are complete HTML pages.
 [`htmltools::save_html()`](https://rstudio.github.io/htmltools/reference/save_html.html)
 saves the page and copies its JavaScript and CSS dependencies into a
-neighbouring `lib` directory.
+neighboring `lib` directory.
 
 The following example creates and saves an interactive results page for
 comparison `B-A`. Replace `widget_dir` with a permanent project
@@ -1147,10 +1148,10 @@ Exported values are interpretable only when the analysis settings and
 source data can be identified. NADIA returns the processing parameters
 in memory and stores them automatically in a `.nadia` archive.
 
-The following table summarises the normalisation, imputation, and
+The following table summarizes the normalization, imputation, and
 differential-abundance settings used to obtain the example results.
 
-Show the code used to summarise the processing parameters
+Show the code used to summarize the processing parameters
 
 ``` r
 
@@ -1254,13 +1255,13 @@ support reproducibility.
 ``` r
 
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
+#> R version 4.6.2 (2026-10-29)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 26.04.1 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.32.so;  LAPACK version 3.12.0
 #> 
 #> locale:
 #>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8        LC_COLLATE=C.UTF-8    
@@ -1274,42 +1275,35 @@ sessionInfo()
 #> [1] tcltk     stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] NADIA_0.99.1       DynDoc_1.90.0      widgetTools_1.90.0 BiocStyle_2.40.0  
+#> [1] NADIA_1.1.0        DynDoc_1.90.0      widgetTools_1.90.0 BiocStyle_2.40.0  
 #> 
 #> loaded via a namespace (and not attached):
-#>   [1] DBI_1.3.0                   rlang_1.3.0                 magrittr_2.0.5             
-#>   [4] otel_0.2.0                  matrixStats_1.5.0           e1071_1.7-17               
-#>   [7] compiler_4.6.1              systemfonts_1.3.2           vctrs_0.7.3                
-#>  [10] stringr_1.6.0               pkgconfig_2.0.3             crayon_1.5.3               
-#>  [13] fastmap_1.2.0               backports_1.5.1             XVector_0.52.0             
-#>  [16] rmarkdown_2.32              tzdb_0.5.0                  ragg_1.5.2                 
-#>  [19] highcharter_0.9.5           purrr_1.2.2                 bit_4.6.0                  
-#>  [22] xfun_0.60                   cachem_1.1.0                jsonlite_2.0.0             
-#>  [25] DelayedArray_0.38.2         broom_1.0.13                parallel_4.6.1             
-#>  [28] cluster_2.1.8.2             R6_2.6.1                    bslib_0.12.0               
-#>  [31] stringi_1.8.9               limma_3.68.5                rlist_0.4.6.2              
-#>  [34] Mfuzz_2.72.0                rrcov_1.7-7                 GenomicRanges_1.64.0       
-#>  [37] lubridate_1.9.5             jquerylib_0.1.4             Seqinfo_1.2.0              
-#>  [40] bookdown_0.48               assertthat_0.2.1            SummarizedExperiment_1.42.0
-#>  [43] knitr_1.51                  zoo_1.9-0                   readr_2.2.0                
-#>  [46] IRanges_2.46.0              Matrix_1.7-5                splines_4.6.1              
-#>  [49] timechange_0.4.0            tidyselect_1.2.1            abind_1.4-8                
-#>  [52] yaml_2.3.12                 curl_8.0.0                  lattice_0.22-9             
-#>  [55] tibble_3.3.1                Biobase_2.72.0              quantmod_0.4.29            
-#>  [58] withr_3.0.3                 evaluate_1.0.5              desc_1.4.3                 
-#>  [61] proxy_0.4-29                rrcovNA_0.5-3               xts_0.14.2                 
-#>  [64] norm_1.0-11.1               pillar_1.11.1               BiocManager_1.30.27        
-#>  [67] MatrixGenerics_1.24.0       tkWidgets_1.90.0            stats4_4.6.1               
-#>  [70] pcaPP_2.0-5                 generics_0.1.4              TTR_0.24.4                 
-#>  [73] vroom_1.7.1                 S4Vectors_0.50.2            hms_1.1.4                  
-#>  [76] class_7.3-23                glue_1.8.1                  lazyeval_0.2.3             
-#>  [79] tools_4.6.1                 robustbase_0.99-7           data.table_1.18.6.1        
-#>  [82] reactable_0.4.5             fs_2.1.0                    mvtnorm_1.4-2              
-#>  [85] grid_4.6.1                  tidyr_1.3.2                 crosstalk_1.2.2            
-#>  [88] duckdb_1.5.5                cli_3.6.6                   textshaping_1.0.5          
-#>  [91] S4Arrays_1.12.0             dplyr_1.2.1                 DEoptimR_1.2-1             
-#>  [94] reactR_0.6.1                sass_0.4.10                 digest_0.6.39              
-#>  [97] BiocGenerics_0.58.1         SparseArray_1.12.2          htmlwidgets_1.6.4          
-#> [100] htmltools_0.5.9             pkgdown_2.2.1               lifecycle_1.0.5            
-#> [103] statmod_1.5.2               bit64_4.8.6
+#>  [1] SummarizedExperiment_1.42.0 xfun_0.62                   bslib_0.12.0               
+#>  [4] htmlwidgets_1.6.4           Biobase_2.72.0              lattice_0.23-1             
+#>  [7] crosstalk_1.2.2             vctrs_0.7.3                 tools_4.6.2                
+#> [10] generics_0.1.4              stats4_4.6.2                tibble_3.3.1               
+#> [13] proxy_0.4-29                DEoptimR_1.2-2              cluster_2.1.8.3            
+#> [16] pkgconfig_2.0.3             Matrix_1.7-6                desc_1.4.3                 
+#> [19] S4Vectors_0.50.3            lifecycle_1.0.5             compiler_4.6.2             
+#> [22] textshaping_1.1.0           statmod_1.5.2               Seqinfo_1.2.0              
+#> [25] clue_0.3-68                 htmltools_0.5.9             class_7.3-24               
+#> [28] sass_0.5.0                  lazyeval_0.2.3              yaml_2.3.12                
+#> [31] rrcov_1.7-7                 pillar_1.11.1               pkgdown_2.2.1              
+#> [34] jquerylib_0.1.4             tidyr_1.3.2                 MASS_7.3-66                
+#> [37] cachem_1.1.0                DelayedArray_0.38.2         limma_3.68.5               
+#> [40] abind_1.4-8                 robustbase_0.99-7           tidyselect_1.2.1           
+#> [43] digest_0.6.39               mvtnorm_1.5-0               dplyr_1.2.1                
+#> [46] duckdb_2.0.1                purrr_1.2.2                 bookdown_0.48              
+#> [49] splines_4.6.2               pcaPP_2.0-7                 fastmap_1.2.0              
+#> [52] grid_4.6.2                  cli_3.6.6                   SparseArray_1.12.3         
+#> [55] magrittr_2.0.5              S4Arrays_1.12.1             rrcovNA_0.5-3              
+#> [58] e1071_1.7-17                reactR_0.6.1                withr_3.0.3                
+#> [61] rmarkdown_2.32              XVector_0.52.0              matrixStats_1.5.0          
+#> [64] otel_0.3.0                  norm_1.0-11.1               ragg_1.5.2                 
+#> [67] tkWidgets_1.90.0            evaluate_1.0.5              knitr_1.52                 
+#> [70] GenomicRanges_1.64.0        IRanges_2.46.0              rlang_1.3.0                
+#> [73] reactable_0.4.5             glue_1.8.1                  DBI_1.3.0                  
+#> [76] BiocManager_1.30.27         BiocGenerics_0.58.1         jsonlite_2.0.0             
+#> [79] R6_2.6.1                    Mfuzz_2.72.0                MsCoreUtils_1.24.0         
+#> [82] MatrixGenerics_1.24.0       systemfonts_1.3.4           fs_2.1.0
 ```

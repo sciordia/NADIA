@@ -28,25 +28,15 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 BiocManager::install("NADIA")
 ```
 
+This vignette also uses `highcharter`, which is optional;
+`BiocManager::install("NADIA", dependencies = TRUE)` installs it
+together with NADIA.
+
 ``` r
 
 library(NADIA)
 data(nadia_dia)
 ```
-
-Some metrics need `pROC`, which is optional:
-
-``` r
-
-have_proc <- requireNamespace("pROC", quietly = TRUE)
-have_proc
-#> [1] TRUE
-```
-
-If it is not installed, the confusion-matrix metrics and static plots
-are still available, but AUC, partial AUC, ROC curves, and the
-multi-pipeline ranking are skipped. Install it with
-`install.packages("pROC")` to run those sections.
 
 ## The experiment
 
@@ -75,9 +65,6 @@ Complete three-proteome spike-in design underlying the benchmark
 dataset. HeLa remains constant at 80%, while E. coli increases and yeast
 decreases across conditions. The dataset distributed with NADIA retains
 conditions A, B, and D and 2,000 protein groups.
-
-Click the figure to enlarge it; press Esc or click outside the image to
-close it.
 
 The reduced dataset distributed with NADIA retains conditions A, B, and
 D: 12 samples and 2,000 protein groups. These groups were selected at
@@ -206,12 +193,12 @@ experimental truth against which the pipeline can be scored. First,
 runs the complete analysis and produces a differential-expression table.
 [`benchmarking_proteomics()`](https://sciordia.github.io/NADIA/reference/benchmarking_proteomics.md)
 then compares every protein in that table with the declared truth,
-assigns TP, FP, TN, or FN, and summarises how well the expected changes
+assigns TP, FP, TN, or FN, and summarizes how well the expected changes
 were recovered.
 
 [`benchmarking_proteomics()`](https://sciordia.github.io/NADIA/reference/benchmarking_proteomics.md)
 returns a named list containing numerical tables and their corresponding
-diagnostic plots. Its principal inputs and controls are summarised
+diagnostic plots. Its principal inputs and controls are summarized
 below.
 
 Show the parameters of benchmarking_proteomics()
@@ -239,7 +226,7 @@ Show the parameters of benchmarking_proteomics()
 - `output_dir`: export directory; `NULL` keeps the results in memory
   without writing files.
 - `verbose` and `species_colors`: control progress messages and plot
-  colours.
+  colors.
 
 The diagram groups the outputs by the question they answer. The
 following sections inspect these results individually.
@@ -253,9 +240,6 @@ diagnostic plots.](figures/Benchmarking_Proteomics_Outputs.svg)
 
 Inputs, classification steps, and output families produced by
 benchmarking_proteomics().
-
-Click the figure to enlarge it; press Esc or click outside the image to
-close it.
 
 In this example, `res$DEPs_results` is the differential-expression
 table, `expected` is the truth table defined above, and `species_df`
@@ -422,7 +406,7 @@ direction](benchmarking_files/figure-html/signif-direction-1.png)
 
 ## The confusion plots: the whole picture at once
 
-`metrics_table` summarises each comparison with one value per
+`metrics_table` summarizes each comparison with one value per
 performance indicator. A confusion plot instead displays the four
 underlying classification outcomes—TP, FP, TN, and FN—and therefore
 shows whether errors arise from missed spike-in proteins or from
@@ -526,7 +510,7 @@ and `D-B`, respectively. These are percentages of the complete benchmark
 and should be interpreted as the composition of each bar; class-specific
 performance is reported separately in `metrics_table`.
 
-The figure emphasises relative proportions. The following table
+The figure emphasizes relative proportions. The following table
 complements it with the exact TP, FP, TN, and FN counts and the
 resulting accuracy for each comparison.
 
@@ -659,7 +643,7 @@ or `1 - Specificity`) obtained at one threshold.
 
 Curves closer to the upper-left corner indicate better separation: they
 recover more spike-in proteins while misclassifying fewer background
-proteins. The area under the curve (AUC) summarises the complete curve
+proteins. The area under the curve (AUC) summarizes the complete curve
 from 0 to 1. An AUC of 1 represents perfect ranking, 0.5 corresponds to
 random ranking, and values below 0.5 indicate that the classes are
 ranked in the opposite order.
@@ -761,7 +745,7 @@ and 85.2%. These TPRs are slightly higher than the direction-aware
 sensitivity values in `metrics_table` because ROC analysis counts a
 significant spike-in as positive even when its observed fold-change
 direction is incorrect. All three points therefore lie within both the
-displayed 10% zoom and the 5% region summarised by `pAUC_005`. This
+displayed 10% zoom and the 5% region summarized by `pAUC_005`. This
 correspondence is specific to these results and must not be interpreted
 as a general identity between `adj.P.Val <= 0.05` and `FPR <= 0.05`.
 
@@ -778,12 +762,16 @@ comparison between analytical pipelines.
 The search engine determines which proteins and quantitative evidence
 enter the downstream differential-expression analysis. To measure its
 influence, the same twelve injections were processed with Spectronaut
-and DIA-NN and evaluated against the same `expected` spike-in ratios.
-Keeping the experimental truth and the downstream benchmark fixed makes
-differences between their results directly attributable to the
-search-engine pipelines. This comparison also provides a practical
-example of why both views are needed: the ranking suggested by the full
-ROC range can reverse when the low-FPR region is examined.
+and DIA-NN and evaluated against the same `expected` spike-in ratios,
+with the downstream benchmark kept fixed. With the full reports, that
+design isolates the search-engine pipeline. The example reports shipped
+with NADIA, however, are trimmed to 2,000 proteins sampled separately
+for each engine (only a few hundred are shared), so the results below
+describe these two example datasets and do not isolate a search-engine
+effect: part of any difference comes from the proteins retained. This
+comparison also provides a practical example of why both views are
+needed: the ranking suggested by the full ROC range can reverse when the
+low-FPR region is examined.
 
 The DIA-NN organism annotation is extracted from `Protein.Names`, after
 which
@@ -839,17 +827,18 @@ Full ROC AUC by search engine and comparison. {.table}
 
 DIA-NN has the higher full AUC in every comparison: 0.909 versus 0.832
 in `B-A`, 0.995 versus 0.978 in `D-A`, and 0.967 versus 0.949 in `D-B`.
-Thus, when the entire ROC range is considered, DIA-NN provides the
-stronger overall ranking. Both engines nevertheless show the same
-biological pattern, performing best in `D-A` and worst in the more
-difficult `B-A` comparison.
+Thus, when the entire ROC range is considered, DIA-NN gives the stronger
+overall ranking in these example data. Both engines nevertheless show
+the same biological pattern, performing best in `D-A` and worst in the
+more difficult `B-A` comparison.
 
 The `N` column also shows that Spectronaut and DIA-NN contribute 1,997
-and 1,965 proteins, respectively. AUC is based on rates and is therefore
-more suitable than raw TP or FP counts for comparing these
-different-sized protein sets. However, the benchmark remains conditional
-on the proteins identified by each engine; identification coverage is a
-separate question.
+and 1,965 proteins, respectively. AUC is based on rates, which makes it
+more comparable than raw TP or FP counts across protein sets of
+different sizes, but it does not remove differences in how difficult
+each set is to classify. The benchmark remains conditional on the
+proteins each example retains; identification coverage is a separate
+question.
 
 **Low-FPR comparison.** Full AUC includes thresholds with large
 false-positive rates that would rarely be accepted in practice. We
@@ -883,8 +872,8 @@ The result now depends on the FPR limit. At 1%, Spectronaut has the
 higher pAUC in all three comparisons: 0.768 versus 0.688 in `B-A`, 0.912
 versus 0.855 in `D-A`, and 0.868 versus 0.778 in `D-B`. At 5% and 10%,
 the order reverses and DIA-NN has the higher pAUC in every comparison.
-Its greater recovery becomes advantageous once the analysis allows a
-slightly larger false-positive budget.
+In these data, its greater recovery becomes advantageous once the
+analysis allows a slightly larger false-positive budget.
 
 Choosing a search engine therefore requires an explicit decision about
 the acceptable FPR. A 1% limit means tolerating approximately one false
@@ -909,12 +898,6 @@ returns one interactive Highcharts volcano plot per comparison in
 be examined by hovering over the points and species to be shown or
 hidden from the legend.
 
-**Why is a static image shown?** To keep the installed vignette within
-Bioconductor size guidance, the interactive plot is exported as an SVG.
-See
-[`vignette("visualization")`](https://sciordia.github.io/NADIA/articles/visualization.md)
-for guidance on working with live interactive figures.
-
 The following code retrieves the plot for `B-A`:
 
 ``` r
@@ -922,34 +905,24 @@ The following code retrieves the plot for `B-A`:
 bench$hc_volcano_list[["B-A"]]
 ```
 
-The exported SVG version is shown below.
-
-![Benchmark volcano plot for B-A, with proteins coloured by species and
-expected fold changes marked](figures/benchmark-volcano-b-a-im.svg)
-
-Benchmark volcano plot for the B-A comparison.
-
-Click the figure to enlarge it; press Esc or click outside the image to
-close it.
-
-Colouring proteins by species turns the volcano plot into a diagnostic
+Coloring proteins by species turns the volcano plot into a diagnostic
 view of the spike-in experiment. Human background proteins are shown in
-grey and should remain concentrated around `log2FC = 0`; yeast proteins
+gray and should remain concentrated around `log2FC = 0`; yeast proteins
 are blue and are expected near `-0.58`; and *E. coli* proteins are
 orange and are expected near `1.00`. The blue and orange vertical dashed
 lines mark these expected spike-in log2 fold changes, whereas the solid
 vertical line at zero represents no change.
 
-The subtitle summarises the significant proteins for each species
+The subtitle summarizes the significant proteins for each species
 (restricted to the expected direction for spike-ins). `MED` is the
 median observed log2 fold change, `MAD` is its median absolute
 deviation, and `RCV` is the robust coefficient of variation
-(`MAD / abs(MED) * 100`); `n` is the number of proteins summarised.
+(`MAD / abs(MED) * 100`); `n` is the number of proteins summarized.
 Comparing `MED` with the expected line assesses fold-change recovery,
 while lower `MAD` and `RCV` values indicate a tighter distribution.
 
 The horizontal dashed line marks `alpha = 0.05` (`adj.P.Val <= 0.05`).
-Significant proteins have stronger colours, whereas non-significant
+Significant proteins have stronger colors, whereas non-significant
 proteins appear lighter. In `B-A`, most human proteins remain near zero
 and the spike-in species cluster around their expected values.
 Deviations flag proteins for review. Spike-ins with the correct
@@ -1127,7 +1100,7 @@ comparison](benchmarking_files/figure-html/multiple-confusion-1.png)
 
 `cycloess_combo` provides the best balance: it keeps FP counts low while
 recovering more TP than `cycloess_min` in every comparison. This is why
-it later ranks first even though it does not minimise every error count
+it later ranks first even though it does not minimize every error count
 individually. `quantile_combo` recovers slightly more TP in `B-A` and
 `D-A`, but its FP counts rise to 917 and 934 in `D-A` and `D-B`,
 respectively, indicating poor control of the background. In contrast,
@@ -1164,7 +1137,7 @@ The result is unanimous: `cycloess_combo` ranks first for `nMCC`,
 `quantile_combo` third. The ordering reflects the trade-offs observed
 above: the first pipeline balances spike-in recovery and background
 control, the second loses sensitivity, and the third is strongly
-penalised for its false positives in `D-A` and `D-B`.
+penalized for its false positives in `D-A` and `D-B`.
 
 The final ranks can also be displayed as horizontal bars. This view is
 useful when many pipelines are compared because the methods are ordered
@@ -1329,13 +1302,13 @@ ensemble inference. *Nature Communications* **15**, 3922.
 ``` r
 
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
+#> R version 4.6.2 (2026-10-29)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 26.04.1 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.32.so;  LAPACK version 3.12.0
 #> 
 #> locale:
 #>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
@@ -1350,55 +1323,56 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] NADIA_0.99.1     BiocStyle_2.40.0
+#> [1] NADIA_1.1.0      BiocStyle_2.40.0
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] tidyselect_1.2.1            rrcovNA_0.5-3              
 #>  [3] farver_2.1.2                dplyr_1.2.1                
-#>  [5] S7_0.2.2                    fastmap_1.2.0              
+#>  [5] S7_1.0.0                    fastmap_1.2.0              
 #>  [7] pROC_1.19.1                 digest_0.6.39              
 #>  [9] timechange_0.4.0            lifecycle_1.0.5            
-#> [11] cluster_2.1.8.2             statmod_1.5.2              
-#> [13] magrittr_2.0.5              compiler_4.6.1             
-#> [15] rlang_1.3.0                 sass_0.4.10                
-#> [17] tools_4.6.1                 yaml_2.3.12                
-#> [19] data.table_1.18.6.1         knitr_1.51                 
+#> [11] cluster_2.1.8.3             statmod_1.5.2              
+#> [13] magrittr_2.0.5              compiler_4.6.2             
+#> [15] rlang_1.3.0                 sass_0.5.0                 
+#> [17] tools_4.6.2                 yaml_2.3.12                
+#> [19] data.table_1.18.6.1         knitr_1.52                 
 #> [21] rrcov_1.7-7                 labeling_0.4.3             
-#> [23] S4Arrays_1.12.0             htmlwidgets_1.6.4          
-#> [25] curl_8.0.0                  DelayedArray_0.38.2        
+#> [23] S4Arrays_1.12.1             htmlwidgets_1.6.4          
+#> [25] curl_8.2.0                  DelayedArray_0.38.2        
 #> [27] RColorBrewer_1.1-3          TTR_0.24.4                 
 #> [29] abind_1.4-8                 norm_1.0-11.1              
 #> [31] withr_3.0.3                 purrr_1.2.2                
 #> [33] BiocGenerics_0.58.1         desc_1.4.3                 
-#> [35] grid_4.6.1                  pcaPP_2.0-5                
-#> [37] stats4_4.6.1                xts_0.14.2                 
-#> [39] ggplot2_4.0.3               scales_1.4.0               
-#> [41] SummarizedExperiment_1.42.0 cli_3.6.6                  
-#> [43] mvtnorm_1.4-2               rmarkdown_2.32             
-#> [45] ragg_1.5.2                  generics_0.1.4             
-#> [47] otel_0.2.0                  rlist_0.4.6.2              
-#> [49] robustbase_0.99-7           cachem_1.1.0               
-#> [51] stringr_1.6.0               splines_4.6.1              
-#> [53] assertthat_0.2.1            BiocManager_1.30.27        
-#> [55] XVector_0.52.0              matrixStats_1.5.0          
-#> [57] vctrs_0.7.3                 Matrix_1.7-5               
-#> [59] jsonlite_2.0.0              bookdown_0.48              
-#> [61] IRanges_2.46.0              S4Vectors_0.50.2           
-#> [63] systemfonts_1.3.2           limma_3.68.5               
-#> [65] tidyr_1.3.2                 jquerylib_0.1.4            
-#> [67] quantmod_0.4.29             glue_1.8.1                 
-#> [69] pkgdown_2.2.1               DEoptimR_1.2-1             
-#> [71] gtable_0.3.6                lubridate_1.9.5            
-#> [73] stringi_1.8.9               GenomicRanges_1.64.0       
-#> [75] tibble_3.3.1                pillar_1.11.1              
-#> [77] htmltools_0.5.9             Seqinfo_1.2.0              
-#> [79] reactable_0.4.5             R6_2.6.1                   
-#> [81] textshaping_1.0.5           evaluate_1.0.5             
-#> [83] lattice_0.22-9              Biobase_2.72.0             
-#> [85] backports_1.5.1             broom_1.0.13               
-#> [87] bslib_0.12.0                Rcpp_1.1.2                 
-#> [89] SparseArray_1.12.2          highcharter_0.9.5          
-#> [91] xfun_0.60                   fs_2.1.0                   
-#> [93] MatrixGenerics_1.24.0       zoo_1.9-0                  
-#> [95] pkgconfig_2.0.3
+#> [35] grid_4.6.2                  pcaPP_2.0-7                
+#> [37] stats4_4.6.2                xts_0.14.3                 
+#> [39] ggplot2_4.0.4               scales_1.4.0               
+#> [41] MASS_7.3-66                 SummarizedExperiment_1.42.0
+#> [43] cli_3.6.6                   mvtnorm_1.5-0              
+#> [45] rmarkdown_2.32              ragg_1.5.2                 
+#> [47] generics_0.1.4              otel_0.3.0                 
+#> [49] rlist_0.4.6.2               robustbase_0.99-7          
+#> [51] cachem_1.1.0                stringr_1.6.0              
+#> [53] splines_4.6.2               assertthat_0.2.1           
+#> [55] BiocManager_1.30.27         XVector_0.52.0             
+#> [57] matrixStats_1.5.0           vctrs_0.7.3                
+#> [59] Matrix_1.7-6                jsonlite_2.0.0             
+#> [61] bookdown_0.48               IRanges_2.46.0             
+#> [63] S4Vectors_0.50.3            clue_0.3-68                
+#> [65] systemfonts_1.3.4           limma_3.68.5               
+#> [67] tidyr_1.3.2                 jquerylib_0.1.4            
+#> [69] quantmod_0.4.29             glue_1.8.1                 
+#> [71] pkgdown_2.2.1               DEoptimR_1.2-2             
+#> [73] gtable_0.3.6                lubridate_1.9.5            
+#> [75] stringi_1.8.9               GenomicRanges_1.64.0       
+#> [77] tibble_3.3.1                pillar_1.11.1              
+#> [79] htmltools_0.5.9             Seqinfo_1.2.0              
+#> [81] R6_2.6.1                    textshaping_1.1.0          
+#> [83] evaluate_1.0.5              lattice_0.23-1             
+#> [85] Biobase_2.72.0              backports_1.5.1            
+#> [87] broom_1.0.13                bslib_0.12.0               
+#> [89] Rcpp_1.1.2                  SparseArray_1.12.3         
+#> [91] highcharter_0.9.5           xfun_0.62                  
+#> [93] fs_2.1.0                    MatrixGenerics_1.24.0      
+#> [95] MsCoreUtils_1.24.0          zoo_1.9-1                  
+#> [97] pkgconfig_2.0.3
 ```

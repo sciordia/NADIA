@@ -1,22 +1,22 @@
-# Visualisation: exploring and presenting results
+# Visualization: exploring and presenting results
 
 ## Introduction
 
 A useful proteomics figure should answer a specific question. A volcano
-plot summarises differential abundance, a boxplot compares sample
+plot summarizes differential abundance, a boxplot compares sample
 distributions, a principal component analysis (PCA) reveals the main
 sources of variation, and a heatmap displays coordinated protein
 profiles across individual samples. Pattern Profiler adds a different
 view by grouping proteins with similar relative trajectories across
 ordered conditions. These views provide different information; none is a
 substitute for the others or for the underlying statistical model. NADIA
-offers this broad set of complementary visualisations so users can
+offers this broad set of complementary visualizations so users can
 select the views that best address their analytical question and
 communicate the results clearly.
 
-This vignette presents a complete visualisation workflow for NADIA
+This vignette presents a complete visualization workflow for NADIA
 results. It shows how to choose and prepare each plot, how to interpret
-the example output, which customisation options most often matter, and
+the example output, which customization options most often matter, and
 how to export the result. The interactive functions use **highcharter**,
 whereas the publication-oriented heatmap uses **tidyHeatmap** and
 **ComplexHeatmap**.
@@ -25,23 +25,22 @@ whereas the publication-oriented heatmap uses **tidyHeatmap** and
 
 This section creates one reproducible analysis that will be reused
 throughout the vignette. Keeping the data and thresholds constant makes
-it possible to compare what each visualisation adds to the
+it possible to compare what each visualization adds to the
 interpretation.
 
 ### Installation
 
-NADIA can be installed with `BiocManager`. The heatmap and Pattern
-Profiler packages are optional dependencies and are installed separately
-when those visualisations are required.
-
 ``` r
 
 if (!requireNamespace("BiocManager", quietly = TRUE))
-  install.packages("BiocManager")
-
-BiocManager::install(c("NADIA", "ComplexHeatmap", "Mfuzz", "Biobase"))
-install.packages(c("tidyHeatmap", "circlize", "e1071"))
+    install.packages("BiocManager")
+BiocManager::install("NADIA")
 ```
+
+This vignette also uses `ComplexHeatmap`, `tidyHeatmap`, `highcharter`,
+`Mfuzz` and `ggsci`, which are optional;
+`BiocManager::install("NADIA", dependencies = TRUE)` installs them
+together with NADIA.
 
 ### Processing the example dataset
 
@@ -61,7 +60,7 @@ res <- process_proteomics(nadia_dia, verbose = FALSE)
 
 The sample design should always be checked before a plot is interpreted.
 
-Show the code used to summarise the experimental design
+Show the code used to summarize the experimental design
 
 ``` r
 
@@ -92,13 +91,13 @@ such as `DEPs_results`, `BoxPlot_Input`, or `PCA_Input`. Compatible
 tables produced by another workflow can therefore be plotted without
 recreating the original `SummarizedExperiment`.
 
-Pattern Profiler separates clustering from visualisation.
+Pattern Profiler separates clustering from visualization.
 [`pattern_profiler_analysis()`](https://sciordia.github.io/NADIA/reference/pattern_profiler_analysis.md)
 uses `se_proc` and `DEPs_results` to produce `long_output`; the plotting
 functions use this data frame directly, so saved clustering results can
-be visualised without rerunning the analysis.
+be visualized without rerunning the analysis.
 
-Show the code used to summarise the visualisation inputs
+Show the code used to summarize the visualization inputs
 
 ``` r
 
@@ -127,7 +126,7 @@ input_summary <- data.frame(
 knitr::kable(
   input_summary,
   row.names = FALSE,
-  caption = "Objects returned by process_proteomics() for visualisation."
+  caption = "Objects returned by process_proteomics() for visualization."
 )
 ```
 
@@ -138,7 +137,7 @@ knitr::kable(
 | PCA_Input     | 23964 |       9 | PCA and heatmaps                   |
 | se_proc       |  1997 |      12 | Pattern Profiler                   |
 
-Objects returned by process_proteomics() for visualisation. {.table}
+Objects returned by process_proteomics() for visualization. {.table}
 
 The values are calculated directly with
 [`nrow()`](https://rdrr.io/r/base/nrow.html) and
@@ -151,15 +150,15 @@ and sample (23,964 rows). In the three data frames, `Columns` counts the
 available variables; in `se_proc`, its 1,997 rows and 12 columns
 correspond directly to proteins and samples, respectively.
 
-## Choosing the appropriate visualisation
+## Choosing the appropriate visualization
 
-Different visualisations answer different analytical questions and
+Different visualizations answer different analytical questions and
 require different input objects. The diagram below provides a practical
 guide to choosing the appropriate plot. For each option, it shows the
 question being addressed, the required NADIA input, the plotting
 function and its output, and what each graphical element represents.
 
-![Five-row workflow for choosing a NADIA visualisation. Volcano plots
+![Five-row workflow for choosing a NADIA visualization. Volcano plots
 use DEPs_results and show one protein per comparison. Boxplots use
 BoxPlot_Input and show one distribution per sample. PCA uses PCA_Input
 and shows one point per sample. Heatmaps use PCA_Input and show proteins
@@ -171,13 +170,10 @@ From analytical question to visual output in NADIA. Each row links a
 recommended view to its input, plotting function or returned object, and
 graphical unit.
 
-Click the figure to enlarge it; press Esc or click outside the image to
-close it.
-
 These views are complementary rather than interchangeable. Volcano plots
 show the results of fitted differential-abundance comparisons, whereas
 boxplots and PCA describe samples. Heatmaps display protein patterns
-across samples, and Pattern Profiler groups standardised trajectories
+across samples, and Pattern Profiler groups standardized trajectories
 across ordered conditions. Their interpretation therefore depends on the
 preprocessing, protein selection, scaling, thresholds, and sample design
 used to create them.
@@ -218,19 +214,21 @@ code without execution to keep the installed vignette at a reasonable
 size. The download module is omitted from these five embedded widgets;
 charts created in a regular R session retain their export menu.
 
-### Highcharts licence
+### Highcharts license
 
 **Important licensing note.** NADIA uses the MIT-licensed R package
 **highcharter** as an interface to the Highcharts JavaScript library.
-Highcharts is distributed under separate terms, and the licence of
-highcharter or NADIA does not grant a Highcharts licence.
+Highcharts is distributed under separate terms, and the license of
+highcharter or NADIA does not grant a Highcharts license.
 
 At the time this vignette was revised, Highcharts permitted qualifying
 personal and educational use under its non-commercial terms, while
 organisational, production, and commercial uses could require a
-commercial licence. Users should check the current [Highcharts
-licence](https://shop.highcharts.com/license-eula) for their intended
-use. The static heatmap workflow does not use Highcharts.
+commercial license. Users should check the current [Highcharts
+license](https://shop.highcharts.com/license-eula) for their intended
+use. The static heatmap workflow does not use Highcharts. highcharter is
+a suggested package, not a required one: it is not installed with NADIA
+unless requested, so these figures are always an explicit choice.
 
 ## Volcano plots
 
@@ -241,7 +239,7 @@ differential-abundance model.
 
 The function can use sensible defaults, but its main arguments allow the
 input, comparisons, decision thresholds, labels, and appearance to be
-adapted to the analysis. The expandable guide below summarises the
+adapted to the analysis. The expandable guide below summarizes the
 controls used most often; the complete reference is available in
 [`?volcano_highchart_list`](https://sciordia.github.io/NADIA/reference/volcano_highchart_list.md).
 
@@ -270,14 +268,15 @@ Show the main parameters of volcano_highchart_list()
 
 **Labels and appearance**
 
-- `show_top_genes`: number of significant genes labelled automatically,
+- `show_top_genes`: number of significant genes labeled automatically,
   ranked by the selected p-value; the default is 0.
 - `highlight_genes`: gene names to highlight manually, including
   proteins that do not pass the thresholds.
-- `colors`: custom colours for up-regulated, down-regulated, and
+- `colors`: custom colors for up-regulated, down-regulated, and
   non-significant proteins.
-- `palette`: a three-colour **paletteer** palette; when supplied, it
-  takes precedence over `colors`.
+- `palette`: three colors for up, down and non-significant, as a
+  **paletteer** or **RColorBrewer** palette name or a color vector; when
+  supplied, it takes precedence over `colors`.
 - `title`: optional chart title;
   [comparison](https://github.com/jmcurran/comparison) inserts the
   current comparison name.
@@ -287,7 +286,7 @@ Show the main parameters of volcano_highchart_list()
 - A named list containing one interactive Highcharts object for each
   selected comparison.
 
-### Summarising the selected comparison
+### Summarizing the selected comparison
 
 Before drawing the figure, it is helpful to count the proteins assigned
 to each category. The table below applies the same thresholds as the
@@ -351,7 +350,7 @@ estimate from the volcano plot because many points overlap.
 [`volcano_highchart_list()`](https://sciordia.github.io/NADIA/reference/volcano_highchart_list.md)
 creates one chart for every requested comparison. Here, the six most
 statistically significant proteins that also pass both thresholds are
-labelled automatically.
+labeled automatically.
 
 ``` r
 
@@ -371,7 +370,7 @@ prepare_vignette_highchart(volcanoes[["B-A"]])
 The x-axis is the log2 fold change. Positive values indicate greater
 abundance in `B` relative to `A`, whereas negative values indicate
 greater abundance in `A`. The y-axis is `-log10(adj.P.Val)`, so stronger
-statistical evidence appears higher in the chart. A protein is coloured
+statistical evidence appears higher in the chart. A protein is colored
 as up- or down-regulated only when it passes both the horizontal
 significance threshold and the vertical effect-size threshold.
 
@@ -386,7 +385,7 @@ classification. Raw `P.Value` can be displayed for diagnostic work, but
 adjusted values are the appropriate default when many proteins are
 tested simultaneously.
 
-### Labelling selected proteins and multiple comparisons
+### Labeling selected proteins and multiple comparisons
 
 Automatic labels are convenient for exploration, while a manually
 selected set is usually clearer in a report. `highlight_genes` matches
@@ -431,7 +430,7 @@ deserve closer inspection.
 
 [`boxplot_highchart_list()`](https://sciordia.github.io/NADIA/reference/boxplot_highchart_list.md)
 controls which assays are displayed and how their sample distributions
-are grouped and presented. The expandable guide below summarises the
+are grouped and presented. The expandable guide below summarizes the
 arguments most relevant to interpretation and display; the complete
 reference is available in
 [`?boxplot_highchart_list`](https://sciordia.github.io/NADIA/reference/boxplot_highchart_list.md).
@@ -447,11 +446,11 @@ Show the main parameters of boxplot_highchart_list()
 
 **Grouping and layout**
 
-- `color_by`: sample-level column used to colour the boxes; the default
+- `color_by`: sample-level column used to color the boxes; the default
   is `Condition`.
 - `group_order`: optional order of the groups or conditions in the chart
   and legend.
-- `palette`: colour vector or named palette used for the groups.
+- `palette`: color vector or named palette used for the groups.
 - `horizontal`: switches between horizontal and vertical boxes; the
   default is `TRUE`.
 - `box_width` and `height`: control the box width and overall chart
@@ -523,7 +522,7 @@ In this dataset, the range of sample medians decreases after processing.
 This is consistent with improved alignment of the sample distributions,
 but it is not proof that every technical effect has been removed.
 Distributional similarity should be considered together with the
-experimental design, PCA, and the normalisation diagnostics described in
+experimental design, PCA, and the normalization diagnostics described in
 [`vignette("choosing-methods")`](https://sciordia.github.io/NADIA/articles/choosing-methods.md).
 
 ### Creating and reading the boxplot
@@ -592,7 +591,7 @@ not a significance test.
 
 [`pca_highchart_list()`](https://sciordia.github.io/NADIA/reference/pca_highchart_list.md)
 combines protein-subset selection, PCA calculation, and graphical
-presentation. The expandable guide below summarises the parameters that
+presentation. The expandable guide below summarizes the parameters that
 most strongly affect the resulting projection; the complete reference is
 available in
 [`?pca_highchart_list`](https://sciordia.github.io/NADIA/reference/pca_highchart_list.md).
@@ -611,14 +610,14 @@ Show the main parameters of pca_highchart_list()
 
 **PCA calculation**
 
-- `center`: centres each protein before PCA; the default is `TRUE`.
+- `center`: centers each protein before PCA; the default is `TRUE`.
 - `scale.`: scales each protein to unit variance before PCA; the default
   is `TRUE`.
 
 **Groups, points, and outlines**
 
 - `color_by`, `group_order`, and `palette`: define the grouping
-  variable, group order, and colours.
+  variable, group order, and colors.
 - `point_size` and `show_labels`: control the sample points and optional
   `SampleID` labels.
 - `addEllipses`: adds a group outline when at least three samples are
@@ -702,7 +701,7 @@ stored in a named list, with one element for each protein subset
 requested through `modes`. In this example, `modes = "all"` includes
 every protein and therefore produces a single baseline PCA plot. Sample
 names are displayed because the dataset contains only 12 samples. The
-95% confidence ellipses summarise where the samples from each condition
+95% confidence ellipses summarize where the samples from each condition
 are concentrated and how they are distributed in the PCA space.
 
 ``` r
@@ -737,11 +736,11 @@ technical origin should be checked against the study design and
 sample-level quality metrics.
 
 The 95% ellipses use each condition’s mean and covariance matrix
-together with a two-dimensional chi-squared contour to summarise group
-centre, spread, and orientation. They support visual comparison, while
+together with a two-dimensional chi-squared contour to summarize group
+center, spread, and orientation. They support visual comparison, while
 formal separation can be assessed with an appropriate statistical test.
 
-With `scale. = TRUE`, proteins are standardised to unit variance and
+With `scale. = TRUE`, proteins are standardized to unit variance and
 contribute more comparably to the PCA. With `scale. = FALSE`, more
 variable proteins have greater influence. Because scaling can change
 sample positions and apparent group separation, the selected setting
@@ -781,13 +780,13 @@ a confidence ellipse.
 | Ellipse type | Geometry | Appropriate interpretation |
 |----|----|----|
 | `“convex”` | Smallest convex polygon containing the observed samples | Describes the observed extent of a group |
-| `“confidence”` | Covariance ellipse scaled by a chi-squared quantile | Summarises the centre, spread, and orientation of each group under a multivariate-normal model |
+| `“confidence”` | Covariance ellipse scaled by a chi-squared quantile | Summarizes the center, spread, and orientation of each group under a multivariate-normal model |
 
 At least three samples are required to draw either outline. With
 `ellipse_type = "confidence"` and `ellipse_level = 0.95`, the ellipse
 combines each group’s mean and covariance matrix with a two-dimensional
 chi-squared contour. It therefore provides a consistent summary of group
-centre, spread, and orientation, while the displayed points show the
+center, spread, and orientation, while the displayed points show the
 individual samples on which the outline is based.
 
 ## Heatmaps
@@ -800,7 +799,7 @@ columns and does not assign proteins to profile clusters.
 
 [`proteomics_heatmap()`](https://sciordia.github.io/NADIA/reference/proteomics_heatmap.md)
 controls protein selection, scaling, ordering, clustering, annotation,
-and colour mapping. The expandable guide below focuses on the parameters
+and color mapping. The expandable guide below focuses on the parameters
 that determine what the heatmap represents and how it should be
 interpreted; the complete reference is available in
 [`?proteomics_heatmap`](https://sciordia.github.io/NADIA/reference/proteomics_heatmap.md).
@@ -836,9 +835,9 @@ Show the main parameters of proteomics_heatmap()
 - `row_order_by` and `split_rows_by`: order or divide proteins using
   clustering or annotation columns.
 - `palette_value` and `reverse_palette`: choose and optionally reverse
-  the abundance colour scale.
+  the abundance color scale.
 - `palette_annotation` and `show_annotation`: control the condition
-  annotation colours and visibility.
+  annotation colors and visibility.
 - `heatmap_title`: optional title displayed above the heatmap.
 
 **Return value**
@@ -954,7 +953,7 @@ Row-scaled abundance profiles for the 30 proteins with the smallest
 adjusted p-values in the B-A comparison.
 
 Each row is transformed to a z-score because `scale_data = "row"`. Warm
-and cool colours therefore represent values above and below that
+and cool colors therefore represent values above and below that
 protein’s own mean; they do **not** indicate that one protein is more
 abundant than another. Row clustering groups proteins with similar
 relative profiles, while column clustering places samples with similar
@@ -964,7 +963,7 @@ conditions `A` and `B`.
 
 Use `scale_data = "none"` when absolute log2 intensity differences
 between proteins are the subject of the figure. In that case, a small
-number of high-abundance proteins may dominate the colour range. Column
+number of high-abundance proteins may dominate the color range. Column
 scaling answers a different question and is rarely the default for
 protein-profile heatmaps.
 
@@ -1027,14 +1026,14 @@ Heatmap of 15 significant proteins with higher abundance in A and 15
 with higher abundance in B, annotated and split by direction.
 
 The `Direction` annotation is derived from the sign of `logFC`: positive
-values are labelled **Higher in B**, whereas negative values are
-labelled **Higher in A**. The coloured row annotation identifies these
-categories, and `split_rows_by = "Direction"` separates them into two
-heatmap sections. Within each section, the row-scaled colours still
-represent values above or below each protein’s own mean. This balanced
-selection is used only to illustrate the annotation and should not be
-interpreted as the observed proportion of up- and down-regulated
-proteins in the complete comparison.
+values are labeled **Higher in B**, whereas negative values are labeled
+**Higher in A**. The colored row annotation identifies these categories,
+and `split_rows_by = "Direction"` separates them into two heatmap
+sections. Within each section, the row-scaled colors still represent
+values above or below each protein’s own mean. This balanced selection
+is used only to illustrate the annotation and should not be interpreted
+as the observed proportion of up- and down-regulated proteins in the
+complete comparison.
 
 ``` r
 
@@ -1067,12 +1066,12 @@ informative with at least three ordered conditions, such as time points,
 doses, or disease stages.
 
 This section requires the optional **Mfuzz**, **Biobase**, and **e1071**
-packages. It focuses on visualising an existing clustering result; see
+packages. It focuses on visualizing an existing clustering result; see
 [`vignette("pattern-profiler")`](https://sciordia.github.io/NADIA/articles/pattern-profiler.md)
 for cluster-number selection, membership diagnostics, and data storage.
 
-Pattern Profiler separates clustering from visualisation. The expandable
-guide below summarises the main controls that determine which proteins
+Pattern Profiler separates clustering from visualization. The expandable
+guide below summarizes the main controls that determine which proteins
 are clustered and how the centroid and protein-profile charts are
 constructed; the dedicated Pattern Profiler vignette provides the
 complete analysis reference.
@@ -1099,8 +1098,10 @@ Show the main Pattern Profiler analysis and plotting parameters
   select a cluster number automatically.
 - `c`: fixed number of clusters used when `auto_select_c = FALSE`.
 - `min_membership`: minimum fuzzy membership retained in `long_output`.
-- `seed` and `seeds`: make the final clustering and automatic
-  cluster-number evaluation reproducible.
+- `n_starts`: random starts per candidate number of clusters during
+  automatic selection. Call
+  [`set.seed()`](https://rdrr.io/r/base/Random.html) beforehand to make
+  the clustering reproducible.
 
 **Centroid and profile charts**
 
@@ -1114,7 +1115,7 @@ Show the main Pattern Profiler analysis and plotting parameters
   optionally overlay its centroid.
 - `line_width`, `line_opacity`, `centroid_width`, and `show_markers`:
   control the visibility of profile and centroid lines.
-- `palette`, `cluster_color`, and `height`: control chart colours and
+- `palette`, `cluster_color`, and `height`: control chart colors and
   dimensions.
 
 **Return values**
@@ -1125,7 +1126,7 @@ Show the main Pattern Profiler analysis and plotting parameters
   [`cluster_profile_highchart_list()`](https://sciordia.github.io/NADIA/reference/cluster_profile_highchart_list.md)
   returns a named list by cluster.
 
-### Building and summarising the example clusters
+### Building and summarizing the example clusters
 
 For a concise and reproducible visual example, the analysis below fixes
 the number of clusters at two. In a new study, the candidate solutions
@@ -1135,6 +1136,7 @@ vignette.
 
 ``` r
 
+set.seed(42)
 pp_vis <- pattern_profiler_analysis(
   se_proc = res$se_proc,
   DEPs_results = res$DEPs_results,
@@ -1146,16 +1148,15 @@ pp_vis <- pattern_profiler_analysis(
   auto_select_c = FALSE,
   c = 2,
   min_membership = 0.25,
-  seed = 42,
   verbose = FALSE
 )
 ```
 
 A stricter membership threshold is useful for displaying the clearest
 examples of each pattern. The table reports how many proteins remain at
-0.70 and the median standardised profile represented by each cluster.
+0.70 and the median standardized profile represented by each cluster.
 
-Show the code used to summarise the Pattern Profiler clusters
+Show the code used to summarize the Pattern Profiler clusters
 
 ``` r
 
@@ -1234,7 +1235,7 @@ prepare_vignette_highchart(centroid_plot)
 
 The separation between the centroid lines shows when the dominant
 patterns diverge. Hovering over a marker reports the condition and
-median z-score. The centroids summarise many proteins and should
+median z-score. The centroids summarize many proteins and should
 therefore be read together with the cluster sizes and memberships in the
 preceding table.
 
@@ -1278,7 +1279,7 @@ profile_plot <- cluster_profile_highchart(
 prepare_vignette_highchart(profile_plot)
 ```
 
-The thin lines are individual standardised protein profiles and the
+The thin lines are individual standardized protein profiles and the
 thicker line is their median. A narrow band around the centroid
 indicates a coherent pattern; marked deviations identify proteins whose
 assignment deserves closer inspection. Showing only high-membership
@@ -1302,30 +1303,29 @@ all_profile_plots <- cluster_profile_highchart_list(
 all_profile_plots[["Cluster_1"]]
 ```
 
-## Colours and consistent presentation
+## Colors and consistent presentation
 
-NADIA plots can be coloured with either an explicit vector of colour
-codes or a named palette. Available themes can be explored in the
-[`paletteer` catalogue](https://emilhvitfeldt.github.io/paletteer/) and
-the [ColorBrewer catalogue used by
-`RColorBrewer`](https://colorbrewer2.org/).
+NADIA plots can be colored with either an explicit vector of color codes
+or a named palette. Available themes can be explored in the [`paletteer`
+catalog](https://emilhvitfeldt.github.io/paletteer/) and the
+[ColorBrewer catalog used by `RColorBrewer`](https://colorbrewer2.org/).
 
-An explicit vector gives complete control over each colour and makes the
+An explicit vector gives complete control over each color and makes the
 mapping visible in the analysis script. This is particularly useful when
 the same conditions, clusters, or significance categories must retain
-identical colours across several publication figures. A named palette is
+identical colors across several publication figures. A named palette is
 more concise and makes it easy to compare alternative themes:
 `paletteer` provides a common interface to a large collection of
 palettes from many R packages, whereas `RColorBrewer` offers a smaller
 set of qualitative, sequential, and diverging palettes designed for
 different types of data.
 
-The following examples use explicit colours. Comments identify the
+The following examples use explicit colors. Comments identify the
 mapping required by each type of plot.
 
 ``` r
 
-# Pattern Profiler: one colour for each cluster.
+# Pattern Profiler: one color for each cluster.
 cluster_colours <- c("#E63946", "#457B9D")
 
 cluster_centroids_highchart(
@@ -1336,7 +1336,7 @@ cluster_centroids_highchart(
   palette = cluster_colours
 )
 
-# Boxplot: colours follow the condition order.
+# Boxplot: colors follow the condition order.
 condition_colours <- c(
   A = "#0072B2",
   B = "#D55E00",
@@ -1350,7 +1350,7 @@ boxplot_highchart_list(
   palette = unname(condition_colours)
 )[["Impseqrob_min"]]
 
-# Volcano plot: colours are named by significance category.
+# Volcano plot: colors are named by significance category.
 volcano_colours <- list(
   up = "#D55E00",
   down = "#0072B2",
@@ -1366,19 +1366,25 @@ volcano_highchart_list(
 
 When a named palette is preferred, `paletteer` themes use the
 `"package::palette"` format and `RColorBrewer` themes use
-`"brewer:PaletteName"`. The accepted formats vary slightly between
-plotting functions, as summarised below.
+`"brewer:PaletteName"`. `paletteer` is a suggested package: it is needed
+only for the `"package::palette"` format, together with the package that
+provides the palette (`ggsci` in the example below). Every plotting
+function accepts the same forms: `"package::palette"`, `"brewer:Name"`
+(or the bare RColorBrewer name), or a vector of colors, named after the
+groups or not. A palette with fewer colors than groups is interpolated,
+and an unknown palette name is an error. What differs between functions
+is which argument takes the palette:
 
 | Function | Palette argument | Example |
 |:---|:---|:---|
-| [`volcano_highchart_list()`](https://sciordia.github.io/NADIA/reference/volcano_highchart_list.md) | `paletteer` name or `colors = list(up, down, ns)` | `palette = "ggsci::default_jco"` |
-| [`boxplot_highchart_list()`](https://sciordia.github.io/NADIA/reference/boxplot_highchart_list.md) | `paletteer` name, `"brewer:Name"`, or colour vector | `palette = "brewer:Dark2"` |
-| [`pca_highchart_list()`](https://sciordia.github.io/NADIA/reference/pca_highchart_list.md) | `paletteer` name, `"brewer:Name"`, or preferably a named vector | `palette = condition_colours` |
-| Pattern Profiler Highcharts | `ggsci` palette through `paletteer`, `"brewer:Name"`, or colour vector | `palette = "ggsci::default_jco"` |
-| [`proteomics_heatmap()`](https://sciordia.github.io/NADIA/reference/proteomics_heatmap.md) | Separate `paletteer` or `RColorBrewer` palettes for values and annotations | `palette_value = "brewer:RdBu"` |
+| [`volcano_highchart_list()`](https://sciordia.github.io/NADIA/reference/volcano_highchart_list.md) | `palette` (three colors: up, down, non-significant), or `colors = list(up, down, ns)` | `palette = "ggsci::default_jco"` |
+| [`boxplot_highchart_list()`](https://sciordia.github.io/NADIA/reference/boxplot_highchart_list.md) | `palette`, one color per condition | `palette = "brewer:Dark2"` |
+| [`pca_highchart_list()`](https://sciordia.github.io/NADIA/reference/pca_highchart_list.md) | `palette`, preferably a vector named after the conditions | `palette = condition_colours` |
+| Pattern Profiler Highcharts | `palette`, one color per cluster | `palette = "ggsci::default_jco"` |
+| [`proteomics_heatmap()`](https://sciordia.github.io/NADIA/reference/proteomics_heatmap.md) | `palette_value` for the values, `palette_annotation` for the conditions and `palette_adjp` for the adjusted p-value | `palette_value = "brewer:RdBu"` |
 
 For example, the following call uses a named `paletteer` theme instead
-of specifying the three volcano-plot colours individually.
+of specifying the three volcano-plot colors individually.
 
 ``` r
 
@@ -1422,7 +1428,7 @@ htmlwidgets::saveWidget(
 ```
 
 A self-contained widget is convenient for sharing, but it remains
-subject to the Highcharts licence described above. The file also
+subject to the Highcharts license described above. The file also
 contains the plotted data, so it should not be used to distribute
 confidential results without review.
 
@@ -1465,7 +1471,7 @@ tables, and interactive objects.
 
 ## Practical recommendations
 
-The most defensible visualisation workflow begins with the analytical
+The most defensible visualization workflow begins with the analytical
 question and ends with a reproducible export. The following practices
 help keep figures clear and their interpretation proportionate to the
 evidence:
@@ -1483,7 +1489,7 @@ evidence:
 - use Pattern Profiler when conditions have a meaningful order, evaluate
   the number of clusters and membership threshold, and interpret its
   z-scores as relative trajectories rather than absolute abundance;
-- reuse explicit colours and sample orders across related figures;
+- reuse explicit colors and sample orders across related figures;
 - avoid dense labels when tooltips or a focused protein panel
   communicate the result more clearly; and
 - save the plotted data and the analysis parameters together with the
@@ -1491,7 +1497,7 @@ evidence:
 
 No single figure validates an analysis. Agreement among the experimental
 design, quality-control summaries, model results, and several
-complementary visualisations provides a much stronger basis for
+complementary visualizations provides a much stronger basis for
 interpretation.
 
 ## Session information
@@ -1502,13 +1508,13 @@ support reproducibility.
 ``` r
 
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
+#> R version 4.6.2 (2026-10-29)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 26.04.1 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.32.so;  LAPACK version 3.12.0
 #> 
 #> locale:
 #>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8        LC_COLLATE=C.UTF-8    
@@ -1522,47 +1528,47 @@ sessionInfo()
 #> [1] tcltk     stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] NADIA_0.99.1       DynDoc_1.90.0      widgetTools_1.90.0 BiocStyle_2.40.0  
+#> [1] NADIA_1.1.0        DynDoc_1.90.0      widgetTools_1.90.0 BiocStyle_2.40.0  
 #> 
 #> loaded via a namespace (and not attached):
 #>   [1] gridExtra_2.3.1             rlang_1.3.0                 magrittr_2.0.5             
-#>   [4] clue_0.3-68                 GetoptLong_1.1.1            otel_0.2.0                 
-#>   [7] matrixStats_1.5.0           e1071_1.7-17                compiler_4.6.1             
-#>  [10] png_0.1-9                   systemfonts_1.3.2           vctrs_0.7.3                
+#>   [4] clue_0.3-68                 GetoptLong_1.1.1            otel_0.3.0                 
+#>   [7] matrixStats_1.5.0           e1071_1.7-17                compiler_4.6.2             
+#>  [10] png_0.1-9                   systemfonts_1.3.4           vctrs_0.7.3                
 #>  [13] stringr_1.6.0               pkgconfig_2.0.3             shape_1.4.6.1              
-#>  [16] crayon_1.5.3                fastmap_1.2.0               XVector_0.52.0             
-#>  [19] backports_1.5.1             rmarkdown_2.32              ragg_1.5.2                 
-#>  [22] highcharter_0.9.5           purrr_1.2.2                 xfun_0.60                  
+#>  [16] crayon_1.5.3                fastmap_1.2.0               backports_1.5.1            
+#>  [19] XVector_0.52.0              rmarkdown_2.32              ragg_1.5.2                 
+#>  [22] highcharter_0.9.5           purrr_1.2.2                 xfun_0.62                  
 #>  [25] cachem_1.1.0                jsonlite_2.0.0              tidyHeatmap_1.13.1         
-#>  [28] DelayedArray_0.38.2         broom_1.0.13                parallel_4.6.1             
-#>  [31] cluster_2.1.8.2             R6_2.6.1                    bslib_0.12.0               
+#>  [28] DelayedArray_0.38.2         broom_1.0.13                parallel_4.6.2             
+#>  [31] cluster_2.1.8.3             R6_2.6.1                    bslib_0.12.0               
 #>  [34] stringi_1.8.9               RColorBrewer_1.1-3          limma_3.68.5               
 #>  [37] rlist_0.4.6.2               Mfuzz_2.72.0                rrcov_1.7-7                
 #>  [40] GenomicRanges_1.64.0        lubridate_1.9.5             jquerylib_0.1.4            
 #>  [43] Seqinfo_1.2.0               bookdown_0.48               assertthat_0.2.1           
-#>  [46] SummarizedExperiment_1.42.0 iterators_1.0.14            knitr_1.51                 
-#>  [49] zoo_1.9-0                   IRanges_2.46.0              splines_4.6.1              
-#>  [52] Matrix_1.7-5                timechange_0.4.0            tidyselect_1.2.1           
+#>  [46] SummarizedExperiment_1.42.0 iterators_1.0.14            knitr_1.52                 
+#>  [49] zoo_1.9-1                   IRanges_2.46.0              splines_4.6.2              
+#>  [52] Matrix_1.7-6                timechange_0.4.0            tidyselect_1.2.1           
 #>  [55] abind_1.4-8                 yaml_2.3.12                 viridis_0.6.5              
-#>  [58] doParallel_1.0.17           codetools_0.2-20            curl_8.0.0                 
-#>  [61] lattice_0.22-9              tibble_3.3.1                withr_3.0.3                
-#>  [64] Biobase_2.72.0              quantmod_0.4.29             S7_0.2.2                   
+#>  [58] doParallel_1.0.17           codetools_0.2-20            curl_8.2.0                 
+#>  [61] lattice_0.23-1              tibble_3.3.1                withr_3.0.3                
+#>  [64] Biobase_2.72.0              quantmod_0.4.29             S7_1.0.0                   
 #>  [67] evaluate_1.0.5              desc_1.4.3                  rrcovNA_0.5-3              
-#>  [70] proxy_0.4-29                norm_1.0-11.1               xts_0.14.2                 
+#>  [70] proxy_0.4-29                norm_1.0-11.1               xts_0.14.3                 
 #>  [73] circlize_0.4.18             pillar_1.11.1               BiocManager_1.30.27        
 #>  [76] MatrixGenerics_1.24.0       tkWidgets_1.90.0            foreach_1.5.2              
-#>  [79] stats4_4.6.1                pcaPP_2.0-5                 generics_0.1.4             
-#>  [82] TTR_0.24.4                  S4Vectors_0.50.2            ggplot2_4.0.3              
-#>  [85] scales_1.4.0                class_7.3-23                glue_1.8.1                 
-#>  [88] tools_4.6.1                 dendextend_1.19.1           robustbase_0.99-7          
-#>  [91] data.table_1.18.6.1         reactable_0.4.5             mvtnorm_1.4-2              
-#>  [94] fs_2.1.0                    grid_4.6.1                  tidyr_1.3.2                
-#>  [97] colorspace_2.1-3            patchwork_1.3.2             cli_3.6.6                  
-#> [100] textshaping_1.0.5           S4Arrays_1.12.0             viridisLite_0.4.3          
-#> [103] ComplexHeatmap_2.28.0       dplyr_1.2.1                 DEoptimR_1.2-1             
-#> [106] gtable_0.3.6                sass_0.4.10                 digest_0.6.39              
-#> [109] BiocGenerics_0.58.1         SparseArray_1.12.2          rjson_0.2.23               
+#>  [79] stats4_4.6.2                pcaPP_2.0-7                 generics_0.1.4             
+#>  [82] TTR_0.24.4                  S4Vectors_0.50.3            ggplot2_4.0.4              
+#>  [85] scales_1.4.0                class_7.3-24                glue_1.8.1                 
+#>  [88] tools_4.6.2                 dendextend_1.19.1           robustbase_0.99-7          
+#>  [91] data.table_1.18.6.1         mvtnorm_1.5-0               fs_2.1.0                   
+#>  [94] grid_4.6.2                  tidyr_1.3.2                 MsCoreUtils_1.24.0         
+#>  [97] colorspace_2.1-4            patchwork_1.3.2             cli_3.6.6                  
+#> [100] textshaping_1.1.0           S4Arrays_1.12.1             viridisLite_0.4.3          
+#> [103] ComplexHeatmap_2.28.0       dplyr_1.2.1                 DEoptimR_1.2-2             
+#> [106] gtable_0.3.6                sass_0.5.0                  digest_0.6.39              
+#> [109] BiocGenerics_0.58.1         SparseArray_1.12.3          rjson_0.2.23               
 #> [112] htmlwidgets_1.6.4           farver_2.1.2                htmltools_0.5.9            
 #> [115] pkgdown_2.2.1               lifecycle_1.0.5             statmod_1.5.2              
-#> [118] GlobalOptions_0.1.4
+#> [118] GlobalOptions_0.1.4         MASS_7.3-66
 ```
