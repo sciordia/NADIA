@@ -16,12 +16,28 @@
 # before Pages was turned on were green, and the branch simply sat there
 # unserved. Enabling Pages is therefore a one-off click in Settings, not a
 # precondition for this workflow to be useful.
+#
+# Two sites, one per line of development:
+#
+#   RELEASE_* branch -> release mode -> the site root   (what users install)
+#   main             -> devel mode   -> dev/            (Bioconductor devel)
+#
+# The mode is set from the branch through PKGDOWN_DEV_MODE, not with
+# `development: mode: auto` in _pkgdown.yml: auto reads a version as devel
+# only when it carries a .9000 component, the CRAN convention, while a
+# Bioconductor devel version is any odd `y` (1.1.0). In devel mode pkgdown
+# writes to docs/dev, so the two builds deploy to disjoint parts of gh-pages.
+#
+# Only push the current RELEASE_* branch: every release branch deploys to the
+# root, so a push to an older one would put an outdated site there.
+#
+# There is no `release: published` trigger on purpose. A GitHub Release only
+# archives the version on Zenodo; the release site is already built by the
+# push to the release branch.
 
 on:
   push:
-    branches: [main]
-  release:
-    types: [published]
+    branches: [main, 'RELEASE_*']
   workflow_dispatch:
 
 name: pkgdown.yaml
@@ -31,11 +47,15 @@ permissions: read-all
 jobs:
   pkgdown:
     runs-on: ubuntu-latest
-    # Only restrict concurrency for non-PR jobs
+    # One queue per branch. With a single queue GitHub keeps only the newest
+    # pending run, so a push to main could cancel a pending release build. Two
+    # deployments that overlap rebase instead of overwriting (force: false).
     concurrency:
-      group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
+      group: pkgdown-${{ github.ref_name }}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      PKGDOWN_DEV_MODE: ${{ startsWith(github.ref_name, 'RELEASE_') && 'release' || 'devel' }}
+      SITE_DIR: ${{ startsWith(github.ref_name, 'RELEASE_') && 'docs' || 'docs/dev' }}
     permissions:
       contents: write
     steps:
@@ -68,21 +88,37 @@ jobs:
       # site 404s. Copying the directory afterwards is the whole fix.
       - name: Copy the vignette figures pkgdown does not detect
         run: |
+          test -f "$SITE_DIR/index.html"
           # Articles: pkgdown rewrites the <img src> but never copies the file,
           # so the directory has to follow.
-          cp -R vignettes/figures docs/articles/figures
+          cp -R vignettes/figures "$SITE_DIR/articles/figures"
           # Home page: the README links its diagram to the repository-relative
           # path, which is right on github.com. pkgdown rewrites the <img src>
           # of that figure but not the <a href> around it, so serve that path
           # too rather than editing the README for one renderer's benefit.
-          mkdir -p docs/vignettes
-          cp -R vignettes/figures docs/vignettes/figures
+          mkdir -p "$SITE_DIR/vignettes"
+          cp -R vignettes/figures "$SITE_DIR/vignettes/figures"
           Rscript -e 'source("tools/check-site-links.R")'
 
-      - name: Deploy to GitHub Pages 🚀
-        if: github.event_name != 'pull_request'
+      # Release site: the root of gh-pages. clean removes pages that no longer
+      # exist, and clean-exclude keeps the devel site under dev/.
+      - name: Deploy the release site to GitHub Pages 🚀
+        if: env.PKGDOWN_DEV_MODE == 'release'
         uses: JamesIves/github-pages-deploy-action@v4.9.0
         with:
-          clean: false
           branch: gh-pages
           folder: docs
+          clean: true
+          clean-exclude: dev
+          force: false
+
+      # Devel site: only dev/ is written, and only dev/ is cleaned.
+      - name: Deploy the devel site to GitHub Pages 🚀
+        if: env.PKGDOWN_DEV_MODE == 'devel'
+        uses: JamesIves/github-pages-deploy-action@v4.9.0
+        with:
+          branch: gh-pages
+          folder: docs/dev
+          target-folder: dev
+          clean: true
+          force: false
