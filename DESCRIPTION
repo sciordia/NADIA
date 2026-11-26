@@ -13,14 +13,14 @@ Description: Provides an end-to-end workflow for differential abundance
     missing values in data-independent acquisition (DIA) proteomics.
     Quantification reports exported from Spectronaut, DIA-NN and Proteome
     Discoverer for TMT and label-free experiments (DDA/DIA) are converted into
-    a common data structure, normalised, optionally batch-corrected, imputed and
-    analysed using limma or limpa. The package includes individual and two-stage
+    a common data structure, normalized, optionally batch-corrected, imputed and
+    analyzed using limma or limpa. The package includes individual and two-stage
     imputation strategies that treat values assumed to be missing at random and
     missing not at random separately. Data-driven functions evaluate and rank
-    normalisation and imputation workflows using simulated missingness or
+    normalization and imputation workflows using simulated missingness or
     spike-in datasets with known ground truth, allowing method selection to be
     justified for each dataset. Results can be explored through interactive
-    Highcharts visualisations, static ggplot2 and ComplexHeatmap figures, and
+    Highcharts visualizations, static ggplot2 and ComplexHeatmap figures, and
     sortable tables.
 License: GPL (>= 3)
 Encoding: UTF-8
