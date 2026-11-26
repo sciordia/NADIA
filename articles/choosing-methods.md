@@ -668,7 +668,7 @@ sessionInfo()
 #>  [1] SummarizedExperiment_1.42.0 Biobase_2.72.0              GenomicRanges_1.64.0       
 #>  [4] Seqinfo_1.2.0               IRanges_2.46.0              S4Vectors_0.50.3           
 #>  [7] BiocGenerics_0.58.1         generics_0.1.4              MatrixGenerics_1.24.0      
-#> [10] matrixStats_1.5.0           NADIA_1.1.0                 BiocStyle_2.40.0           
+#> [10] matrixStats_1.5.0           NADIA_1.0.1                 BiocStyle_2.40.0           
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] tidyselect_1.2.1    viridisLite_0.4.3   rrcovNA_0.5-3       dplyr_1.2.1        

@@ -1111,7 +1111,7 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] NADIA_1.1.0      BiocStyle_2.40.0
+#> [1] NADIA_1.0.1      BiocStyle_2.40.0
 #> 
 #> loaded via a namespace (and not attached):
 #>   [1] DBI_1.3.0                   Rdpack_2.6.6               
