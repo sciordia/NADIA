@@ -7,6 +7,16 @@
    belong, because pkgdown does apply them.
    -------------------------------------------------------------------------- */
 
+/* The README logo. It sits above the title, not inside it, because that is how
+   it reads well on GitHub. pkgdown only removes a README logo found inside the
+   <h1> (tweak_homepage_html() looks for h1/img), and draws its own next to the
+   title, so this one was left behind -- and blown up, since the site's CSS
+   overrides its height="139". pkgdown's own logo is img.logo with
+   src="logo.svg", which this selector does not match. */
+main > p:has(> img[src$="figures/logo.svg"]) {
+  display: none;
+}
+
 /* The vignette guide on the home page. The README keeps the wrapping div, which
    is inert on GitHub and picked up here. */
 .vignette-guide-table table {
