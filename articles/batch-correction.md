@@ -223,8 +223,8 @@ pvca_default <- pvca_analysis(
 
 pvca_default$variance_components
 #>       label     weights   category
-#> 1 Condition 0.998364844 biological
-#> 2  Below 1% 0.001635156   residual
+#> 1 Condition 0.998364382 biological
+#> 2  Below 1% 0.001635618   residual
 ```
 
 Condition accounts for almost all of the reported variation, while
@@ -255,13 +255,13 @@ pvca_before <- pvca_analysis(
 
 pvca_before$variance_components
 #>                 label      weights   category
-#> 1           Condition 0.7021401719 biological
-#> 2           Digestion 0.2742105406  technical
-#> 3 Digestion:Condition 0.0222670639 biol:techn
-#> 4 Injection:Condition 0.0005417228 biol:techn
-#> 5           Injection 0.0002478541  technical
-#> 6 Digestion:Injection 0.0001029636  technical
-#> 7               resid 0.0004896831   residual
+#> 1           Condition 0.7021402345 biological
+#> 2           Digestion 0.2742063184  technical
+#> 3 Digestion:Condition 0.0222708653 biol:techn
+#> 4 Injection:Condition 0.0005416905 biol:techn
+#> 5           Injection 0.0002480711  technical
+#> 6 Digestion:Injection 0.0001029695  technical
+#> 7               resid 0.0004898508   residual
 ```
 
 After increasing the threshold, digestion accounts for **27.4%** of the
@@ -514,13 +514,13 @@ pvca_comparison$weights_after <- formatC(
 
 pvca_comparison
 #>                 label weights_before weights_after
-#> 1           Condition     0.70214017    0.77501717
-#> 2           Digestion     0.27421054    0.00003316
-#> 3 Digestion:Condition     0.02226706    0.03051652
-#> 4 Digestion:Injection     0.00010296    0.03131737
-#> 5           Injection     0.00024785    0.05424928
-#> 6 Injection:Condition     0.00054172    0.02172705
-#> 7               resid     0.00048968    0.08713946
+#> 1           Condition     0.70214023    0.77501535
+#> 2           Digestion     0.27420632    0.00000002
+#> 3 Digestion:Condition     0.02227087    0.03051548
+#> 4 Digestion:Injection     0.00010297    0.03128563
+#> 5           Injection     0.00024807    0.05424928
+#> 6 Injection:Condition     0.00054169    0.02173484
+#> 7               resid     0.00048985    0.08719940
 ```
 
 The estimated digestion contribution falls from 27.4% to a value close
@@ -733,10 +733,10 @@ tmt_pvca_before <- pvca_analysis(
 
 tmt_pvca_before$variance_components
 #>           label      weights   category
-#> 1           Mix 0.6907005253  technical
-#> 2     Condition 0.3054257968 biological
-#> 3 Mix:Condition 0.0036035437 biol:techn
-#> 4         resid 0.0002701342   residual
+#> 1           Mix 0.6907002599  technical
+#> 2     Condition 0.3054259524 biological
+#> 3 Mix:Condition 0.0036035945 biol:techn
+#> 4         resid 0.0002701932   residual
 ```
 
 Before correction, TMT mix accounts for 69.1% of the weighted variation
@@ -811,10 +811,10 @@ tmt_pvca_comparison$weights_after <- formatC(
 
 tmt_pvca_comparison
 #>           label weights_before weights_after
-#> 1     Condition     0.30542580    0.96840801
-#> 2           Mix     0.69070053    0.00000000
-#> 3 Mix:Condition     0.00360354    0.03010062
-#> 4         resid     0.00027013    0.00149137
+#> 1     Condition     0.30542595    0.96840802
+#> 2           Mix     0.69070026    0.00000000
+#> 3 Mix:Condition     0.00360359    0.03010062
+#> 4         resid     0.00027019    0.00149137
 ```
 
 The estimated contribution of mix falls from 69.1% to a value close to
