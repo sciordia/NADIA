@@ -7,6 +7,24 @@ template:
     base_font: {google: "Inter"}
     code_font: {google: "JetBrains Mono"}
 
+# The sidebar's own "Links" block is replaced because pkgdown builds its first
+# link by asking CRAN before Bioconductor, and the page of the archived CRAN
+# package of the same name (NADIA, Borowski & Fic, removed 2024) still answers
+# 200 -- so the site said "View on CRAN" and pointed at somebody else's package.
+# The other sections keep pkgdown's default order.
+home:
+  sidebar:
+    structure: [nadia_links, license, community, citation, authors, dev]
+    components:
+      nadia_links:
+        title: Links
+        # One line each: pkgdown already wraps the text in its own list, so a
+        # Markdown list here would come out nested, with bullets.
+        text: |
+          [View on Bioconductor](https://bioconductor.org/packages/NADIA)<br>
+          [Browse source code](https://github.com/sciordia/NADIA/)<br>
+          [Report a bug](https://github.com/sciordia/NADIA/issues)
+
 navbar:
   structure:
     left:  [intro, articles, reference, news]
