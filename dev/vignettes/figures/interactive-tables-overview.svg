@@ -1,0 +1,178 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="974" viewBox="0 0 1200 974" role="img" aria-labelledby="title desc">
+  <title id="title">Four interactive views of a NADIA analysis</title>
+  <desc id="desc">From top left to bottom right, four complementary tables show sample metadata, protein identification, quantification, and differential-abundance results. Each panel links its input to a schematic table, its row unit, and the available NADIA functions. Results and protein identification offer both standalone Reactable tables and full widget pages; quantification and sample summaries provide widget pages. Processed quantification and sample identification counts are shown when available.</desc>
+  <defs>
+    <style>
+      text { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; }
+      .title { font-size: 32px; font-weight: 600; fill: #17324d; }
+      .subtitle { font-size: 20px; fill: #516779; }
+      .heading { font-size: 27px; font-weight: 600; fill: #ffffff; }
+      .question { font-size: 21px; fill: #263746; }
+      .label { font-size: 14px; font-weight: 700; letter-spacing: 1px; fill: #516779; }
+      .input { font-family: 'DejaVu Sans Mono', Consolas, monospace; font-size: 19px; fill: #263746; }
+      .function { font-family: 'DejaVu Sans Mono', Consolas, monospace; font-size: 20px; fill: #17324d; }
+      .unit { font-size: 19px; fill: #263746; }
+      .note { font-size: 18px; fill: #516779; }
+      .table-head { font-size: 16px; font-weight: 600; fill: #263746; }
+      .grid { fill: none; stroke: #d5dfe6; stroke-width: 1; }
+      .cell { fill: #a9bbc8; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="974" fill="#ffffff"/>
+  <text x="24" y="48" class="title">Four interactive views of a NADIA analysis</text>
+  <text x="24" y="81" class="subtitle">Choose a table according to the information you want to review.</text>
+
+  <!-- Differential-abundance results -->
+  <g transform="translate(612 496)">
+    <rect width="564" height="360" rx="10" fill="#f5f9fd" stroke="#aac7dc"/>
+    <path d="M10 0 H554 A10 10 0 0 1 564 10 V52 H0 V10 A10 10 0 0 1 10 0 Z" fill="#3f78a8"/>
+    <text x="22" y="36" class="heading">Differential abundance</text>
+    <text x="22" y="85" class="question">Which proteins change between conditions?</text>
+    <text x="22" y="119" class="label">INPUT</text>
+    <text x="94" y="119" class="input">DEPs_results</text>
+    <g transform="translate(22 140)" aria-hidden="true">
+      <rect width="520" height="96" fill="#ffffff"/>
+      <rect width="520" height="32" fill="#e0ecf5"/>
+      <path d="M0 32 H520 M0 64 H520 M0 96 H520 M134 0 V96 M272 0 V96 M386 0 V96" class="grid"/>
+      <text x="12" y="22" class="table-head">Protein</text>
+      <text x="146" y="22" class="table-head">Comparison</text>
+      <text x="284" y="22" class="table-head">logFC</text>
+      <text x="398" y="22" class="table-head">adj. P value</text>
+      <g class="cell">
+        <rect x="12" y="46" width="91" height="5" rx="2"/>
+        <rect x="146" y="46" width="83" height="5" rx="2"/>
+        <rect x="398" y="46" width="62" height="5" rx="2"/>
+        <rect x="12" y="78" width="76" height="5" rx="2"/>
+        <rect x="146" y="78" width="83" height="5" rx="2"/>
+        <rect x="398" y="78" width="74" height="5" rx="2"/>
+      </g>
+      <rect x="284" y="45" width="58" height="7" rx="2" fill="#bb6565"/>
+      <rect x="284" y="77" width="74" height="7" rx="2" fill="#6598be"/>
+    </g>
+    <text x="22" y="265" class="unit">Rows: one protein per comparison</text>
+    <text x="22" y="302" class="label">PAGE</text>
+    <text x="94" y="302" class="function">results_list_widget()</text>
+    <text x="22" y="334" class="label">TABLE</text>
+    <text x="94" y="334" class="function">results_list_reactable()</text>
+  </g>
+
+  <!-- Identification and annotations -->
+  <g transform="translate(612 112)">
+    <rect width="564" height="360" rx="10" fill="#f4faf7" stroke="#a9d0c1"/>
+    <path d="M10 0 H554 A10 10 0 0 1 564 10 V52 H0 V10 A10 10 0 0 1 10 0 Z" fill="#3b8b72"/>
+    <text x="22" y="36" class="heading">Protein identification</text>
+    <text x="22" y="85" class="question">Which proteins were identified?</text>
+    <text x="22" y="119" class="label">INPUT</text>
+    <text x="94" y="119" class="input">protein_id</text>
+    <g transform="translate(22 140)" aria-hidden="true">
+      <rect width="520" height="96" fill="#ffffff"/>
+      <rect width="520" height="32" fill="#e0eee8"/>
+      <path d="M0 32 H520 M0 64 H520 M0 96 H520 M116 0 V96 M208 0 V96 M364 0 V96" class="grid"/>
+      <text x="12" y="22" class="table-head">Protein</text>
+      <text x="128" y="22" class="table-head">Gene</text>
+      <text x="220" y="22" class="table-head">Description</text>
+      <text x="376" y="22" class="table-head">Sample metrics</text>
+      <g class="cell">
+        <rect x="12" y="46" width="78" height="5" rx="2"/>
+        <rect x="128" y="46" width="57" height="5" rx="2"/>
+        <rect x="220" y="46" width="117" height="5" rx="2"/>
+        <rect x="12" y="78" width="88" height="5" rx="2"/>
+        <rect x="128" y="78" width="49" height="5" rx="2"/>
+        <rect x="220" y="78" width="94" height="5" rx="2"/>
+      </g>
+      <g fill="#6ba991">
+        <rect x="377" y="43" width="28" height="11" rx="2"/>
+        <rect x="417" y="43" width="28" height="11" rx="2"/>
+        <rect x="457" y="43" width="28" height="11" rx="2"/>
+        <rect x="377" y="75" width="28" height="11" rx="2"/>
+        <rect x="417" y="75" width="28" height="11" rx="2"/>
+        <rect x="457" y="75" width="28" height="11" rx="2"/>
+      </g>
+    </g>
+    <text x="22" y="265" class="unit">Rows: one protein with sample-level metrics</text>
+    <text x="22" y="302" class="label">PAGE</text>
+    <text x="94" y="302" class="function">protein_list_widget()</text>
+    <text x="22" y="334" class="label">TABLE</text>
+    <text x="94" y="334" class="function">protein_list_reactable()</text>
+  </g>
+
+  <!-- Quantification -->
+  <g transform="translate(24 496)">
+    <rect width="564" height="360" rx="10" fill="#fffaf0" stroke="#dfc58e"/>
+    <path d="M10 0 H554 A10 10 0 0 1 564 10 V52 H0 V10 A10 10 0 0 1 10 0 Z" fill="#b77c1c"/>
+    <text x="22" y="36" class="heading">Protein quantification</text>
+    <text x="22" y="85" class="question">What are the measured and processed values?</text>
+    <text x="22" y="119" class="label">INPUT</text>
+    <text x="94" y="119" class="input">protein_quant [+ matrix_data]</text>
+    <g transform="translate(22 140)" aria-hidden="true">
+      <rect width="520" height="96" fill="#ffffff"/>
+      <rect width="520" height="32" fill="#f2e7d0"/>
+      <path d="M0 32 H520 M0 64 H520 M0 96 H520 M134 0 V96 M302 0 V96" class="grid"/>
+      <text x="12" y="22" class="table-head">Protein</text>
+      <text x="146" y="22" class="table-head">Raw sample values</text>
+      <text x="314" y="22" class="table-head">Processed sample values</text>
+      <g class="cell">
+        <rect x="12" y="46" width="91" height="5" rx="2"/>
+        <rect x="12" y="78" width="76" height="5" rx="2"/>
+      </g>
+      <g fill="#c4ad79">
+        <rect x="146" y="46" width="33" height="5" rx="2"/>
+        <rect x="196" y="46" width="33" height="5" rx="2"/>
+        <rect x="246" y="46" width="33" height="5" rx="2"/>
+        <rect x="146" y="78" width="33" height="5" rx="2"/>
+        <rect x="196" y="78" width="33" height="5" rx="2"/>
+        <rect x="246" y="78" width="33" height="5" rx="2"/>
+      </g>
+      <g fill="#b77c1c">
+        <rect x="314" y="46" width="45" height="5" rx="2"/>
+        <rect x="381" y="46" width="45" height="5" rx="2"/>
+        <rect x="448" y="46" width="45" height="5" rx="2"/>
+        <rect x="314" y="78" width="45" height="5" rx="2"/>
+        <rect x="381" y="78" width="45" height="5" rx="2"/>
+        <rect x="448" y="78" width="45" height="5" rx="2"/>
+      </g>
+    </g>
+    <text x="22" y="265" class="unit">Rows: one protein with values across samples</text>
+    <text x="22" y="302" class="label">PAGE</text>
+    <text x="94" y="302" class="function">quant_list_widget()</text>
+    <text x="22" y="334" class="note">The processed matrix is optional.</text>
+  </g>
+
+  <!-- Sample summary -->
+  <g transform="translate(24 112)">
+    <rect width="564" height="360" rx="10" fill="#faf7fc" stroke="#cbb9da"/>
+    <path d="M10 0 H554 A10 10 0 0 1 564 10 V52 H0 V10 A10 10 0 0 1 10 0 Z" fill="#8064a2"/>
+    <text x="22" y="36" class="heading">Sample summary</text>
+    <text x="22" y="85" class="question">How are the samples organised?</text>
+    <text x="22" y="119" class="label">INPUT</text>
+    <text x="94" y="119" class="input">metadata</text>
+    <g transform="translate(22 140)" aria-hidden="true">
+      <rect width="520" height="96" fill="#ffffff"/>
+      <rect width="520" height="32" fill="#e9e0f0"/>
+      <path d="M0 32 H520 M0 64 H520 M0 96 H520 M126 0 V96 M262 0 V96 M386 0 V96" class="grid"/>
+      <text x="12" y="22" class="table-head">Sample</text>
+      <text x="138" y="22" class="table-head">Condition</text>
+      <text x="274" y="22" class="table-head">Replicate</text>
+      <text x="398" y="22" class="table-head">ID counts</text>
+      <g class="cell">
+        <rect x="12" y="46" width="84" height="5" rx="2"/>
+        <rect x="274" y="46" width="39" height="5" rx="2"/>
+        <rect x="398" y="46" width="78" height="5" rx="2"/>
+        <rect x="12" y="78" width="75" height="5" rx="2"/>
+        <rect x="274" y="78" width="39" height="5" rx="2"/>
+        <rect x="398" y="78" width="69" height="5" rx="2"/>
+      </g>
+      <rect x="138" y="42" width="95" height="13" rx="3" fill="#a08bb8"/>
+      <rect x="138" y="74" width="95" height="13" rx="3" fill="#bcaacc"/>
+    </g>
+    <text x="22" y="265" class="unit">Rows: one sample</text>
+    <text x="22" y="302" class="label">PAGE</text>
+    <text x="94" y="302" class="function">summary_list_widget()</text>
+    <text x="22" y="334" class="note">Identification counts are shown when available.</text>
+  </g>
+
+  <line x1="24" y1="888" x2="1176" y2="888" stroke="#d8e1e7" stroke-width="1.5"/>
+  <text x="24" y="921" class="unit">TABLE: standalone Reactable table. PAGE: complete HTML page with controls and Excel export.</text>
+  <text x="24" y="953" class="note">The miniature tables show schematic layouts, not numerical results.</text>
+</svg>

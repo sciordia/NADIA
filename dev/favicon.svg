@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000" role="img" aria-labelledby="title desc"><metadata><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description><dc:creator>RealFaviconGenerator</dc:creator><dc:source>https://realfavicongenerator.net</dc:source></rdf:Description></rdf:RDF></metadata><title id="title">NADIA package logo</title><desc id="desc">A dark blue hexagonal logo for the NADIA quantitative proteomics package. A protein abundance matrix contains amber NA cells, the letters NA are highlighted in amber within the package name, and a mass spectrum represents protein quantification. A PCA with grouped samples, boxplots, a heatmap and a volcano plot appear as subtle analytical motifs.</desc><defs>
+    <linearGradient id="inner" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#245c78"></stop>
+      <stop offset="1" stop-color="#318a7b"></stop>
+    </linearGradient>
+    <clipPath id="inner-hex"><path d="M500 58 L891 284 L891 716 L500 942 L109 716 L109 284 Z"></path></clipPath>
+    <pattern id="heatmap-cells" width="18" height="10" patternUnits="userSpaceOnUse">
+      <rect width="14" height="7" rx="1.5" fill="#d9edf0" fill-opacity="0.48"></rect>
+    </pattern>
+    <style>
+      text { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; }
+      .cell { fill: #d9edf0; }
+      .missing { fill: #f6c65f; }
+      .na { font-size: 22px; font-weight: 800; fill: #17324d; text-anchor: middle; }
+    </style>
+  </defs><path d="M500 18 L925 263 L925 737 L500 982 L75 737 L75 263 Z" fill="#17324d"></path><path d="M500 58 L891 284 L891 716 L500 942 L109 716 L109 284 Z" fill="url(#inner)" stroke="#ffffff" stroke-width="8"></path><g clip-path="url(#inner-hex)" opacity="0.21" aria-hidden="true">
+    <ellipse cx="435" cy="163" rx="66" ry="29" transform="rotate(-12 435 163)" fill="#d9edf0" fill-opacity="0.10" stroke="#d9edf0" stroke-width="4"></ellipse>
+    <ellipse cx="570" cy="157" rx="70" ry="31" transform="rotate(13 570 157)" fill="#f6c65f" fill-opacity="0.08" stroke="#f6c65f" stroke-width="4"></ellipse>
+    <g fill="#d9edf0">
+      <circle cx="391" cy="174" r="7"></circle><circle cx="409" cy="151" r="7"></circle><circle cx="427" cy="171" r="7"></circle>
+      <circle cx="441" cy="143" r="7"></circle><circle cx="458" cy="160" r="7"></circle><circle cx="476" cy="151" r="7"></circle>
+    </g>
+    <g fill="#f6c65f">
+      <circle cx="526" cy="144" r="7"></circle><circle cx="545" cy="166" r="7"></circle><circle cx="562" cy="149" r="7"></circle>
+      <circle cx="579" cy="174" r="7"></circle><circle cx="596" cy="151" r="7"></circle><circle cx="615" cy="166" r="7"></circle>
+    </g>
+  </g><g opacity="0.13" fill="#d9edf0" stroke="#d9edf0" clip-path="url(#inner-hex)" transform="translate(0 88)" aria-hidden="true">
+    <path d="M151 411 H849 M500 411 V151" fill="none" stroke-width="4"></path>
+    <path d="M151 277 H849 M365 411 V151 M635 411 V151" fill="none" stroke-width="3" stroke-dasharray="10 10"></path>
+    <g stroke="none">
+      <circle cx="474" cy="389" r="8"></circle><circle cx="501" cy="397" r="7"></circle><circle cx="527" cy="384" r="8"></circle><circle cx="450" cy="374" r="7"></circle><circle cx="549" cy="365" r="7"></circle>
+      <circle cx="427" cy="353" r="8"></circle><circle cx="574" cy="345" r="8"></circle><circle cx="405" cy="329" r="7"></circle><circle cx="596" cy="321" r="7"></circle>
+      <circle cx="383" cy="305" r="8"></circle><circle cx="618" cy="300" r="8"></circle><circle cx="354" cy="279" r="8"></circle><circle cx="646" cy="272" r="8"></circle>
+      <circle cx="329" cy="247" r="9"></circle><circle cx="674" cy="238" r="9"></circle><circle cx="298" cy="216" r="9"></circle><circle cx="704" cy="210" r="9"></circle>
+      <circle cx="310" cy="181" r="10"></circle><circle cx="685" cy="176" r="10"></circle><circle cx="385" cy="149" r="10"></circle><circle cx="615" cy="146" r="10"></circle>
+      <circle cx="250" cy="226" r="7"></circle><circle cx="750" cy="232" r="7"></circle><circle cx="280" cy="195" r="8"></circle><circle cx="720" cy="190" r="8"></circle>
+      <!-- Additional observations make the two arms and central cloud explicit. -->
+      <circle cx="486" cy="405" r="5"></circle><circle cx="513" cy="407" r="5"></circle><circle cx="464" cy="398" r="5"></circle><circle cx="538" cy="397" r="5"></circle>
+      <circle cx="441" cy="389" r="5"></circle><circle cx="559" cy="384" r="5"></circle><circle cx="419" cy="374" r="6"></circle><circle cx="580" cy="369" r="6"></circle>
+      <circle cx="400" cy="358" r="5"></circle><circle cx="603" cy="353" r="5"></circle><circle cx="390" cy="337" r="5"></circle><circle cx="610" cy="335" r="5"></circle>
+      <circle cx="371" cy="321" r="6"></circle><circle cx="629" cy="316" r="6"></circle><circle cx="362" cy="295" r="5"></circle><circle cx="639" cy="290" r="5"></circle>
+      <circle cx="343" cy="270" r="6"></circle><circle cx="660" cy="262" r="6"></circle><circle cx="319" cy="235" r="6"></circle><circle cx="682" cy="228" r="6"></circle>
+      <circle cx="293" cy="206" r="5"></circle><circle cx="708" cy="201" r="5"></circle><circle cx="278" cy="166" r="6"></circle><circle cx="724" cy="161" r="6"></circle>
+      <circle cx="337" cy="132" r="7"></circle><circle cx="663" cy="126" r="7"></circle><circle cx="397" cy="96" r="7"></circle><circle cx="603" cy="91" r="7"></circle>
+      <circle cx="456" cy="378" r="4"></circle><circle cx="522" cy="371" r="4"></circle><circle cx="478" cy="363" r="4"></circle><circle cx="507" cy="351" r="4"></circle>
+    </g>
+  </g><g transform="translate(253 223)">
+    <g class="cell">
+      <rect x="0" y="0" width="86" height="53" rx="9"></rect><rect x="102" y="0" width="86" height="53" rx="9"></rect><rect x="204" y="0" width="86" height="53" rx="9"></rect><rect x="306" y="0" width="86" height="53" rx="9"></rect>
+      <rect x="102" y="69" width="86" height="53" rx="9"></rect><rect x="204" y="69" width="86" height="53" rx="9"></rect><rect x="408" y="69" width="86" height="53" rx="9"></rect>
+      <rect x="0" y="138" width="86" height="53" rx="9"></rect><rect x="102" y="138" width="86" height="53" rx="9"></rect><rect x="306" y="138" width="86" height="53" rx="9"></rect><rect x="408" y="138" width="86" height="53" rx="9"></rect>
+    </g>
+    <g class="missing">
+      <rect x="408" y="0" width="86" height="53" rx="9"></rect><rect x="0" y="69" width="86" height="53" rx="9"></rect><rect x="306" y="69" width="86" height="53" rx="9"></rect><rect x="204" y="138" width="86" height="53" rx="9"></rect>
+    </g>
+    <g class="na"><text x="451" y="35">NA</text><text x="43" y="104">NA</text><text x="349" y="104">NA</text><text x="247" y="173">NA</text></g>
+  </g><g opacity="0.27" stroke="#d9edf0" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" transform="translate(34.2 100.8) scale(0.82)" aria-hidden="true">
+    <path d="M136 448 V675 M119 448 H153 M119 675 H153"></path>
+    <rect x="112" y="500" width="48" height="103" rx="4" fill="#d9edf0" fill-opacity="0.2"></rect>
+    <path d="M112 551 H160"></path>
+    <circle cx="136" cy="704" r="7" fill="#d9edf0" stroke="none"></circle>
+
+    <path d="M190 428 V654 M173 428 H207 M173 654 H207"></path>
+    <rect x="166" y="470" width="48" height="108" rx="4" fill="#d9edf0" fill-opacity="0.2"></rect>
+    <path d="M166 519 H214"></path>
+    <circle cx="190" cy="402" r="7" fill="#d9edf0" stroke="none"></circle>
+
+    <path d="M244 463 V687 M227 463 H261 M227 687 H261"></path>
+    <rect x="220" y="527" width="48" height="95" rx="4" fill="#d9edf0" fill-opacity="0.2"></rect>
+    <path d="M220 573 H268"></path>
+    <circle cx="244" cy="714" r="7" fill="#d9edf0" stroke="none"></circle>
+  </g><g opacity="0.34" aria-hidden="true">
+    <rect x="758" y="428" width="126" height="140" fill="url(#heatmap-cells)"></rect>
+    <!-- Higher-intensity cells add the irregular pattern of protein abundances. -->
+    <g fill="#d9edf0">
+      <rect x="776" y="428" width="14" height="7" rx="1.5" fill-opacity="0.95"></rect><rect x="830" y="438" width="14" height="7" rx="1.5" fill-opacity="0.85"></rect>
+      <rect x="758" y="458" width="14" height="7" rx="1.5" fill-opacity="0.90"></rect><rect x="848" y="468" width="14" height="7" rx="1.5" fill-opacity="0.95"></rect>
+      <rect x="794" y="478" width="14" height="7" rx="1.5" fill-opacity="0.85"></rect><rect x="866" y="488" width="14" height="7" rx="1.5" fill-opacity="0.90"></rect>
+      <rect x="812" y="498" width="14" height="7" rx="1.5" fill-opacity="0.95"></rect><rect x="776" y="508" width="14" height="7" rx="1.5" fill-opacity="0.85"></rect>
+      <rect x="848" y="518" width="14" height="7" rx="1.5" fill-opacity="0.95"></rect><rect x="758" y="528" width="14" height="7" rx="1.5" fill-opacity="0.90"></rect>
+      <rect x="830" y="538" width="14" height="7" rx="1.5" fill-opacity="0.85"></rect><rect x="794" y="548" width="14" height="7" rx="1.5" fill-opacity="0.95"></rect>
+      <rect x="866" y="558" width="14" height="7" rx="1.5" fill-opacity="0.90"></rect>
+    </g>
+  </g><text x="484" y="626" text-anchor="end" font-family="'Arial Rounded MT Bold', 'Trebuchet MS', Arial, sans-serif" font-size="180" font-weight="800" fill="#f6c65f" letter-spacing="-4">NA</text><text x="484" y="626" text-anchor="start" font-family="'Arial Rounded MT Bold', 'Trebuchet MS', Arial, sans-serif" font-size="180" font-weight="800" fill="#ffffff" letter-spacing="-4">DIA</text><text x="500" y="696" text-anchor="middle" font-size="34" font-weight="650" letter-spacing="12" fill="#d9edf0">PROTEOMICS</text><g stroke-linecap="round" transform="translate(0 -35)">
+    <path d="M356 858 H644" stroke="#d9edf0" stroke-width="4" opacity="0.8"></path>
+    <g stroke="#ffffff" stroke-width="5">
+      <path d="M367 858 V841"></path><path d="M376 858 V850"></path><path d="M386 858 V827"></path><path d="M396 858 V846"></path>
+      <path d="M410 858 V808"></path><path d="M419 858 V839"></path>
+      <path d="M442 858 V790"></path><path d="M450 858 V819"></path><path d="M458 858 V842"></path>
+      <path d="M474 858 V804"></path><path d="M484 858 V836"></path><path d="M497 858 V775"></path><path d="M505 858 V813"></path><path d="M513 858 V842"></path>
+      <path d="M538 858 V829"></path><path d="M550 858 V796"></path><path d="M558 858 V820"></path><path d="M566 858 V846"></path>
+      <path d="M593 858 V815"></path><path d="M601 858 V835"></path>
+      <path d="M620 858 V829"></path><path d="M632 858 V844"></path>
+    </g>
+    <g stroke="#f6c65f" stroke-width="8">
+      <path d="M434 858 V750"></path><path d="M586 858 V762"></path>
+    </g>
+  </g></svg>

@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1260"
+     viewBox="0 0 1600 1260" role="img" aria-labelledby="title description">
+  <title id="title">Examples of MAR and MNAR classification by the NADIA combo method</title>
+  <desc id="description">Four examples show observed and missing values across conditions with four replicates. The examples explain how prop_na_mnar, prop_present_mar, min_present_mar and require_n_conditions determine whether missing cells enter the MNAR branch, the MAR branch, or whether the protein is removed by the preliminary combo filter.</desc>
+
+  <defs>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
+      .title { font-size: 40px; font-weight: 750; fill: #17324d; }
+      .subtitle { font-size: 21px; fill: #526473; }
+      .param { font-size: 19px; font-weight: 700; fill: #23445f; }
+      .param-value { font-size: 18px; fill: #425d70; }
+      .card-title { font-size: 26px; font-weight: 750; fill: #213b52; }
+      .condition { font-size: 19px; font-weight: 700; fill: #42586a; }
+      .rule { font-size: 17px; fill: #405363; }
+      .decision { font-size: 24px; font-weight: 800; }
+      .reason { font-size: 18px; fill: #334b5d; }
+      .small { font-size: 16px; fill: #627482; }
+      .cell-text { font-size: 15px; font-weight: 800; }
+    </style>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#203040" flood-opacity="0.12"/>
+    </filter>
+    <symbol id="observed" viewBox="0 0 48 48">
+      <rect x="1" y="1" width="46" height="46" rx="9" fill="#dceff8" stroke="#3782a7" stroke-width="2"/>
+      <circle cx="24" cy="24" r="10" fill="#3782a7"/>
+      <path d="M18 24 L22 28 L30 19" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="missing" viewBox="0 0 48 48">
+      <rect x="1" y="1" width="46" height="46" rx="9" fill="#fff0ed" stroke="#d56b62" stroke-width="2"/>
+      <text x="24" y="30" text-anchor="middle" class="sans cell-text" fill="#b24b45">NA</text>
+    </symbol>
+  </defs>
+
+  <rect width="1600" height="1260" fill="#ffffff"/>
+
+  <g class="sans">
+    <text x="800" y="58" text-anchor="middle" class="title">How <tspan font-style="italic">combo</tspan> classifies missing values</text>
+    <text x="800" y="94" text-anchor="middle" class="subtitle">Examples use four replicates per condition; classification applies to missing cells within a condition</text>
+
+    <!-- Parameter banner -->
+    <g filter="url(#shadow)">
+      <rect x="55" y="125" width="1490" height="150" rx="20" fill="#f3f7fa" stroke="#adc2d1" stroke-width="2"/>
+    </g>
+    <text x="85" y="160" class="param">Classification settings</text>
+
+    <rect x="85" y="181" width="335" height="65" rx="12" fill="#ffffff" stroke="#b8cad6"/>
+    <text x="105" y="207" class="param">prop_na_mnar = 0.51</text>
+    <text x="105" y="232" class="param-value">≥3 of 4 values must be missing</text>
+
+    <rect x="445" y="181" width="335" height="65" rx="12" fill="#ffffff" stroke="#b8cad6"/>
+    <text x="465" y="207" class="param">prop_present_mar = 0.5</text>
+    <text x="465" y="232" class="param-value">≥2 of 4 values observed elsewhere</text>
+
+    <rect x="805" y="181" width="335" height="65" rx="12" fill="#ffffff" stroke="#b8cad6"/>
+    <text x="825" y="207" class="param">min_present_mar = 1</text>
+    <text x="825" y="232" class="param-value">≥1 observed value elsewhere</text>
+
+    <rect x="1165" y="181" width="350" height="65" rx="12" fill="#ffffff" stroke="#b8cad6"/>
+    <text x="1185" y="207" class="param">require_n_conditions = 1</text>
+    <text x="1185" y="232" class="param-value">One other condition is sufficient</text>
+
+    <!-- Example 1 -->
+    <g filter="url(#shadow)">
+      <rect x="55" y="310" width="725" height="365" rx="20" fill="#f4fbf7" stroke="#7ab893" stroke-width="2"/>
+    </g>
+    <circle cx="94" cy="352" r="22" fill="#309065"/>
+    <text x="94" y="360" text-anchor="middle" font-size="20" font-weight="800" fill="#ffffff">1</text>
+    <text x="130" y="361" class="card-title">Condition-wise dropout</text>
+
+    <text x="90" y="414" class="condition">Condition A</text>
+    <use href="#observed" x="235" y="382" width="48" height="48"/>
+    <use href="#observed" x="293" y="382" width="48" height="48"/>
+    <use href="#observed" x="351" y="382" width="48" height="48"/>
+    <use href="#observed" x="409" y="382" width="48" height="48"/>
+    <text x="480" y="414" class="small">4/4 observed</text>
+
+    <text x="90" y="477" class="condition">Condition B</text>
+    <use href="#observed" x="235" y="445" width="48" height="48"/>
+    <use href="#missing" x="293" y="445" width="48" height="48"/>
+    <use href="#missing" x="351" y="445" width="48" height="48"/>
+    <use href="#missing" x="409" y="445" width="48" height="48"/>
+    <text x="480" y="477" class="small">75% missing</text>
+
+    <rect x="90" y="520" width="650" height="56" rx="10" fill="#e3f3e9"/>
+    <text x="110" y="545" class="rule"><tspan font-weight="700" fill="#26764f">PASS:</tspan> B ≥51% missing; A ≥50% observed; ≥1 value; 1 condition</text>
+    <text x="90" y="620" class="decision" fill="#26764f">MNAR branch</text>
+    <text x="285" y="620" class="reason">The three missing cells in B receive the MNAR method.</text>
+
+    <!-- Example 2 -->
+    <g filter="url(#shadow)">
+      <rect x="820" y="310" width="725" height="365" rx="20" fill="#f4f9fd" stroke="#6ba4c8" stroke-width="2"/>
+    </g>
+    <circle cx="859" cy="352" r="22" fill="#397da8"/>
+    <text x="859" y="360" text-anchor="middle" font-size="20" font-weight="800" fill="#ffffff">2</text>
+    <text x="895" y="361" class="card-title">Only half of the condition is missing</text>
+
+    <text x="855" y="414" class="condition">Condition A</text>
+    <use href="#observed" x="1000" y="382" width="48" height="48"/>
+    <use href="#observed" x="1058" y="382" width="48" height="48"/>
+    <use href="#observed" x="1116" y="382" width="48" height="48"/>
+    <use href="#observed" x="1174" y="382" width="48" height="48"/>
+    <text x="1245" y="414" class="small">4/4 observed</text>
+
+    <text x="855" y="477" class="condition">Condition B</text>
+    <use href="#observed" x="1000" y="445" width="48" height="48"/>
+    <use href="#observed" x="1058" y="445" width="48" height="48"/>
+    <use href="#missing" x="1116" y="445" width="48" height="48"/>
+    <use href="#missing" x="1174" y="445" width="48" height="48"/>
+    <text x="1245" y="477" class="small">50% missing</text>
+
+    <rect x="855" y="520" width="650" height="56" rx="10" fill="#e7f1f8"/>
+    <text x="875" y="545" class="rule"><tspan font-weight="700" fill="#2f7099">FAIL:</tspan> B is 50% missing, below the 51% MNAR threshold</text>
+    <text x="855" y="620" class="decision" fill="#2f7099">MAR branch</text>
+    <text x="1030" y="620" class="reason">The two missing cells in B receive the MAR method.</text>
+
+    <!-- Example 3 -->
+    <g filter="url(#shadow)">
+      <rect x="55" y="710" width="725" height="390" rx="20" fill="#fff9f1" stroke="#d49b52" stroke-width="2"/>
+    </g>
+    <circle cx="94" cy="752" r="22" fill="#b97827"/>
+    <text x="94" y="760" text-anchor="middle" font-size="20" font-weight="800" fill="#ffffff">3</text>
+    <text x="130" y="761" class="card-title">No supporting condition</text>
+
+    <text x="90" y="814" class="condition">Condition A</text>
+    <use href="#observed" x="235" y="782" width="48" height="48"/>
+    <use href="#missing" x="293" y="782" width="48" height="48"/>
+    <use href="#missing" x="351" y="782" width="48" height="48"/>
+    <use href="#missing" x="409" y="782" width="48" height="48"/>
+    <text x="480" y="814" class="small">1/4 observed</text>
+
+    <text x="90" y="877" class="condition">Condition B</text>
+    <use href="#missing" x="235" y="845" width="48" height="48"/>
+    <use href="#missing" x="293" y="845" width="48" height="48"/>
+    <use href="#missing" x="351" y="845" width="48" height="48"/>
+    <use href="#missing" x="409" y="845" width="48" height="48"/>
+    <text x="480" y="877" class="small">100% missing</text>
+
+    <rect x="90" y="920" width="650" height="74" rx="10" fill="#fff0dc"/>
+    <text x="110" y="947" class="rule"><tspan font-weight="700" fill="#a36319">PARTIAL:</tspan> B passes ≥51% missing; A passes ≥1 observed value</text>
+    <text x="110" y="974" class="rule">A fails the ≥50% presence rule, so 0 other conditions qualify</text>
+    <text x="90" y="1040" class="decision" fill="#a36319">Removed by the combo filter</text>
+    <text x="90" y="1070" class="reason">Neither condition contains enough observed evidence for retention.</text>
+
+    <!-- Example 4 -->
+    <g filter="url(#shadow)">
+      <rect x="820" y="710" width="725" height="390" rx="20" fill="#f7f5fc" stroke="#8a78bb" stroke-width="2"/>
+    </g>
+    <circle cx="859" cy="752" r="22" fill="#745da8"/>
+    <text x="859" y="760" text-anchor="middle" font-size="20" font-weight="800" fill="#ffffff">4</text>
+    <text x="895" y="761" class="card-title">Target A: one supporting condition is enough</text>
+
+    <text x="855" y="810" class="condition">Condition A</text>
+    <use href="#observed" x="1000" y="778" width="44" height="44"/>
+    <use href="#missing" x="1054" y="778" width="44" height="44"/>
+    <use href="#missing" x="1108" y="778" width="44" height="44"/>
+    <use href="#missing" x="1162" y="778" width="44" height="44"/>
+    <text x="1230" y="808" class="small">75% missing</text>
+
+    <text x="855" y="866" class="condition">Condition B</text>
+    <use href="#observed" x="1000" y="834" width="44" height="44"/>
+    <use href="#observed" x="1054" y="834" width="44" height="44"/>
+    <use href="#missing" x="1108" y="834" width="44" height="44"/>
+    <use href="#missing" x="1162" y="834" width="44" height="44"/>
+    <text x="1230" y="864" class="small">2/4 observed</text>
+
+    <text x="855" y="922" class="condition">Condition C</text>
+    <use href="#missing" x="1000" y="890" width="44" height="44"/>
+    <use href="#missing" x="1054" y="890" width="44" height="44"/>
+    <use href="#missing" x="1108" y="890" width="44" height="44"/>
+    <use href="#missing" x="1162" y="890" width="44" height="44"/>
+    <text x="1230" y="920" class="small">0/4 observed</text>
+
+    <rect x="855" y="952" width="650" height="64" rx="10" fill="#ece8f7"/>
+    <text x="875" y="978" class="rule"><tspan font-weight="700" fill="#654f98">PASS:</tspan> A ≥51% missing; B ≥50% and ≥1 observed value</text>
+    <text x="875" y="1003" class="rule">B is the one qualifying condition required; C need not qualify</text>
+    <text x="855" y="1058" class="decision" fill="#654f98">MNAR branch for A</text>
+    <text x="1085" y="1058" class="reason">B alone supports A; each condition is evaluated in turn.</text>
+
+    <!-- Legend and note -->
+    <rect x="55" y="1135" width="1490" height="88" rx="16" fill="#edf3f6"/>
+    <use href="#observed" x="85" y="1155" width="42" height="42"/>
+    <text x="139" y="1182" class="reason">Observed intensity</text>
+    <use href="#missing" x="330" y="1155" width="42" height="42"/>
+    <text x="384" y="1182" class="reason">Missing intensity</text>
+    <text x="650" y="1172" class="reason" font-weight="700">Important:</text>
+    <text x="740" y="1172" class="reason">the rules classify missing cells by condition; they do not prove the biological cause.</text>
+    <text x="650" y="1198" class="small">With four replicates, the 50% presence rule already implies ≥2 observed values, so min_present_mar = 1 adds no further restriction.</text>
+  </g>
+</svg>

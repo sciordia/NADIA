@@ -1,0 +1,149 @@
+# PCA Plots Colored by Covariates
+
+Generates PCA scatter plots (PC1 vs PC2) from a SummarizedExperiment
+assay, coloring points by different covariates. Useful for visually
+identifying batch effects or confounding.
+
+## Usage
+
+``` r
+pca_covariates_plot(
+  se,
+  assay_name = NULL,
+  covariates,
+  na_action = "complete",
+  fill_value = -1,
+  center = TRUE,
+  scale. = TRUE,
+  de_results = NULL,
+  comparison = "any",
+  alpha = 0.05,
+  filter_samples = FALSE,
+  condition_column = "Condition",
+  point_size = 3,
+  verbose = TRUE
+)
+```
+
+## Arguments
+
+- se:
+
+  SummarizedExperiment object.
+
+- assay_name:
+
+  Character. Assay to analyze. NULL = second assay (normalized,
+  pre-imputation).
+
+- covariates:
+
+  Character vector. Column names in colData(se) to use for coloring
+  (e.g., c("Injection", "Digestion", "Condition")).
+
+- na_action:
+
+  Character: "complete" (default) or "fill".
+
+- fill_value:
+
+  Numeric. NA replacement when na_action="fill" (default -1).
+
+- center:
+
+  Logical. Center before PCA (default TRUE).
+
+- scale.:
+
+  Logical. Scale before PCA (default TRUE).
+
+- de_results:
+
+  Data.frame with differential expression results (e.g.,
+  result\$DEPs_results). Must contain columns "Protein.IDs",
+  "adj.P.Val", and "Comparison". When provided, PCA is computed using
+  only significant proteins. Default NULL (all proteins).
+
+- comparison:
+
+  Character. Which comparison to filter by. Use "any" (default) to keep
+  proteins significant in any comparison, or specify a comparison name
+  (e.g., "Post_vs_Pre") to filter to that one only. Ignored if
+  de_results is NULL.
+
+- alpha:
+
+  Numeric. Significance threshold for adj.P.Val when filtering by
+  de_results (default 0.05). Ignored if de_results is NULL.
+
+- filter_samples:
+
+  Logical. If TRUE and a specific comparison is given (not "any"),
+  subset samples to only those belonging to the comparison conditions.
+  Mirrors pca_highchart_list(filter_samples_to_comparison). Default
+  FALSE (use all samples).
+
+- condition_column:
+
+  Character. Column name in colData(se) containing condition labels,
+  used when filter_samples=TRUE. Default "Condition".
+
+- point_size:
+
+  Numeric. Size of scatter points (default 3).
+
+- verbose:
+
+  Logical (default TRUE).
+
+## Value
+
+Named list:
+
+- grid:
+
+  ggplot2 facet_wrap with one panel per covariate
+
+- plots:
+
+  Named list of individual ggplot2 objects per covariate
+
+- pca_summary:
+
+  data.frame with PC1/PC2 variance explained
+
+- assay_name:
+
+  Assay used
+
+- n_proteins:
+
+  Number of proteins used
+
+## Details
+
+Categorical covariates use a discrete color scale; numeric covariates
+use a continuous viridis gradient.
+
+## Examples
+
+``` r
+data(nadia_dia)
+
+# nadia_dia has no batch information, so the example builds a plausible one:
+# two digestion batches crossed with the three conditions.
+cov <- data.frame(Column = nadia_dia$metadata$Coding,
+                  Batch = rep(c("b1", "b2"),
+                              length.out = nrow(nadia_dia$metadata)),
+                  stringsAsFactors = FALSE)
+res <- process_proteomics(nadia_dia, covariate_df = cov, verbose = FALSE)
+
+# How the samples lay out in PCA space against each covariate
+p <- pca_covariates_plot(res$se_proc, assay_name = "Impseqrob_min",
+                         covariates = c("Condition", "Batch"))
+#> PCA covariates: using assay 'Impseqrob_min'
+#>   Matrix has no missing values (1997 proteins).
+#>   Generated 2 individual PCA plots + 1 grid plot.
+names(p)
+#> [1] "grid"        "plots"       "pca_summary" "assay_name"  "n_proteins" 
+```

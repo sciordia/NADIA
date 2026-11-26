@@ -1,0 +1,195 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1000" viewBox="0 0 1500 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Choosing a NADIA visualisation from the analytical question</title>
+  <desc id="desc">Five horizontal workflows connect the analytical question, required input, NADIA function and returned object, and the graphical unit displayed for volcano plots, boxplots, PCA, heatmaps, and Pattern Profiler.</desc>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#78909c"/>
+    </marker>
+    <style>
+      .title { font: 600 32px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; fill: #17324d; }
+      .subtitle { font: 400 19px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; fill: #516779; }
+      .header { font: 600 21px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; fill: #ffffff; }
+      .row-title { font: 600 24px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
+      .body { font: 400 19px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; fill: #263746; }
+      .small { font: 400 19px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; fill: #51606d; }
+      .code { font: 500 19px "SFMono-Regular", Consolas, "Liberation Mono", monospace; fill: #17324d; }
+      .return { font: 500 19px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; fill: #345269; }
+      .lane { stroke: #d5dee5; stroke-width: 1.4; }
+      .divider { stroke: #d7e0e6; stroke-width: 1.2; }
+      .flow { stroke: #78909c; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .icon-axis { stroke: #607d8b; stroke-width: 1.5; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="1000" fill="#ffffff"/>
+
+  <text x="40" y="48" class="title">From analytical question to visual output</text>
+  <text x="40" y="80" class="subtitle">Each view uses a specific input and represents a different experimental unit.</text>
+
+  <rect x="30" y="110" width="1440" height="66" rx="8" fill="#24557a"/>
+  <text x="52" y="151" class="header">Question → view</text>
+  <text x="414" y="151" class="header">Required input</text>
+  <text x="714" y="151" class="header">Function → return</text>
+  <text x="1112" y="151" class="header">Visual unit</text>
+
+  <!-- Volcano plot -->
+  <rect x="30" y="188" width="1440" height="140" rx="8" fill="#fff7f7" class="lane"/>
+  <rect x="30" y="188" width="9" height="140" rx="4" fill="#c94f59"/>
+  <line x1="398" y1="198" x2="398" y2="318" class="divider"/>
+  <line x1="698" y1="198" x2="698" y2="318" class="divider"/>
+  <line x1="1094" y1="198" x2="1094" y2="318" class="divider"/>
+  <text x="54" y="224" class="row-title" fill="#a63843">Volcano plot</text>
+  <text x="54" y="255" class="body">
+    <tspan x="54" dy="0">Which proteins differ between</tspan>
+    <tspan x="54" dy="25">two conditions?</tspan>
+  </text>
+  <path d="M380 249 H410" class="flow"/>
+  <rect x="420" y="225" width="245" height="48" rx="7" fill="#ffffff" stroke="#d9aab0"/>
+  <text x="442" y="255" class="code">DEPs_results</text>
+  <path d="M670 249 H689" class="flow"/>
+  <text x="720" y="229" class="code">volcano_highchart_list()</text>
+  <text x="720" y="261" class="return">Named list: one chart per comparison</text>
+  <text x="720" y="290" class="small">Effect size and statistical evidence</text>
+  <path d="M1066 249 H1085" class="flow"/>
+  <g transform="translate(1104 211)">
+    <path d="M0 82 H104 M52 8 V82" class="icon-axis"/>
+    <circle cx="18" cy="62" r="5" fill="#4f81a8"/><circle cx="31" cy="47" r="5" fill="#4f81a8"/>
+    <circle cx="43" cy="70" r="5" fill="#9aa9b5"/><circle cx="57" cy="55" r="5" fill="#9aa9b5"/>
+    <circle cx="73" cy="38" r="5" fill="#c94f59"/><circle cx="88" cy="19" r="5" fill="#c94f59"/>
+  </g>
+  <text x="1222" y="237" class="body">
+    <tspan x="1222" dy="0">One point = one protein</tspan>
+    <tspan x="1222" dy="25">in one comparison</tspan>
+  </text>
+
+  <!-- Boxplot -->
+  <rect x="30" y="338" width="1440" height="140" rx="8" fill="#f5f9fd" class="lane"/>
+  <rect x="30" y="338" width="9" height="140" rx="4" fill="#3f78a8"/>
+  <line x1="398" y1="348" x2="398" y2="468" class="divider"/>
+  <line x1="698" y1="348" x2="698" y2="468" class="divider"/>
+  <line x1="1094" y1="348" x2="1094" y2="468" class="divider"/>
+  <text x="54" y="374" class="row-title" fill="#2d648f">Boxplot</text>
+  <text x="54" y="405" class="body">
+    <tspan x="54" dy="0">Are sample intensity</tspan>
+    <tspan x="54" dy="25">distributions comparable?</tspan>
+  </text>
+  <path d="M380 399 H410" class="flow"/>
+  <rect x="420" y="375" width="245" height="48" rx="7" fill="#ffffff" stroke="#9fc0db"/>
+  <text x="436" y="405" class="code">BoxPlot_Input</text>
+  <path d="M670 399 H689" class="flow"/>
+  <text x="720" y="379" class="code">boxplot_highchart_list()</text>
+  <text x="720" y="411" class="return">Named list: one chart per assay</text>
+  <text x="720" y="440" class="small">Sample distributions and outliers</text>
+  <path d="M1066 399 H1085" class="flow"/>
+  <g transform="translate(1104 357)">
+    <line x1="22" y1="12" x2="22" y2="91" class="icon-axis"/><line x1="9" y1="12" x2="35" y2="12" class="icon-axis"/><line x1="9" y1="91" x2="35" y2="91" class="icon-axis"/>
+    <rect x="7" y="34" width="30" height="37" fill="#7ea8c8" stroke="#3f78a8"/><line x1="7" y1="52" x2="37" y2="52" stroke="#244e70" stroke-width="2"/>
+    <line x1="72" y1="22" x2="72" y2="84" class="icon-axis"/><line x1="59" y1="22" x2="85" y2="22" class="icon-axis"/><line x1="59" y1="84" x2="85" y2="84" class="icon-axis"/>
+    <rect x="57" y="42" width="30" height="31" fill="#87bbae" stroke="#3e8b79"/><line x1="57" y1="57" x2="87" y2="57" stroke="#2d6659" stroke-width="2"/>
+    <circle cx="72" cy="10" r="4" fill="#3e8b79"/><circle cx="72" cy="96" r="4" fill="#3e8b79"/>
+  </g>
+  <text x="1222" y="383" class="body">
+    <tspan x="1222" dy="0">One box = one sample</tspan>
+    <tspan x="1222" dy="25">Points = outliers</tspan>
+  </text>
+
+  <!-- PCA -->
+  <rect x="30" y="488" width="1440" height="140" rx="8" fill="#f5fbf8" class="lane"/>
+  <rect x="30" y="488" width="9" height="140" rx="4" fill="#3b8b72"/>
+  <line x1="398" y1="498" x2="398" y2="618" class="divider"/>
+  <line x1="698" y1="498" x2="698" y2="618" class="divider"/>
+  <line x1="1094" y1="498" x2="1094" y2="618" class="divider"/>
+  <text x="54" y="524" class="row-title" fill="#2d715d">PCA</text>
+  <text x="54" y="555" class="body">
+    <tspan x="54" dy="0">What are the dominant directions</tspan>
+    <tspan x="54" dy="25">of sample variation?</tspan>
+  </text>
+  <path d="M380 549 H410" class="flow"/>
+  <rect x="420" y="525" width="245" height="48" rx="7" fill="#ffffff" stroke="#9bcbbd"/>
+  <text x="449" y="555" class="code">PCA_Input</text>
+  <path d="M670 549 H689" class="flow"/>
+  <text x="720" y="529" class="code">pca_highchart_list()</text>
+  <text x="720" y="561" class="return">Named list: one chart per subset</text>
+  <text x="720" y="590" class="small">Scores, labels, and group outlines</text>
+  <path d="M1066 549 H1085" class="flow"/>
+  <g transform="translate(1104 510)">
+    <ellipse cx="36" cy="45" rx="29" ry="20" fill="#dcecf6" stroke="#3f78a8" stroke-width="2" transform="rotate(-22 36 45)"/>
+    <ellipse cx="76" cy="65" rx="27" ry="18" fill="#dcefe8" stroke="#3b8b72" stroke-width="2" transform="rotate(19 76 65)"/>
+    <circle cx="24" cy="42" r="5" fill="#3f78a8"/><circle cx="42" cy="51" r="5" fill="#3f78a8"/><circle cx="68" cy="58" r="5" fill="#3b8b72"/><circle cx="82" cy="72" r="5" fill="#3b8b72"/>
+  </g>
+  <text x="1222" y="533" class="body">
+    <tspan x="1222" dy="0">One point = one sample</tspan>
+    <tspan x="1222" dy="25">Outline = one condition</tspan>
+  </text>
+
+  <!-- Heatmap -->
+  <rect x="30" y="638" width="1440" height="140" rx="8" fill="#faf7fc" class="lane"/>
+  <rect x="30" y="638" width="9" height="140" rx="4" fill="#8064a2"/>
+  <line x1="398" y1="648" x2="398" y2="768" class="divider"/>
+  <line x1="698" y1="648" x2="698" y2="768" class="divider"/>
+  <line x1="1094" y1="648" x2="1094" y2="768" class="divider"/>
+  <text x="54" y="674" class="row-title" fill="#664b88">Heatmap</text>
+  <text x="54" y="705" class="body">
+    <tspan x="54" dy="0">Which proteins share relative</tspan>
+    <tspan x="54" dy="25">patterns across samples?</tspan>
+  </text>
+  <path d="M380 699 H410" class="flow"/>
+  <rect x="420" y="675" width="245" height="48" rx="7" fill="#ffffff" stroke="#c6b5d7"/>
+  <text x="449" y="705" class="code">PCA_Input</text>
+  <path d="M670 699 H689" class="flow"/>
+  <text x="720" y="679" class="code">proteomics_heatmap()</text>
+  <text x="720" y="711" class="return">Heatmap object; list variant by mode</text>
+  <text x="720" y="740" class="small">Matrix with optional annotations</text>
+  <path d="M1066 699 H1085" class="flow"/>
+  <g transform="translate(1104 658)">
+    <rect x="0" y="0" width="26" height="22" fill="#4f81a8"/><rect x="28" y="0" width="26" height="22" fill="#a9c3d8"/><rect x="56" y="0" width="26" height="22" fill="#d6a0a4"/><rect x="84" y="0" width="26" height="22" fill="#b94f59"/>
+    <rect x="0" y="24" width="26" height="22" fill="#b94f59"/><rect x="28" y="24" width="26" height="22" fill="#d6a0a4"/><rect x="56" y="24" width="26" height="22" fill="#9bbbd2"/><rect x="84" y="24" width="26" height="22" fill="#3f78a8"/>
+    <rect x="0" y="48" width="26" height="22" fill="#6f92ae"/><rect x="28" y="48" width="26" height="22" fill="#adc5d7"/><rect x="56" y="48" width="26" height="22" fill="#e1b6b9"/><rect x="84" y="48" width="26" height="22" fill="#c45d65"/>
+    <rect x="0" y="72" width="26" height="22" fill="#c45d65"/><rect x="28" y="72" width="26" height="22" fill="#e1b6b9"/><rect x="56" y="72" width="26" height="22" fill="#adc5d7"/><rect x="84" y="72" width="26" height="22" fill="#6f92ae"/>
+  </g>
+  <text x="1222" y="684" class="body">
+    <tspan x="1222" dy="0">One row = one protein</tspan>
+    <tspan x="1222" dy="25">One column = one sample</tspan>
+  </text>
+
+  <!-- Pattern Profiler -->
+  <rect x="30" y="788" width="1440" height="182" rx="8" fill="#fffaf0" class="lane"/>
+  <rect x="30" y="788" width="9" height="182" rx="4" fill="#c98718"/>
+  <line x1="398" y1="798" x2="398" y2="960" class="divider"/>
+  <line x1="698" y1="798" x2="698" y2="960" class="divider"/>
+  <line x1="1094" y1="798" x2="1094" y2="960" class="divider"/>
+  <text x="54" y="824" class="row-title" fill="#9b6510">Pattern Profiler</text>
+  <text x="54" y="855" class="body">
+    <tspan x="54" dy="0">Which proteins follow similar</tspan>
+    <tspan x="54" dy="25">trajectories across ordered</tspan>
+    <tspan x="54" dy="25">conditions?</tspan>
+  </text>
+  <path d="M380 879 H410" class="flow"/>
+  <rect x="420" y="821" width="245" height="66" rx="7" fill="#ffffff" stroke="#dec083"/>
+  <text x="440" y="848" class="code">se_proc +</text>
+  <text x="440" y="875" class="code">DEPs_results</text>
+  <text x="420" y="918" class="small">Analysis output:</text>
+  <text x="420" y="944" class="code">long_output</text>
+  <path d="M670 879 H689" class="flow"/>
+  <text x="720" y="824" class="code">pattern_profiler_analysis()</text>
+  <text x="720" y="856" class="return">Long-format memberships and z-scores</text>
+  <text x="720" y="892" class="code">cluster_centroids_highchart()</text>
+  <text x="720" y="921" class="code">cluster_profile_highchart_list()</text>
+  <text x="720" y="950" class="return">Highchart / named list by cluster</text>
+  <path d="M1066 879 H1085" class="flow"/>
+  <g transform="translate(1104 823)">
+    <path d="M2 74 L39 49 L76 82 L108 24" fill="none" stroke="#d9a74e" stroke-width="2" opacity="0.55"/>
+    <path d="M2 65 L39 52 L76 77 L108 31" fill="none" stroke="#d9a74e" stroke-width="2" opacity="0.55"/>
+    <path d="M2 82 L39 58 L76 70 L108 18" fill="none" stroke="#d9a74e" stroke-width="2" opacity="0.55"/>
+    <path d="M2 74 L39 53 L76 76 L108 25" fill="none" stroke="#9b6510" stroke-width="5"/>
+    <circle cx="2" cy="74" r="4" fill="#9b6510"/><circle cx="39" cy="53" r="4" fill="#9b6510"/><circle cx="76" cy="76" r="4" fill="#9b6510"/><circle cx="108" cy="25" r="4" fill="#9b6510"/>
+  </g>
+  <text x="1222" y="837" class="body">
+    <tspan x="1222" dy="0">Thin line = protein profile</tspan>
+    <tspan x="1222" dy="25">Thick line = cluster centroid</tspan>
+    <tspan x="1222" dy="31" class="small">Membership filters</tspan>
+    <tspan x="1222" dy="23" class="small">how strongly a protein</tspan>
+    <tspan x="1222" dy="23" class="small">matches the pattern</tspan>
+  </text>
+</svg>

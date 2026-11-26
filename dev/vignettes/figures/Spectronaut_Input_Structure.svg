@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg viewBox="0 0 1200 520" role="img" aria-labelledby="title desc" xmlns="http://www.w3.org/2000/svg">
+  <title id="title">Structure of a Spectronaut input report</title>
+  <desc id="desc">A long-format table in which every row represents one protein group in one LC-MS run. R.Condition and R.Replicate contain the experimental design, while PG.ProteinGroups and PG.Quantity identify and quantify the protein.</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#17324d" flood-opacity="0.13"/>
+    </filter>
+    <style>
+      .h1{font:700 25px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#17324d}.sub{font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#526779}.head{font:600 11px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#17324d}.cell{font:14px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#334e60}.noteh{font:700 18px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#17324d}.note{font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#334e60}.small{font:13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#526779}.grid{stroke:#b9c7d2;stroke-width:1}.box{filter:url(#shadow);stroke-width:1.5}
+    </style>
+  </defs>
+  <rect width="1200" height="520" rx="18" fill="#f8fafc"/>
+  <text class="h1" x="32" y="43" style="white-space: pre;">Spectronaut report — long format</text>
+  <text class="sub" x="32" y="70" style="white-space: pre;">One row represents one protein group measured in one LC–MS run</text>
+  <rect class="box" x="30" y="102" width="835" height="344" rx="10" fill="#fff" stroke="#91a7b8"/>
+  <rect x="30" y="102" width="835" height="54" rx="10" fill="#e8f1f8"/>
+  <rect x="30" y="146" width="835" height="10" fill="#e8f1f8"/>
+  <rect x="30" y="156" width="835" height="58" fill="#fbfdff"/>
+  <rect x="30" y="272" width="835" height="58" fill="#fbfdff"/>
+  <rect x="32" y="104" width="376.583" height="50" fill="#dbeafe" opacity="0.85" style=""/>
+  <rect x="399.011" y="103.997" width="290.008" height="49.998" fill="#dcfce7" opacity="0.85" rx="8.944" ry="8.944" style="" transform="matrix(0.999972, -0.007483, 0, 1.000028, 12.44488, 2.900864)"/>
+  <rect x="689" y="104" width="174" height="50" fill="#fef3c7" opacity="0.9"/>
+  <path class="grid" d="M 230 102 L 230 446 M 330 102 L 330 446 M 409 102 L 409 446 M 535 102 L 535 446 M 689 102 L 689 446 M 785 102 L 785 446 M 30 156 L 865 156 M 30 214 L 865 214 M 30 272 L 865 272 M 30 330 L 865 330 M 30 388 L 865 388"/>
+  <text class="head" x="93" y="135" style="white-space: pre; font-size: 11px;">R.FileName</text>
+  <text class="head" x="238" y="126" style="white-space: pre;">R.Condition</text>
+  <text class="head" x="263" y="143" style="white-space: pre;">design</text>
+  <text class="head" x="333" y="126" style="white-space: pre; font-size: 11px;">R.Replicate</text>
+  <text class="head" x="350" y="143" style="white-space: pre; font-size: 11px;">design</text>
+  <text class="head" x="419" y="135" style="white-space: pre; font-size: 11px;">PG.ProteinGroups</text>
+  <text class="head" x="571" y="135" style="white-space: pre; font-size: 11px;">PG.Quantity</text>
+  <text class="head" x="704" y="126" style="white-space: pre;">PG.Coverage</text>
+  <text class="head" x="755" y="143" style="white-space: pre; font-size: 11px;">ID metric</text>
+  <text class="head" x="821" y="135" style="white-space: pre; font-size: 11px;">…</text>
+  <g class="cell">
+    <text x="87" y="191" style="white-space: pre; font-size: 14px;">sample_A1</text>
+    <text x="267" y="191" style="white-space: pre;">A</text>
+    <text x="363" y="191" style="white-space: pre;">1</text>
+    <text x="451" y="191" style="white-space: pre; font-size: 14px;">P001</text>
+    <text x="585" y="191" style="white-space: pre; font-size: 14px;">8.2e6</text>
+    <text x="723" y="191" style="white-space: pre;">45%</text>
+    <text x="820" y="191" style="white-space: pre; font-size: 14px;">…</text>
+    <text x="87" y="249" style="white-space: pre; font-size: 14px;">sample_A1</text>
+    <text x="267" y="249" style="white-space: pre;">A</text>
+    <text x="363" y="249" style="white-space: pre;">1</text>
+    <text x="451" y="249" style="white-space: pre; font-size: 14px;">P002</text>
+    <text x="585" y="249" style="white-space: pre; font-size: 14px;">3.4e6</text>
+    <text x="723" y="249" style="white-space: pre;">52%</text>
+    <text x="820" y="249" style="white-space: pre; font-size: 14px;">…</text>
+    <text x="87" y="307" style="white-space: pre; font-size: 14px;">sample_A2</text>
+    <text x="267" y="307" style="white-space: pre;">A</text>
+    <text x="363" y="307" style="white-space: pre;">2</text>
+    <text x="451" y="307" style="white-space: pre; font-size: 14px;">P001</text>
+    <text x="585" y="307" style="white-space: pre; font-size: 14px;">7.9e6</text>
+    <text x="723" y="307" style="white-space: pre;">43%</text>
+    <text x="820" y="307" style="white-space: pre; font-size: 14px;">…</text>
+    <text x="87" y="365" style="white-space: pre; font-size: 14px;">sample_B1</text>
+    <text x="267" y="365" style="white-space: pre;">B</text>
+    <text x="363" y="365" style="white-space: pre;">1</text>
+    <text x="451" y="365" style="white-space: pre; font-size: 14px;">P001</text>
+    <text x="585" y="365" style="white-space: pre; font-size: 14px;">12.1e6</text>
+    <text x="723" y="365" style="white-space: pre;">47%</text>
+    <text x="820" y="365" style="white-space: pre; font-size: 14px;">…</text>
+    <text x="87" y="423" style="white-space: pre; font-size: 14px;">sample_B1</text>
+    <text x="267" y="423" style="white-space: pre;">B</text>
+    <text x="363" y="423" style="white-space: pre;">1</text>
+    <text x="451" y="423" style="white-space: pre; font-size: 14px;">P002</text>
+    <text x="585" y="423" style="white-space: pre; font-size: 14px;">5.8e6</text>
+    <text x="723" y="423" style="white-space: pre;">55%</text>
+    <text x="820" y="423" style="white-space: pre; font-size: 14px;">…</text>
+  </g>
+  <rect class="box" x="900" y="102" width="270" height="344" rx="12" fill="#f3f8fc" stroke="#6793ad"/>
+  <text class="noteh" x="925" y="139" style="white-space: pre;">How NADIA reads it</text>
+  <circle cx="927" cy="181" r="5" fill="#2563eb"/>
+  <text class="note" x="943" y="186" style="white-space: pre;">Design is already in</text>
+  <text class="head" x="943" y="208" style="white-space: pre;">R.Condition</text>
+  <text class="note" x="1050" y="208" style="white-space: pre;">and</text>
+  <text class="head" x="943" y="230" style="white-space: pre;">R.Replicate</text>
+  <circle cx="927" cy="273" r="5" fill="#16a34a"/>
+  <text class="note" x="943" y="278" style="white-space: pre;">Protein and quantity are</text>
+  <text class="note" x="943" y="300" style="white-space: pre;">repeated for every run</text>
+  <circle cx="927" cy="343" r="5" fill="#d97706"/>
+  <text class="note" x="943" y="348" style="white-space: pre;">Run-level annotations can</text>
+  <text class="note" x="943" y="370" style="white-space: pre;">also vary between rows</text>
+  <text class="small" x="925" y="416" style="white-space: pre;">preprocess_spectronaut()</text>
+</svg>

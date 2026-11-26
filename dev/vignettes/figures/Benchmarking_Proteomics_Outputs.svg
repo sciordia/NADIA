@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900"
+     viewBox="0 0 1500 900" role="img" aria-labelledby="title description">
+  <title id="title">Outputs produced by benchmarking_proteomics</title>
+  <desc id="description">A workflow diagram showing differential-expression results, expected changes, species annotation, and analysis settings entering benchmarking_proteomics. The function produces confusion counts, classification metrics, threshold-independent metrics, fold-change recovery statistics, classified protein data, and diagnostic plots.</desc>
+
+  <defs>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
+      .title { font-size: 38px; font-weight: 750; fill: #1d3557; }
+      .subtitle { font-size: 20px; fill: #536271; }
+      .section { font-size: 20px; font-weight: 750; letter-spacing: 1.2px; fill: #536271; }
+      .card-title { font-size: 23px; font-weight: 750; fill: #1d3557; }
+      .card-body { font-size: 18px; fill: #394b59; }
+      .function-title { font-size: 28px; font-weight: 750; fill: #ffffff; }
+      .function-body { font-size: 19px; fill: #eaf5f4; }
+      .metric { font-size: 18px; font-weight: 650; fill: #26384a; }
+      .small { font-size: 16px; fill: #607180; }
+    </style>
+    <filter id="shadow" x="-12%" y="-18%" width="124%" height="145%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#203040" flood-opacity="0.13"/>
+    </filter>
+    <marker id="arrow-blue" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto">
+      <path d="M0,0 L11,5.5 L0,11 Z" fill="#4f7899"/>
+    </marker>
+    <marker id="arrow-teal" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto">
+      <path d="M0,0 L11,5.5 L0,11 Z" fill="#16857b"/>
+    </marker>
+  </defs>
+
+  <rect width="1500" height="900" fill="#ffffff"/>
+
+  <g class="sans">
+    <text x="750" y="56" text-anchor="middle" class="title">What does benchmarking_proteomics() return?</text>
+    <text x="750" y="91" text-anchor="middle" class="subtitle">Known experimental truth is converted into complementary measures of pipeline performance</text>
+
+    <text x="225" y="140" text-anchor="middle" class="section">INPUTS</text>
+    <text x="710" y="140" text-anchor="middle" class="section">BENCHMARK</text>
+    <text x="1238" y="140" text-anchor="middle" class="section">RESULTS</text>
+
+    <!-- Inputs -->
+    <g filter="url(#shadow)">
+      <rect x="55" y="170" width="340" height="120" rx="15" fill="#eef5fb" stroke="#7fa5c2" stroke-width="2"/>
+      <rect x="55" y="315" width="340" height="120" rx="15" fill="#eff8f4" stroke="#75aa94" stroke-width="2"/>
+      <rect x="55" y="460" width="340" height="120" rx="15" fill="#fff6e8" stroke="#d4a457" stroke-width="2"/>
+      <rect x="55" y="605" width="340" height="120" rx="15" fill="#f6f1fb" stroke="#a58bc2" stroke-width="2"/>
+    </g>
+
+    <text x="80" y="207" class="card-title">DE results</text>
+    <text x="80" y="240" class="card-body">Protein IDs, log2 fold changes,</text>
+    <text x="80" y="266" class="card-body">p-values and comparisons</text>
+
+    <text x="80" y="352" class="card-title">Expected changes</text>
+    <text x="80" y="385" class="card-body">Comparison × species truth</text>
+    <text x="80" y="411" class="card-body">and expected log2 fold changes</text>
+
+    <text x="80" y="497" class="card-title">Species annotation</text>
+    <text x="80" y="530" class="card-body">One species assignment for</text>
+    <text x="80" y="556" class="card-body">each protein group</text>
+
+    <text x="80" y="642" class="card-title">Settings</text>
+    <text x="80" y="675" class="card-body">Significance and fold-change</text>
+    <text x="80" y="701" class="card-body">thresholds, filters and colours</text>
+
+    <!-- Input connectors -->
+    <path d="M395 230 C455 230, 450 330, 505 365" fill="none" stroke="#4f7899" stroke-width="4" marker-end="url(#arrow-blue)"/>
+    <path d="M395 375 C450 375, 460 400, 505 412" fill="none" stroke="#4f7899" stroke-width="4" marker-end="url(#arrow-blue)"/>
+    <path d="M395 520 C450 520, 460 475, 505 458" fill="none" stroke="#4f7899" stroke-width="4" marker-end="url(#arrow-blue)"/>
+    <path d="M395 665 C455 665, 450 555, 505 505" fill="none" stroke="#4f7899" stroke-width="4" marker-end="url(#arrow-blue)"/>
+
+    <!-- Function -->
+    <g filter="url(#shadow)">
+      <rect x="505" y="250" width="410" height="420" rx="24" fill="#176f75" stroke="#0f565b" stroke-width="3"/>
+    </g>
+    <text x="710" y="305" text-anchor="middle" class="function-title">benchmarking_proteomics()</text>
+    <line x1="550" y1="330" x2="870" y2="330" stroke="#8fc9c4" stroke-width="2"/>
+
+    <circle cx="565" cy="382" r="18" fill="#dff2f0"/>
+    <text x="565" y="389" text-anchor="middle" class="metric">1</text>
+    <text x="600" y="388" class="function-body">Match proteins to biological truth</text>
+
+    <circle cx="565" cy="450" r="18" fill="#dff2f0"/>
+    <text x="565" y="457" text-anchor="middle" class="metric">2</text>
+    <text x="600" y="444" class="function-body">Apply significance, effect-size</text>
+    <text x="600" y="470" class="function-body">and direction rules</text>
+
+    <circle cx="565" cy="532" r="18" fill="#dff2f0"/>
+    <text x="565" y="539" text-anchor="middle" class="metric">3</text>
+    <text x="600" y="526" class="function-body">Classify every protein as</text>
+    <text x="600" y="552" class="function-body">TP, FP, TN or FN</text>
+
+    <circle cx="565" cy="606" r="18" fill="#dff2f0"/>
+    <text x="565" y="613" text-anchor="middle" class="metric">4</text>
+    <text x="600" y="600" class="function-body">Summarise metrics and create</text>
+    <text x="600" y="626" class="function-body">diagnostic tables and plots</text>
+
+    <!-- Output spine -->
+    <path d="M915 460 L980 460" fill="none" stroke="#16857b" stroke-width="5" marker-end="url(#arrow-teal)"/>
+    <line x1="995" y1="205" x2="995" y2="760" stroke="#16857b" stroke-width="4"/>
+    <line x1="995" y1="205" x2="1030" y2="205" stroke="#16857b" stroke-width="4"/>
+    <line x1="995" y1="325" x2="1030" y2="325" stroke="#16857b" stroke-width="4"/>
+    <line x1="995" y1="445" x2="1030" y2="445" stroke="#16857b" stroke-width="4"/>
+    <line x1="995" y1="565" x2="1030" y2="565" stroke="#16857b" stroke-width="4"/>
+    <line x1="995" y1="700" x2="1030" y2="700" stroke="#16857b" stroke-width="4"/>
+
+    <!-- Outputs -->
+    <g filter="url(#shadow)">
+      <rect x="1030" y="155" width="410" height="100" rx="14" fill="#eef5fb" stroke="#7fa5c2" stroke-width="2"/>
+      <rect x="1030" y="275" width="410" height="100" rx="14" fill="#eff8f4" stroke="#75aa94" stroke-width="2"/>
+      <rect x="1030" y="395" width="410" height="100" rx="14" fill="#fff6e8" stroke="#d4a457" stroke-width="2"/>
+      <rect x="1030" y="515" width="410" height="100" rx="14" fill="#f6f1fb" stroke="#a58bc2" stroke-width="2"/>
+      <rect x="1030" y="635" width="410" height="130" rx="14" fill="#fff1f3" stroke="#c67c89" stroke-width="2"/>
+    </g>
+
+    <text x="1055" y="191" class="card-title">Confusion counts</text>
+    <text x="1055" y="225" class="metric">TP · FP · TN · FN</text>
+
+    <text x="1055" y="311" class="card-title">Operating-point metrics</text>
+    <text x="1055" y="340" class="metric">Sensitivity · Specificity · Precision</text>
+    <text x="1055" y="363" class="metric">F1 · MCC</text>
+
+    <text x="1055" y="431" class="card-title">Threshold-independent metrics</text>
+    <text x="1055" y="465" class="metric">ROC · AUC · partial AUC</text>
+
+    <text x="1055" y="551" class="card-title">Fold-change recovery</text>
+    <text x="1055" y="580" class="metric">Observed vs expected logFC</text>
+    <text x="1055" y="603" class="metric">MED · MAD · RCV</text>
+
+    <text x="1055" y="671" class="card-title">Diagnostic results</text>
+    <text x="1055" y="705" class="card-body">Classified protein table, nMCC and G-mean</text>
+    <text x="1055" y="732" class="card-body">Heatmaps, bars, ROC curves and volcanoes</text>
+
+    <text x="750" y="850" text-anchor="middle" class="small">The returned list keeps the numerical results and their corresponding visualisations together.</text>
+  </g>
+</svg>
