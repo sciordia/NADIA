@@ -51,7 +51,7 @@ po/*~
 rsconnect/
 .DS_Store
 
-# Claude files (CLAUDE.md sí se versiona: documenta la arquitectura del proyecto)
+# Claude files (CLAUDE.md es solo local: ver «Internal working notes» más abajo)
 .claude/
 
 # Copias de conflicto de iCloud Drive
