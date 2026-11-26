@@ -3,6 +3,10 @@
 # NADIA
 
 <!-- badges: start -->
+[![Bioconductor](https://bioconductor.org/shields/availability/release/NADIA.svg)](https://bioconductor.org/packages/NADIA)
+[![Years in Bioconductor](https://bioconductor.org/shields/years-in-bioc/NADIA.svg)](https://bioconductor.org/packages/NADIA)
+[![Bioconductor release build](https://bioconductor.org/shields/build/release/bioc/NADIA.svg)](https://bioconductor.org/checkResults/release/bioc-LATEST/NADIA/)
+[![Bioconductor devel build](https://bioconductor.org/shields/build/devel/bioc/NADIA.svg)](https://bioconductor.org/checkResults/devel/bioc-LATEST/NADIA/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22504221.svg)](https://doi.org/10.5281/zenodo.22504221)
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![pkgdown](https://github.com/sciordia/NADIA/actions/workflows/pkgdown.yaml/badge.svg)](https://github.com/sciordia/NADIA/actions/workflows/pkgdown.yaml)
